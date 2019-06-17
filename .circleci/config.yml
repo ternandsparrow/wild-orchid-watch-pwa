@@ -36,7 +36,7 @@ jobs:
           at: .
       - run:
           name: 'Run prettier check on project files'
-          commnd: echo "FIXME get working"
+          command: echo "FIXME get working"
           # command: yarn prettier:check
 
   check-linter:
@@ -68,7 +68,7 @@ jobs:
             - v2-deps
       - run:
           name: 'Run e2e tests'
-          commnd: echo "FIXME get working"
+          command: echo "FIXME get working"
           # command: yarn test:e2e:headless
 
   build:
