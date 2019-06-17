@@ -1,0 +1,124 @@
+version: 2.1
+
+executors:
+  default-executor:
+    docker:
+      - image: cypress/base:10
+
+jobs:
+  install-dependencies:
+    executor: default-executor
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v2-deps-{{ checksum "yarn.lock" }}
+            - v2-deps
+
+      - run:
+          name: 'Install dependencies'
+          command: yarn install --frozen-lockfile
+
+      - save_cache:
+          paths:
+            - ~/.cache/yarn
+          key: v2-deps-{{ checksum "yarn.lock" }}
+
+      - persist_to_workspace:
+          root: .
+          paths: .
+
+  check-prettier:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Run prettier check on project files'
+          commnd: echo "FIXME get working"
+          # command: yarn prettier:check
+
+  check-linter:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Run linter'
+          command: yarn lint
+
+  run-unit-tests:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Run unit tests'
+          command: yarn test:unit
+
+  run-e2e-tests:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - v2-deps-{{ checksum "yarn.lock" }}
+            - v2-deps
+      - run:
+          name: 'Run e2e tests'
+          commnd: echo "FIXME get working"
+          # command: yarn test:e2e:headless
+
+  build:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Build'
+          command: yarn build
+      - persist_to_workspace:
+          root: .
+          paths: .
+
+  deploy:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Firebase deploy'
+          command: |
+            : ${FIREBASE_TOKEN:?}
+            if [[ "$CIRCLE_BRANCH" == "master" ]]; then
+              yarn firebase:deploy:ci
+            fi
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - install-dependencies
+      - check-prettier:
+          requires:
+            - install-dependencies
+      - check-linter:
+          requires:
+            - install-dependencies
+      - run-unit-tests:
+          requires:
+            - install-dependencies
+      - run-e2e-tests:
+          requires:
+            - install-dependencies
+      - build:
+          requires:
+            - check-prettier
+            - check-linter
+            - run-unit-tests
+            - run-e2e-tests
+      - deploy:
+          requires:
+            - build
