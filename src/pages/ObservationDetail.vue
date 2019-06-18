@@ -6,6 +6,7 @@
     ></custom-toolbar>
 
     <v-ons-card>
+      <!-- FIXME add all photos as carousel -->
       <img :src="firstPhoto" alt="FIXME add alt" style="width: 100%" />
       <div class="title">{{ nullSafeObs.title }}</div>
       <div class="content">
@@ -29,7 +30,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import {mapGetters} from 'vuex'
 
 export default {
   data() {
@@ -54,10 +55,10 @@ export default {
         !this.nullSafeObs.obsPhotos ||
         !this.nullSafeObs.obsPhotos.length
       ) {
-        // FIXME return placeholder if we can't find one
-        return ''
+        return '../assets/no-image-placeholder.png'
       }
-      return this.nullSafeObs.obsPhotos[0].photo.url // FIXME get better quality photo
+      const squareUrl = this.nullSafeObs.obsPhotos[0].photo.url
+      return squareUrl.replace('square', 'medium')
     },
   },
 }
