@@ -3,19 +3,17 @@ import 'onsenui/css/onsen-css-components.css' // Default Onsen UI CSS components
 import './vue-onsenui-wow.css' // CSS specific to this app
 
 import Vue from 'vue'
-
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
+import 'pwacompat'
 
-import AppNavigator from './AppNavigator.vue'
-import CustomToolbar from './partials/CustomToolbar.vue'
-
-import store from '@/store'
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
 import '@/firebase/init'
 import '@/firebase/authentication'
 import '@/misc/handle-apple-install-prompt'
-import 'pwacompat'
+import AppNavigator from '@/AppNavigator'
+import CustomToolbar from '@/partials/CustomToolbar'
+import store from '@/store'
 
 Vue.use(VueOnsen)
 Vue.component('custom-toolbar', CustomToolbar) // Common toolbar
@@ -33,6 +31,6 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
   },
-  render: h => h(AppNavigator),
+  render: (h) => h(AppNavigator),
   store,
 })

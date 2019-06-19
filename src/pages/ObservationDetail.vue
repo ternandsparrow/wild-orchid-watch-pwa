@@ -22,6 +22,7 @@
 
 <script>
 import {mapGetters} from 'vuex'
+import {noImagePlaceholderUrl} from '@/misc/constants'
 
 export default {
   data() {
@@ -39,7 +40,7 @@ export default {
         !this.nullSafeObs.obsPhotos ||
         !this.nullSafeObs.obsPhotos.length
       ) {
-        return '../assets/no-image-placeholder.png'
+        return noImagePlaceholderUrl
       }
       const squareUrl = this.nullSafeObs.obsPhotos[0].photo.url
       return squareUrl.replace('square', 'medium')

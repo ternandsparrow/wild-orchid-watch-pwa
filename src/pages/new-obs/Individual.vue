@@ -77,27 +77,52 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole', name: 'Whole plant' },
-        { id: 'top', name: 'Top' },
-        { id: 'leaf', name: 'Leaf' },
-        { id: 'mhab', name: 'Micro-habitat' },
-        { id: 'pol', name: 'Visiting pollinators' },
-        { id: 'hab', name: 'Habitat' },
+        {id: 'whole', name: 'Whole plant'},
+        {id: 'top', name: 'Top'},
+        {id: 'leaf', name: 'Leaf'},
+        {id: 'mhab', name: 'Micro-habitat'},
+        {id: 'pol', name: 'Visiting pollinators'},
+        {id: 'hab', name: 'Habitat'},
       ],
-      photos: {}, // FIXME could be in vuex?
+      photos: {},
       selectedOrchidType: 'epi',
       orchidTypes: [
-        { id: 'epi', label: 'Epiphyte' },
-        { id: 'ter', label: 'Terrestrial' },
-        { id: 'lit', label: 'Lithophyte' },
+        {id: 'epi', label: 'Epiphyte'},
+        {id: 'ter', label: 'Terrestrial'},
+        {id: 'lit', label: 'Lithophyte'},
       ],
     }
   },
   methods: {
-    onSave() {
-      // FIXME implement a real save
-      this.$ons.notification.alert('Saved')
-      this.$store.commit('navigator/pop')
+    async onSave() {
+      try {
+        const record = {
+          photos: this.photoMenu
+            .map((e) => {
+              const currPhoto = this.photos[e.id]
+              if (!currPhoto) {
+                return null // FIXME ok?
+              }
+              return currPhoto.file
+            })
+            .filter((e) => !!e),
+          orchidType: this.selectedOrchidType,
+        }
+        this.$store.dispatch('obs/saveAndUploadIndividual', record)
+        setTimeout(() => {
+          // FIXME should this say something about uploading (or not if
+          // offline)? We don't want to confuse "saved" with "uploaded to inat"
+          this.$ons.notification.toast('Successfully saved', {
+            timeout: 5000,
+            animation: 'ascend',
+          })
+        }, 800)
+        this.$store.commit('navigator/pop')
+      } catch (err) {
+        // FIXME show failure to user, any info on how to fix it
+        this.$ons.notification.alert('Something went wrong :(')
+        throw err
+      }
     },
     onPhotoAdded(photoDefObj) {
       const type = photoDefObj.id

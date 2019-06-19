@@ -8,16 +8,7 @@
         @click="push(curr.id)"
       >
         <div class="left">
-          <img
-            v-if="isPhoto(curr)"
-            class="list-item__thumbnail"
-            :src="firstPhoto(curr)"
-          />
-          <img
-            v-if="!isPhoto(curr)"
-            class="list-item__thumbnail"
-            src="@/assets/no-image-placeholder.png"
-          />
+          <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
         </div>
         <div class="center">
           <span class="list-item__subtitle">
@@ -32,7 +23,8 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import {mapState} from 'vuex'
+import {noImagePlaceholderUrl} from '@/misc/constants'
 
 export default {
   computed: {
@@ -55,7 +47,7 @@ export default {
     },
     firstPhoto(record) {
       if (!this.isPhoto(record)) {
-        return '../../assets/no-image-placeholder.png'
+        return noImagePlaceholderUrl
       }
       return record.photoUrl
     },
