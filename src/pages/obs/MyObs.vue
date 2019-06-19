@@ -5,12 +5,13 @@
       <v-ons-list-item
         v-for="curr in myObs"
         :key="curr.id"
+        class="wow-list-item"
         @click="push(curr.id)"
       >
         <div class="left">
           <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
         </div>
-        <div class="center">
+        <div class="center wow-list-item">
           <span class="list-item__title">{{ curr.speciesGuess }}</span
           ><span class="list-item__subtitle">{{ curr.placeGuess }}</span>
         </div>
@@ -82,3 +83,10 @@ export default {
   },
 }
 </script>
+
+<style lang="scss" scoped>
+@import '@/theme/variables.scss';
+.wow-list-item {
+  background-color: $wowLightLightBlue;
+}
+</style>
