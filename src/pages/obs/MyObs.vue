@@ -52,12 +52,12 @@
 </template>
 
 <script>
-import {mapState} from 'vuex'
+import { mapState } from 'vuex'
 import ObsDetailComponent from '@/pages/ObservationDetail'
 import Individual from '@/pages/new-obs/Individual'
 import Population from '@/pages/new-obs/Population'
 import Mapping from '@/pages/new-obs/Mapping'
-import {noImagePlaceholderUrl} from '@/misc/constants'
+import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   data() {

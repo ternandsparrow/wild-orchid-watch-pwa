@@ -1,4 +1,4 @@
-workbox.core.setCacheNameDetails({prefix: 'wildorchidwatch'})
+workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
 
 /**
  * The workboxSW.precacheAndRoute() method efficiently caches and responds to
@@ -35,6 +35,6 @@ workbox.routing.registerRoute(
   // FIXME consider setting an expiry or max elements in cache
 )
 
-addEventListener('message', (messageEvent) => {
+addEventListener('message', messageEvent => {
   if (messageEvent.data === 'skipWaiting') return self.skipWaiting()
 })

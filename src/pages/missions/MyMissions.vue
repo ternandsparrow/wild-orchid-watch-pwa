@@ -23,8 +23,8 @@
 </template>
 
 <script>
-import {mapState} from 'vuex'
-import {noImagePlaceholderUrl} from '@/misc/constants'
+import { mapState } from 'vuex'
+import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   computed: {

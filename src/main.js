@@ -31,6 +31,6 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
   },
-  render: (h) => h(AppNavigator),
+  render: h => h(AppNavigator),
   store,
 })

@@ -1,9 +1,9 @@
-import {apiUrlBase} from '@/misc/constants'
+import { apiUrlBase } from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
 
 // IndexedDB doesn't allow indexing on booleans :(
 const NO = 0
-const YES = 1
+// const YES = 1
 
 const state = {
   selectedObservationId: null,
@@ -24,7 +24,7 @@ const mutations = {
 }
 
 const actions = {
-  async getMyObs({state, commit}) {
+  async getMyObs({ state, commit }) {
     if (state.myObs.length) {
       // FIXME make the service worker do the caching
       return
@@ -49,7 +49,7 @@ const actions = {
             return null
           }
           // TODO do we need any other photo details?
-          const photos = (d.photos || []).map((e) => e.url)
+          const photos = (d.photos || []).map(e => e.url)
           return {
             id: d.id,
             photos,
@@ -60,10 +60,10 @@ const actions = {
       )
     }
     // FIXME shouldn't have to filter, do it a better way
-    const records = (await Promise.all(promises)).filter((e) => !!e)
+    const records = (await Promise.all(promises)).filter(e => !!e)
     commit('setMyObs', records)
   },
-  async getMySpecies({state, commit}) {
+  async getMySpecies({ state, commit }) {
     if (state.mySpecies.length) {
       // FIXME make the service worker do the caching
       return
@@ -99,10 +99,10 @@ const actions = {
       )
     }
     // FIXME shouldn't have to filter, do it a better way
-    const records = (await Promise.all(promises)).filter((e) => !!e)
+    const records = (await Promise.all(promises)).filter(e => !!e)
     commit('setMySpecies', records)
   },
-  async saveAndUploadIndividual({dispatch}, record) {
+  async saveAndUploadIndividual({ dispatch }, record) {
     const enhancedRecord = Object.assign(record, {
       createdAt: new Date(),
       isUploaded: NO,
@@ -112,7 +112,7 @@ const actions = {
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
   },
-  async refreshWaitingToUpload({commit}) {
+  async refreshWaitingToUpload({ commit }) {
     const individualIds = await db.obsIndividual
       .where('isUploaded')
       .equals(NO)
@@ -122,7 +122,7 @@ const actions = {
     const records = await resolveWaitingToUploadIdsToRecords(ids)
     commit('setWaitingToUploadRecords', records)
   },
-  async scheduleUpload({commit}) {
+  async scheduleUpload() {
     // FIXME check if online
     //  if offline, work out how to retry in future
     // FIXME set isUploaded = YES for each uploaded record. BE SURE they're uploaded
@@ -131,7 +131,7 @@ const actions = {
 
 const getters = {
   observationDetail(state) {
-    const found = state.myObs.find((e) => e.id === state.selectedObservationId)
+    const found = state.myObs.find(e => e.id === state.selectedObservationId)
     return found
   },
 }
@@ -140,13 +140,13 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
   const indRecords = await db.obsIndividual
     .where('id')
     .anyOf(ids)
-    .toArray((records) => {
-      return records.map((e) => {
+    .toArray(records => {
+      return records.map(e => {
         return {
           id: e.id,
           // FIXME apparently we should call revokeObjectURL when we're done.
           // Maybe in the destroy() lifecycle hook of vue?
-          photos: e.photos.map((v) => URL.createObjectURL(v)),
+          photos: e.photos.map(v => URL.createObjectURL(v)),
           placeGuess: 'FIXME', // FIXME just use coords?
           speciesGuess: 'FIXME', // FIXME use user's answer
         }
@@ -180,7 +180,7 @@ function fetchSingleRecord(url) {
       }
       return body.results[0]
     })
-    .catch((err) => {
+    .catch(err => {
       console.error('Failed to make fetch() call', err)
       return false
     })

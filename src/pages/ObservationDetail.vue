@@ -21,8 +21,8 @@
 </template>
 
 <script>
-import {mapGetters} from 'vuex'
-import {noImagePlaceholderUrl} from '@/misc/constants'
+import { mapGetters } from 'vuex'
+import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   data() {

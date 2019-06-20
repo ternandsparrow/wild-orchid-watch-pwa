@@ -77,19 +77,19 @@ export default {
   data() {
     return {
       photoMenu: [
-        {id: 'whole', name: 'Whole plant'},
-        {id: 'top', name: 'Top'},
-        {id: 'leaf', name: 'Leaf'},
-        {id: 'mhab', name: 'Micro-habitat'},
-        {id: 'pol', name: 'Visiting pollinators'},
-        {id: 'hab', name: 'Habitat'},
+        { id: 'whole', name: 'Whole plant' },
+        { id: 'top', name: 'Top' },
+        { id: 'leaf', name: 'Leaf' },
+        { id: 'mhab', name: 'Micro-habitat' },
+        { id: 'pol', name: 'Visiting pollinators' },
+        { id: 'hab', name: 'Habitat' },
       ],
       photos: {},
       selectedOrchidType: 'epi',
       orchidTypes: [
-        {id: 'epi', label: 'Epiphyte'},
-        {id: 'ter', label: 'Terrestrial'},
-        {id: 'lit', label: 'Lithophyte'},
+        { id: 'epi', label: 'Epiphyte' },
+        { id: 'ter', label: 'Terrestrial' },
+        { id: 'lit', label: 'Lithophyte' },
       ],
     }
   },
@@ -98,14 +98,14 @@ export default {
       try {
         const record = {
           photos: this.photoMenu
-            .map((e) => {
+            .map(e => {
               const currPhoto = this.photos[e.id]
               if (!currPhoto) {
                 return null // FIXME ok?
               }
               return currPhoto.file
             })
-            .filter((e) => !!e),
+            .filter(e => !!e),
           orchidType: this.selectedOrchidType,
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)
