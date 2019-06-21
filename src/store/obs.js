@@ -1,10 +1,16 @@
 import { apiUrlBase } from '@/misc/constants'
+import db from '@/indexeddb/dexie-store'
+
+// IndexedDB doesn't allow indexing on booleans :(
+const NO = 0
+// const YES = 1
 
 const state = {
   selectedObservationId: null,
   mySpecies: [],
   myObs: [],
   tabIndex: 0,
+  waitingToUploadRecords: [],
 }
 
 const mutations = {
@@ -13,6 +19,8 @@ const mutations = {
   setMySpecies: (state, value) => (state.mySpecies = value),
   setMyObs: (state, value) => (state.myObs = value),
   setTab: (state, value) => (state.tabIndex = value),
+  setWaitingToUploadRecords: (state, value) =>
+    (state.waitingToUploadRecords = value),
 }
 
 const actions = {
@@ -40,9 +48,11 @@ const actions = {
           if (!d) {
             return null
           }
+          // TODO do we need any other photo details?
+          const photos = (d.photos || []).map(e => e.url)
           return {
             id: d.id,
-            obsPhotos: d.observation_photos,
+            photos,
             placeGuess: d.place_guess,
             speciesGuess: d.species_guess,
           }
@@ -92,12 +102,58 @@ const actions = {
     const records = (await Promise.all(promises)).filter(e => !!e)
     commit('setMySpecies', records)
   },
+  async saveAndUploadIndividual({ dispatch }, record) {
+    const enhancedRecord = Object.assign(record, {
+      createdAt: new Date(),
+      isUploaded: NO,
+    })
+    // FIXME compress photos
+    await db.obsIndividual.put(enhancedRecord)
+    dispatch('scheduleUpload')
+    await dispatch('refreshWaitingToUpload')
+  },
+  async refreshWaitingToUpload({ commit }) {
+    const individualIds = await db.obsIndividual
+      .where('isUploaded')
+      .equals(NO)
+      .primaryKeys()
+    // FIXME also check population and mapping
+    const ids = [...individualIds]
+    const records = await resolveWaitingToUploadIdsToRecords(ids)
+    commit('setWaitingToUploadRecords', records)
+  },
+  async scheduleUpload() {
+    // FIXME check if online
+    //  if offline, work out how to retry in future
+    // FIXME set isUploaded = YES for each uploaded record. BE SURE they're uploaded
+  },
 }
+
 const getters = {
-  observationDetail: state => {
+  observationDetail(state) {
     const found = state.myObs.find(e => e.id === state.selectedObservationId)
     return found
   },
+}
+
+async function resolveWaitingToUploadIdsToRecords(ids) {
+  const indRecords = await db.obsIndividual
+    .where('id')
+    .anyOf(ids)
+    .toArray(records => {
+      return records.map(e => {
+        return {
+          id: e.id,
+          // FIXME apparently we should call revokeObjectURL when we're done.
+          // Maybe in the destroy() lifecycle hook of vue?
+          photos: e.photos.map(v => URL.createObjectURL(v)),
+          placeGuess: 'FIXME', // FIXME just use coords?
+          speciesGuess: 'FIXME', // FIXME use user's answer
+        }
+      })
+    })
+  // FIXME also check for population and mapping records
+  return [...indRecords]
 }
 
 export default {

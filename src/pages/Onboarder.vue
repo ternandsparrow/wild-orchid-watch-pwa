@@ -5,6 +5,7 @@
       fullscreen
       swipeable
       auto-scroll
+      auto-scroll-ratio="0.2"
       overscrollable
       :index.sync="carouselIndex"
     >
@@ -107,43 +108,5 @@ export default {
 ons-carousel-item {
   display: table;
   text-align: center;
-}
-
-.item-label {
-  display: table-cell;
-  vertical-align: middle;
-  color: white;
-  line-height: 1;
-  font-size: 48px;
-  font-weight: bold;
-}
-
-.cover-label {
-  text-align: center;
-  position: absolute;
-  left: 0px;
-  width: 100%;
-  bottom: 10px;
-  color: white;
-}
-
-.toggler-prev {
-  pointer-events: auto;
-  cursor: pointer;
-  float: left;
-  margin-left: 20px;
-  width: 40px;
-  margin-top: 40px;
-  color: white;
-}
-
-.toggler-next {
-  pointer-events: auto;
-  cursor: pointer;
-  float: right;
-  margin-right: 20px;
-  width: 40px;
-  margin-top: 40px;
-  color: white;
 }
 </style>

@@ -10,19 +10,10 @@
       <img :src="firstPhoto" alt="FIXME add alt" style="width: 100%" />
       <div class="title">{{ nullSafeObs.title }}</div>
       <div class="content">
-        <div>
-          <v-ons-button
-            ><v-ons-icon icon="ion-thumbsup"></v-ons-icon
-          ></v-ons-button>
-          <v-ons-button
-            ><v-ons-icon icon="ion-share"></v-ons-icon
-          ></v-ons-button>
-        </div>
         <v-ons-list>
           <v-ons-list-header>Details</v-ons-list-header>
           <v-ons-list-item>{{ nullSafeObs.placeGuess }}</v-ons-list-item>
-          <v-ons-list-item>FIXME</v-ons-list-item>
-          <v-ons-list-item>TODO</v-ons-list-item>
+          <!-- FIXME get meta fields for our app -->
         </v-ons-list>
       </div>
     </v-ons-card>
@@ -31,17 +22,11 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   data() {
-    return {
-      spdOpen: false,
-      shareItems: {
-        Twitter: 'md-twitter',
-        Facebook: 'md-facebook',
-        'Google+': 'md-google-plus',
-      },
-    }
+    return {}
   },
   computed: {
     ...mapGetters('obs', ['observationDetail']),
@@ -55,7 +40,7 @@ export default {
         !this.nullSafeObs.obsPhotos ||
         !this.nullSafeObs.obsPhotos.length
       ) {
-        return '../assets/no-image-placeholder.png'
+        return noImagePlaceholderUrl
       }
       const squareUrl = this.nullSafeObs.obsPhotos[0].photo.url
       return squareUrl.replace('square', 'medium')

@@ -1,7 +1,24 @@
 <template>
   <v-ons-page>
     <v-ons-list>
-      <v-ons-list-header>Recent</v-ons-list-header>
+      <v-ons-list-header v-if="isWaitingForUpload"
+        >Waiting to upload</v-ons-list-header
+      >
+      <!-- FIXME remove duplication from next section -->
+      <v-ons-list-item
+        v-for="curr in waitingToUploadRecords"
+        :key="curr.id"
+        @click="push(curr.id)"
+      >
+        <div class="left">
+          <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
+        </div>
+        <div class="center">
+          <span class="list-item__title">{{ curr.speciesGuess }}</span
+          ><span class="list-item__subtitle">{{ curr.placeGuess }}</span>
+        </div>
+      </v-ons-list-item>
+      <v-ons-list-header v-if="isWaitingForUpload">Uploaded</v-ons-list-header>
       <v-ons-list-item
         v-for="curr in myObs"
         :key="curr.id"
@@ -41,6 +58,7 @@ import ObsDetailComponent from '@/pages/ObservationDetail'
 import Individual from '@/pages/new-obs/Individual'
 import Population from '@/pages/new-obs/Population'
 import Mapping from '@/pages/new-obs/Mapping'
+import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   data() {
@@ -49,10 +67,14 @@ export default {
     }
   },
   computed: {
-    ...mapState('obs', ['myObs']),
+    ...mapState('obs', ['myObs', 'waitingToUploadRecords']),
+    isWaitingForUpload() {
+      return (this.waitingToUploadRecords || []).length
+    },
   },
   created() {
     this.$store.dispatch('obs/getMyObs')
+    this.$store.dispatch('obs/refreshWaitingToUpload')
   },
   methods: {
     push(obsId) {
@@ -75,10 +97,10 @@ export default {
       this.$store.commit('navigator/push', Mapping)
     },
     firstPhoto(record) {
-      if (!record || !record.obsPhotos || !record.obsPhotos.length) {
-        return '../../assets/no-image-placeholder.png'
+      if (!record || !record.photos || !record.photos.length) {
+        return noImagePlaceholderUrl
       }
-      return record.obsPhotos[0].photo.url
+      return record.photos[0]
     },
   },
 }

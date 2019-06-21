@@ -1,5 +1,5 @@
 module.exports = {
-  configureWebpack: (config) => {
+  configureWebpack: config => {
     /**
      * For when you're running behind a proxy, like nginx, then we need to
      * know the host of that proxy so we can respond to it. If we don't set
