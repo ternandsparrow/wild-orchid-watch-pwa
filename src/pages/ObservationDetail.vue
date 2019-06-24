@@ -7,7 +7,25 @@
 
     <v-ons-card>
       <!-- FIXME add all photos as carousel -->
-      <img :src="firstPhoto" alt="FIXME add alt" style="width: 100%" />
+      <v-ons-carousel
+        v-if="isPhotos"
+        auto-scroll
+        auto-scroll-ratio="0.2"
+        swipeable
+        overscrollable
+      >
+        <v-ons-carousel-item v-for="curr of photos" :key="curr">
+          <div class="photo-container">
+            <img class="a-photo" :src="curr" alt="an observation photo" />
+          </div>
+          <!-- FIXME add dots -->
+        </v-ons-carousel-item>
+      </v-ons-carousel>
+      <img
+        v-if="!isPhotos"
+        :src="noImagePlaceholderUrl"
+        alt="placeholder image as no photos are available"
+      />
       <div class="title">{{ nullSafeObs.title }}</div>
       <div class="content">
         <v-ons-list>
@@ -26,7 +44,9 @@ import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
   data() {
-    return {}
+    return {
+      noImagePlaceholderUrl,
+    }
   },
   computed: {
     ...mapGetters('obs', ['observationDetail']),
@@ -34,17 +54,28 @@ export default {
       // FIXME is this a code smell?
       return this.observationDetail || {}
     },
-    firstPhoto() {
-      if (
-        !this.nullSafeObs ||
-        !this.nullSafeObs.obsPhotos ||
-        !this.nullSafeObs.obsPhotos.length
-      ) {
-        return noImagePlaceholderUrl
-      }
-      const squareUrl = this.nullSafeObs.obsPhotos[0].photo.url
-      return squareUrl.replace('square', 'medium')
+    isPhotos() {
+      return (this.nullSafeObs.photos || []).length
+    },
+    photos() {
+      return (this.nullSafeObs.photos || []).map(e =>
+        e.replace('square', 'medium'),
+      )
     },
   },
 }
 </script>
+
+<style scoped>
+.a-photo {
+  max-width: 100%;
+}
+
+.photo-container {
+  height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e4e4e4;
+}
+</style>

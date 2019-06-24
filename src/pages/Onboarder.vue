@@ -9,7 +9,7 @@
       overscrollable
       :index.sync="carouselIndex"
     >
-      <v-ons-carousel-item style="background-color: #085078;">
+      <v-ons-carousel-item :style="{ 'background-color': items.BLUE }">
         <v-ons-card>
           <img
             src="@/assets/appicon-wow.png"
@@ -25,7 +25,7 @@
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
-      <v-ons-carousel-item style="background-color: #373B44;">
+      <v-ons-carousel-item :style="{ 'background-color': items.DARK }">
         <v-ons-card>
           <img
             src="@/assets/appicon-wow.png"
@@ -40,7 +40,7 @@
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
-      <v-ons-carousel-item style="background-color: #D38312;">
+      <v-ons-carousel-item :style="{ 'background-color': items.ORANGE }">
         <v-ons-card>
           <img
             src="@/assets/appicon-wow.png"
@@ -55,27 +55,26 @@
           </div>
         </v-ons-card>
         <div class="button_holder">
-          <v-ons-button @click="handleClick"
+          <v-ons-button @click="handleDoneClick"
             >OK, let's collect some data</v-ons-button
           >
         </div>
       </v-ons-carousel-item>
     </v-ons-carousel>
-    <div :style="dots">
-      <span
-        v-for="dotIndex in Object.keys(items).length"
-        :key="dotIndex"
-        :index="dotIndex - 1"
-        style="cursor: pointer"
-        @click="carouselIndex = dotIndex - 1"
-      >
-        {{ carouselIndex === dotIndex - 1 ? '\u25CF' : '\u25CB' }}
-      </span>
-    </div>
+    <carousel-dots
+      :dot-count="Object.keys(items).length"
+      :selected-index="carouselIndex"
+      @dot-click="onDotClick"
+    ></carousel-dots>
   </v-ons-page>
 </template>
 
 <script>
+// FIXME can't use this local import method until we get a fix for
+// https://github.com/OnsenUI/OnsenUI/issues/2662. Using global
+// components in main.js in the interim.
+// import CarouselDots from '@/partials/CarouselDots'
+
 export default {
   data() {
     return {
@@ -85,20 +84,15 @@ export default {
         DARK: '#373B44',
         ORANGE: '#D38312',
       },
-      dots: {
-        textAlign: 'center',
-        fontSize: '30px',
-        color: '#fff',
-        position: 'absolute',
-        bottom: '40px',
-        left: 0,
-        right: 0,
-      },
     }
   },
+  // components: { CarouselDots },
   methods: {
-    handleClick() {
+    handleDoneClick() {
       this.$store.commit('navigator/pop')
+    },
+    onDotClick(carouselIndex) {
+      this.carouselIndex = carouselIndex
     },
   },
 }

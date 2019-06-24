@@ -131,7 +131,8 @@ const actions = {
 
 const getters = {
   observationDetail(state) {
-    const found = state.myObs.find(e => e.id === state.selectedObservationId)
+    const allObs = [...state.myObs, ...state.waitingToUploadRecords]
+    const found = allObs.find(e => e.id === state.selectedObservationId)
     return found
   },
 }
@@ -145,7 +146,9 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
         return {
           id: e.id,
           // FIXME apparently we should call revokeObjectURL when we're done.
-          // Maybe in the destroy() lifecycle hook of vue?
+          // Maybe in the destroy() lifecycle hook of vue? Or, store a list
+          // of all URLs we create in this store and we can just clear them
+          // all as the first step in the next run.
           photos: e.photos.map(v => URL.createObjectURL(v)),
           placeGuess: 'FIXME', // FIXME just use coords?
           speciesGuess: 'FIXME', // FIXME use user's answer
