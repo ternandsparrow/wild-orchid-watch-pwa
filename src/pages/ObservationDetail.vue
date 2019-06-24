@@ -13,6 +13,7 @@
         auto-scroll-ratio="0.2"
         swipeable
         overscrollable
+        :index.sync="carouselIndex"
       >
         <v-ons-carousel-item v-for="curr of photos" :key="curr">
           <div class="photo-container">
@@ -24,9 +25,17 @@
       <img
         v-if="!isPhotos"
         :src="noImagePlaceholderUrl"
+        class="a-photo"
         alt="placeholder image as no photos are available"
       />
-      <div class="title">{{ nullSafeObs.title }}</div>
+      <carousel-dots
+        v-if="isShowDots"
+        :dot-count="photos.length"
+        :selected-index="carouselIndex"
+        :extra-styles="extraDotsStyle"
+        @dot-click="onDotClick"
+      ></carousel-dots>
+      <div class="title">{{ nullSafeObs.speciesGuess }}</div>
       <div class="content">
         <v-ons-list>
           <v-ons-list-header>Details</v-ons-list-header>
@@ -46,6 +55,11 @@ export default {
   data() {
     return {
       noImagePlaceholderUrl,
+      carouselIndex: 0,
+      extraDotsStyle: {
+        position: 'relative',
+        top: '-2em',
+      },
     }
   },
   computed: {
@@ -62,13 +76,21 @@ export default {
         e.replace('square', 'medium'),
       )
     },
+    isShowDots() {
+      return this.photos.length > 1
+    },
+  },
+  methods: {
+    onDotClick(carouselIndex) {
+      this.carouselIndex = carouselIndex
+    },
   },
 }
 </script>
 
 <style scoped>
 .a-photo {
-  max-width: 100%;
+  width: 100%;
 }
 
 .photo-container {
@@ -76,6 +98,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e4e4e4;
+  background-color: #6b6b6b;
 }
 </style>

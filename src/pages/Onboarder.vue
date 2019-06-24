@@ -64,6 +64,7 @@
     <carousel-dots
       :dot-count="Object.keys(items).length"
       :selected-index="carouselIndex"
+      :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
   </v-ons-page>
@@ -83,6 +84,12 @@ export default {
         BLUE: '#085078',
         DARK: '#373B44',
         ORANGE: '#D38312',
+      },
+      extraDotsStyle: {
+        position: 'absolute',
+        bottom: '40px',
+        left: 0,
+        right: 0,
       },
     }
   },

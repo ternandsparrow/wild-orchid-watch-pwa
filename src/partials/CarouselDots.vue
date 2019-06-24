@@ -23,6 +23,7 @@ export default {
       type: Number,
       required: true,
     },
+    extraStyles: Object,
   },
   data() {
     return {
@@ -32,10 +33,6 @@ export default {
         textAlign: 'center',
         fontSize: '30px',
         color: '#fff',
-        position: 'absolute',
-        bottom: '40px',
-        left: 0,
-        right: 0,
       },
     }
   },
@@ -44,6 +41,7 @@ export default {
       this.dotIndexes.push(i)
     }
     this.carouselIndex = this.selectedIndex
+    this.dotsStyle = Object.assign(this.dotsStyle, this.extraStyles)
   },
   watch: {
     selectedIndex(val) {
