@@ -40,7 +40,7 @@ export default {
   // components: { AppleAddToHomeScreenModal },
   data() {
     return {
-      firstRun: false,
+      isNotFirstRun: false,
       updateReadyToastVisible: false,
     }
   },
@@ -68,9 +68,10 @@ export default {
   beforeCreate() {
     this.$store.commit('navigator/push', WowHeader)
     // Check for onboarding
-    this.firstRun = localStorage.getItem('firstRun')
-    if (this.firstRun == null) {
-      localStorage.setItem('firstRun', true)
+    const localStorageTargetKey = 'isNotFirstRun'
+    this.isNotFirstRun = localStorage.getItem(localStorageTargetKey)
+    if (this.isNotFirstRun === null) {
+      localStorage.setItem(localStorageTargetKey, true)
       this.$store.commit('navigator/push', Onboarder)
     }
   },

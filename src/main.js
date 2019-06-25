@@ -11,12 +11,14 @@ import '@/misc/handle-network-status'
 import '@/firebase/init'
 import '@/firebase/authentication'
 import '@/misc/handle-apple-install-prompt'
+import store from '@/store'
 import AppNavigator from '@/AppNavigator'
 import CustomToolbar from '@/partials/CustomToolbar'
-import store from '@/store'
+import CarouselDots from '@/partials/CarouselDots'
 
 Vue.use(VueOnsen)
-Vue.component('custom-toolbar', CustomToolbar) // Common toolbar
+Vue.component('custom-toolbar', CustomToolbar)
+Vue.component('carousel-dots', CarouselDots) // FIXME remove when linked issue in Onboarder is fixed
 Vue.config.productionTip = false
 
 new Vue({

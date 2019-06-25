@@ -36,8 +36,7 @@ jobs:
           at: .
       - run:
           name: 'Run prettier check on project files'
-          command: echo "FIXME get working"
-          # command: yarn prettier:check
+          command: yarn prettier:check
 
   check-linter:
     executor: default-executor
