@@ -36,7 +36,6 @@
                 class="the-icon"
                 icon="md-image-o"
               ></v-ons-icon>
-              <!-- FIXME photos doesn't seem to be reactive -->
               <img
                 v-if="photos[curr.id]"
                 :alt="curr.name + ' photo'"
@@ -126,6 +125,11 @@ export default {
   },
   created() {
     this.$store.dispatch('obs/getObsFields')
+    this.photos = this.photoMenu.reduce((accum, curr) => {
+      // prepopulate the keys of photos so they're watched by Vue
+      accum[curr.id] = null
+      return accum
+    }, {})
   },
   methods: {
     async onSave() {

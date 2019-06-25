@@ -1,9 +1,15 @@
 <template>
   <v-ons-page>
-    <custom-toolbar
-      back-label="Home"
-      :title="nullSafeObs.speciesGuess"
-    ></custom-toolbar>
+    <custom-toolbar back-label="Home" :title="nullSafeObs.speciesGuess">
+      <template v-slot:right>
+        <v-ons-toolbar-button @click="onEdit">
+          Edit
+        </v-ons-toolbar-button>
+        <v-ons-toolbar-button @click="onActionMenu">
+          <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
+        ></v-ons-toolbar-button>
+      </template>
+    </custom-toolbar>
 
     <v-ons-card>
       <!-- FIXME add all photos as carousel -->
@@ -83,6 +89,37 @@ export default {
   methods: {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
+    },
+    onActionMenu() {
+      const menu = {
+        Delete: () => {
+          // FIXME handle when we're currently uploading this record
+          // FIXME handle (or disable for) already uploaded records
+          this.$ons.notification
+            .confirm('Are you sure about deleting this record?')
+            .then(answer => {
+              if (!answer) {
+                return
+              }
+              this.$store.dispatch('obs/deleteSelectedRecord')
+              this.$store.commit('navigator/pop')
+            })
+        },
+      }
+      this.$ons
+        .openActionSheet({
+          buttons: Object.keys(menu),
+          cancelable: true,
+          destructive: 1,
+        })
+        .then(selIndex => {
+          const key = Object.keys(menu)[selIndex]
+          menu[key]()
+        })
+    },
+    onEdit() {
+      // FIXME swap to edit mode
+      this.$ons.notification.alert('FIXME swap to edit mode')
     },
   },
 }
