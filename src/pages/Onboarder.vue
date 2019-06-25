@@ -21,7 +21,7 @@
           </div>
           <div class="content">
             Thanks for installing the Wild Orchid Watch Field Data collection
-            app. We're excited to have you on-board!
+            App. We're excited to have your help with the project!
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
@@ -36,11 +36,29 @@
             Data Collection
           </div>
           <div class="content">
-            This is super-cool
+            The App allows you to collect and automatically submit native orchid
+            sightings. You can let the App know if you prefer to use either WiFi
+            or the cellular network when uploading sightings to the server.
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
       <v-ons-carousel-item :style="{ 'background-color': items.ORANGE }">
+        <v-ons-card>
+          <img
+            src="@/assets/appicon-wow.png"
+            alt="Wild Orchid Watch"
+            style="width: 100%"
+          />
+          <div class="title">
+            Safety
+          </div>
+          <div class="content">
+            Always make sure you tread carefully, for your safety and also for
+            the native orchids. They can easily be trampled by accident!
+          </div>
+        </v-ons-card>
+      </v-ons-carousel-item>
+      <v-ons-carousel-item :style="{ 'background-color': items.GREEN }">
         <v-ons-card>
           <img
             src="@/assets/appicon-wow.png"
