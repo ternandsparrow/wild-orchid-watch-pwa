@@ -36,17 +36,17 @@ export default {
       },
     }
   },
+  watch: {
+    selectedIndex(val) {
+      this.carouselIndex = val
+    },
+  },
   created() {
     for (let i = 0; i < this.dotCount; i++) {
       this.dotIndexes.push(i)
     }
     this.carouselIndex = this.selectedIndex
     this.dotsStyle = Object.assign(this.dotsStyle, this.extraStyles)
-  },
-  watch: {
-    selectedIndex(val) {
-      this.carouselIndex = val
-    },
   },
   methods: {
     onClick(dotIndex) {

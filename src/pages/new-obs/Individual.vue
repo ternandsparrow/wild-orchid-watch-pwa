@@ -48,30 +48,53 @@
           </v-ons-carousel-item>
         </v-ons-carousel>
       </v-ons-list-item>
-      <v-ons-list-header>Orchid type</v-ons-list-header>
-      <v-ons-list-item
-        v-for="(curr, $index) in orchidTypes"
-        :key="curr.id"
-        tappable
-        :modifier="$index === orchidTypes.length - 1 ? 'longdivider' : ''"
-      >
-        <label class="left">
-          <v-ons-radio
-            v-model="selectedOrchidType"
-            :input-id="'orchidType-' + curr.id"
-            :value="curr.id"
+      <template v-for="currField of filteredFields">
+        <v-ons-list-header :key="currField.id + '-list'">{{
+          currField.name
+        }}</v-ons-list-header>
+        <!-- <v-ons-list-item>{{ currField.description }}</v-ons-list-item> -->
+        <template v-if="currField.datatype === 'text'">
+          <v-ons-list-item
+            v-for="(currValue, $index) in currField.allowedValues"
+            :key="currField.id + '-' + $index"
+            tappable
+            :modifier="
+              $index === currField.allowedValues.length - 1 ? 'longdivider' : ''
+            "
           >
-          </v-ons-radio>
-        </label>
-        <label :for="'orchidType-' + curr.id" class="center">
-          {{ curr.label }}
-        </label>
-      </v-ons-list-item>
+            <label class="left">
+              <v-ons-radio
+                v-model="blah[currField.id]"
+                :input-id="'field-' + currField.id + '-' + $index"
+                :value="currValue"
+              >
+              </v-ons-radio>
+            </label>
+            <label :for="'field-' + currField.id + '-' + $index" class="center">
+              {{ currValue }}
+            </label>
+          </v-ons-list-item>
+        </template>
+        <v-ons-list-item
+          v-if="currField.datatype === 'numeric'"
+          :key="currField.id + '-numeric'"
+        >
+          <v-ons-input
+            v-model="blah[currField.id]"
+            float
+            placeholder="Input value"
+            type="number"
+          >
+          </v-ons-input>
+        </v-ons-list-item>
+      </template>
     </v-ons-list>
   </v-ons-page>
 </template>
 
 <script>
+import { mapState } from 'vuex'
+
 export default {
   name: 'Individual',
   data() {
@@ -91,7 +114,18 @@ export default {
         { id: 'ter', label: 'Terrestrial' },
         { id: 'lit', label: 'Lithophyte' },
       ],
+      blah: {}, // FIXME
     }
+  },
+  computed: {
+    ...mapState('obs', ['obsFields']),
+    filteredFields() {
+      // FIXME remove when we can handle species picker
+      return this.obsFields.filter(e => [20267, 20225].indexOf(e.id) === -1)
+    },
+  },
+  created() {
+    this.$store.dispatch('obs/getObsFields')
   },
   methods: {
     async onSave() {

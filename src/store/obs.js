@@ -1,4 +1,9 @@
-import { apiUrlBase } from '@/misc/constants'
+import {
+  apiUrlBase,
+  inatProjectSlug,
+  obsFieldPrefix,
+  obsFieldSeparatorChar,
+} from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
 
 // IndexedDB doesn't allow indexing on booleans :(
@@ -11,6 +16,7 @@ const state = {
   myObs: [],
   tabIndex: 0,
   waitingToUploadRecords: [],
+  obsFields: [],
 }
 
 const mutations = {
@@ -21,6 +27,7 @@ const mutations = {
   setTab: (state, value) => (state.tabIndex = value),
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
+  setObsFields: (state, value) => (state.obsFields = value),
 }
 
 const actions = {
@@ -101,6 +108,32 @@ const actions = {
     // FIXME shouldn't have to filter, do it a better way
     const records = (await Promise.all(promises)).filter(e => !!e)
     commit('setMySpecies', records)
+  },
+  async getObsFields({ commit }) {
+    commit('setObsFields', [])
+    const url = apiUrlBase + 'projects/' + inatProjectSlug
+    const fields = await fetchSingleRecord(url).then(function(d) {
+      if (!d) {
+        return null
+      }
+      // TODO should we store the other project info too?
+      // FIXME should we read project_observation_rules to get required fields?
+      return d.project_observation_fields.map(e => {
+        const f = e.observation_field
+        return {
+          id: e.id,
+          position: e.position,
+          required: e.required,
+          name: (f.name || '').replace(obsFieldPrefix, ''),
+          description: f.description,
+          datatype: f.datatype,
+          allowedValues: (f.allowed_values || '')
+            .split(obsFieldSeparatorChar)
+            .filter(x => !!x), // remove zero length strings
+        }
+      })
+    })
+    commit('setObsFields', fields)
   },
   async saveAndUploadIndividual({ dispatch }, record) {
     const enhancedRecord = Object.assign(record, {
