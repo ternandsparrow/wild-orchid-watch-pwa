@@ -9,12 +9,7 @@
     <v-ons-list>
       <v-ons-list-header>Photos</v-ons-list-header>
       <v-ons-list-item :modifier="md ? 'nodivider' : ''">
-        <v-ons-carousel
-          item-width="20%"
-          item-height="200px"
-          swipeable
-          overscrollable
-        >
+        <v-ons-carousel item-width="20%" swipeable overscrollable>
           <v-ons-carousel-item
             v-for="(curr, $index) of photoMenu"
             :key="curr.name"
@@ -31,17 +26,19 @@
             />
             <label :for="'photo' + $index">
               <!-- FIXME allow deleting photo -->
-              <v-ons-icon
-                v-if="!photos[curr.id]"
-                class="the-icon"
-                icon="md-image-o"
-              ></v-ons-icon>
-              <img
-                v-if="photos[curr.id]"
-                :alt="curr.name + ' photo'"
-                :src="photos[curr.id].url"
-                class="thumbnail"
-              />
+              <div class="thumb-container">
+                <v-ons-icon
+                  v-if="!photos[curr.id]"
+                  class="the-icon"
+                  icon="md-image-o"
+                ></v-ons-icon>
+                <div
+                  v-if="photos[curr.id]"
+                  :style="{
+                    'background-image': 'url(' + photos[curr.id].url + ')',
+                  }"
+                ></div>
+              </div>
               <div class="photo-label-text">{{ curr.name }}</div>
             </label>
           </v-ons-carousel-item>
@@ -186,7 +183,6 @@ export default {
   background-color: #fff;
   border-radius: 4px;
   text-align: center;
-  height: 100px;
 }
 
 .photo-button {
@@ -199,7 +195,9 @@ export default {
 }
 
 .the-icon {
-  padding-top: 0.5em;
+  line-height: 70px;
+  font-size: 70px;
+  color: #b9b9b9;
 }
 
 .photo-label-text {
@@ -219,8 +217,13 @@ export default {
   color: black;
 }
 
-.thumbnail {
-  width: 40px;
-  height: 40px;
+.thumb-container {
+  height: 70px;
+}
+
+.thumb-container div {
+  background-size: cover;
+  background-position: center center;
+  height: 100%;
 }
 </style>
