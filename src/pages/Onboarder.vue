@@ -102,6 +102,7 @@ export default {
         BLUE: '#085078',
         DARK: '#373B44',
         ORANGE: '#D38312',
+        GREEN: 'green',
       },
       extraDotsStyle: {
         position: 'absolute',
