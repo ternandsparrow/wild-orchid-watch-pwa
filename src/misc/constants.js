@@ -9,3 +9,5 @@ export const inatProjectSlug = 'wild-orchid-watch-australia-beta' // FIXME make 
 export const obsFieldSeparatorChar = '|'
 
 export const obsFieldPrefix = 'WOW '
+
+export const appVersion = '0.1.0' // FIXME make dynamic at build time
