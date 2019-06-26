@@ -1,6 +1,7 @@
 import 'onsenui/css/onsenui.css' // Onsen UI basic CSS
 import 'onsenui/css/onsen-css-components.css' // Default Onsen UI CSS components
-import './vue-onsenui-wow.css' // CSS specific to this app
+
+import './wow-global.css'
 
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...

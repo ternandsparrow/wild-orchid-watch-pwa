@@ -17,10 +17,15 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Login test
+        Location test
       </div>
-      <div>
-        TODO
+      <div class="text-center">
+        <p v-if="isLocSuccess" class="success-msg">
+          Location: lat=<span class="mono">{{ lat }}</span
+          >, lng=<span class="mono">{{ lng }}</span>
+        </p>
+        <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
+        <v-ons-button @click="getLocation">Get location</v-ons-button>
       </div>
     </v-ons-card>
   </v-ons-page>
@@ -61,6 +66,22 @@ export default {
         isNaN(usedPercentRaw) ? 0 : usedPercentRaw,
       )
     },
+    getLocation() {
+      this.locErrorMsg = null
+      if (!navigator.geolocation) {
+        this.locErrorMsg = 'User agent does not seem to support location'
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        loc => {
+          this.lat = loc.coords.latitude
+          this.lng = loc.coords.longitude
+        },
+        () => {
+          this.locErrorMsg = 'Location access is blocked'
+        },
+      )
+    },
   },
 }
 
@@ -69,4 +90,16 @@ function twoDecimalPlaces(v) {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.success-msg {
+  color: green;
+}
+
+.error-msg {
+  color: red;
+}
+
+.mono {
+  font-family: monospace;
+}
+</style>

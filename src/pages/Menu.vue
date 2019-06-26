@@ -60,7 +60,7 @@ import Activity from '@/pages/activity/index'
 import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
 import Admin from '@/pages/Admin'
-import {appVersion} from '@/misc/constants'
+import { appVersion } from '@/misc/constants'
 
 export default {
   data() {
@@ -133,11 +133,9 @@ export default {
       // like Android's easter egg, tap the version N times
       const tapCountThreshold = 7
       if (this.versionClickEasterEggTimeout) {
-        console.log('clearing')
         clearTimeout(this.versionClickEasterEggTimeout)
       }
       this.versionClickEasterEggTimeout = setTimeout(() => {
-        console.log('timeout')
         this.versionClickCount = 0
         this.versionClickEasterEggTimeout = null
       }, 1000)
