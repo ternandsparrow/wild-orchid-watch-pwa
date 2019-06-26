@@ -32,11 +32,10 @@
 <script>
 import { mapState, mapActions, mapGetters } from 'vuex'
 
-import Onboarder from '@/pages/Onboarder'
-import WowHeader from '@/pages/WowHeader.vue'
 // import AppleAddToHomeScreenModal from '@/components/AppleAddToHomeScreenModal'
 
 export default {
+  name: 'AppNavigator',
   // components: { AppleAddToHomeScreenModal },
   data() {
     return {
@@ -47,9 +46,7 @@ export default {
   computed: {
     ...mapGetters('app', ['newContentAvailable']),
     ...mapState('app', ['showAddToHomeScreenModalForApple', 'refreshingApp']),
-    pageStack() {
-      return this.$store.state.navigator.stack
-    },
+    ...mapGetters('navigator', ['pageStack']),
     options() {
       return this.$store.state.navigator.options
     },
@@ -65,16 +62,6 @@ export default {
       this.updateReadyToastVisible = val
     },
   },
-  beforeCreate() {
-    this.$store.commit('navigator/push', WowHeader)
-    // Check for onboarding
-    const localStorageTargetKey = 'isNotFirstRun'
-    this.isNotFirstRun = localStorage.getItem(localStorageTargetKey)
-    if (this.isNotFirstRun === null) {
-      localStorage.setItem(localStorageTargetKey, true)
-      this.$store.commit('navigator/push', Onboarder)
-    }
-  },
   methods: {
     ...mapActions('app', [
       'closeAddToHomeScreenModalForApple',
@@ -85,7 +72,9 @@ export default {
       this.updateReadyToastVisible = false
     },
     storePop() {
-      this.$store.commit('navigator/pop')
+      this.$router.push({
+        name: this.$route.matched[this.$route.matched.length - 2].name,
+      })
     },
   },
 }

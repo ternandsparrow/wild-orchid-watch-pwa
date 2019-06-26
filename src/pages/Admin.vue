@@ -28,6 +28,11 @@
         <v-ons-button @click="getLocation">Get location</v-ons-button>
       </div>
     </v-ons-card>
+    <v-ons-card>
+      <router-link :to="{ name: 'OauthCallback' }"
+        >Jump to OAuth callback</router-link
+      >
+    </v-ons-card>
   </v-ons-page>
 </template>
 

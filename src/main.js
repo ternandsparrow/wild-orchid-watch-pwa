@@ -9,10 +9,9 @@ import 'pwacompat'
 
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
-import '@/firebase/init'
-import '@/firebase/authentication'
 import '@/misc/handle-apple-install-prompt'
 import store from '@/store'
+import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import CustomToolbar from '@/partials/CustomToolbar'
 import CarouselDots from '@/partials/CarouselDots'
@@ -35,5 +34,6 @@ new Vue({
     }
   },
   render: h => h(AppNavigator),
+  router,
   store,
 })

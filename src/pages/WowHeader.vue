@@ -30,7 +30,11 @@
 
 <script>
 import { mapState } from 'vuex'
+
+import Onboarder from '@/pages/Onboarder'
 import MenuPage from '@/pages/Menu'
+
+// FIXME add separate routes for all child pages
 
 export default {
   name: 'WowHeader',
@@ -45,6 +49,15 @@ export default {
         this.$store.commit('splitter/toggle', newValue)
       },
     },
+  },
+  beforeCreate() {
+    // Check for onboarding
+    const localStorageTargetKey = 'isNotFirstRun'
+    this.isNotFirstRun = localStorage.getItem(localStorageTargetKey)
+    if (this.isNotFirstRun === null) {
+      localStorage.setItem(localStorageTargetKey, true)
+      this.$store.commit('navigator/push', Onboarder)
+    }
   },
   methods: {
     onMenuClick() {
