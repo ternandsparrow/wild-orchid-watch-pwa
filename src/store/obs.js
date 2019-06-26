@@ -160,6 +160,11 @@ const actions = {
     //  if offline, work out how to retry in future
     // FIXME set isUploaded = YES for each uploaded record. BE SURE they're uploaded
   },
+  async deleteSelectedRecord({ state, dispatch }) {
+    const recordId = state.selectedObservationId
+    await db.obsIndividual.delete(recordId)
+    await dispatch('refreshWaitingToUpload')
+  },
 }
 
 const getters = {
@@ -183,8 +188,8 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
           // of all URLs we create in this store and we can just clear them
           // all as the first step in the next run.
           photos: e.photos.map(v => URL.createObjectURL(v)),
-          placeGuess: 'FIXME', // FIXME just use coords?
-          speciesGuess: 'FIXME', // FIXME use user's answer
+          placeGuess: '-34.96958,138.6305383', // FIXME just use coords?
+          speciesGuess: 'Genusus Speciesus', // FIXME use user's answer
         }
       })
     })

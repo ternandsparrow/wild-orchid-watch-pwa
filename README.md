@@ -44,6 +44,13 @@ npm run build
 npx firebase deploy
 ```
 
+# Testing workflow
+
+You can run unit tests one off with: `yarn test:unit`.
+
+If you want the unit tests to run every time you save a file (watch mode), use:
+`yarn test:unit --watchAll`.
+
 ### TODO
   1. make the app stop using the camera when the user can no longer see the
      camera on screen

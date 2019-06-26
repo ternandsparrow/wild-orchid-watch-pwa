@@ -38,15 +38,21 @@
       <v-ons-icon icon="md-plus"></v-ons-icon>
     </v-ons-fab>
     <v-ons-action-sheet :visible.sync="isNewObsActionsVisible" cancelable>
-      <v-ons-action-sheet-button @click="onIndividual"
+      <v-ons-action-sheet-button icon="fa-user-alt" @click="onIndividual"
         >Individual</v-ons-action-sheet-button
       >
-      <v-ons-action-sheet-button @click="onPopulation"
+      <v-ons-action-sheet-button icon="fa-users" @click="onPopulation"
         >Population</v-ons-action-sheet-button
       >
-      <!-- FIXME on ios, the last option looks different -->
-      <v-ons-action-sheet-button @click="onMapping"
+      <v-ons-action-sheet-button icon="fa-map-marked-alt" @click="onMapping"
         >Mapping</v-ons-action-sheet-button
+      >
+      <!-- Add a cancel button for iOS -->
+      <v-ons-action-sheet-button
+        v-if="!md"
+        icon="fa-map-marked-alt"
+        @click="isNewObsActionsVisible = false"
+        >Cancel</v-ons-action-sheet-button
       >
     </v-ons-action-sheet>
   </v-ons-page>

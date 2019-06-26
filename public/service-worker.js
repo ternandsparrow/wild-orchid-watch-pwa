@@ -31,8 +31,9 @@ workbox.routing.registerRoute(
 workbox.routing.registerRoute(
   new RegExp('^https://api.inaturalist.org/v1/.*'),
   // FIXME is cacheFirst the best choice?
-  workbox.strategies.cacheFirst(),
   // FIXME consider setting an expiry or max elements in cache
+  workbox.strategies.cacheFirst(),
+  'GET',
 )
 
 addEventListener('message', messageEvent => {
