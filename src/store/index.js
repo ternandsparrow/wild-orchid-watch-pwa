@@ -18,8 +18,6 @@ export default new Vuex.Store({
     activity,
     missions,
     navigator: {
-      // FIXME integrate vue-router so we get deep linking and the hardware
-      // back button works
       strict: true,
       namespaced: true,
       state: {
@@ -40,10 +38,15 @@ export default new Vuex.Store({
           state.stack.push(page)
         },
         reset(state, page) {
-          state.stack = [page || state.stack[0]]
+          state.stack = Array.isArray(page) ? page : [page || state.stack[0]]
         },
         options(state, newOptions = {}) {
           state.options = newOptions
+        },
+      },
+      getters: {
+        pageStack(state) {
+          return state.stack
         },
       },
     },

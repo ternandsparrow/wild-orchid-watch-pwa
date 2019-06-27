@@ -48,18 +48,26 @@
       </v-ons-list-item>
     </v-ons-list>
     <!-- FIXME could add "New observation" at bottom like iNat -->
+    <div class="version-info" @click="onVersionClick">
+      Version: {{ appVersion }}
+    </div>
   </v-ons-page>
 </template>
 
 <script>
-import Observations from './obs/index'
-import Activity from './activity/index'
-import Missions from './missions/index'
-import Settings from './Settings'
+import Observations from '@/pages/obs/index'
+import Activity from '@/pages/activity/index'
+import Missions from '@/pages/missions/index'
+import Settings from '@/pages/Settings'
+import Admin from '@/pages/Admin'
+import { appVersion } from '@/misc/constants'
 
 export default {
   data() {
     return {
+      appVersion,
+      versionClickCount: 0,
+      versionClickEasterEggTimeout: null,
       links: [
         {
           title: 'WOW Site',
@@ -121,6 +129,23 @@ export default {
     loadLink(url) {
       window.open(url, '_blank')
     },
+    onVersionClick() {
+      // like Android's easter egg, tap the version N times
+      const tapCountThreshold = 7
+      if (this.versionClickEasterEggTimeout) {
+        clearTimeout(this.versionClickEasterEggTimeout)
+      }
+      this.versionClickEasterEggTimeout = setTimeout(() => {
+        this.versionClickCount = 0
+        this.versionClickEasterEggTimeout = null
+      }, 1000)
+      this.versionClickCount += 1
+      if (this.versionClickCount < tapCountThreshold) {
+        return
+      }
+      this.$store.commit('navigator/push', Admin)
+      this.$store.commit('splitter/toggle')
+    },
   },
 }
 </script>
@@ -131,7 +156,6 @@ export default {
   background-color: #fff;
   border-bottom: 1px solid #ddd;
   color: rgba(0, 0, 0, 0.56);
-  padding: 5px;
 }
 
 .page--material .profile-pic {
@@ -140,6 +164,7 @@ export default {
 
 .profile-pic > img {
   max-width: 100%;
+  margin: 5px;
 }
 
 .profile-pic > .app-name {
@@ -147,5 +172,14 @@ export default {
   line-height: 57px; /* FIXME should be dynamic from img */
   display: inline-block;
   margin-left: 1em;
+}
+
+.version-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 1em;
 }
 </style>

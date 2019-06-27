@@ -1,6 +1,7 @@
 import 'onsenui/css/onsenui.css' // Onsen UI basic CSS
 import 'onsenui/css/onsen-css-components.css' // Default Onsen UI CSS components
-import './vue-onsenui-wow.css' // CSS specific to this app
+
+import './wow-global.css'
 
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
@@ -8,10 +9,9 @@ import 'pwacompat'
 
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
-import '@/firebase/init'
-import '@/firebase/authentication'
 import '@/misc/handle-apple-install-prompt'
 import store from '@/store'
+import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import CustomToolbar from '@/partials/CustomToolbar'
 import CarouselDots from '@/partials/CarouselDots'
@@ -34,5 +34,6 @@ new Vue({
     }
   },
   render: h => h(AppNavigator),
+  router,
   store,
 })
