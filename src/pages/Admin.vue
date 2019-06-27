@@ -29,14 +29,19 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <router-link :to="{ name: 'OauthCallback' }"
+      <router-link :to="{name: 'OauthCallback'}"
         >Jump to OAuth callback</router-link
       >
+    </v-ons-card>
+    <v-ons-card>
+      <v-ons-button @click="doLogin">Login</v-ons-button>
     </v-ons-card>
   </v-ons-page>
 </template>
 
 <script>
+import {inatUrlBase, appId, redirectUri} from '@/misc/constants'
+
 export default {
   data() {
     return {
@@ -78,13 +83,22 @@ export default {
         return
       }
       navigator.geolocation.getCurrentPosition(
-        loc => {
+        (loc) => {
           this.lat = loc.coords.latitude
           this.lng = loc.coords.longitude
         },
         () => {
           this.locErrorMsg = 'Location access is blocked'
         },
+      )
+    },
+    doLogin() {
+      // FIXME OAuth screen on iNat isn't mobile friendly/responsive
+      location.assign(
+        `${inatUrlBase}/oauth/authorize?
+        client_id=${appId}&
+        redirect_uri=${redirectUri}&
+        response_type=token`.replace(/\s/g, ''),
       )
     },
   },

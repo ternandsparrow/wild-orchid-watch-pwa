@@ -1,23 +1,16 @@
-import { isNil } from 'lodash'
+import {isNil} from 'lodash'
 
 export default {
   namespaced: true,
   state: {
-    user: undefined,
+    token: null,
+    tokenType: null,
   },
   mutations: {
-    setUser: (state, value) => (state.user = value),
-  },
-  actions: {
-    // login: async ({ commit, dispatch }, authUser) => {
-    //   // FIXME get details for iNat user
-    //   commit('setUser', user)
-    // },
-    // logout: ({ commit }) => {
-    //   commit('setUser', null)
-    // },
+    setToken: (state, value) => (state.token = value),
+    setTokenType: (state, value) => (state.tokenType = value),
   },
   getters: {
-    isUserLoggedIn: state => !isNil(state.user),
+    isUserLoggedIn: (state) => !isNil(state.token), // FIXME check if expired, does it expire?
   },
 }
