@@ -13,12 +13,9 @@ import '@/misc/handle-apple-install-prompt'
 import store from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
-import CustomToolbar from '@/partials/CustomToolbar'
-import CarouselDots from '@/partials/CarouselDots'
+import '@/global-components'
 
 Vue.use(VueOnsen)
-Vue.component('custom-toolbar', CustomToolbar)
-Vue.component('carousel-dots', CarouselDots) // FIXME remove when linked issue in Onboarder is fixed
 Vue.config.productionTip = false
 
 new Vue({

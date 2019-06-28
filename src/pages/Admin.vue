@@ -29,7 +29,7 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <router-link :to="{name: 'OauthCallback'}"
+      <router-link :to="{ name: 'OauthCallback' }"
         >Jump to OAuth callback</router-link
       >
     </v-ons-card>
@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import {inatUrlBase, appId, redirectUri} from '@/misc/constants'
+import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
 
 export default {
   data() {
@@ -83,7 +83,7 @@ export default {
         return
       }
       navigator.geolocation.getCurrentPosition(
-        (loc) => {
+        loc => {
           this.lat = loc.coords.latitude
           this.lng = loc.coords.longitude
         },

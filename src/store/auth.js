@@ -1,4 +1,4 @@
-import {isNil} from 'lodash'
+import { isNil } from 'lodash'
 
 export default {
   namespaced: true,
@@ -11,6 +11,6 @@ export default {
     setTokenType: (state, value) => (state.tokenType = value),
   },
   getters: {
-    isUserLoggedIn: (state) => !isNil(state.token), // FIXME check if expired, does it expire?
+    isUserLoggedIn: state => !isNil(state.token), // FIXME check if expired, does it expire?
   },
 }
