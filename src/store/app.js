@@ -9,6 +9,7 @@ const state = {
   refreshingApp: false,
   topTitle: 'Wild Orchid Watch',
   innerPageStack: [Observations], // FIXME naming?
+  swReg: null,
 }
 
 const mutations = {
@@ -20,12 +21,10 @@ const mutations = {
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
   setTopTitle: (state, value) => (state.topTitle = value),
   pushInnerPage: (state, value) => (state.innerPageStack = [value]),
+  setServiceWorkerRegistration: (state, value) => (state.swReg = value),
 }
 
 const actions = {
-  /**
-   * Closes "add to home screen" modal for apple
-   */
   closeAddToHomeScreenModalForApple: async ({ commit }) => {
     localStorage.setItem('addToHomeIosPromptLastDate', Date.now())
     commit('setShowAddToHomeScreenModalForApple', false)
@@ -40,6 +39,14 @@ const actions = {
 
     commit('setRefreshingApp', true)
     state.SWRegistrationForNewContent.waiting.postMessage('skipWaiting')
+  },
+
+  manualServiceWorkerUpdateCheck({ state }) {
+    if (!state.swReg) {
+      return false
+    }
+    state.swReg.update()
+    return true
   },
 }
 const getters = {

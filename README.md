@@ -1,5 +1,9 @@
 # Quickstart
 
+Requirements:
+  - yarn >= 1.16
+  - node >= 10
+
   1. clone repo
   1. install deps: `yarn`
   1. run the dev server: `yarn serve`

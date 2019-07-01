@@ -36,6 +36,11 @@
     <v-ons-card>
       <v-ons-button @click="doLogin">Login</v-ons-button>
     </v-ons-card>
+    <v-ons-card>
+      <v-ons-button @click="doManualUpdateCheck"
+        >Check for SW update</v-ons-button
+      >
+    </v-ons-card>
   </v-ons-page>
 </template>
 
@@ -100,6 +105,23 @@ export default {
         redirect_uri=${redirectUri}&
         response_type=token`.replace(/\s/g, ''),
       )
+    },
+    doManualUpdateCheck() {
+      this.$store
+        .dispatch('app/manualServiceWorkerUpdateCheck')
+        .then(isChecking => {
+          if (isChecking) {
+            this.$ons.notification.toast('Checking for updates', {
+              timeout: 3000,
+              animation: 'ascend',
+            })
+            return
+          }
+          this.$ons.notification.toast('No SWReg, cannot check', {
+            timeout: 3000,
+            animation: 'ascend',
+          })
+        })
     },
   },
 }

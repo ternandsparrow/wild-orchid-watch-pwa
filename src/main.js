@@ -29,6 +29,13 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
+
+    window.addEventListener('focus', () => {
+      if (!this.$store.state.app.networkOnLine) {
+        return
+      }
+      this.$store.dispatch('app/manualServiceWorkerUpdateCheck')
+    })
   },
   render: h => h(AppNavigator),
   router,
