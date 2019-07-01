@@ -3,11 +3,13 @@
 Requirements:
   - yarn >= 1.16
   - node >= 10
+  - modern web browser (Chrome is a good choice)
 
   1. clone repo
   1. install deps: `yarn`
   1. run the dev server: `yarn serve`
   1. open the app URL (probably `http://localhost:8080`) in your browser
+  1. this is a PWA (web page that feels like a native app) so it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device) as a Pixel 2 or iPhone 8.
 
 # Not-so-quick-but-better-start
 
