@@ -6,7 +6,9 @@ import Vue from 'vue'
 import CustomToolbar from '@/partials/CustomToolbar'
 import CarouselDots from '@/partials/CarouselDots'
 import RelativeTabbar from '@/partials/RelativeTabbar'
+import GoogleMap from '@/components/googleMap'
 
 Vue.component('custom-toolbar', CustomToolbar)
 Vue.component('carousel-dots', CarouselDots)
 Vue.component('relative-tabbar', RelativeTabbar)
+Vue.component('google-map', GoogleMap)

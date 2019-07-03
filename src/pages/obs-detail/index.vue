@@ -56,9 +56,7 @@
         mi euismod massa gravida pretium. Cras quis lorem nec sapien pulvinar
         semper.
         <div class="map-container text-center">
-          <!-- FIXME replace this with a real map -->
-          <google-map :markerPosition="testPosition" />
-          <!-- <img src="@/assets/map-mock.png" /> -->
+          <google-map :marker-position="testPosition" />
         </div>
       </div>
       <div v-if="selectedTab === 1">
@@ -78,13 +76,9 @@
 <script>
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
-import GoogleMap from "@/components/googleMap";
 
 export default {
   name: 'ObsDetail',
-  components: {
-    GoogleMap
-  },
   data() {
     return {
       noImagePlaceholderUrl,
@@ -95,8 +89,7 @@ export default {
       },
       selectedTab: 0,
       tabs: [{ icon: 'fa-info' }, { icon: 'fa-comments' }, { icon: 'fa-star' }],
-      // for test purposes
-      testPosition:{ lat: 36.84886, lng: 10.20076 }
+      testPosition: { lat: -34.9786554, lng: 138.6487938 }, // FIXME pull real location
     }
   },
   computed: {
