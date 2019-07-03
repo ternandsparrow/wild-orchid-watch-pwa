@@ -72,8 +72,15 @@ export default {
       this.updateReadyToastVisible = false
     },
     storePop() {
+      // FIXME we don't need this pageStack check when all parts of the app have a unique route
+      const isNavWithoutRoute = this.pageStack.length > 1
+      if (isNavWithoutRoute) {
+        this.$store.commit('navigator/pop')
+        return
+      }
+      const pathIndex = Math.max(0, this.$route.matched.length - 2)
       this.$router.push({
-        name: this.$route.matched[this.$route.matched.length - 2].name,
+        name: this.$route.matched[pathIndex].name,
       })
     },
   },

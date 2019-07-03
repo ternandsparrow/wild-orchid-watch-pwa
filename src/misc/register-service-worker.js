@@ -5,26 +5,28 @@ import store from '@/store/index'
 if (process.env.NODE_ENV === 'production') {
   register('/service-worker.js', {
     ready() {
-      console.log('Service worker is active.')
+      console.debug('Service worker is active.')
     },
-    registered() {
-      console.log('Service worker has been registered.')
+    registered(registration) {
+      console.debug('Service worker has been registered.')
+      // TODO is this the right spot, or is ready() better?
+      store.commit('app/setServiceWorkerRegistration', registration)
     },
     cached() {
       store.commit('app/setRefreshingApp', false)
-      console.log('Content has been cached for offline use.')
+      console.debug('Content has been cached for offline use.')
     },
     updatefound() {
       store.commit('app/setRefreshingApp', true) // FIXME should we bother with this?
-      console.log('New content is downloading.')
+      console.debug('New content is downloading.')
     },
     updated(reg) {
       store.commit('app/setRefreshingApp', false)
       store.commit(`app/setSWRegistrationForNewContent`, reg)
-      console.log('New content is available; please refresh.')
+      console.debug('New content is available; please refresh.')
     },
     offline() {
-      console.log(
+      console.debug(
         'No internet connection found. App is running in offline mode.',
       )
     },

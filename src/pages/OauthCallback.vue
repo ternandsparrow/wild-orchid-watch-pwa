@@ -4,25 +4,31 @@
     <p>
       <router-link to="/">Home</router-link>
     </p>
-    <p>code = {{ code }}</p>
-    <p>{{ $route.query }}</p>
+    <div class="text-center">
+      <v-ons-progress-circular indeterminate></v-ons-progress-circular>
+      <div>Logging in...</div>
+    </div>
   </v-ons-page>
 </template>
 
 <script>
 export default {
   name: 'OauthCallback',
-  data() {
-    return {
-      code: null,
-    }
-  },
   mounted() {
-    // would be nice if we could bind it to props like the docs say
-    this.code = this.$route.query.code
-    // FIXME handle code
-    //  - get token from iNat
-    //  - store token in vuex
+    const matches = this.$route.hash.match(
+      /#access_token=([0-9a-f]*)&token_type=(\w*)/,
+    ) // TODO too brittle?
+    const token = matches[1]
+    const tokenType = matches[2]
+    this.$store.commit('auth/setToken', token)
+    this.$store.commit('auth/setTokenType', tokenType)
+    this.processToken()
+  },
+  methods: {
+    async processToken() {
+      // FIXME also get JWT for API
+      // FIXME bounce user to home
+    },
   },
 }
 </script>

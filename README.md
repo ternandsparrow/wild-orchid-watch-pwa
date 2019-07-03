@@ -1,11 +1,21 @@
-# Quickstart
+A [PWA](https://developers.google.com/web/progressive-web-apps/) using [Vue.js](https://vuejs.org/) and [Onsen UI](https://onsen.io/). Used for citizen science data collection for orchids in Australia. Uses OAuth from, and uploads obsversations to [iNaturalist](https://inaturalist.org/).
+
+# Developers
+
+## Quickstart
+
+Requirements:
+  - yarn >= 1.16
+  - node >= 10
+  - modern web browser (Chrome is a good choice)
 
   1. clone repo
   1. install deps: `yarn`
   1. run the dev server: `yarn serve`
   1. open the app URL (probably `http://localhost:8080`) in your browser
+  1. this is a PWA (web page that feels like a native app) so it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device) as a Pixel 2 or iPhone 8.
 
-# Not-so-quick-but-better-start
+## Not-so-quick-but-better-start
 
 PWAs *need* to be served over HTTPS for essential features to work. There's an
 allowance for localhost to *not* require HTTPS, which is why the quickstart
@@ -29,7 +39,7 @@ stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
 Now you have a publicly accessible host, with an SSL cert from a trusted CA,
 that also has HotModuleReload. Hack away!
 
-# Deploy to Firebase
+## Deploy to Firebase
 
 ```bash
 npm i -g npx
@@ -44,7 +54,7 @@ npm run build
 npx firebase deploy
 ```
 
-# Testing workflow
+## Testing workflow
 
 You can run unit tests one off with: `yarn test:unit`.
 

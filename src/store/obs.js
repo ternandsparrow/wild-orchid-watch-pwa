@@ -38,7 +38,7 @@ const actions = {
     }
     // FIXME remove and do it for real
     commit('setMyObs', [])
-    const urlBase = apiUrlBase + 'observations/'
+    const urlBase = apiUrlBase + '/observations/'
     const ids = [
       26911885,
       26911582,
@@ -77,7 +77,7 @@ const actions = {
     }
     // FIXME remove and do it for real
     commit('setMySpecies', [])
-    const urlBase = apiUrlBase + 'taxa/'
+    const urlBase = apiUrlBase + '/taxa/'
     const iNatTaxaIds = [
       416798,
       323928,
@@ -111,7 +111,7 @@ const actions = {
   },
   async getObsFields({ commit }) {
     commit('setObsFields', [])
-    const url = apiUrlBase + 'projects/' + inatProjectSlug
+    const url = apiUrlBase + '/projects/' + inatProjectSlug
     const fields = await fetchSingleRecord(url).then(function(d) {
       if (!d) {
         return null

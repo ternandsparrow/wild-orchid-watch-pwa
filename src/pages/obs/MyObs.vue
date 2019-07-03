@@ -60,7 +60,7 @@
 
 <script>
 import { mapState } from 'vuex'
-import ObsDetailComponent from '@/pages/ObservationDetail'
+import ObsDetailComponent from '@/pages/obs-detail'
 import Individual from '@/pages/new-obs/Individual'
 import Population from '@/pages/new-obs/Population'
 import Mapping from '@/pages/new-obs/Mapping'

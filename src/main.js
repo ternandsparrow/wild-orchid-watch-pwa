@@ -13,13 +13,18 @@ import '@/misc/handle-apple-install-prompt'
 import store from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
-import CustomToolbar from '@/partials/CustomToolbar'
-import CarouselDots from '@/partials/CarouselDots'
+import '@/global-components'
+import * as VueGoogleMaps from 'vue2-google-maps'
 
 Vue.use(VueOnsen)
-Vue.component('custom-toolbar', CustomToolbar)
-Vue.component('carousel-dots', CarouselDots) // FIXME remove when linked issue in Onboarder is fixed
 Vue.config.productionTip = false
+
+// initiating google map
+Vue.use(VueGoogleMaps, {
+  load: {
+    key: 'AIzaSyCApM5lvha5-V76wO5clTzCoRl9puQCrGQ',
+  },
+})
 
 new Vue({
   el: '#app',
@@ -32,6 +37,13 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
+
+    window.addEventListener('focus', () => {
+      if (!this.$store.state.app.networkOnLine) {
+        return
+      }
+      this.$store.dispatch('app/manualServiceWorkerUpdateCheck')
+    })
   },
   render: h => h(AppNavigator),
   router,
