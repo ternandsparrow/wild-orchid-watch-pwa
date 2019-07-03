@@ -14,9 +14,17 @@ import store from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
+import * as VueGoogleMaps from "vue2-google-maps";
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
+
+// initiating google map
+Vue.use(VueGoogleMaps, {
+  load: {
+    key: "AIzaSyCApM5lvha5-V76wO5clTzCoRl9puQCrGQ"
+  }
+});
 
 new Vue({
   el: '#app',
