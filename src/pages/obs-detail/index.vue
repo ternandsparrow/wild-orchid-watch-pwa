@@ -56,7 +56,7 @@
         mi euismod massa gravida pretium. Cras quis lorem nec sapien pulvinar
         semper.
         <div class="map-container text-center">
-          <google-map :marker-position="testPosition" />
+          <google-map :marker-position="currentPosition" />
         </div>
       </div>
       <div v-if="selectedTab === 1">
@@ -89,7 +89,7 @@ export default {
       },
       selectedTab: 0,
       tabs: [{ icon: 'fa-info' }, { icon: 'fa-comments' }, { icon: 'fa-star' }],
-      testPosition: { lat: -34.9786554, lng: 138.6487938 }, // FIXME pull real location
+      currentPosition: { lat: -34.9786554, lng: 138.6487938 },
     }
   },
   computed: {
@@ -144,6 +144,20 @@ export default {
     onEdit() {
       // FIXME swap to edit mode
       this.$ons.notification.alert('FIXME swap to edit mode')
+    },
+    doGeolocation() {
+      console.log('Doing geolocation call')
+      navigator.geolocation.getCurrentPosition(
+        this.handleLocation, 
+        this.onGeolocationError,
+      )
+    },
+    handleLocation(position) {
+      this.currentPosition = position
+    },
+    onGeolocationError(error) {
+      // FIXME handle the error
+      this.$ons.notification.alert('FIXME handle the error:' + error)
     },
   },
 }

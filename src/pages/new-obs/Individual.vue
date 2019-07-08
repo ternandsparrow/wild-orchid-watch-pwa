@@ -44,6 +44,9 @@
           </v-ons-carousel-item>
         </v-ons-carousel>
       </v-ons-list-item>
+      <div class="map-container text-center">
+        <google-map :marker-position="currentPosition" />
+      </div>
       <template v-for="currField of filteredFields">
         <v-ons-list-header :key="currField.id + '-list'">{{
           currField.name
@@ -111,6 +114,7 @@ export default {
         { id: 'lit', label: 'Lithophyte' },
       ],
       blah: {}, // FIXME
+      currentPosition: { lat: -34.9786554, lng: 138.6487938 }, //FIXME - pull this from the system
     }
   },
   computed: {
@@ -159,6 +163,10 @@ export default {
         throw err
       }
     },
+    beforeMount() {
+      console.log('beforeMount')
+      this.doGeolocation()
+    },
     onPhotoAdded(photoDefObj) {
       const type = photoDefObj.id
       const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
@@ -173,6 +181,20 @@ export default {
     },
     photoRef(e) {
       return 'photo-' + e.id
+    },
+    doGeolocation() {
+      console.log('Doing geolocation call')
+      navigator.geolocation.getCurrentPosition(
+        this.handleLocation,
+        this.onGeolocationError,
+      )
+    },
+    handleLocation(position) {
+      this.currentPosition = position
+    },
+    onGeolocationError(error) {
+      // FIXME handle the error
+      this.$ons.notification.alert('FIXME handle the error:' + error)
     },
   },
 }
@@ -225,5 +247,14 @@ export default {
   background-size: cover;
   background-position: center center;
   height: 100%;
+}
+
+// FIXME - make these map styles global?
+.map-container {
+  padding: 2em 0;
+}
+
+.map-container img {
+  width: 90vw;
 }
 </style>

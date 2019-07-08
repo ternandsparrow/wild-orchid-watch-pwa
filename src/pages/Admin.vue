@@ -41,11 +41,17 @@
         >Check for SW update</v-ons-button
       >
     </v-ons-card>
+    <v-ons-card>
+      <v-ons-button @click="doCommunityWorkflow"
+        >Community workflow</v-ons-button
+      >
+    </v-ons-card>
   </v-ons-page>
 </template>
 
 <script>
 import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
+import CommunityComponent from '@/pages/new-obs/Community'
 
 export default {
   data() {
@@ -122,6 +128,9 @@ export default {
             animation: 'ascend',
           })
         })
+    },
+    doCommunityWorkflow() {
+      this.$store.commit('navigator/push', CommunityComponent)
     },
   },
 }
