@@ -1,5 +1,6 @@
 <template>
   <v-ons-page modifier="white">
+    <div class="is-dev-warning">{{ deployedEnvName }}</div>
     <div class="profile-pic">
       <img src="../assets/wow-logo.png" />
       <div class="app-name">Wild Orchid Watch</div>
@@ -60,7 +61,7 @@ import Activity from '@/pages/activity/index'
 import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
 import Admin from '@/pages/Admin'
-import { appVersion } from '@/misc/constants'
+import { appVersion, isDeployedToProd } from '@/misc/constants'
 
 export default {
   data() {
@@ -119,6 +120,11 @@ export default {
         },
       ],
     }
+  },
+  computed: {
+    deployedEnvName() {
+      return isDeployedToProd ? '' : '[development build]'
+    },
   },
   methods: {
     loadView(index) {
@@ -181,5 +187,12 @@ export default {
   right: 0;
   text-align: center;
   padding: 1em;
+}
+
+.is-dev-warning {
+  text-align: center;
+  color: white;
+  background-color: red;
+  font-family: monospace;
 }
 </style>
