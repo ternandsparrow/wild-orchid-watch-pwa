@@ -1,21 +1,26 @@
-export const apiUrlBase = 'https://api.inaturalist.org/v1'
+// We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
+// https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
 
-// FIXME make all these injectable
-export const inatUrlBase = 'http://dev.inat.techotom.com'
+export const apiUrlBase = process.env.VUE_APP_API_URL_BASE
 
-export const appId =
-  '7654a3c9152c6c1afaf215c9fa066a73a963230b37e6104021ca9b52398334e6'
+export const inatUrlBase = process.env.VUE_APP_INAT_URL_BASE
 
-export const redirectUri = 'http://localhost:8080/oauth-callback'
+export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
-export const inatStaticUrlBase = 'https://static.inaturalist.org'
+export const appId = process.env.VUE_APP_OAUTH_APP_ID
+
+export const redirectUri = process.env.VUE_APP_OAUTH_REDIRECT_URI
+
+export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
+
+export const isDeployedToProd = (() => {
+  return process.env.VUE_APP_DEPLOYED_ENV_IS_PROD === 'true'
+})()
+
+export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
+
+export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
+
+export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
 export const noImagePlaceholderUrl = 'img/no-image-placeholder.png'
-
-export const inatProjectSlug = 'wild-orchid-watch-australia-beta' // FIXME make config
-
-export const obsFieldSeparatorChar = '|'
-
-export const obsFieldPrefix = 'WOW '
-
-export const appVersion = '0.1.0' // FIXME make dynamic at build time

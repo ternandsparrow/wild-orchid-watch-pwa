@@ -76,9 +76,21 @@ jobs:
       - attach_workspace:
           at: .
       - run:
+          name: 'Write env var overrides'
+          command: |
+            cat <<EOF > .env.local
+            VUE_APP_INAT_BASE_URL=$INAT_BASE_URL
+            VUE_APP_INAT_STATIC_BASE_URL=$INAT_STATIC_BASE_URL
+            VUE_APP_API_URL_BASE=$API_URL_BASE
+            VUE_APP_OAUTH_APP_ID=$OAUTH_APP_ID
+            VUE_APP_OAUTH_REDIRECT_URI=$OAUTH_REDIRECT_URI
+            VUE_APP_INAT_PROJECT_SLUG=wild-orchid-watch-australia
+            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            EOF
+      - run:
           name: 'Build'
           command: yarn build
-      - persist_to_workspace:
+      - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .
 
