@@ -115,6 +115,7 @@ export default {
   // components: { CarouselDots },
   methods: {
     handleDoneClick() {
+      localStorage.setItem('isNotFirstRun', true)
       this.$store.commit('navigator/pop')
     },
     onDotClick(carouselIndex) {

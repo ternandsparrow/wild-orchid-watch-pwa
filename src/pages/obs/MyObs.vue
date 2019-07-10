@@ -8,6 +8,7 @@
       <v-ons-list-item
         v-for="curr in waitingToUploadRecords"
         :key="curr.id"
+        modifier="chevron"
         @click="push(curr.id)"
       >
         <div class="left">
@@ -23,6 +24,7 @@
         v-for="curr in myObs"
         :key="curr.id"
         class="wow-list-item"
+        modifier="chevron"
         @click="push(curr.id)"
       >
         <div class="left">
