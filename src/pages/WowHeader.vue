@@ -55,7 +55,6 @@ export default {
     const localStorageTargetKey = 'isNotFirstRun'
     this.isNotFirstRun = localStorage.getItem(localStorageTargetKey)
     if (this.isNotFirstRun === null) {
-      localStorage.setItem(localStorageTargetKey, true)
       this.$store.commit('navigator/push', Onboarder)
     }
   },
