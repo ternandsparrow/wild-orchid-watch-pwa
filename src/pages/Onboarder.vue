@@ -10,11 +10,11 @@
       :index.sync="carouselIndex"
     >
       <v-ons-carousel-item :style="{ 'background-color': items.BLUE }">
-        <v-ons-card>
+        <v-ons-card class="wowOnboarderCard">
           <img
             src="@/assets/appicon-wow.png"
             alt="Wild Orchid Watch"
-            style="width: 100%"
+            class="wowLogoOnboarder"
           />
           <div class="title">
             Welcome!
@@ -30,7 +30,7 @@
           <img
             src="@/assets/appicon-wow.png"
             alt="Wild Orchid Watch"
-            style="width: 100%"
+            class="wowLogoOnboarder"
           />
           <div class="title">
             Data Collection
@@ -47,7 +47,7 @@
           <img
             src="@/assets/appicon-wow.png"
             alt="Wild Orchid Watch"
-            style="width: 100%"
+            class="wowLogoOnboarder"
           />
           <div class="title">
             Safety
@@ -59,24 +59,47 @@
         </v-ons-card>
       </v-ons-carousel-item>
       <v-ons-carousel-item :style="{ 'background-color': items.GREEN }">
-        <v-ons-card>
+        <v-ons-card class="center">
           <img
             src="@/assets/appicon-wow.png"
             alt="Wild Orchid Watch"
-            style="width: 100%"
+            class="wowLogoOnboarder"
           />
           <div class="title">
             Scientific use
           </div>
           <div class="content">
-            This is even cooler
+            The Observations you collect will be directly used by Scientists
+            researching how native Australian orchids can act as indicators of
+            ecosystem and biodiversity change.
           </div>
+          <v-ons-list>
+            <ons-list-item
+              class="notAccepted"
+              :class="{ accepted: tsandcsAccepted }"
+              >>
+              <label class="center small-text">
+                I have read and accepted the WoW Field Data Collection App's
+                Terms and Conditions
+              </label>
+              <label class="right">
+                <v-ons-checkbox
+                  v-model="tsandcsAccepted"
+                  :value="tsandcsAccepted"
+                />
+              </label>
+            </ons-list-item>
+            <ons-list-item>
+              <div>
+                <v-ons-button
+                  :class="{ invisible: !tsandcsAccepted }"
+                  @click="handleDoneClick"
+                  >OK, let's go...!
+                </v-ons-button>
+              </div>
+            </ons-list-item>
+          </v-ons-list>
         </v-ons-card>
-        <div class="button_holder">
-          <v-ons-button @click="handleDoneClick"
-            >OK, let's collect some data</v-ons-button
-          >
-        </div>
       </v-ons-carousel-item>
     </v-ons-carousel>
     <carousel-dots
@@ -110,12 +133,14 @@ export default {
         left: 0,
         right: 0,
       },
+      tsandcsAccepted: false,
     }
   },
   // components: { CarouselDots },
   methods: {
     handleDoneClick() {
       localStorage.setItem('isNotFirstRun', true)
+      localStorage.setItem('tsandcsAccepted', true)
       this.$store.commit('navigator/pop')
     },
     onDotClick(carouselIndex) {
@@ -129,5 +154,31 @@ export default {
 ons-carousel-item {
   display: table;
   text-align: center;
+}
+
+.wowLogoOnboarder {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 90%;
+}
+
+.wowOnboarderCard {
+  height: '90%';
+}
+
+.notAccepted {
+  margin-top: 10px;
+  border-radius: 25px;
+  background-color: rgb(255, 16, 16);
+}
+.accepted {
+  margin-top: 10px;
+  border-radius: 25px;
+  background-color: rgb(0, 187, 0);
+}
+
+.invisible {
+  visibility: hidden;
 }
 </style>
