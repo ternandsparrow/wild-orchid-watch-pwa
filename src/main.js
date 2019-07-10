@@ -38,6 +38,8 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
 
+    this.$store.dispatch('auth/init')
+
     window.addEventListener('focus', () => {
       if (!this.$store.state.app.networkOnLine) {
         return
