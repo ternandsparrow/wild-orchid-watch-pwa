@@ -77,8 +77,9 @@ jobs:
           at: .
       - run:
           name: 'Write env var overrides'
+          # we need to escape (\) the << otherwise CircleCI complains
           command: |
-            cat <<EOF > .env.local
+            cat \<<EOF > .env.local
             VUE_APP_INAT_BASE_URL=$INAT_BASE_URL
             VUE_APP_INAT_STATIC_BASE_URL=$INAT_STATIC_BASE_URL
             VUE_APP_API_URL_BASE=$API_URL_BASE
