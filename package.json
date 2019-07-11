@@ -23,6 +23,7 @@
     "is_js": "^0.9.0",
     "lodash": "^4.17.11",
     "onsenui": "^2.10.8",
+    "pkce-challenge": "^1.0.3",
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",
     "sass": "^1.21.0",

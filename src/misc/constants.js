@@ -1,9 +1,9 @@
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
 
-export const apiUrlBase = process.env.VUE_APP_API_URL_BASE
+export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
-export const inatUrlBase = process.env.VUE_APP_INAT_URL_BASE
+export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
 export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
