@@ -77,23 +77,31 @@
             <ons-list-item
               class="notAccepted"
               :class="{ accepted: tsandcsAccepted }"
-              >>
-              <label class="center small-text">
-                I have read and accepted the WoW Field Data Collection App's
-                Terms and Conditions
-              </label>
-              <label class="right">
-                <v-ons-checkbox
-                  v-model="tsandcsAccepted"
-                  :value="tsandcsAccepted"
-                />
-              </label>
+            >
+              <div>
+                <label class="center small-text">
+                  I have read and accepted the WoW Field Data Collection App's
+                  Terms and Conditions
+                </label>
+                <!-- 
+                <a :href="subcategory.html" @click.prevent="showTAndCs($event)"
+                  >Terms and Conditions
+                </a>
+                -->
+                <label class="right">
+                  <v-ons-checkbox
+                    v-model="tsandcsAccepted"
+                    :value="tsandcsAccepted"
+                  />
+                </label>
+              </div>
             </ons-list-item>
             <ons-list-item>
               <div>
-                <v-ons-button
-                  :class="{ invisible: !tsandcsAccepted }"
-                  @click="handleDoneClick"
+                <v-ons-button v-if="!tsandcsAccepted" @click="showTAndCs"
+                  >View Terms and Conditions</v-ons-button
+                >
+                <v-ons-button v-if="tsandcsAccepted" @click="handleDoneClick"
                   >OK, let's go...!
                 </v-ons-button>
               </div>
@@ -108,6 +116,21 @@
       :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
+    <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
+      <div style="width:100%; height:70vh;">
+        <!-- div class="dialogDiv" -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <span v-html="tAndCHtml"></span>
+      </div>
+    </v-ons-dialog>
+
+    <!-- v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
+      <v-ons-page>
+        <v-ons-toolbar>sdfjhsd jhgdsffsghd</v-ons-toolbar>
+        this si sowdflnsdlf sd kjfhsdfjds sdfjhsdsd fdfsfsdf sdfsdfsfdsdfsdf<br />
+        sdfsdfsfdsdfsdf dfgdggffffff ggggg
+      </v-ons-page>
+    </v-ons-dialog-->
   </v-ons-page>
 </template>
 
@@ -134,6 +157,8 @@ export default {
         right: 0,
       },
       tsandcsAccepted: false,
+      tsAndCsModalVisible: false,
+      tAndCHtml: require('@/assets/wow-t-and-c.html'),
     }
   },
   // components: { CarouselDots },
@@ -145,6 +170,9 @@ export default {
     },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
+    },
+    showTAndCs() {
+      this.tsAndCsModalVisible = true
     },
   },
 }
@@ -180,5 +208,9 @@ ons-carousel-item {
 
 .invisible {
   visibility: hidden;
+}
+
+.dialogDiv {
+  min-height: 300px;
 }
 </style>
