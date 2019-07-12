@@ -88,6 +88,8 @@ jobs:
             VUE_APP_INAT_PROJECT_SLUG=wild-orchid-watch-australia
             VUE_APP_DEPLOYED_ENV_IS_PROD=false
             EOF
+            echo '[INFO] contents of .env.local'
+            cat .env.local
       - run:
           name: 'Build'
           command: yarn build
