@@ -5,6 +5,7 @@ import {
   obsFieldSeparatorChar,
 } from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
+import { getJsonWithAuth } from '@/misc/helpers'
 
 // IndexedDB doesn't allow indexing on booleans :(
 const NO = 0
@@ -31,44 +32,25 @@ const mutations = {
 }
 
 const actions = {
-  async getMyObs({ state, commit }) {
+  async getMyObs({ state, commit }, { apiToken, myUserId }) {
+    // FIXME can we get myUserId and apiToken ourselves? Perhaps move it to global vuex scope
     if (state.myObs.length) {
       // FIXME make the service worker do the caching
       return
     }
-    // FIXME remove and do it for real
     commit('setMyObs', [])
-    const urlBase = apiUrlBase + '/observations/'
-    const ids = [
-      26911885,
-      26911582,
-      26907931,
-      26792216,
-      26854577,
-      26832325,
-      25977268,
-    ]
-    const promises = []
-    for (const curr of ids) {
-      promises.push(
-        fetchSingleRecord(urlBase + curr).then(function(d) {
-          if (!d) {
-            return null
-          }
-          // TODO do we need any other photo details?
-          const photos = (d.photos || []).map(e => e.url)
-          return {
-            id: d.id,
-            photos,
-            placeGuess: d.place_guess,
-            speciesGuess: d.species_guess,
-          }
-        }),
-      )
+    if (!myUserId || !apiToken) {
+      return
     }
-    // FIXME shouldn't have to filter, do it a better way
-    const records = (await Promise.all(promises)).filter(e => !!e)
-    commit('setMyObs', records)
+    const url = `${apiUrlBase}/observations?user_id=${myUserId}`
+    try {
+      const resp = await getJsonWithAuth(url, apiToken)
+      const records = resp.results
+      commit('setMyObs', records)
+    } catch (err) {
+      console.error('Failed to get my observations', err)
+      return false
+    }
   },
   async getMySpecies({ state, commit }) {
     if (state.mySpecies.length) {

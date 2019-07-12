@@ -35,31 +35,31 @@ export default {
   mutations: {
     _setToken: (state, value) => {
       state.token = value
-      localStorage.setItem(lsKeyInatToken, value)
+      saveToLocalStorage(lsKeyInatToken, value)
     },
     _setTokenType: (state, value) => {
       state.tokenType = value
-      localStorage.setItem(lsKeyInatTokenType, value)
+      saveToLocalStorage(lsKeyInatTokenType, value)
     },
     _setTokenCreatedAt: (state, value) => {
       state.tokenCreatedAt = value
-      localStorage.setItem(lsKeyInatTokenCreatedAt, value)
+      saveToLocalStorage(lsKeyInatTokenCreatedAt, value)
     },
     _setApiToken: (state, value) => {
       state.apiToken = value
-      localStorage.setItem(lsKeyInatApiToken, value)
+      saveToLocalStorage(lsKeyInatApiToken, value)
     },
     _setCodeChallenge: (state, value) => {
       state.code_challenge = value
-      localStorage.setItem(lsKeyCodeChallenge, value)
+      saveToLocalStorage(lsKeyCodeChallenge, value)
     },
     _setCodeVerifier: (state, value) => {
       state.code_verifier = value
-      localStorage.setItem(lsKeyCodeVerifier, value)
+      saveToLocalStorage(lsKeyCodeVerifier, value)
     },
     _saveUserDetails: (state, value) => {
       state.userDetails = value
-      localStorage.setItem(lsKeyUserDetails, value)
+      saveToLocalStorage(lsKeyUserDetails, value)
     },
   },
   getters: {
@@ -71,6 +71,9 @@ export default {
     userIcon(state) {
       const result = state.userDetails.icon
       return result ? inatUrlBase + result : noProfilePicPlaceholderUrl
+    },
+    myUserId(state) {
+      return state.userDetails.id
     },
   },
   actions: {
@@ -159,6 +162,14 @@ function loadFromLocalStorageIfPresent(key, commitName, commit) {
     console.debug(`No value in localStorage for key='${key}'`)
     return
   }
-  console.debug(`Found value='${val}' in localStorage for key='${key}'`)
-  commit(commitName, val)
+  const deserialisedVal = JSON.parse(val)
+  console.debug(
+    `Found value='${deserialisedVal}' in localStorage for key='${key}'`,
+  )
+  commit(commitName, deserialisedVal)
+}
+
+function saveToLocalStorage(key, value) {
+  const serialisedVal = JSON.stringify(value)
+  localStorage.setItem(key, serialisedVal)
 }

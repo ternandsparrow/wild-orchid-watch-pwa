@@ -15,8 +15,8 @@
           <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
         </div>
         <div class="center">
-          <span class="list-item__title">{{ curr.speciesGuess }}</span
-          ><span class="list-item__subtitle">{{ curr.placeGuess }}</span>
+          <span class="list-item__title">{{ speciesGuess(curr) }}</span
+          ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
         </div>
       </v-ons-list-item>
       <v-ons-list-header v-if="isWaitingForUpload">Uploaded</v-ons-list-header>
@@ -30,8 +30,8 @@
           <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
         </div>
         <div class="center">
-          <span class="list-item__title">{{ curr.speciesGuess }}</span
-          ><span class="list-item__subtitle">{{ curr.placeGuess }}</span>
+          <span class="list-item__title">{{ speciesGuess(curr) }}</span
+          ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
         </div>
       </v-ons-list-item>
     </v-ons-list>
@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
 import ObsDetailComponent from '@/pages/obs-detail'
 import Individual from '@/pages/new-obs/Individual'
 import Population from '@/pages/new-obs/Population'
@@ -75,12 +75,17 @@ export default {
   },
   computed: {
     ...mapState('obs', ['myObs', 'waitingToUploadRecords']),
+    ...mapGetters('auth', ['myUserId']),
+    ...mapState('auth', ['apiToken']),
     isWaitingForUpload() {
       return (this.waitingToUploadRecords || []).length
     },
   },
   created() {
-    this.$store.dispatch('obs/getMyObs')
+    this.$store.dispatch('obs/getMyObs', {
+      myUserId: this.myUserId,
+      apiToken: this.apiToken,
+    })
     this.$store.dispatch('obs/refreshWaitingToUpload')
   },
   methods: {
@@ -108,6 +113,12 @@ export default {
         return noImagePlaceholderUrl
       }
       return record.photos[0]
+    },
+    speciesGuess(record) {
+      return record.speciesGuess || '(No species name)'
+    },
+    placeGuess(record) {
+      return record.placeGuess || '(No place guess)'
     },
   },
 }
