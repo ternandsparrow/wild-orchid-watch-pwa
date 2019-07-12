@@ -1,12 +1,25 @@
 import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
 
+import {
+  inatUrlBase,
+  appId,
+  redirectUri,
+  apiUrlBase,
+  noProfilePicPlaceholderUrl,
+} from '@/misc/constants'
+import { getJsonWithAuth } from '@/misc/helpers'
+
+// you should only dispatch doLogin() and saveToken() as an
+// external user, don't commit directly.
+
 const lsKeyCodeChallenge = 'wow_code_challenge'
 const lsKeyCodeVerifier = 'wow_code_verifier'
 const lsKeyInatToken = 'wow_inat_token'
 const lsKeyInatTokenType = 'wow_inat_token_type'
 const lsKeyInatTokenCreatedAt = 'wow_inat_token_created_at'
 const lsKeyInatApiToken = 'wow_inat_api_token'
+const lsKeyUserDetails = 'wow_user_details'
 
 export default {
   namespaced: true,
@@ -17,51 +30,125 @@ export default {
     apiToken: null,
     code_challenge: null,
     code_verifier: null,
+    userDetails: {},
   },
   mutations: {
-    setToken: (state, value) => {
+    _setToken: (state, value) => {
       state.token = value
       localStorage.setItem(lsKeyInatToken, value)
     },
-    setTokenType: (state, value) => {
+    _setTokenType: (state, value) => {
       state.tokenType = value
       localStorage.setItem(lsKeyInatTokenType, value)
     },
-    setTokenCreatedAt: (state, value) => {
+    _setTokenCreatedAt: (state, value) => {
       state.tokenCreatedAt = value
       localStorage.setItem(lsKeyInatTokenCreatedAt, value)
     },
-    setApiToken: (state, value) => {
+    _setApiToken: (state, value) => {
       state.apiToken = value
       localStorage.setItem(lsKeyInatApiToken, value)
     },
-    setCodeChallenge: (state, value) => (state.code_challenge = value),
-    setCodeVerifier: (state, value) => (state.code_verifier = value),
+    _setCodeChallenge: (state, value) => {
+      state.code_challenge = value
+      localStorage.setItem(lsKeyCodeChallenge, value)
+    },
+    _setCodeVerifier: (state, value) => {
+      state.code_verifier = value
+      localStorage.setItem(lsKeyCodeVerifier, value)
+    },
+    _saveUserDetails: (state, value) => {
+      state.userDetails = value
+      localStorage.setItem(lsKeyUserDetails, value)
+    },
   },
   getters: {
     isUserLoggedIn: state => !isNil(state.token), // FIXME check if expired, does it expire?
+    userEmail(state) {
+      const result = state.userDetails.email
+      return result ? result : '(no email stored)'
+    },
+    userIcon(state) {
+      const result = state.userDetails.icon
+      return result ? inatUrlBase + result : noProfilePicPlaceholderUrl
+    },
   },
   actions: {
     init({ commit }) {
       const valuesToLoad = {
-        [lsKeyCodeChallenge]: 'setCodeChallenge',
-        [lsKeyCodeVerifier]: 'setCodeVerifier',
-        [lsKeyInatToken]: 'setToken',
-        [lsKeyInatTokenType]: 'setTokenType',
-        [lsKeyInatTokenCreatedAt]: 'setTokenCreatedAt',
-        [lsKeyInatApiToken]: 'setApiToken',
+        [lsKeyCodeChallenge]: '_setCodeChallenge',
+        [lsKeyCodeVerifier]: '_setCodeVerifier',
+        [lsKeyInatToken]: '_setToken',
+        [lsKeyInatTokenType]: '_setTokenType',
+        [lsKeyInatTokenCreatedAt]: '_setTokenCreatedAt',
+        [lsKeyInatApiToken]: '_setApiToken',
+        [lsKeyUserDetails]: '_saveUserDetails',
       }
+      // FIXME look for a "partial" situation where we have some, but not all details. Then fix it
       for (const currKey of Object.keys(valuesToLoad)) {
         const commitName = valuesToLoad[currKey]
         loadFromLocalStorageIfPresent(currKey, commitName, commit)
       }
     },
-    generatePkcePair({ commit }) {
+    _generatePkcePair({ commit }) {
       const pair = PkceGenerator()
-      commit('setCodeChallenge', pair.code_challenge)
-      localStorage.setItem(lsKeyCodeChallenge, pair.code_challenge)
-      commit('setCodeVerifier', pair.code_verifier)
-      localStorage.setItem(lsKeyCodeVerifier, pair.code_verifier)
+      commit('_setCodeChallenge', pair.code_challenge)
+      commit('_setCodeVerifier', pair.code_verifier)
+    },
+    saveToken({ commit, dispatch }, vals) {
+      commit('_setToken', vals.token)
+      commit('_setTokenType', vals.tokenType)
+      commit('_setTokenCreatedAt', vals.tokenCreatedAt)
+      dispatch('_updateApiToken')
+    },
+    async doLogin({ state, dispatch }) {
+      await dispatch('_generatePkcePair')
+      const challenge = state.code_challenge
+      location.assign(
+        `${inatUrlBase}/oauth/authorize?
+        client_id=${appId}&
+        redirect_uri=${redirectUri}&
+        code_challenge=${challenge}&
+        code_challenge_method=S256&
+        response_type=code`.replace(/\s/g, ''),
+      )
+    },
+    async _updateApiToken({ commit, state, dispatch }) {
+      try {
+        const resp = await getJsonWithAuth(
+          `${inatUrlBase}/users/api_token`,
+          `${state.tokenType} ${state.token}`,
+        )
+        const apiToken = resp.api_token
+        commit('_setApiToken', apiToken)
+        dispatch('_updateUserDetails')
+      } catch (err) {
+        console.error('Failed to get API token using iNat token', err)
+        // FIXME report to rollbar
+        return
+      }
+    },
+    async _updateUserDetails({ commit, state }) {
+      // FIXME need to trigger this periodcally to looks for profile changes
+      try {
+        const resp = await getJsonWithAuth(
+          `${apiUrlBase}/users/me`,
+          `${state.apiToken}`,
+        )
+        const isWrongNumberOfResults = resp.total_results !== 1
+        if (isWrongNumberOfResults) {
+          throw new Error(
+            `Failed to update user details from inat API, request succeeded but expected result count=1 and got total_results=${
+              resp.total_results
+            }`,
+          )
+        }
+        commit('_saveUserDetails', resp.results[0])
+      } catch (err) {
+        console.error('Failed to update user details from inat API', err)
+        // FIXME report to rollbar
+        return
+      }
     },
   },
 }

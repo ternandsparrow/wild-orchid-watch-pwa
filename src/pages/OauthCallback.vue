@@ -15,7 +15,7 @@
 </template>
 
 <script>
-import { postJson, getJsonWithAuth } from '@/misc/helpers'
+import { postJson } from '@/misc/helpers'
 import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
 
 export default {
@@ -31,6 +31,7 @@ export default {
   },
   methods: {
     async processCode(code) {
+      this.isError = false
       let token, tokenType, tokenCreatedAt
       const verifier = this.$store.state.auth.code_verifier
       try {
@@ -45,32 +46,18 @@ export default {
         token = resp.access_token
         tokenType = resp.token_type
         tokenCreatedAt = resp.created_at
-        this.getApiToken(tokenType, token)
       } catch (err) {
         console.error('Failed to convert auth code to token', err)
         // FIXME report to rollbar
         this.isError = true
         return
       }
-      this.$store.commit('auth/setToken', token)
-      this.$store.commit('auth/setTokenType', tokenType)
-      this.$store.commit('auth/setTokenCreatedAt', tokenCreatedAt)
-      this.$router.push({ name: 'Admin' })
-    },
-    async getApiToken(tokenType, token) {
-      try {
-        const resp = await getJsonWithAuth(
-          `${inatUrlBase}/users/api_token`,
-          `${tokenType} ${token}`,
-        )
-        const apiToken = resp.api_token
-        this.$store.commit('auth/setApiToken', apiToken)
-      } catch (err) {
-        console.error('Failed to get API token using iNat token', err)
-        // FIXME report to rollbar
-        this.isError = true
-        return
-      }
+      this.$store.dispatch('auth/saveToken', {
+        token,
+        tokenType,
+        tokenCreatedAt,
+      })
+      this.$router.push({ name: 'Home' })
     },
   },
 }

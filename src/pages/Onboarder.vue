@@ -73,8 +73,10 @@
           </div>
         </v-ons-card>
         <div class="button_holder">
+          <!-- FIXME tell user they'll be logging in with iNat? -->
+          <!-- FIXME check if we're already logged in and shortcut if so -->
           <v-ons-button @click="handleDoneClick"
-            >OK, let's collect some data</v-ons-button
+            >Login to start collecting some data</v-ons-button
           >
         </div>
       </v-ons-carousel-item>
@@ -116,7 +118,7 @@ export default {
   methods: {
     handleDoneClick() {
       localStorage.setItem('isNotFirstRun', true)
-      this.$store.commit('navigator/pop')
+      this.$store.dispatch('auth/doLogin')
     },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex

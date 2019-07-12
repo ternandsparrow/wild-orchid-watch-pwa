@@ -67,7 +67,7 @@
 import { mapGetters } from 'vuex'
 
 import { getJsonWithAuth } from '@/misc/helpers'
-import { inatUrlBase, appId, redirectUri, apiUrlBase } from '@/misc/constants'
+import { apiUrlBase } from '@/misc/constants'
 import CommunityComponent from '@/pages/new-obs/Community'
 
 export default {
@@ -123,16 +123,7 @@ export default {
       )
     },
     doLogin() {
-      this.$store.dispatch('auth/generatePkcePair')
-      const challenge = this.$store.state.auth.code_challenge
-      location.assign(
-        `${inatUrlBase}/oauth/authorize?
-        client_id=${appId}&
-        redirect_uri=${redirectUri}&
-        code_challenge=${challenge}&
-        code_challenge_method=S256&
-        response_type=code`.replace(/\s/g, ''),
-      )
+      this.$store.dispatch('auth/doLogin')
     },
     async doGetUserDetails() {
       try {

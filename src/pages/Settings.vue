@@ -7,10 +7,10 @@
       >
       <ons-list-item>
         <label class="center" for="switch1">
-          Sample Switch ({{ switchOn ? 'on' : 'off' }})
+          Logout from Wild Orchid Watch and iNaturalist
         </label>
         <div class="right">
-          <v-ons-switch v-model="switchOn" input-id="switch1"> </v-ons-switch>
+          <v-ons-button @click="doLogout">Logout</v-ons-button>
         </div>
       </ons-list-item>
       <ons-list-item>
@@ -18,9 +18,7 @@
           Show onboarder next time the App launches
         </label>
         <div class="right">
-          <v-ons-button style=" 6px 0" @click="handleResetOnboarderClick()"
-            >Reset</v-ons-button
-          >
+          <v-ons-button @click="handleResetOnboarderClick">Reset</v-ons-button>
         </div>
       </ons-list-item>
     </v-ons-list>
@@ -30,11 +28,6 @@
 <script>
 export default {
   name: 'Settings',
-  data() {
-    return {
-      switchOn: false,
-    }
-  },
   mounted() {
     this.$store.commit('app/setTopTitle', 'Settings')
   },
@@ -45,6 +38,10 @@ export default {
         timeout: 1000,
         animation: 'ascend',
       })
+    },
+    doLogout() {
+      // FIXME implment me
+      alert('FIXME implement this')
     },
   },
 }

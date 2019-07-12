@@ -24,3 +24,5 @@ export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
 export const noImagePlaceholderUrl = 'img/no-image-placeholder.png'
+
+export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder.png'
