@@ -2,9 +2,17 @@
   <v-ons-toolbar :class="{ offline: !networkOnLine }">
     <div class="left">
       <slot name="left">
-        <v-ons-back-button v-if="backLabel">
+        <v-ons-back-button v-if="backLabel && !isNotHomeRoute">
           {{ backLabel }}
         </v-ons-back-button>
+        <v-ons-toolbar-button
+          v-if="isNotHomeRoute"
+          modifier="quiet"
+          @click="goHome"
+        >
+          <v-ons-icon icon="ion-home, material:md-home"></v-ons-icon>
+          Home
+        </v-ons-toolbar-button>
       </slot>
     </div>
     <div class="center">
@@ -20,15 +28,19 @@ import { mapState } from 'vuex'
 
 export default {
   props: {
-    title: {
-      type: String,
-    },
-    backLabel: {
-      type: String,
-    },
+    title: String,
+    backLabel: String,
   },
   computed: {
     ...mapState('app', ['networkOnLine']),
+    isNotHomeRoute() {
+      return this.$route.path !== '/'
+    },
+  },
+  methods: {
+    goHome() {
+      this.$router.push('/')
+    },
   },
 }
 </script>

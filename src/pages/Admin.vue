@@ -29,6 +29,9 @@
       </div>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Login test
+      </div>
       <div>Logged in = {{ isUserLoggedIn }}</div>
       <div>
         Do this first
@@ -45,6 +48,9 @@
       </div>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Force service worker update check
+      </div>
       <v-ons-button @click="doManualUpdateCheck"
         >Check for SW update</v-ons-button
       >

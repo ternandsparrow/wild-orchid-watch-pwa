@@ -4,6 +4,7 @@ import VueRouter from 'vue-router'
 import store from '@/store'
 import WowHeader from '@/pages/WowHeader'
 import OauthCallback from '@/pages/OauthCallback'
+import Admin from '@/pages/Admin'
 
 Vue.use(VueRouter)
 
@@ -19,10 +20,11 @@ const router = new VueRouter({
       path: '/oauth-callback',
       name: 'OauthCallback',
       component: OauthCallback,
-      props: route => {
-        console.log(route)
-        return { code: route.query.code }
-      },
+    },
+    {
+      path: '/zzadmin',
+      name: 'Admin',
+      component: Admin,
     },
     {
       path: '**', // catch all

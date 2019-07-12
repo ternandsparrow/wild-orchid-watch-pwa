@@ -60,7 +60,6 @@ import Observations from '@/pages/obs/index'
 import Activity from '@/pages/activity/index'
 import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
-import Admin from '@/pages/Admin'
 import { appVersion, isDeployedToProd } from '@/misc/constants'
 
 export default {
@@ -149,7 +148,7 @@ export default {
       if (this.versionClickCount < tapCountThreshold) {
         return
       }
-      this.$store.commit('navigator/push', Admin)
+      this.$router.push({ name: 'Admin' })
       this.$store.commit('splitter/toggle')
     },
   },

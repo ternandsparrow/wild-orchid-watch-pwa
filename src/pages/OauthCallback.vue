@@ -17,7 +17,6 @@
 <script>
 import { postJson, getJsonWithAuth } from '@/misc/helpers'
 import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
-import Admin from '@/pages/Admin'
 
 export default {
   name: 'OauthCallback',
@@ -56,8 +55,7 @@ export default {
       this.$store.commit('auth/setToken', token)
       this.$store.commit('auth/setTokenType', tokenType)
       this.$store.commit('auth/setTokenCreatedAt', tokenCreatedAt)
-      this.$store.commit('navigator/push', Admin) // FIXME change to Home
-      // FIXME also clear all query from router, maybe just navigate with router?
+      this.$router.push({ name: 'Admin' })
     },
     async getApiToken(tokenType, token) {
       try {

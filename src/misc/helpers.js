@@ -1,9 +1,14 @@
+const commonHeaders = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+}
+
 export function postJson(url, data = {}) {
   return fetch(url, {
     method: 'POST',
     mode: 'cors',
     headers: {
-      'Content-Type': 'application/json',
+      ...commonHeaders,
     },
     body: JSON.stringify(data),
   }).then(resp => {
@@ -19,7 +24,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
     method: 'GET',
     mode: 'cors',
     headers: {
-      'Content-Type': 'application/json',
+      ...commonHeaders,
       Authorization: authHeaderValue,
     },
   }).then(resp => {
