@@ -5,7 +5,7 @@ import {
   obsFieldSeparatorChar,
 } from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
-import { getJsonWithAuth } from '@/misc/helpers'
+import { wowErrorHandler } from '@/misc/helpers'
 
 // IndexedDB doesn't allow indexing on booleans :(
 const NO = 0
@@ -32,64 +32,55 @@ const mutations = {
 }
 
 const actions = {
-  async getMyObs({ state, commit }, { apiToken, myUserId }) {
-    // FIXME can we get myUserId and apiToken ourselves? Perhaps move it to global vuex scope
+  async getMyObs({ state, commit, dispatch, rootGetters }) {
     if (state.myObs.length) {
       // FIXME make the service worker do the caching
       return
     }
     commit('setMyObs', [])
-    if (!myUserId || !apiToken) {
-      return
-    }
-    const url = `${apiUrlBase}/observations?user_id=${myUserId}`
+    const myUserId = rootGetters.myUserId
+    const urlSuffix = `/observations?user_id=${myUserId}`
     try {
-      const resp = await getJsonWithAuth(url, apiToken)
-      const records = resp.results
+      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
+      const records = resp.results.map(e => {
+        const photos = (e.photos || []).map(p => p.url)
+        return {
+          id: e.id,
+          photos,
+          placeGuess: e.place_guess,
+          speciesGuess: e.species_guess,
+        }
+      })
       commit('setMyObs', records)
     } catch (err) {
-      console.error('Failed to get my observations', err)
+      wowErrorHandler('Failed to get my observations', err)
       return false
     }
   },
-  async getMySpecies({ state, commit }) {
+  async getMySpecies({ state, commit, dispatch, rootGetters }) {
     if (state.mySpecies.length) {
       // FIXME make the service worker do the caching
       return
     }
-    // FIXME remove and do it for real
     commit('setMySpecies', [])
-    const urlBase = apiUrlBase + '/taxa/'
-    const iNatTaxaIds = [
-      416798,
-      323928,
-      549968,
-      548100,
-      140424,
-      148240,
-      323438,
-      202579,
-    ]
-    const promises = []
-    for (const curr of iNatTaxaIds) {
-      promises.push(
-        fetchSingleRecord(urlBase + curr).then(function(d) {
-          if (!d) {
-            return null
-          }
-          return {
-            id: d.id,
-            observationCount: d.observations_count,
-            defaultPhoto: d.default_photo,
-            commonName: d.preferred_common_name || d.name,
-            scientificName: d.name,
-          }
-        }),
-      )
+    const myUserId = rootGetters.myUserId
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}`
+    try {
+      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
+      const records = resp.results.map(d => {
+        return {
+          id: d.id,
+          observationCount: d.observations_count,
+          defaultPhoto: d.default_photo,
+          commonName: d.preferred_common_name || d.name,
+          scientificName: d.name,
+        }
+      })
+      commit('setMySpecies', records)
+    } catch (err) {
+      wowErrorHandler('Failed to get my species counts', err)
+      return false
     }
-    // FIXME shouldn't have to filter, do it a better way
-    const records = (await Promise.all(promises)).filter(e => !!e)
-    commit('setMySpecies', records)
   },
   async getObsFields({ commit }) {
     commit('setObsFields', [])

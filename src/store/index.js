@@ -11,6 +11,16 @@ Vue.use(Vuex)
 
 export default new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
+  actions: {
+    doApiGet({ dispatch }, argObj) {
+      return dispatch('auth/doApiGet', argObj)
+    },
+  },
+  getters: {
+    myUserId(state, getters) {
+      return getters['auth/myUserId']
+    },
+  },
   modules: {
     auth,
     app,

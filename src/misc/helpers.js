@@ -3,6 +3,12 @@ const commonHeaders = {
   Accept: 'application/json',
 }
 
+export function wowErrorHandler(msg, err) {
+  console.error(msg, err)
+  // FIXME notify Rollbar
+  // FIXME show something to user to indicate failure
+}
+
 export function postJson(url, data = {}) {
   return fetch(url, {
     method: 'POST',

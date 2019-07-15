@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <div v-if="isNoRecords" class="no-records-msg">Nothing to see here</div>
+    <no-records-msg v-if="isNoRecords" />
     <v-ons-list v-if="!isNoRecords">
       <v-ons-list-item
         v-for="curr in myMissions"
@@ -54,11 +54,3 @@ export default {
   },
 }
 </script>
-
-<style scoped>
-.no-records-msg {
-  color: #666;
-  text-align: center;
-  line-height: 3em;
-}
-</style>

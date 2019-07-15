@@ -66,8 +66,6 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import { getJsonWithAuth } from '@/misc/helpers'
-import { apiUrlBase } from '@/misc/constants'
 import CommunityComponent from '@/pages/new-obs/Community'
 
 export default {
@@ -126,14 +124,12 @@ export default {
       this.$store.dispatch('auth/doLogin')
     },
     async doGetUserDetails() {
+      const urlSuffix = '/users/me'
       try {
-        const resp = await getJsonWithAuth(
-          `${apiUrlBase}/users/me`,
-          this.$store.state.auth.apiToken,
-        )
+        const resp = await this.$store.dispatch('doApiGet', { urlSuffix })
         this.meResp = resp
       } catch (err) {
-        console.error('Failed to make /users/me API call', err)
+        console.error(`Failed to make ${urlSuffix} API call`, err)
         return
       }
     },

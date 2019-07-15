@@ -1,5 +1,6 @@
 import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
+import jwt from 'jsonwebtoken'
 
 import {
   inatUrlBase,
@@ -93,10 +94,23 @@ export default {
         loadFromLocalStorageIfPresent(currKey, commitName, commit)
       }
     },
-    _generatePkcePair({ commit }) {
-      const pair = PkceGenerator()
-      commit('_setCodeChallenge', pair.code_challenge)
-      commit('_setCodeVerifier', pair.code_verifier)
+    async doApiGet({ state, dispatch }, { urlSuffix }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await getJsonWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        console.error(
+          `Failed to make GET to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+        // FIXME report to rollbar
+        return
+      }
     },
     saveToken({ commit, dispatch }, vals) {
       commit('_setToken', vals.token)
@@ -116,8 +130,14 @@ export default {
         response_type=code`.replace(/\s/g, ''),
       )
     },
+    _generatePkcePair({ commit }) {
+      const pair = PkceGenerator()
+      commit('_setCodeChallenge', pair.code_challenge)
+      commit('_setCodeVerifier', pair.code_verifier)
+    },
     async _updateApiToken({ commit, state, dispatch }) {
       try {
+        // FIXME extract to doInatGet() action
         const resp = await getJsonWithAuth(
           `${inatUrlBase}/users/api_token`,
           `${state.tokenType} ${state.token}`,
@@ -131,19 +151,21 @@ export default {
         return
       }
     },
-    async _updateUserDetails({ commit, state }) {
-      // FIXME need to trigger this periodcally to looks for profile changes
+    /**
+     * Updates the copy of the user profile we have stored locally.
+     * Will be called everytime we refresh the API token, which at the time
+     * of writing is every 24hrs.
+     */
+    async _updateUserDetails({ commit, dispatch }) {
       try {
-        const resp = await getJsonWithAuth(
-          `${apiUrlBase}/users/me`,
-          `${state.apiToken}`,
-        )
+        const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
         const isWrongNumberOfResults = resp.total_results !== 1
         if (isWrongNumberOfResults) {
           throw new Error(
-            `Failed to update user details from inat API, request succeeded but expected result count=1 and got total_results=${
-              resp.total_results
-            }`,
+            `Failed to update user details from inat API, request succeeded ` +
+              `but expected result count=1 and got total_results=${
+                resp.total_results
+              }`,
           )
         }
         commit('_saveUserDetails', resp.results[0])
@@ -152,6 +174,22 @@ export default {
         // FIXME report to rollbar
         return
       }
+    },
+    async _refreshApiTokenIfRequired({ dispatch, state }) {
+      if (!state.apiToken) {
+        console.debug('No API token found, forcing refresh')
+        dispatch('_updateApiToken')
+        return
+      }
+      const decodedJwt = jwt.decode(state.apiToken)
+      const now = new Date().getTime() / 1000
+      const fiveMinutes = 5 * 60
+      const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
+      if (!isTokenExpiredOrCloseTo) {
+        return
+      }
+      console.debug('API token has (or is close to) expired, refreshing.')
+      dispatch('_updateApiToken')
     },
   },
 }

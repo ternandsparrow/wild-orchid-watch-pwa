@@ -1,6 +1,7 @@
 <template>
   <v-ons-page>
-    <v-ons-list>
+    <no-records-msg v-if="isNoRecords" />
+    <v-ons-list v-if="!isNoRecords">
       <v-ons-list-item
         v-for="curr in mySpecies"
         :key="curr.id"
@@ -28,6 +29,9 @@ import { mapState } from 'vuex'
 export default {
   computed: {
     ...mapState('obs', ['mySpecies']),
+    isNoRecords() {
+      return !this.mySpecies || this.mySpecies.length === 0
+    },
   },
   created() {
     this.$store.dispatch('obs/getMySpecies')

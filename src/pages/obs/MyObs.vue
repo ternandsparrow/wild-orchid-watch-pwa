@@ -1,40 +1,45 @@
 <template>
   <v-ons-page>
-    <v-ons-list>
-      <v-ons-list-header v-if="isWaitingForUpload"
-        >Waiting to upload</v-ons-list-header
-      >
-      <!-- FIXME remove duplication from next section -->
-      <v-ons-list-item
-        v-for="curr in waitingToUploadRecords"
-        :key="curr.id"
-        modifier="chevron"
-        @click="push(curr.id)"
-      >
-        <div class="left">
-          <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
-        </div>
-        <div class="center">
-          <span class="list-item__title">{{ speciesGuess(curr) }}</span
-          ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
-        </div>
-      </v-ons-list-item>
-      <v-ons-list-header v-if="isWaitingForUpload">Uploaded</v-ons-list-header>
-      <v-ons-list-item
-        v-for="curr in myObs"
-        :key="curr.id"
-        modifier="chevron"
-        @click="push(curr.id)"
-      >
-        <div class="left">
-          <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
-        </div>
-        <div class="center">
-          <span class="list-item__title">{{ speciesGuess(curr) }}</span
-          ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
-        </div>
-      </v-ons-list-item>
-    </v-ons-list>
+    <div>
+      <no-records-msg v-if="isNoRecords" />
+      <v-ons-list v-if="!isNoRecords">
+        <v-ons-list-header v-if="isWaitingForUpload"
+          >Waiting to upload</v-ons-list-header
+        >
+        <!-- FIXME remove duplication from next section -->
+        <v-ons-list-item
+          v-for="curr in waitingToUploadRecords"
+          :key="curr.id"
+          modifier="chevron"
+          @click="push(curr.id)"
+        >
+          <div class="left">
+            <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
+          </div>
+          <div class="center">
+            <span class="list-item__title">{{ speciesGuess(curr) }}</span
+            ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-header v-if="isWaitingForUpload"
+          >Uploaded</v-ons-list-header
+        >
+        <v-ons-list-item
+          v-for="curr in myObs"
+          :key="curr.id"
+          modifier="chevron"
+          @click="push(curr.id)"
+        >
+          <div class="left">
+            <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
+          </div>
+          <div class="center">
+            <span class="list-item__title">{{ speciesGuess(curr) }}</span
+            ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
+          </div>
+        </v-ons-list-item>
+      </v-ons-list>
+    </div>
     <v-ons-fab position="bottom right" @click="onNewObsBtn">
       <v-ons-icon icon="md-plus"></v-ons-icon>
     </v-ons-fab>
@@ -79,6 +84,9 @@ export default {
     ...mapState('auth', ['apiToken']),
     isWaitingForUpload() {
       return (this.waitingToUploadRecords || []).length
+    },
+    isNoRecords() {
+      return (this.myObs || []).length === 0
     },
   },
   created() {
