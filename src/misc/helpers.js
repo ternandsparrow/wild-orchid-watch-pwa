@@ -10,11 +10,17 @@ export function wowErrorHandler(msg, err) {
 }
 
 export function postJson(url, data = {}) {
+  const authHeaderValue = null
+  return postJsonWithAuth(url, data, authHeaderValue)
+}
+
+export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   return fetch(url, {
     method: 'POST',
     mode: 'cors',
     headers: {
       ...commonHeaders,
+      Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
   }).then(resp => {
@@ -51,4 +57,9 @@ function handleErrorResp(resp) {
       body,
     })
   })
+}
+
+export function chainedError(msg, err) {
+  err.message = `${msg}\nCaused by: ${err.message}`
+  return err
 }

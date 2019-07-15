@@ -1,5 +1,13 @@
 <template>
   <v-ons-page>
+    <v-ons-pull-hook
+      :action="doRefresh"
+      @changestate="pullHookState = $event.state"
+    >
+      <span v-show="pullHookState === 'initial'"> Pull to refresh </span>
+      <span v-show="pullHookState === 'preaction'"> Release </span>
+      <span v-show="pullHookState === 'action'"> Loading... </span>
+    </v-ons-pull-hook>
     <div>
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
@@ -9,7 +17,7 @@
         <!-- FIXME remove duplication from next section -->
         <v-ons-list-item
           v-for="curr in waitingToUploadRecords"
-          :key="curr.id"
+          :key="'waiting-' + curr.id"
           modifier="chevron"
           @click="push(curr.id)"
         >
@@ -76,11 +84,12 @@ export default {
   data() {
     return {
       isNewObsActionsVisible: false,
+      pullHookState: 'initial',
     }
   },
   computed: {
     ...mapState('obs', ['myObs', 'waitingToUploadRecords']),
-    ...mapGetters('auth', ['myUserId']),
+    ...mapGetters('auth', ['myUserId', 'isUserLoggedIn']),
     ...mapState('auth', ['apiToken']),
     isWaitingForUpload() {
       return (this.waitingToUploadRecords || []).length
@@ -89,11 +98,8 @@ export default {
       return (this.myObs || []).length === 0
     },
   },
-  created() {
-    this.$store.dispatch('obs/getMyObs', {
-      myUserId: this.myUserId,
-      apiToken: this.apiToken,
-    })
+  mounted() {
+    this.doRefresh()
     this.$store.dispatch('obs/refreshWaitingToUpload')
   },
   methods: {
@@ -127,6 +133,13 @@ export default {
     },
     placeGuess(record) {
       return record.placeGuess || '(No place guess)'
+    },
+    async doRefresh(done) {
+      if (this.isUserLoggedIn) {
+        // FIXME need to cache-bust (user agent disk cache) for this and similar
+        await this.$store.dispatch('obs/getMyObs')
+      }
+      done && done()
     },
   },
 }

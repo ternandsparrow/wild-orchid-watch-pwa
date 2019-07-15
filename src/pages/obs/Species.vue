@@ -24,17 +24,20 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
 
 export default {
   computed: {
     ...mapState('obs', ['mySpecies']),
+    ...mapGetters('auth', ['isUserLoggedIn']),
     isNoRecords() {
       return !this.mySpecies || this.mySpecies.length === 0
     },
   },
-  created() {
-    this.$store.dispatch('obs/getMySpecies')
+  mounted() {
+    if (this.isUserLoggedIn) {
+      this.$store.dispatch('obs/getMySpecies')
+    }
   },
   methods: {
     push(speciesId) {

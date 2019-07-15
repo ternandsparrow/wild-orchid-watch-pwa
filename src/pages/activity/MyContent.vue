@@ -34,6 +34,7 @@ export default {
     },
   },
   created() {
+    // FIXME check if logged in first
     this.$store.dispatch('activity/getMyEvents')
   },
   methods: {

@@ -9,7 +9,9 @@ import { wowErrorHandler } from '@/misc/helpers'
 
 // IndexedDB doesn't allow indexing on booleans :(
 const NO = 0
-// const YES = 1
+const YES = 1
+
+const isUploadedKey = 'isUploaded'
 
 const state = {
   selectedObservationId: null,
@@ -32,11 +34,8 @@ const mutations = {
 }
 
 const actions = {
-  async getMyObs({ state, commit, dispatch, rootGetters }) {
-    if (state.myObs.length) {
-      // FIXME make the service worker do the caching
-      return
-    }
+  async getMyObs({ commit, dispatch, rootGetters }) {
+    // FIXME make the service worker do the caching
     commit('setMyObs', [])
     const myUserId = rootGetters.myUserId
     const urlSuffix = `/observations?user_id=${myUserId}`
@@ -111,27 +110,63 @@ const actions = {
   async saveAndUploadIndividual({ dispatch }, record) {
     const enhancedRecord = Object.assign(record, {
       createdAt: new Date(),
-      isUploaded: NO,
+      [isUploadedKey]: NO,
     })
     // FIXME compress photos
     await db.obsIndividual.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
   },
-  async refreshWaitingToUpload({ commit }) {
+  async _getWaitingToUploadIds() {
     const individualIds = await db.obsIndividual
-      .where('isUploaded')
+      .where(isUploadedKey)
       .equals(NO)
       .primaryKeys()
-    // FIXME also check population and mapping
-    const ids = [...individualIds]
+    return [
+      ...individualIds,
+      // FIXME also check population and mapping
+      // FIXME how to deal with ID conflicts as different types are stored in
+      // different tables. Perhaps just store them all in a single table
+    ]
+  },
+  async refreshWaitingToUpload({ commit, dispatch }) {
+    const ids = await dispatch('_getWaitingToUploadIds')
     const records = await resolveWaitingToUploadIdsToRecords(ids)
     commit('setWaitingToUploadRecords', records)
   },
-  async scheduleUpload() {
-    // FIXME check if online
-    //  if offline, work out how to retry in future
-    // FIXME set isUploaded = YES for each uploaded record. BE SURE they're uploaded
+  async scheduleUpload({ dispatch }) {
+    // FIXME use Background Sync API with auto-retry
+    // FIXME remove the following workaround when we have background sync working
+    const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
+    for (const currId of waitingToUploadIds) {
+      try {
+        const record = {
+          observation: {
+            species_guess: 'species ' + currId, // FIXME pull real values in
+          },
+        }
+        await dispatch(
+          'auth/doApiPost',
+          { urlSuffix: '/observations', data: record },
+          { root: true },
+        )
+        // FIXME need to know which table to look in individual or pop
+        const isUpdated = await db.obsIndividual.update(currId, {
+          [isUploadedKey]: YES,
+        })
+        if (!isUpdated) {
+          throw new Error(
+            `Update setting ${isUploadedKey}=yes for ID='${currId}' failed`,
+          )
+        }
+      } catch (err) {
+        wowErrorHandler('Failed to upload an observation', err)
+        // TODO should we let the loop try the next one or short-circuit?
+      } finally {
+        await dispatch('refreshWaitingToUpload')
+        await dispatch('getMyObs')
+      }
+    }
   },
   async deleteSelectedRecord({ state, dispatch }) {
     const recordId = state.selectedObservationId

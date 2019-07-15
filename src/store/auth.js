@@ -9,7 +9,12 @@ import {
   apiUrlBase,
   noProfilePicPlaceholderUrl,
 } from '@/misc/constants'
-import { getJsonWithAuth } from '@/misc/helpers'
+import {
+  getJsonWithAuth,
+  postJsonWithAuth,
+  wowErrorHandler,
+  chainedError,
+} from '@/misc/helpers'
 
 // you should only dispatch doLogin() and saveToken() as an
 // external user, don't commit directly.
@@ -104,11 +109,28 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        console.error(
+        throw chainedError(
           `Failed to make GET to API with URL suffix='${urlSuffix}'`,
           err,
         )
-        // FIXME report to rollbar
+      }
+    },
+    async doApiPost({ state, dispatch }, { urlSuffix, data }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await postJsonWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          data,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        wowErrorHandler(
+          `Failed to make POST to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+        // FIXME should we re-throw so callers don't have to check the resp?
         return
       }
     },
@@ -117,6 +139,8 @@ export default {
       commit('_setTokenType', vals.tokenType)
       commit('_setTokenCreatedAt', vals.tokenCreatedAt)
       dispatch('_updateApiToken')
+      // FIXME trigger a refresh of all other API calls (my obs, etc) or
+      // restructure app with router so that it naturally happens
     },
     async doLogin({ state, dispatch }) {
       await dispatch('_generatePkcePair')
@@ -137,6 +161,12 @@ export default {
     },
     async _updateApiToken({ commit, state, dispatch }) {
       try {
+        if (!state.token) {
+          console.debug(
+            'iNat token is not present, cannot request an API token',
+          )
+          return
+        }
         // FIXME extract to doInatGet() action
         const resp = await getJsonWithAuth(
           `${inatUrlBase}/users/api_token`,
@@ -146,8 +176,7 @@ export default {
         commit('_setApiToken', apiToken)
         dispatch('_updateUserDetails')
       } catch (err) {
-        console.error('Failed to get API token using iNat token', err)
-        // FIXME report to rollbar
+        wowErrorHandler('Failed to get API token using iNat token', err)
         return
       }
     },
@@ -170,8 +199,7 @@ export default {
         }
         commit('_saveUserDetails', resp.results[0])
       } catch (err) {
-        console.error('Failed to update user details from inat API', err)
-        // FIXME report to rollbar
+        wowErrorHandler('Failed to update user details from inat API', err)
         return
       }
     },
@@ -201,8 +229,10 @@ function loadFromLocalStorageIfPresent(key, commitName, commit) {
     return
   }
   const deserialisedVal = JSON.parse(val)
+  const debugFriendlyVal =
+    ('' + val).length > 100 ? val.substr(0, 100) + '...' : val
   console.debug(
-    `Found value='${deserialisedVal}' in localStorage for key='${key}'`,
+    `Found value='${debugFriendlyVal}' in localStorage for key='${key}'`,
   )
   commit(commitName, deserialisedVal)
 }

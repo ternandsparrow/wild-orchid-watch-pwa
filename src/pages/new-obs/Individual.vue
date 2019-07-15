@@ -117,7 +117,9 @@ export default {
     ...mapState('obs', ['obsFields']),
     filteredFields() {
       // FIXME remove when we can handle species picker
-      return this.obsFields.filter(e => [20267, 20225].indexOf(e.id) === -1)
+      return (this.obsFields || []).filter(
+        e => [20267, 20225].indexOf(e.id) === -1,
+      )
     },
   },
   created() {
