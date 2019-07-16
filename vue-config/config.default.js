@@ -13,4 +13,15 @@ module.exports = {
   configureWebpack: {
     plugins: [],
   },
+  /*
+  chainWebpack: config => {
+    // HTML Loader
+    config.module
+      .rule('html')
+      .test(/\.(html)$/)
+      .use('html-loader')
+      .loader('html-loader')
+      .end()
+  },
+  */
 }

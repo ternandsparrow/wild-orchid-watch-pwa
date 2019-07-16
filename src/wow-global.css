@@ -13,3 +13,8 @@ body {
 .text-right {
   text-align: right;
 }
+
+.small-text {
+  font-style: oblique;
+  font-size: 0.675em;
+}

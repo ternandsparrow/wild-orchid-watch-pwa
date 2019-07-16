@@ -11,11 +11,15 @@
           <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
         </div>
         <div class="center">
-          <span class="list-item__subtitle">
-            <strong>{{ curr.user }} </strong>
-            <span>{{ curr.action }}</span>
-          </span>
-          <span class="list-item__subtitle">{{ curr.timeStr }}</span>
+          <!-- FIXME update fields -->
+          <span class="list-item__title"
+            >Target Species: {{ curr.targetSpecies }}</span
+          >
+          <span class="list-item__title"
+            >Target Observation Count: {{ curr.targetObservationCount }}</span
+          >
+          <!-- span class="list-item__subtitle">{{ curr.searchLocation }}</span -->
+          <img style="width: 100%" src="@/assets/img/no-image-map.png" />
         </div>
       </v-ons-list-item>
     </v-ons-list>
@@ -30,7 +34,7 @@ export default {
   computed: {
     ...mapState('missions', ['myMissions']),
     isNoRecords() {
-      return !this.availableMissions || this.availableMissions.length === 0
+      return !this.myMissions || this.myMissions.length === 0
     },
   },
   created() {
