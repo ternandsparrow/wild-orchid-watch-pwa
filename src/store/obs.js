@@ -162,6 +162,7 @@ const actions = {
       } catch (err) {
         wowErrorHandler('Failed to upload an observation', err)
         // TODO should we let the loop try the next one or short-circuit?
+        // FIXME add this item to the retry queue
       } finally {
         await dispatch('refreshWaitingToUpload')
         await dispatch('getMyObs')

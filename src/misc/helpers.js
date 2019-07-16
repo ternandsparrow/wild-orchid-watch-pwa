@@ -35,6 +35,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
   return fetch(url, {
     method: 'GET',
     mode: 'cors',
+    cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
     headers: {
       ...commonHeaders,
       Authorization: authHeaderValue,
