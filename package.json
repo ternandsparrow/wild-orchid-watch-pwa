@@ -15,7 +15,7 @@
   },
   "engines": {
     "npm": ">=5.5.0",
-    "node": ">=9.3.0"
+    "node": ">=8.16.0"
   },
   "dependencies": {
     "core-js": "^3.1.3",
