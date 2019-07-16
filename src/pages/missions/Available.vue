@@ -8,15 +8,18 @@
         @click="push(curr.id)"
       >
         <div class="left">
-          <img
-            class="list-item__thumbnail"
-            :src="curr.defaultPhoto.square_url"
-          />
+          <img class="list-item__thumbnail" :src="curr.photoUrl" />
         </div>
         <div class="center">
           <!-- FIXME update fields -->
-          <span class="list-item__title">{{ curr.commonName }}</span
-          ><span class="list-item__subtitle">{{ curr.scientificName }}</span>
+          <span class="list-item__title"
+            >Target Species: {{ curr.targetSpecies }}</span
+          >
+          <span class="list-item__title"
+            >Target Observation Count: {{ curr.targetObservationCount }}</span
+          >
+          <!-- span class="list-item__subtitle">{{ curr.searchLocation }}</span -->
+          <img style="width: 100%" src="@/assets/img/no-image-map.png" />
         </div>
       </v-ons-list-item>
     </v-ons-list>

@@ -22,7 +22,8 @@ export default {
         // FIXME change icons
         {
           label: 'My Missions',
-          icon: this.md ? null : 'md-collection-text',
+          //icon: this.md ? null : 'md-collection-text',
+          icon: this.fa ? null : 'fa-map-signs',
           page: MyMissions,
         },
         {

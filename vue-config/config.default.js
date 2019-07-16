@@ -14,4 +14,15 @@ module.exports = {
   configureWebpack: {
     plugins: [new DumpVueEnvVarsWebpackPlugin({ filename: 'wow-env-vars.js' })],
   },
+  /*
+  chainWebpack: config => {
+    // HTML Loader
+    config.module
+      .rule('html')
+      .test(/\.(html)$/)
+      .use('html-loader')
+      .loader('html-loader')
+      .end()
+  },
+  */
 }

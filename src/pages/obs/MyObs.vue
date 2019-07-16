@@ -144,3 +144,10 @@ export default {
   },
 }
 </script>
+
+<style lang="scss" scoped>
+@import '@/theme/variables.scss';
+.wow-list-item {
+  background-color: $wowLightLightBlue;
+}
+</style>
