@@ -8,4 +8,8 @@ db.version(1).stores({
   obsIndividual: '++id, isUploaded',
 })
 
+db.version(2).stores({
+  obs: '++id, updatedAt',
+})
+
 export default db

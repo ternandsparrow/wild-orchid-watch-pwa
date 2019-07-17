@@ -3,17 +3,18 @@ import PkceGenerator from 'pkce-challenge'
 import jwt from 'jsonwebtoken'
 
 import {
-  inatUrlBase,
-  appId,
-  redirectUri,
   apiUrlBase,
+  appId,
+  inatUrlBase,
   noProfilePicPlaceholderUrl,
+  redirectUri,
 } from '@/misc/constants'
 import {
+  chainedError,
   getJsonWithAuth,
   postJsonWithAuth,
+  postFormDataWithAuth,
   wowErrorHandler,
-  chainedError,
 } from '@/misc/helpers'
 
 // you should only dispatch doLogin() and saveToken() as an
@@ -128,6 +129,28 @@ export default {
         // TODO if we get a 401, could refresh token and retry
         wowErrorHandler(
           `Failed to make POST to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+        // FIXME should we re-throw so callers don't have to check the resp?
+        return
+      }
+    },
+    async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await postFormDataWithAuth(
+          `${apiUrlBase}/observation_photos`,
+          formData => {
+            formData.append('observation_photo[observation_id]', obsId)
+            formData.append('file', photoBlob)
+          },
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        wowErrorHandler(
+          `Failed to POST observation photo attached to observation ID='${obsId}'`,
           err,
         )
         // FIXME should we re-throw so callers don't have to check the resp?

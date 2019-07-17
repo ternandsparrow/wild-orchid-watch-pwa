@@ -7,11 +7,7 @@ import {
 import db from '@/indexeddb/dexie-store'
 import { wowErrorHandler } from '@/misc/helpers'
 
-// IndexedDB doesn't allow indexing on booleans :(
-const NO = 0
-const YES = 1
-
-const isUploadedKey = 'isUploaded'
+const NOT_UPLOADED = -1
 
 const state = {
   selectedObservationId: null,
@@ -20,6 +16,9 @@ const state = {
   tabIndex: 0,
   waitingToUploadRecords: [],
   obsFields: [],
+  lat: null,
+  lng: null,
+  locAccuracy: null,
 }
 
 const mutations = {
@@ -31,6 +30,9 @@ const mutations = {
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
   setObsFields: (state, value) => (state.obsFields = value),
+  setLat: (state, value) => (state.lat = value),
+  setLng: (state, value) => (state.lng = value),
+  setLocAccuracy: (state, value) => (state.locAccuracy = value),
 }
 
 const actions = {
@@ -81,6 +83,27 @@ const actions = {
       return false
     }
   },
+  markUserGeolocation({ commit }) {
+    if (!navigator.geolocation) {
+      console.warn('Geolocation is not supported')
+      // FIXME notify user that we won't have accurate location
+      // FIXME store flag in Vuex so the rest of the app knows we won't have accurate location
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      loc => {
+        commit('setLat', loc.coords.latitude)
+        commit('setLng', loc.coords.longitude)
+        commit('setLocAccuracy', loc.coords.accuracy)
+        // TODO should we get altitude, altitudeAccuracy and heading values?
+      },
+      () => {
+        console.warn('Location access is blocked')
+        // FIXME notify user that we *need* geolocation
+        // FIXME store flag in Vuex so the rest of the app knows we won't have accurate location
+      },
+    )
+  },
   async getObsFields({ commit }) {
     commit('setObsFields', [])
     const url = apiUrlBase + '/projects/' + inatProjectSlug
@@ -107,27 +130,40 @@ const actions = {
     })
     commit('setObsFields', fields)
   },
-  async saveAndUploadIndividual({ dispatch }, record) {
+  async saveAndUploadIndividual({ dispatch, state }, record) {
+    const now = new Date()
     const enhancedRecord = Object.assign(record, {
-      createdAt: new Date(),
-      [isUploadedKey]: NO,
+      createdAt: now,
+      latitude: state.lat,
+      longitude: state.lng,
+      positional_accuracy: state.locAccuracy,
+      time_observed_at: now,
+      updatedAt: NOT_UPLOADED,
+      // FIXME get these from UI
+      // description: 'some notes',
+      // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
+      // FIXME what do we do with these?
+      // captive_flag: false,
+      // id_please: false,
+      // identifications_count: 1,
+      // observed_on: '2019-07-17 15:42:32.525',
+      // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
+      // out_of_range: false,
+      // owners_identification_from_vision: false,
+      // rank_level: 0,
+      // site_id: '1',
+      // uuid: '3ab8f7ab-ac5b-4e9b-af7f-15730b0d9b66',
     })
     // FIXME compress photos
-    await db.obsIndividual.put(enhancedRecord)
+    await db.obs.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
   },
-  async _getWaitingToUploadIds() {
-    const individualIds = await db.obsIndividual
-      .where(isUploadedKey)
-      .equals(NO)
+  _getWaitingToUploadIds() {
+    return db.obs
+      .where('updatedAt')
+      .equals(NOT_UPLOADED)
       .primaryKeys()
-    return [
-      ...individualIds,
-      // FIXME also check population and mapping
-      // FIXME how to deal with ID conflicts as different types are stored in
-      // different tables. Perhaps just store them all in a single table
-    ]
   },
   async refreshWaitingToUpload({ commit, dispatch }) {
     const ids = await dispatch('_getWaitingToUploadIds')
@@ -140,24 +176,47 @@ const actions = {
     const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
     for (const currId of waitingToUploadIds) {
       try {
-        const record = {
-          observation: {
-            species_guess: 'species ' + currId, // FIXME pull real values in
-          },
+        const dbRecord = await db.obs.get(currId)
+        const ignoredKeys = ['id', 'photos', 'updatedAt']
+        const apiRecord = {
+          ignore_photos: true,
+          observation: Object.keys(dbRecord).reduce((accum, currKey) => {
+            const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
+            if (isNotIgnored) {
+              accum[currKey] = dbRecord[currKey]
+            }
+            return accum
+          }, {}),
         }
-        await dispatch(
-          'auth/doApiPost',
-          { urlSuffix: '/observations', data: record },
+        const obsResp = await dispatch(
+          'doApiPost',
+          { urlSuffix: '/observations', data: apiRecord },
           { root: true },
         )
-        // FIXME need to know which table to look in individual or pop
-        const isUpdated = await db.obsIndividual.update(currId, {
-          [isUploadedKey]: YES,
+        const newRecordId = obsResp.id
+        // FIXME need to know which table to look in: individual or pop
+        const isUpdated = await db.obs.update(currId, {
+          updatedAt: obsResp.updatedAt,
+          inatId: newRecordId,
+          // FIXME should we update other (all) values?
         })
         if (!isUpdated) {
           throw new Error(
-            `Update setting ${isUploadedKey}=yes for ID='${currId}' failed`,
+            `Dexie update operation to set updatedAt for (Dexie) ID='${currId}' failed`,
           )
+        }
+        for (const curr of dbRecord.photos) {
+          const photoResp = await dispatch(
+            'doPhotoPost',
+            {
+              obsId: newRecordId,
+              photoBlob: curr, // FIXME is this right object?
+            },
+            { root: true },
+          )
+          // FIXME update DB with photoResp values
+          // FIXME trap one photo failure so others can still try
+          console.log(photoResp.id)
         }
       } catch (err) {
         wowErrorHandler('Failed to upload an observation', err)
@@ -171,7 +230,7 @@ const actions = {
   },
   async deleteSelectedRecord({ state, dispatch }) {
     const recordId = state.selectedObservationId
-    await db.obsIndividual.delete(recordId)
+    await db.obs.delete(recordId)
     await dispatch('refreshWaitingToUpload')
   },
 }
@@ -185,7 +244,7 @@ const getters = {
 }
 
 async function resolveWaitingToUploadIdsToRecords(ids) {
-  const indRecords = await db.obsIndividual
+  return db.obs
     .where('id')
     .anyOf(ids)
     .toArray(records => {
@@ -202,8 +261,6 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
         }
       })
     })
-  // FIXME also check for population and mapping records
-  return [...indRecords]
 }
 
 export default {

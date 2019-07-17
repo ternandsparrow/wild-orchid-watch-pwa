@@ -1,6 +1,10 @@
 const commonHeaders = {
-  'Content-Type': 'application/json',
   Accept: 'application/json',
+}
+
+const jsonHeaders = {
+  'Content-Type': 'application/json',
+  ...commonHeaders,
 }
 
 export function wowErrorHandler(msg, err) {
@@ -19,16 +23,29 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
     method: 'POST',
     mode: 'cors',
     headers: {
-      ...commonHeaders,
+      ...jsonHeaders,
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(resp => {
-    if (!resp.ok) {
-      return handleErrorResp(resp)
-    }
-    return resp.json()
-  })
+  }).then(handleResp)
+}
+
+export function postFormDataWithAuth(
+  url,
+  populateFormDataCallback,
+  authHeaderValue,
+) {
+  const formData = new FormData()
+  populateFormDataCallback(formData)
+  return fetch(url, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      ...commonHeaders,
+      Authorization: authHeaderValue,
+    },
+    body: formData,
+  }).then(handleResp)
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
@@ -37,19 +54,18 @@ export function getJsonWithAuth(url, authHeaderValue) {
     mode: 'cors',
     cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
     headers: {
-      ...commonHeaders,
+      ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(resp => {
-    if (!resp.ok) {
-      return handleErrorResp(resp)
-    }
-    return resp.json()
-  })
+  }).then(handleResp)
 }
 
-function handleErrorResp(resp) {
-  return resp.json().then(body => {
+function handleResp(resp) {
+  const result = resp.json()
+  if (resp.ok) {
+    return result
+  }
+  return result.then(body => {
     return Promise.reject({
       status: resp.status,
       statusText: resp.statusText,

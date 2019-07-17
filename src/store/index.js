@@ -15,6 +15,12 @@ export default new Vuex.Store({
     doApiGet({ dispatch }, argObj) {
       return dispatch('auth/doApiGet', argObj)
     },
+    doApiPost({ dispatch }, argObj) {
+      return dispatch('auth/doApiPost', argObj)
+    },
+    doPhotoPost({ dispatch }, argObj) {
+      return dispatch('auth/doPhotoPost', argObj)
+    },
   },
   getters: {
     myUserId(state, getters) {

@@ -44,6 +44,17 @@
           </v-ons-carousel-item>
         </v-ons-carousel>
       </v-ons-list-item>
+      <v-ons-list-header>Species guess</v-ons-list-header>
+      <v-ons-list-item tappable modifier="longdivider">
+        <!-- FIXME suggest recently used species or nearby ones -->
+        <v-ons-input
+          v-model="speciesGuess"
+          float
+          placeholder="e.g. snail orchid"
+          type="text"
+        >
+        </v-ons-input>
+      </v-ons-list-item>
       <template v-for="currField of filteredFields">
         <v-ons-list-header :key="currField.id + '-list'">{{
           currField.name
@@ -60,7 +71,7 @@
           >
             <label class="left">
               <v-ons-radio
-                v-model="blah[currField.id]"
+                v-model="obsFieldValues[currField.id]"
                 :input-id="'field-' + currField.id + '-' + $index"
                 :value="currValue"
               >
@@ -76,7 +87,7 @@
           :key="currField.id + '-numeric'"
         >
           <v-ons-input
-            v-model="blah[currField.id]"
+            v-model="obsFieldValues[currField.id]"
             float
             placeholder="Input value"
             type="number"
@@ -103,18 +114,13 @@ export default {
         { id: 'pol', name: 'Visiting pollinators' },
         { id: 'hab', name: 'Habitat' },
       ],
+      speciesGuess: null,
       photos: {},
-      selectedOrchidType: 'epi',
-      orchidTypes: [
-        { id: 'epi', label: 'Epiphyte' },
-        { id: 'ter', label: 'Terrestrial' },
-        { id: 'lit', label: 'Lithophyte' },
-      ],
-      blah: {}, // FIXME
+      obsFieldValues: {},
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields']),
+    ...mapState('obs', ['obsFields', 'lat', 'lng']),
     filteredFields() {
       // FIXME remove when we can handle species picker
       return (this.obsFields || []).filter(
@@ -122,13 +128,14 @@ export default {
       )
     },
   },
-  created() {
+  mounted() {
     this.$store.dispatch('obs/getObsFields')
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
       return accum
     }, {})
+    this.$store.dispatch('obs/markUserGeolocation')
   },
   methods: {
     async onSave() {
@@ -144,6 +151,8 @@ export default {
             })
             .filter(e => !!e),
           orchidType: this.selectedOrchidType,
+          species_guess: this.speciesGuess,
+          // FIXME get answers to obs field questions
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)
         setTimeout(() => {
