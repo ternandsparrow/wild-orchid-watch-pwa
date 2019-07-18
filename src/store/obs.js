@@ -136,6 +136,8 @@ const actions = {
       createdAt: now,
       latitude: state.lat,
       longitude: state.lng,
+      // FIXME uploaded records fail the "Date specified" check
+      observed_on: now,
       positional_accuracy: state.locAccuracy,
       time_observed_at: now,
       updatedAt: NOT_UPLOADED,
@@ -146,7 +148,6 @@ const actions = {
       // captive_flag: false,
       // id_please: false,
       // identifications_count: 1,
-      // observed_on: '2019-07-17 15:42:32.525',
       // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
       // out_of_range: false,
       // owners_identification_from_vision: false,
@@ -216,7 +217,25 @@ const actions = {
           )
           // FIXME update DB with photoResp values
           // FIXME trap one photo failure so others can still try
-          console.log(photoResp.id)
+          console.log(photoResp.id) // FIXME delete line when we use photoResp var
+        }
+        for (const currId of Object.keys(dbRecord.obsFieldValues)) {
+          const obsFieldResp = await dispatch(
+            'doApiPost',
+            {
+              urlSuffix: '/observation_field_values',
+              data: {
+                observation_id: newRecordId,
+                observation_field_id: currId,
+                // TODO do we need to filter out null value?
+                value: dbRecord.obsFieldValues[currId],
+              },
+            },
+            { root: true },
+          )
+          // FIXME update DB with obsFieldResp values
+          // FIXME trap one failure so others can still try
+          console.log(obsFieldResp.id) // FIXME delete line when we use photoResp var
         }
       } catch (err) {
         wowErrorHandler('Failed to upload an observation', err)

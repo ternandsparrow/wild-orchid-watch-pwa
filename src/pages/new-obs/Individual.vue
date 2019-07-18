@@ -141,18 +141,18 @@ export default {
     async onSave() {
       try {
         const record = {
-          photos: this.photoMenu
-            .map(e => {
-              const currPhoto = this.photos[e.id]
-              if (!currPhoto) {
-                return null // FIXME ok?
-              }
-              return currPhoto.file
-            })
-            .filter(e => !!e),
+          photos: this.photoMenu.reduce((accum, curr) => {
+            const currPhoto = this.photos[curr.id]
+            if (!currPhoto) {
+              return accum
+            }
+            // TODO can we also store "photo type" on the server?
+            accum.push(currPhoto.file)
+            return accum
+          }, []),
           orchidType: this.selectedOrchidType,
           species_guess: this.speciesGuess,
-          // FIXME get answers to obs field questions
+          obsFieldValues: this.obsFieldValues,
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)
         setTimeout(() => {

@@ -52,6 +52,7 @@
     <div class="tab-container">
       <div v-if="selectedTab === 0">
         <h3>Notes</h3>
+        <!-- FIXME replace this with description? -->
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed dignissim
         mi euismod massa gravida pretium. Cras quis lorem nec sapien pulvinar
         semper.
