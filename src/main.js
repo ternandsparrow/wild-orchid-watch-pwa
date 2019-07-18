@@ -22,7 +22,7 @@ Vue.config.productionTip = false
 // initiating google map
 Vue.use(VueGoogleMaps, {
   load: {
-    key: 'AIzaSyCApM5lvha5-V76wO5clTzCoRl9puQCrGQ',
+    key: 'AIzaSyBgxHM7Y22d9H8voGdFzc36g06DN-_cKCs', // Tom's key, FIXME change
   },
 })
 
