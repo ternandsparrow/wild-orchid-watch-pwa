@@ -1,3 +1,4 @@
+import { isNil } from 'lodash'
 import {
   apiUrlBase,
   inatProjectSlug,
@@ -10,15 +11,15 @@ import { wowErrorHandler } from '@/misc/helpers'
 const NOT_UPLOADED = -1
 
 const state = {
-  selectedObservationId: null,
-  mySpecies: [],
-  myObs: [],
-  tabIndex: 0,
-  waitingToUploadRecords: [],
-  obsFields: [],
   lat: null,
   lng: null,
   locAccuracy: null,
+  myObs: [],
+  mySpecies: [],
+  obsFields: [],
+  selectedObservationId: null,
+  tabIndex: 0,
+  waitingToUploadRecords: [],
 }
 
 const mutations = {
@@ -29,9 +30,9 @@ const mutations = {
   setTab: (state, value) => (state.tabIndex = value),
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
-  setObsFields: (state, value) => (state.obsFields = value),
   setLat: (state, value) => (state.lat = value),
   setLng: (state, value) => (state.lng = value),
+  setObsFields: (state, value) => (state.obsFields = value),
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
 }
 
@@ -43,15 +44,7 @@ const actions = {
     const urlSuffix = `/observations?user_id=${myUserId}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      const records = resp.results.map(e => {
-        const photos = (e.photos || []).map(p => p.url)
-        return {
-          id: e.id,
-          photos,
-          placeGuess: e.place_guess,
-          speciesGuess: e.species_guess,
-        }
-      })
+      const records = resp.results.map(mapObsFromApiIntoOurDomain)
       commit('setMyObs', records)
     } catch (err) {
       wowErrorHandler('Failed to get my observations', err)
@@ -119,7 +112,7 @@ const actions = {
           id: e.id,
           position: e.position,
           required: e.required,
-          name: (f.name || '').replace(obsFieldPrefix, ''),
+          name: processObsFieldName(f.name),
           description: f.description,
           datatype: f.datatype,
           allowedValues: (f.allowed_values || '')
@@ -133,6 +126,7 @@ const actions = {
   async saveAndUploadIndividual({ dispatch, state }, record) {
     const now = new Date()
     const enhancedRecord = Object.assign(record, {
+      captive_flag: false, // it's *wild* orchid watch
       createdAt: now,
       latitude: state.lat,
       longitude: state.lng,
@@ -142,10 +136,8 @@ const actions = {
       time_observed_at: now,
       updatedAt: NOT_UPLOADED,
       // FIXME get these from UI
-      // description: 'some notes',
       // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
       // FIXME what do we do with these?
-      // captive_flag: false,
       // id_please: false,
       // identifications_count: 1,
       // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
@@ -156,6 +148,8 @@ const actions = {
       // uuid: '3ab8f7ab-ac5b-4e9b-af7f-15730b0d9b66',
     })
     // FIXME compress photos
+    // FIXME should store record in our domain format and then map to API
+    // format on the way out
     await db.obs.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
@@ -173,6 +167,8 @@ const actions = {
   },
   async scheduleUpload({ dispatch }) {
     // FIXME use Background Sync API with auto-retry
+    //       Background sync might just be configuring workbox to retry our
+    //       POSTs requests to the API
     // FIXME remove the following workaround when we have background sync working
     const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
     for (const currId of waitingToUploadIds) {
@@ -195,7 +191,6 @@ const actions = {
           { root: true },
         )
         const newRecordId = obsResp.id
-        // FIXME need to know which table to look in: individual or pop
         const isUpdated = await db.obs.update(currId, {
           updatedAt: obsResp.updatedAt,
           inatId: newRecordId,
@@ -236,6 +231,9 @@ const actions = {
           // FIXME update DB with obsFieldResp values
           // FIXME trap one failure so others can still try
           console.log(obsFieldResp.id) // FIXME delete line when we use photoResp var
+          // FIXME once we know that all parts have uploaded correctly:
+          //  - replace the Vuex/Dexie record with freshly pulled
+          //    record that has been mapped
         }
       } catch (err) {
         wowErrorHandler('Failed to upload an observation', err)
@@ -310,4 +308,40 @@ function fetchSingleRecord(url) {
       console.error('Failed to make fetch() call', err)
       return false
     })
+}
+
+function mapObsFromApiIntoOurDomain(obsFromApi) {
+  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson']
+  const result = directMappingKeys.reduce((accum, currKey) => {
+    const value = obsFromApi[currKey]
+    if (!isNil(value)) {
+      accum[currKey] = value
+    }
+    return accum
+  }, {})
+  result.inatId = obsFromApi.id
+  const photos = (obsFromApi.photos || []).map(p => p.url)
+  result.photos = photos
+  result.placeGuess = obsFromApi.place_guess
+  result.speciesGuess = obsFromApi.species_guess
+  const obsFieldValues = obsFromApi.ofvs.map(o => {
+    return {
+      id: o.id,
+      fieldId: o.field_id,
+      datatype: o.datatype,
+      name: processObsFieldName(o.name),
+      value: o.value,
+    }
+  })
+  result.obsFieldValues = obsFieldValues
+  result.notes = obsFromApi.description
+  return result
+}
+
+function processObsFieldName(fieldName) {
+  return (fieldName || '').replace(obsFieldPrefix, '')
+}
+
+export const _testonly = {
+  mapObsFromApiIntoOurDomain,
 }

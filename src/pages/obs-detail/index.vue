@@ -51,13 +51,35 @@
     ></relative-tabbar>
     <div class="tab-container">
       <div v-if="selectedTab === 0">
-        <h3>Notes</h3>
-        <!-- FIXME replace this with description? -->
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed dignissim
-        mi euismod massa gravida pretium. Cras quis lorem nec sapien pulvinar
-        semper.
-        <div class="map-container text-center">
-          <google-map :marker-position="testPosition" />
+        <h3>Geolocation</h3>
+        <div v-if="obsCoords" class="map-container text-center">
+          <google-map :marker-position="obsCoords" />
+        </div>
+        <!-- TODO add textual details of location: lat, lng, accuracy -->
+        <!-- FIXME handle geoprivacy. Inform user of setting and show obscurity box if supplied -->
+        <div v-if="!obsCoords" class="text-center">
+          <!-- TODO style this text -->
+          No geolocation details available
+        </div>
+        <!-- TODO add Data Quality widget -->
+        <h3>Observation values</h3>
+        <v-ons-list>
+          <template v-for="curr of observationDetail.obsFieldValues">
+            <v-ons-list-header :key="curr.id + '-header'">{{
+              curr.name
+            }}</v-ons-list-header>
+            <v-ons-list-item :key="curr.id + '-value'">
+              {{ curr.value }}
+            </v-ons-list-item>
+          </template>
+        </v-ons-list>
+        <div>
+          <h3>Notes</h3>
+          <v-ons-list>
+            <v-ons-list-item>
+              {{ observationDetail.notes }}
+            </v-ons-list-item>
+          </v-ons-list>
         </div>
       </div>
       <div v-if="selectedTab === 1">
@@ -90,7 +112,6 @@ export default {
       },
       selectedTab: 0,
       tabs: [{ icon: 'fa-info' }, { icon: 'fa-comments' }, { icon: 'fa-star' }],
-      testPosition: { lat: -34.9786554, lng: 138.6487938 }, // FIXME pull real location
     }
   },
   computed: {
@@ -109,6 +130,21 @@ export default {
     },
     isShowDots() {
       return this.photos.length > 1
+    },
+    obsCoords() {
+      const geojson = this.nullSafeObs.geojson
+      if (!geojson) {
+        // FIXME hide map and inform user there is no location info
+        return null
+      }
+      if (geojson.type !== 'Point') {
+        // FIXME maybe pull the first point in the shape?
+        return null
+      }
+      return {
+        lat: parseFloat(geojson.coordinates[1]),
+        lng: parseFloat(geojson.coordinates[0]),
+      }
     },
   },
   methods: {

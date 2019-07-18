@@ -45,7 +45,7 @@
         </v-ons-carousel>
       </v-ons-list-item>
       <v-ons-list-header>Species guess</v-ons-list-header>
-      <v-ons-list-item tappable modifier="longdivider">
+      <v-ons-list-item tappable>
         <!-- FIXME suggest recently used species or nearby ones -->
         <v-ons-input
           v-model="speciesGuess"
@@ -95,6 +95,15 @@
           </v-ons-input>
         </v-ons-list-item>
       </template>
+      <v-ons-list-header>Notes</v-ons-list-header>
+      <v-ons-list-item>
+        <v-ons-input
+          v-model="notes"
+          class="width100"
+          type="text"
+          placeholder="anything else noteworthy"
+        ></v-ons-input>
+      </v-ons-list-item>
     </v-ons-list>
   </v-ons-page>
 </template>
@@ -117,6 +126,7 @@ export default {
       speciesGuess: null,
       photos: {},
       obsFieldValues: {},
+      notes: null,
     }
   },
   computed: {
@@ -153,6 +163,7 @@ export default {
           orchidType: this.selectedOrchidType,
           species_guess: this.speciesGuess,
           obsFieldValues: this.obsFieldValues,
+          description: this.notes,
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)
         setTimeout(() => {
@@ -236,5 +247,9 @@ export default {
   background-size: cover;
   background-position: center center;
   height: 100%;
+}
+
+.width100 {
+  width: 100%;
 }
 </style>
