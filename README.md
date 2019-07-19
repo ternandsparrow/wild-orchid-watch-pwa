@@ -14,7 +14,15 @@ Requirements:
 
   1. clone repo
   1. install deps: `yarn`
-  1. create a `.env.development.local` file and put a Google Maps API key in there, look at `.env` for the variable name (TODO expand these instructions)
+  1. create a `.env.local` file in the root of this project. In this file you
+     can override values from the `.env` file. You'll probably want define at
+     least a Google Maps API key so the maps work but you may also need to
+     change the OAuth client ID, something like:
+      ```env
+      VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
+      VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
+      # you can comment with a hashed line too
+      ```
   1. run the dev server: `yarn serve`
   1. open the app URL (probably `http://localhost:8080`) in your browser
   1. this is a PWA (web page that feels like a native app) so it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device) as a Pixel 2 or iPhone 8.
