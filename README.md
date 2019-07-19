@@ -15,9 +15,10 @@ Requirements:
   1. clone repo
   1. install deps: `yarn`
   1. create a `.env.local` file in the root of this project. In this file you
-     can override values from the `.env` file. You'll probably want define at
-     least a Google Maps API key so the maps work but you may also need to
-     change the OAuth client ID, something like:
+     can override values from the `.env` file. It's worth noting that this file
+     is ignored by version control. You'll probably want define at least a
+     Google Maps API key so the maps work but you may also need to change the
+     OAuth client ID, something like:
       ```env
       VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
       VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
