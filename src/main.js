@@ -15,15 +15,13 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import * as VueGoogleMaps from 'vue2-google-maps'
+import { googleMapsApiKey } from '@/misc/constants'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
-// initiating google map
 Vue.use(VueGoogleMaps, {
-  load: {
-    key: 'AIzaSyBgxHM7Y22d9H8voGdFzc36g06DN-_cKCs', // Tom's key, FIXME change
-  },
+  load: { key: googleMapsApiKey },
 })
 
 new Vue({

@@ -17,6 +17,8 @@ export const isDeployedToProd = (() => {
   return process.env.VUE_APP_DEPLOYED_ENV_IS_PROD === 'true'
 })()
 
+export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
