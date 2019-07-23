@@ -29,12 +29,20 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <router-link :to="{ name: 'OauthCallback' }"
-        >Jump to OAuth callback</router-link
-      >
-    </v-ons-card>
-    <v-ons-card>
-      <v-ons-button @click="doLogin">Login</v-ons-button>
+      <div>Logged in = {{ isUserLoggedIn }}</div>
+      <div>
+        Do this first
+        <v-ons-button @click="doLogin">Login</v-ons-button>
+      </div>
+      <div>
+        Then make the call...
+        <v-ons-button @click="doGetUserDetails"
+          >Test API call to /users/me</v-ons-button
+        >
+        <div style="font-family: monospace; white-space: pre;">
+          Result = {{ meResp }}
+        </div>
+      </div>
     </v-ons-card>
     <v-ons-card>
       <v-ons-button @click="doManualUpdateCheck"
@@ -50,7 +58,10 @@
 </template>
 
 <script>
-import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
+import { mapGetters } from 'vuex'
+
+import { getJsonWithAuth } from '@/misc/helpers'
+import { inatUrlBase, appId, redirectUri, apiUrlBase } from '@/misc/constants'
 import CommunityComponent from '@/pages/new-obs/Community'
 
 export default {
@@ -62,9 +73,11 @@ export default {
       storageQuota: 0,
       storageUsage: 0,
       storageUsedPercent: 0,
+      meResp: '(nothing yet)',
     }
   },
   computed: {
+    ...mapGetters('auth', ['isUserLoggedIn']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
@@ -104,13 +117,28 @@ export default {
       )
     },
     doLogin() {
-      // FIXME OAuth screen on iNat isn't mobile friendly/responsive
+      this.$store.dispatch('auth/generatePkcePair')
+      const challenge = this.$store.state.auth.code_challenge
       location.assign(
         `${inatUrlBase}/oauth/authorize?
         client_id=${appId}&
         redirect_uri=${redirectUri}&
-        response_type=token`.replace(/\s/g, ''),
+        code_challenge=${challenge}&
+        code_challenge_method=S256&
+        response_type=code`.replace(/\s/g, ''),
       )
+    },
+    async doGetUserDetails() {
+      try {
+        const resp = await getJsonWithAuth(
+          `${apiUrlBase}/users/me`,
+          this.$store.state.auth.apiToken,
+        )
+        this.meResp = resp
+      } catch (err) {
+        console.error('Failed to make /users/me API call', err)
+        return
+      }
     },
     doManualUpdateCheck() {
       this.$store
