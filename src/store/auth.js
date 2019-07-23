@@ -70,7 +70,9 @@ export default {
     },
   },
   getters: {
-    isUserLoggedIn: state => !isNil(state.token), // FIXME check if expired, does it expire?
+    isUserLoggedIn: (state, getters) => {
+      return !isNil(state.token) && !isNil(getters.myUserId)
+    },
     userEmail(state) {
       const result = state.userDetails.email
       return result ? result : '(no email stored)'
