@@ -20,14 +20,6 @@ import {
 // you should only dispatch doLogin() and saveToken() as an
 // external user, don't commit directly.
 
-const lsKeyCodeChallenge = 'wow_code_challenge'
-const lsKeyCodeVerifier = 'wow_code_verifier'
-const lsKeyInatToken = 'wow_inat_token'
-const lsKeyInatTokenType = 'wow_inat_token_type'
-const lsKeyInatTokenCreatedAt = 'wow_inat_token_created_at'
-const lsKeyInatApiToken = 'wow_inat_api_token'
-const lsKeyUserDetails = 'wow_user_details'
-
 export default {
   namespaced: true,
   state: {
@@ -42,31 +34,24 @@ export default {
   mutations: {
     _setToken: (state, value) => {
       state.token = value
-      saveToLocalStorage(lsKeyInatToken, value)
     },
     _setTokenType: (state, value) => {
       state.tokenType = value
-      saveToLocalStorage(lsKeyInatTokenType, value)
     },
     _setTokenCreatedAt: (state, value) => {
       state.tokenCreatedAt = value
-      saveToLocalStorage(lsKeyInatTokenCreatedAt, value)
     },
     _setApiToken: (state, value) => {
       state.apiToken = value
-      saveToLocalStorage(lsKeyInatApiToken, value)
     },
     _setCodeChallenge: (state, value) => {
       state.code_challenge = value
-      saveToLocalStorage(lsKeyCodeChallenge, value)
     },
     _setCodeVerifier: (state, value) => {
       state.code_verifier = value
-      saveToLocalStorage(lsKeyCodeVerifier, value)
     },
     _saveUserDetails: (state, value) => {
       state.userDetails = value
-      saveToLocalStorage(lsKeyUserDetails, value)
     },
   },
   getters: {
@@ -84,22 +69,6 @@ export default {
     },
   },
   actions: {
-    init({ commit }) {
-      const valuesToLoad = {
-        [lsKeyCodeChallenge]: '_setCodeChallenge',
-        [lsKeyCodeVerifier]: '_setCodeVerifier',
-        [lsKeyInatToken]: '_setToken',
-        [lsKeyInatTokenType]: '_setTokenType',
-        [lsKeyInatTokenCreatedAt]: '_setTokenCreatedAt',
-        [lsKeyInatApiToken]: '_setApiToken',
-        [lsKeyUserDetails]: '_saveUserDetails',
-      }
-      // FIXME look for a "partial" situation where we have some, but not all details. Then fix it
-      for (const currKey of Object.keys(valuesToLoad)) {
-        const commitName = valuesToLoad[currKey]
-        loadFromLocalStorageIfPresent(currKey, commitName, commit)
-      }
-    },
     async doApiGet({ state, dispatch }, { urlSuffix }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -243,24 +212,4 @@ export default {
       dispatch('_updateApiToken')
     },
   },
-}
-
-function loadFromLocalStorageIfPresent(key, commitName, commit) {
-  const val = localStorage.getItem(key)
-  if (isNil(val)) {
-    console.debug(`No value in localStorage for key='${key}'`)
-    return
-  }
-  const deserialisedVal = JSON.parse(val)
-  const debugFriendlyVal =
-    ('' + val).length > 100 ? val.substr(0, 100) + '...' : val
-  console.debug(
-    `Found value='${debugFriendlyVal}' in localStorage for key='${key}'`,
-  )
-  commit(commitName, deserialisedVal)
-}
-
-function saveToLocalStorage(key, value) {
-  const serialisedVal = JSON.stringify(value)
-  localStorage.setItem(key, serialisedVal)
 }

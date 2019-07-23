@@ -1,5 +1,5 @@
 import { isNil } from 'lodash'
-import Observations from '@/pages/obs/index.vue'
+import Observations from '@/pages/obs/index'
 
 const state = {
   appTitle: process.env.VUE_APP_TITLE,
