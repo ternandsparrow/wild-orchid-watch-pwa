@@ -55,13 +55,13 @@
       <v-ons-action-sheet-button icon="fa-user-alt" @click="onIndividual"
         >Individual</v-ons-action-sheet-button
       >
-      <v-ons-action-sheet-button icon="fa-users" @click="onPopulation"
-        >Population</v-ons-action-sheet-button
-      >
-      <v-ons-action-sheet-button icon="fa-map-marked-alt" @click="onMapping"
-        >Mapping</v-ons-action-sheet-button
-      >
-      <!-- Add a cancel button for iOS -->
+      <!-- TODO uncomment when we have support -->
+      <!-- <v-ons-action-sheet-button icon="fa-users" @click="onPopulation"       -->
+      <!--   >Population</v-ons-action-sheet-button                               -->
+      <!-- >                                                                      -->
+      <!-- <v-ons-action-sheet-button icon="fa-map-marked-alt" @click="onMapping" -->
+      <!--   >Mapping</v-ons-action-sheet-button                                  -->
+      <!-- >                                                                      -->
       <v-ons-action-sheet-button
         v-if="!md"
         icon="fa-map-marked-alt"
