@@ -7,10 +7,11 @@ const jsonHeaders = {
   ...commonHeaders,
 }
 
+// Prefer to dispatch('flagGlobalError') as that will inform the UI and call
+// this eventually
 export function wowErrorHandler(msg, err) {
   console.error(msg, err)
   // FIXME notify Rollbar
-  // FIXME show something to user to indicate failure
 }
 
 export function postJson(url, data = {}) {
@@ -60,23 +61,42 @@ export function getJsonWithAuth(url, authHeaderValue) {
   }).then(handleResp)
 }
 
-function handleResp(resp) {
-  const result = resp.json()
-  if (resp.ok) {
-    return result
+async function handleResp(resp) {
+  const isJson = isRespJson(resp)
+  const isRespOk = resp.ok
+  try {
+    if (isRespOk && isJson) {
+      return resp.json()
+    }
+  } catch (err) {
+    throw chainedError('Failed while parsing JSON response', err)
   }
-  return result.then(body => {
+  const bodyAccessor = isJson ? 'json' : 'text'
+  const bodyPromise = resp.bodyUsed
+    ? Promise.resolve('(body already used)')
+    : resp[bodyAccessor]()
+  return bodyPromise.then(body => {
     return Promise.reject({
       status: resp.status,
       statusText: resp.statusText,
       headers: resp.headers,
       url: resp.url,
       body,
+      msg: `Resp ok=${isRespOk}, Resp is JSON=${isJson}`,
     })
   })
+}
+
+function isRespJson(resp) {
+  const mimeStr = resp.headers.get('Content-Type') || ''
+  return /application\/(\w+(\.\w+)*\+)?json/.test(mimeStr)
 }
 
 export function chainedError(msg, err) {
   err.message = `${msg}\nCaused by: ${err.message}`
   return err
+}
+
+export const _testonly = {
+  isRespJson,
 }

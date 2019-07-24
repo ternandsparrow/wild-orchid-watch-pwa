@@ -14,7 +14,6 @@ import {
   getJsonWithAuth,
   postJsonWithAuth,
   postFormDataWithAuth,
-  wowErrorHandler,
 } from '@/misc/helpers'
 
 // you should only dispatch doLogin() and saveToken() as an
@@ -129,12 +128,10 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        wowErrorHandler(
+        throw chainedError(
           `Failed to make POST to API with URL suffix='${urlSuffix}'`,
           err,
         )
-        // FIXME should we re-throw so callers don't have to check the resp?
-        return
       }
     },
     async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
@@ -151,12 +148,10 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        wowErrorHandler(
+        throw chainedError(
           `Failed to POST observation photo attached to observation ID='${obsId}'`,
           err,
         )
-        // FIXME should we re-throw so callers don't have to check the resp?
-        return
       }
     },
     saveToken({ commit, dispatch }, vals) {
@@ -231,8 +226,11 @@ export default {
         }
         commit('_saveUserDetails', resp.results[0])
       } catch (err) {
-        wowErrorHandler('Failed to update user details from inat API', err)
-        return
+        dispatch(
+          'flagGlobalError',
+          { msg: 'Failed to update user details from inat API', err },
+          { root: true },
+        )
       }
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {

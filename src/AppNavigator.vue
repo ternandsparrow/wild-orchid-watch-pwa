@@ -26,6 +26,18 @@
       New content available.
       <button @click="onUpdate">update</button>
     </v-ons-toast>
+    <v-ons-alert-dialog
+      modifier="rowfooter"
+      :visible.sync="globalErrorDialogVisible"
+    >
+      <span slot="title">Something broke</span>
+      Sorry about that, try restarting the app or refreshing the webpage
+      <template slot="footer">
+        <v-ons-alert-dialog-button @click="globalErrorDialogVisible = false"
+          >Ok</v-ons-alert-dialog-button
+        >
+      </template>
+    </v-ons-alert-dialog>
   </div>
 </template>
 
@@ -41,11 +53,13 @@ export default {
     return {
       isNotFirstRun: false,
       updateReadyToastVisible: false,
+      globalErrorDialogVisible: false,
     }
   },
   computed: {
     ...mapGetters('app', ['newContentAvailable']),
     ...mapState('app', ['showAddToHomeScreenModalForApple', 'refreshingApp']),
+    ...mapState(['isGlobalErrorState']),
     ...mapGetters('navigator', ['pageStack']),
     options() {
       return this.$store.state.navigator.options
@@ -60,6 +74,12 @@ export default {
   watch: {
     newContentAvailable(val) {
       this.updateReadyToastVisible = val
+    },
+    isGlobalErrorState(val) {
+      if (!val || this.globalErrorDialogVisible) {
+        return
+      }
+      this.globalErrorDialogVisible = val
     },
   },
   methods: {

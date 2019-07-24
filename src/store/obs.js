@@ -6,7 +6,6 @@ import {
   obsFieldSeparatorChar,
 } from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
-import { wowErrorHandler } from '@/misc/helpers'
 
 const NOT_UPLOADED = -1
 
@@ -50,7 +49,11 @@ const actions = {
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
       commit('setMyObs', records)
     } catch (err) {
-      wowErrorHandler('Failed to get my observations', err)
+      dispatch(
+        'flagGlobalError',
+        { msg: 'Failed to get my observations', err },
+        { root: true },
+      )
       return false
     }
   },
@@ -76,7 +79,11 @@ const actions = {
       })
       commit('setMySpecies', records)
     } catch (err) {
-      wowErrorHandler('Failed to get my species counts', err)
+      dispatch(
+        'flagGlobalError',
+        { msg: 'Failed to get my species counts', err },
+        { root: true },
+      )
       return false
     }
   },
@@ -142,9 +149,13 @@ const actions = {
       }))
       commit('setSpeciesAutocompleteItems', records)
     } catch (err) {
-      wowErrorHandler(
-        `Failed to perform species autocomplete on text='${partialText}'`,
-        err,
+      dispatch(
+        'flagGlobalError',
+        {
+          msg: `Failed to perform species autocomplete on text='${partialText}'`,
+          err,
+        },
+        { root: true },
       )
       return false
     }
@@ -262,7 +273,11 @@ const actions = {
           //    record that has been mapped
         }
       } catch (err) {
-        wowErrorHandler('Failed to upload an observation', err)
+        dispatch(
+          'flagGlobalError',
+          { msg: 'Failed to upload an observation', err },
+          { root: true },
+        )
         // TODO should we let the loop try the next one or short-circuit?
         // FIXME add this item to the retry queue
       } finally {
