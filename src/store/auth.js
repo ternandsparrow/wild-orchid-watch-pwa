@@ -201,8 +201,15 @@ export default {
         commit('_setApiToken', apiToken)
         dispatch('_updateUserDetails')
       } catch (err) {
-        wowErrorHandler('Failed to get API token using iNat token', err)
-        return
+        const status = err.status
+        if (status === 401 || status === 400) {
+          // FIXME make sure you keep the user's data that hasn't been uploaded
+          // but make them login via iNat OAuth again
+          throw new Error(
+            `iNat token is not valid (response status=${status}), user must login again`,
+          )
+        }
+        throw chainedError('Failed to get API token using iNat token', err)
       }
     },
     /**
@@ -231,7 +238,7 @@ export default {
     async _refreshApiTokenIfRequired({ dispatch, state }) {
       if (!state.apiToken) {
         console.debug('No API token found, forcing refresh')
-        dispatch('_updateApiToken')
+        await dispatch('_updateApiToken')
         return
       }
       const decodedJwt = jwt.decode(state.apiToken)
@@ -242,7 +249,7 @@ export default {
         return
       }
       console.debug('API token has (or is close to) expired, refreshing.')
-      dispatch('_updateApiToken')
+      await dispatch('_updateApiToken')
     },
   },
 }
