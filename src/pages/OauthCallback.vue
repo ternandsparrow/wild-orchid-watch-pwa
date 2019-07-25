@@ -47,7 +47,7 @@ export default {
           grant_type: 'authorization_code',
           code_verifier: verifier,
         })
-        console.debug(resp)
+        console.debug('OAuth code to token resp:', resp)
         token = resp.access_token
         tokenType = resp.token_type
         tokenCreatedAt = resp.created_at

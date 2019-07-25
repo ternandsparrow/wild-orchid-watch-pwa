@@ -37,6 +37,14 @@ workbox.routing.registerRoute(
   'GET',
 )
 
+// never cache requests for API auth tokens.
+// we don't need to worry about the iNat token as that is a POST
+workbox.routing.registerRoute(
+  `${inatUrl}/users/api_token`,
+  new workbox.strategies.NetworkOnly(),
+  'GET',
+)
+
 workbox.routing.registerRoute(
   new RegExp(`^${apiUrl}/.*`),
   new workbox.strategies.NetworkFirst({

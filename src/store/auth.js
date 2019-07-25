@@ -117,6 +117,25 @@ export default {
         )
       }
     },
+    async doInatGet({ state }, { urlSuffix }) {
+      try {
+        if (!state.token || !state.tokenType) {
+          throw new Error(
+            'iNat token or token type is NOT present, cannot continue',
+          )
+        }
+        const resp = await getJsonWithAuth(
+          `${inatUrlBase}${urlSuffix}`,
+          `${state.tokenType} ${state.token}`,
+        )
+        return resp
+      } catch (err) {
+        throw chainedError(
+          `Failed to make GET to iNat with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
     async doApiPost({ state, dispatch }, { urlSuffix, data }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -179,19 +198,11 @@ export default {
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
-    async _updateApiToken({ commit, state, dispatch }) {
+    async _updateApiToken({ commit, dispatch }) {
       try {
-        if (!state.token) {
-          console.debug(
-            'iNat token is not present, cannot request an API token',
-          )
-          return
-        }
-        // FIXME extract to doInatGet() action
-        const resp = await getJsonWithAuth(
-          `${inatUrlBase}/users/api_token`,
-          `${state.tokenType} ${state.token}`,
-        )
+        const resp = await dispatch('doInatGet', {
+          urlSuffix: '/users/api_token',
+        })
         const apiToken = resp.api_token
         commit('_setApiToken', apiToken)
         dispatch('_updateUserDetails')
