@@ -7,12 +7,19 @@ import app from './app'
 import obs from './obs'
 import activity from './activity'
 import missions from './missions'
+import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(Vuex)
 
 export default new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
   plugins: [createPersistedState()],
+  state: {
+    isGlobalErrorState: false,
+  },
+  mutations: {
+    _flagGlobalError: state => (state.isGlobalErrorState = true),
+  },
   actions: {
     doApiGet({ dispatch }, argObj) {
       return dispatch('auth/doApiGet', argObj)
@@ -22,6 +29,10 @@ export default new Vuex.Store({
     },
     doPhotoPost({ dispatch }, argObj) {
       return dispatch('auth/doPhotoPost', argObj)
+    },
+    flagGlobalError({ commit }, { msg, err }) {
+      commit('_flagGlobalError')
+      wowErrorHandler(msg, err)
     },
   },
   getters: {

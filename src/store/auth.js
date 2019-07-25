@@ -14,7 +14,6 @@ import {
   getJsonWithAuth,
   postJsonWithAuth,
   postFormDataWithAuth,
-  wowErrorHandler,
 } from '@/misc/helpers'
 
 // you should only dispatch doLogin() and saveToken() as an
@@ -55,7 +54,9 @@ export default {
     },
   },
   getters: {
-    isUserLoggedIn: state => !isNil(state.token), // FIXME check if expired, does it expire?
+    isUserLoggedIn: (state, getters) => {
+      return !isNil(state.token) && !isNil(getters.myUserId)
+    },
     userEmail(state) {
       const result = state.userDetails.email
       return result ? result : '(no email stored)'
@@ -85,6 +86,25 @@ export default {
         )
       }
     },
+    async doInatGet({ state }, { urlSuffix }) {
+      try {
+        if (!state.token || !state.tokenType) {
+          throw new Error(
+            'iNat token or token type is NOT present, cannot continue',
+          )
+        }
+        const resp = await getJsonWithAuth(
+          `${inatUrlBase}${urlSuffix}`,
+          `${state.tokenType} ${state.token}`,
+        )
+        return resp
+      } catch (err) {
+        throw chainedError(
+          `Failed to make GET to iNat with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
     async doApiPost({ state, dispatch }, { urlSuffix, data }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -96,12 +116,10 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        wowErrorHandler(
+        throw chainedError(
           `Failed to make POST to API with URL suffix='${urlSuffix}'`,
           err,
         )
-        // FIXME should we re-throw so callers don't have to check the resp?
-        return
       }
     },
     async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
@@ -118,12 +136,10 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        wowErrorHandler(
+        throw chainedError(
           `Failed to POST observation photo attached to observation ID='${obsId}'`,
           err,
         )
-        // FIXME should we re-throw so callers don't have to check the resp?
-        return
       }
     },
     saveToken({ commit, dispatch }, vals) {
@@ -151,25 +167,24 @@ export default {
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
-    async _updateApiToken({ commit, state, dispatch }) {
+    async _updateApiToken({ commit, dispatch }) {
       try {
-        if (!state.token) {
-          console.debug(
-            'iNat token is not present, cannot request an API token',
-          )
-          return
-        }
-        // FIXME extract to doInatGet() action
-        const resp = await getJsonWithAuth(
-          `${inatUrlBase}/users/api_token`,
-          `${state.tokenType} ${state.token}`,
-        )
+        const resp = await dispatch('doInatGet', {
+          urlSuffix: '/users/api_token',
+        })
         const apiToken = resp.api_token
         commit('_setApiToken', apiToken)
         dispatch('_updateUserDetails')
       } catch (err) {
-        wowErrorHandler('Failed to get API token using iNat token', err)
-        return
+        const status = err.status
+        if (status === 401 || status === 400) {
+          // FIXME make sure you keep the user's data that hasn't been uploaded
+          // but make them login via iNat OAuth again
+          throw new Error(
+            `iNat token is not valid (response status=${status}), user must login again`,
+          )
+        }
+        throw chainedError('Failed to get API token using iNat token', err)
       }
     },
     /**
@@ -191,14 +206,17 @@ export default {
         }
         commit('_saveUserDetails', resp.results[0])
       } catch (err) {
-        wowErrorHandler('Failed to update user details from inat API', err)
-        return
+        dispatch(
+          'flagGlobalError',
+          { msg: 'Failed to update user details from inat API', err },
+          { root: true },
+        )
       }
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {
       if (!state.apiToken) {
         console.debug('No API token found, forcing refresh')
-        dispatch('_updateApiToken')
+        await dispatch('_updateApiToken')
         return
       }
       const decodedJwt = jwt.decode(state.apiToken)
@@ -209,7 +227,7 @@ export default {
         return
       }
       console.debug('API token has (or is close to) expired, refreshing.')
-      dispatch('_updateApiToken')
+      await dispatch('_updateApiToken')
     },
   },
 }

@@ -98,6 +98,8 @@
             </ons-list-item>
             <ons-list-item>
               <div>
+                <!-- FIXME tell user they'll be logging in with iNat? -->
+                <!-- FIXME check if we're already logged in and shortcut if so -->
                 <v-ons-button v-if="!tsandcsAccepted" @click="showTAndCs"
                   >View Terms and Conditions</v-ons-button
                 >
@@ -108,13 +110,6 @@
             </ons-list-item>
           </v-ons-list>
         </v-ons-card>
-        <div class="button_holder">
-          <!-- FIXME tell user they'll be logging in with iNat? -->
-          <!-- FIXME check if we're already logged in and shortcut if so -->
-          <v-ons-button @click="handleDoneClick"
-            >Login to start collecting some data</v-ons-button
-          >
-        </div>
       </v-ons-carousel-item>
     </v-ons-carousel>
     <carousel-dots
@@ -195,7 +190,7 @@ ons-carousel-item {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  width: 90%;
+  max-width: 90%;
 }
 
 .wowOnboarderCard {

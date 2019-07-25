@@ -6,7 +6,6 @@ import {
   obsFieldSeparatorChar,
 } from '@/misc/constants'
 import db from '@/indexeddb/dexie-store'
-import { wowErrorHandler } from '@/misc/helpers'
 
 const NOT_UPLOADED = -1
 
@@ -18,6 +17,7 @@ const state = {
   mySpecies: [],
   obsFields: [],
   selectedObservationId: null,
+  speciesAutocompleteItems: [],
   tabIndex: 0,
   waitingToUploadRecords: [],
 }
@@ -34,6 +34,8 @@ const mutations = {
   setLng: (state, value) => (state.lng = value),
   setObsFields: (state, value) => (state.obsFields = value),
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
+  setSpeciesAutocompleteItems: (state, value) =>
+    (state.speciesAutocompleteItems = value),
 }
 
 const actions = {
@@ -47,7 +49,11 @@ const actions = {
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
       commit('setMyObs', records)
     } catch (err) {
-      wowErrorHandler('Failed to get my observations', err)
+      dispatch(
+        'flagGlobalError',
+        { msg: 'Failed to get my observations', err },
+        { root: true },
+      )
       return false
     }
   },
@@ -62,17 +68,22 @@ const actions = {
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
+        const taxon = d.taxon
         return {
-          id: d.id,
-          observationCount: d.observations_count,
-          defaultPhoto: d.default_photo,
-          commonName: d.preferred_common_name || d.name,
-          scientificName: d.name,
+          id: taxon.id,
+          observationCount: d.count, // TODO assume this is *my* count, not system count
+          defaultPhoto: taxon.default_photo,
+          commonName: taxon.preferred_common_name || taxon.name,
+          scientificName: taxon.name,
         }
       })
       commit('setMySpecies', records)
     } catch (err) {
-      wowErrorHandler('Failed to get my species counts', err)
+      dispatch(
+        'flagGlobalError',
+        { msg: 'Failed to get my species counts', err },
+        { root: true },
+      )
       return false
     }
   },
@@ -122,6 +133,32 @@ const actions = {
       })
     })
     commit('setObsFields', fields)
+  },
+  async doSpeciesAutocomplete({ commit, dispatch }, partialText) {
+    if (!partialText) {
+      commit('setSpeciesAutocompleteItems', [])
+      return
+    }
+    const urlSuffix = `/taxa/autocomplete?q=${partialText}`
+    try {
+      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
+      const records = resp.results.map(d => ({
+        id: d.id,
+        name: d.name,
+        preferrerCommonName: d.preferred_common_name,
+      }))
+      commit('setSpeciesAutocompleteItems', records)
+    } catch (err) {
+      dispatch(
+        'flagGlobalError',
+        {
+          msg: `Failed to perform species autocomplete on text='${partialText}'`,
+          err,
+        },
+        { root: true },
+      )
+      return false
+    }
   },
   async saveAndUploadIndividual({ dispatch, state }, record) {
     const now = new Date()
@@ -236,7 +273,11 @@ const actions = {
           //    record that has been mapped
         }
       } catch (err) {
-        wowErrorHandler('Failed to upload an observation', err)
+        dispatch(
+          'flagGlobalError',
+          { msg: 'Failed to upload an observation', err },
+          { root: true },
+        )
         // TODO should we let the loop try the next one or short-circuit?
         // FIXME add this item to the retry queue
       } finally {

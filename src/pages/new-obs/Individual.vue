@@ -52,9 +52,24 @@
           float
           placeholder="e.g. snail orchid"
           type="text"
+          @keyup="onSpeciesInput"
         >
         </v-ons-input>
       </v-ons-list-item>
+      <div v-show="isShowSpeciesAutocomplete">
+        <ul>
+          <!-- FIXME do we use name or common name? -->
+          <!-- FIXME turn this into an actual autocomplete, bootstrap-vue has a good one -->
+          <li
+            v-for="curr of speciesAutocompleteItems"
+            :key="curr.id"
+            class="autocomplete-item"
+            @click="doSelectAutocomplete(curr.name)"
+          >
+            {{ curr.name }}
+          </li>
+        </ul>
+      </div>
       <template v-for="currField of filteredFields">
         <v-ons-list-header :key="currField.id + '-list'">{{
           currField.name
@@ -127,10 +142,11 @@ export default {
       photos: {},
       obsFieldValues: {},
       notes: null,
+      isShowSpeciesAutocomplete: false,
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields', 'lat', 'lng']),
+    ...mapState('obs', ['obsFields', 'lat', 'lng', 'speciesAutocompleteItems']),
     filteredFields() {
       // FIXME remove when we can handle species picker
       return (this.obsFields || []).filter(
@@ -193,6 +209,14 @@ export default {
         url: URL.createObjectURL(file),
       }
     },
+    async onSpeciesInput() {
+      await this.$store.dispatch('obs/doSpeciesAutocomplete', this.speciesGuess)
+      this.isShowSpeciesAutocomplete = true
+    },
+    doSelectAutocomplete(selected) {
+      this.speciesGuess = selected
+      this.isShowSpeciesAutocomplete = false
+    },
     photoRef(e) {
       return 'photo-' + e.id
     },
@@ -251,5 +275,9 @@ export default {
 
 .width100 {
   width: 100%;
+}
+
+.autocomplete-item {
+  margin: 1em auto;
 }
 </style>
