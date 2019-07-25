@@ -1,5 +1,4 @@
 import { isNil } from 'lodash'
-import Observations from '@/pages/obs/index'
 
 const state = {
   appTitle: process.env.VUE_APP_TITLE,
@@ -8,7 +7,6 @@ const state = {
   showAddToHomeScreenModalForApple: false,
   refreshingApp: false,
   topTitle: 'Wild Orchid Watch',
-  innerPageStack: [Observations], // FIXME naming?
   swReg: null,
 }
 
@@ -20,7 +18,6 @@ const mutations = {
     (state.showAddToHomeScreenModalForApple = value),
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
   setTopTitle: (state, value) => (state.topTitle = value),
-  pushInnerPage: (state, value) => (state.innerPageStack = [value]),
   setServiceWorkerRegistration: (state, value) => (state.swReg = value),
 }
 

@@ -40,7 +40,8 @@ export default {
   name: 'WowHeader',
   components: { MenuPage },
   computed: {
-    ...mapState('app', ['topTitle', 'innerPageStack']),
+    ...mapState('app', ['topTitle']),
+    ...mapState('navigator', ['innerPageStack']),
     isOpen: {
       get() {
         return this.$store.state.splitter.open

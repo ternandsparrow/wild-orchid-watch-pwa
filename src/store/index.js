@@ -7,13 +7,28 @@ import app from './app'
 import obs from './obs'
 import activity from './activity'
 import missions from './missions'
+import navigator from './navigator'
 import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(Vuex)
 
 export default new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
-  plugins: [createPersistedState()],
+  plugins: [
+    createPersistedState({
+      key: 'wow-vuex',
+      setState: (key, state, storage) => {
+        // Don't store Onsen navigator state!
+        // Vue components don't serialise well, mainly due the fact they
+        // contain functions. Even if they did, we probably don't want to
+        // restore them. If we want to restore the user's nav state then we
+        // should find another way
+        const cleanedState = Object.assign({}, state)
+        delete cleanedState.navigator
+        return storage.setItem(key, JSON.stringify(cleanedState))
+      },
+    }),
+  ],
   state: {
     isGlobalErrorState: false,
   },
@@ -46,40 +61,7 @@ export default new Vuex.Store({
     obs,
     activity,
     missions,
-    navigator: {
-      strict: true,
-      namespaced: true,
-      state: {
-        stack: [],
-        options: {},
-      },
-      mutations: {
-        push(state, page) {
-          state.stack.push(page)
-        },
-        pop(state) {
-          if (state.stack.length > 1) {
-            state.stack.pop()
-          }
-        },
-        replace(state, page) {
-          state.stack.pop()
-          state.stack.push(page)
-        },
-        reset(state, page) {
-          state.stack = Array.isArray(page) ? page : [page || state.stack[0]]
-        },
-        options(state, newOptions = {}) {
-          state.options = newOptions
-        },
-      },
-      getters: {
-        pageStack(state) {
-          return state.stack
-        },
-      },
-    },
-
+    navigator,
     splitter: {
       strict: true,
       namespaced: true,
