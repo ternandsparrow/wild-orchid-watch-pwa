@@ -33,7 +33,7 @@ export default {
   },
   methods: {
     handleResetOnboarderClick() {
-      localStorage.removeItem('isNotFirstRun')
+      this.$store.commit('app/setIsFirstRun', true)
       this.$ons.notification.toast('Onboarder reset', {
         timeout: 1000,
         animation: 'ascend',

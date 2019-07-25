@@ -137,7 +137,7 @@ export default {
   methods: {
     loadView(index) {
       const component = this.access[index].component
-      this.$store.commit('app/pushInnerPage', component)
+      this.$store.commit('navigator/pushInnerPage', component)
       this.$store.commit('splitter/toggle')
     },
     loadLink(url) {

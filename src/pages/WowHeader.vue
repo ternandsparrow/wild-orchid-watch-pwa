@@ -40,7 +40,7 @@ export default {
   name: 'WowHeader',
   components: { MenuPage },
   computed: {
-    ...mapState('app', ['topTitle']),
+    ...mapState('app', ['topTitle', 'isFirstRun']),
     ...mapState('navigator', ['innerPageStack']),
     isOpen: {
       get() {
@@ -51,11 +51,9 @@ export default {
       },
     },
   },
-  beforeCreate() {
+  mounted() {
     // Check for onboarding
-    const localStorageTargetKey = 'isNotFirstRun'
-    this.isNotFirstRun = localStorage.getItem(localStorageTargetKey)
-    if (this.isNotFirstRun === null) {
+    if (this.isFirstRun) {
       this.$store.commit('navigator/push', Onboarder)
     }
   },

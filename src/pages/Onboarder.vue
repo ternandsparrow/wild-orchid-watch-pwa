@@ -76,7 +76,7 @@
           <v-ons-list>
             <ons-list-item
               class="notAccepted"
-              :class="{ accepted: tsandcsAccepted }"
+              :class="{ accepted: tsAndCsAccepted }"
             >
               <div>
                 <label class="center small-text">
@@ -89,10 +89,7 @@
                 </a>
                 -->
                 <label class="right">
-                  <v-ons-checkbox
-                    v-model="tsandcsAccepted"
-                    :value="tsandcsAccepted"
-                  />
+                  <v-ons-checkbox v-model="tsAndCsAccepted" />
                 </label>
               </div>
             </ons-list-item>
@@ -100,10 +97,10 @@
               <div>
                 <!-- FIXME tell user they'll be logging in with iNat? -->
                 <!-- FIXME check if we're already logged in and shortcut if so -->
-                <v-ons-button v-if="!tsandcsAccepted" @click="showTAndCs"
+                <v-ons-button v-if="!tsAndCsAccepted" @click="showTAndCs"
                   >View Terms and Conditions</v-ons-button
                 >
-                <v-ons-button v-if="tsandcsAccepted" @click="handleDoneClick"
+                <v-ons-button v-if="tsAndCsAccepted" @click="handleDoneClick"
                   >OK, let's go...!
                 </v-ons-button>
               </div>
@@ -158,16 +155,24 @@ export default {
         left: 0,
         right: 0,
       },
-      tsandcsAccepted: false,
       tsAndCsModalVisible: false,
       tAndCHtml: 'This is a terms and conditions holder', //require('@/assets/wow-t-and-c.html'),
     }
   },
+  computed: {
+    tsAndCsAccepted: {
+      get() {
+        return this.$store.state.app.tsAndCsAccepted
+      },
+      set(newVal) {
+        this.$store.commit('app/setTsAndCsAccepted', newVal)
+      },
+    },
+  },
   // components: { CarouselDots },
   methods: {
     handleDoneClick() {
-      localStorage.setItem('isNotFirstRun', true)
-      localStorage.setItem('tsandcsAccepted', true)
+      this.$store.commit('app/setIsFirstRun', false)
       this.$store.dispatch('auth/doLogin')
     },
     onDotClick(carouselIndex) {

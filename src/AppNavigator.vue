@@ -51,7 +51,6 @@ export default {
   // components: { AppleAddToHomeScreenModal },
   data() {
     return {
-      isNotFirstRun: false,
       updateReadyToastVisible: false,
       globalErrorDialogVisible: false,
     }

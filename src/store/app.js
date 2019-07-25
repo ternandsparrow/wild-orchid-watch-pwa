@@ -8,6 +8,9 @@ const state = {
   refreshingApp: false,
   topTitle: 'Wild Orchid Watch',
   swReg: null,
+  // remember that we restore state from localStorage, so this is the initial value
+  isFirstRun: true,
+  tsAndCsAccepted: false,
 }
 
 const mutations = {
@@ -19,6 +22,8 @@ const mutations = {
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
   setTopTitle: (state, value) => (state.topTitle = value),
   setServiceWorkerRegistration: (state, value) => (state.swReg = value),
+  setIsFirstRun: (state, value) => (state.isFirstRun = value),
+  setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
 }
 
 const actions = {
