@@ -120,7 +120,7 @@ const actions = {
       return d.project_observation_fields.map(e => {
         const f = e.observation_field
         return {
-          id: e.id,
+          id: f.id,
           position: e.position,
           required: e.required,
           name: processObsFieldName(f.name),
