@@ -20,6 +20,7 @@ export function postJson(url, data = {}) {
 }
 
 export function postJsonWithAuth(url, data = {}, authHeaderValue) {
+  // TODO consider using https://github.com/sindresorhus/ky instead of fetch()
   return fetch(url, {
     method: 'POST',
     mode: 'cors',
