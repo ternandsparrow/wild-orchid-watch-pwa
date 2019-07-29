@@ -196,5 +196,7 @@ export default {
   display: flex;
   flex-direction: row;
   align-items: center;
+  overflow: hidden; /* FIXME email addresses overflow the menu, maybe elipses
+  them? */
 }
 </style>
