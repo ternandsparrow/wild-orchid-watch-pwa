@@ -13,3 +13,19 @@ db.version(2).stores({
 })
 
 export default db
+
+// will kill our app DB and SW cache (and anything else)
+export async function deleteAllDatabases() {
+  const dbs = await indexedDB.databases()
+  for (const { name } of dbs) {
+    try {
+      const d = new Dexie(name)
+      d.close()
+      d.delete()
+      console.debug(`Successfully deleted the '${name}' database`)
+    } catch (err) {
+      console.warn(`Failed to delete the '${name}' database`, err)
+      // FIXME send something to rollbar
+    }
+  }
+}

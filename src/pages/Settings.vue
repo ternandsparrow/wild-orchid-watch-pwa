@@ -6,7 +6,7 @@
         here</v-ons-list-header
       >
       <ons-list-item>
-        <label class="center" for="switch1">
+        <label class="center">
           Logout from Wild Orchid Watch and iNaturalist
         </label>
         <div class="right">
@@ -14,7 +14,7 @@
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center" for="switch1">
+        <label class="center">
           Show onboarder next time the App launches
         </label>
         <div class="right">
@@ -26,6 +26,8 @@
 </template>
 
 <script>
+import { deleteAllDatabases } from '@/indexeddb/dexie-store'
+
 export default {
   name: 'Settings',
   mounted() {
@@ -40,9 +42,48 @@ export default {
       })
     },
     doLogout() {
-      // FIXME implment me
-      alert('FIXME implement this')
+      // FIXME check if we have unsync'd observations and warn they'll be lost
+      const msg =
+        'Are you sure? All data will from this app will also be deleted.'
+      this.$ons.notification.confirm(msg).then(isConfirmed => {
+        if (!isConfirmed) {
+          this.$ons.notification.toast('Wipe cancelled', {
+            timeout: 1000,
+            animation: 'ascend',
+          })
+          return
+        }
+        this.$store.dispatch('auth/doLogout')
+        clearLocalStorage()
+        unregisterAllServiceWorkers()
+        deleteAllDatabases()
+        this.$ons.notification
+          .alert(
+            'Logged out and all data wiped, press ok to restart the app in a clean state',
+          )
+          .then(() => {
+            window.location.reload()
+          })
+      })
     },
   },
+}
+
+function clearLocalStorage() {
+  const keys = Object.keys(localStorage)
+  console.debug(`Clearing localStorage of ${keys.length} keys`)
+  for (const curr of keys) {
+    localStorage.removeItem(curr)
+  }
+}
+
+// thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/
+function unregisterAllServiceWorkers() {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    console.debug(`Unregistering ${regs.length} service workers`)
+    for (const curr of regs) {
+      curr.unregister()
+    }
+  })
 }
 </script>

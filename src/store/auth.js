@@ -16,6 +16,8 @@ import {
   postFormDataWithAuth,
 } from '@/misc/helpers'
 
+let updateApiTokenPromise = null
+
 // you should only dispatch doLogin() and saveToken() as an
 // external user, don't commit directly.
 
@@ -105,6 +107,26 @@ export default {
         )
       }
     },
+    async doInatPost({ state }, { urlSuffix, data }) {
+      try {
+        if (!state.token || !state.tokenType) {
+          throw new Error(
+            'iNat token or token type is NOT present, cannot continue',
+          )
+        }
+        const resp = await postJsonWithAuth(
+          `${inatUrlBase}${urlSuffix}`,
+          data,
+          `${state.tokenType} ${state.token}`,
+        )
+        return resp
+      } catch (err) {
+        throw chainedError(
+          `Failed to make POST to iNat with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
     async doApiPost({ state, dispatch }, { urlSuffix, data }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -162,12 +184,32 @@ export default {
         response_type=code`.replace(/\s/g, ''),
       )
     },
+    async doLogout({ state, dispatch }) {
+      try {
+        await dispatch('doInatPost', {
+          urlSuffix: '/oauth/revoke',
+          data: {
+            token: state.token,
+          },
+        })
+      } catch (err) {
+        throw chainedError('Failed to revoke iNat token while logging out', err)
+      }
+    },
     _generatePkcePair({ commit }) {
       const pair = PkceGenerator()
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
-    async _updateApiToken({ commit, dispatch }) {
+    async _updateApiToken({ dispatch }) {
+      if (updateApiTokenPromise) {
+        // ensure we only make one refresh call
+        return updateApiTokenPromise
+      }
+      updateApiTokenPromise = dispatch('_updateApiTokenImpl')
+      return updateApiTokenPromise
+    },
+    async _updateApiTokenImpl({ commit, dispatch }) {
       try {
         const resp = await dispatch('doInatGet', {
           urlSuffix: '/users/api_token',
@@ -185,6 +227,8 @@ export default {
           )
         }
         throw chainedError('Failed to get API token using iNat token', err)
+      } finally {
+        updateApiTokenPromise = null
       }
     },
     /**
