@@ -65,10 +65,16 @@
         <h3>Observation values</h3>
         <v-ons-list>
           <template v-for="curr of observationDetail.obsFieldValues">
-            <v-ons-list-header :key="curr.id + '-header'">{{
-              curr.name
-            }}</v-ons-list-header>
-            <v-ons-list-item :key="curr.id + '-value'">
+            <v-ons-list-header
+              :key="curr.id + '-header'"
+              class="wow-list-header"
+              >{{ curr.name }}</v-ons-list-header
+            >
+            <v-ons-list-item
+              :key="curr.id + '-value'"
+              modifier="nodivider"
+              class="wow-list-item"
+            >
               {{ curr.value }}
             </v-ons-list-item>
           </template>
@@ -77,7 +83,12 @@
           <h3>Notes</h3>
           <v-ons-list>
             <v-ons-list-item>
-              {{ observationDetail.notes }}
+              <div v-show="observationDetail.notes">
+                {{ observationDetail.notes }}
+              </div>
+              <div v-show="!observationDetail.notes" class="no-notes">
+                (no notes)
+              </div>
             </v-ons-list-item>
           </v-ons-list>
         </div>
@@ -214,5 +225,9 @@ export default {
 .tabbar-fixer ons-tabbar,
 .tabbar-fixer ons-tab {
   position: relative;
+}
+
+.no-notes {
+  color: #999;
 }
 </style>

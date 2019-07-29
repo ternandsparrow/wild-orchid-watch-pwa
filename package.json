@@ -24,7 +24,7 @@
     "is_js": "^0.9.0",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.11",
-    "onsenui": "^2.10.8",
+    "onsenui": "^2.10.9",
     "pkce-challenge": "^1.0.3",
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",

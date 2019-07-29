@@ -128,7 +128,8 @@ const actions = {
           datatype: f.datatype,
           allowedValues: (f.allowed_values || '')
             .split(obsFieldSeparatorChar)
-            .filter(x => !!x), // remove zero length strings
+            .filter(x => !!x) // remove zero length strings
+            .sort(),
         }
       })
     })

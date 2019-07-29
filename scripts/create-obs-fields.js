@@ -66,7 +66,7 @@ const obsFields = [
   {
     name: 'Host tree species',
     description:
-      'Species of the host and this orchid grows on. Only required for Orchid Type = Epiphyte',
+      'Species of the host that this orchid grows on. Only required for Orchid Type = Epiphyte',
     datatype: 'taxon',
     allowedValues: '',
   },
