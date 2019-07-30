@@ -5,6 +5,7 @@ import {
   obsFieldPrefix,
   obsFieldSeparatorChar,
 } from '@/misc/constants'
+import { now } from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
 const NOT_UPLOADED = -1
@@ -14,7 +15,9 @@ const state = {
   lng: null,
   locAccuracy: null,
   myObs: [],
+  myObsLastUpdated: null,
   mySpecies: [],
+  mySpeciesLastUpdated: null,
   obsFields: [],
   selectedObservationId: null,
   speciesAutocompleteItems: [],
@@ -25,8 +28,14 @@ const state = {
 const mutations = {
   setSelectedObservationId: (state, value) =>
     (state.selectedObservationId = value),
-  setMySpecies: (state, value) => (state.mySpecies = value),
-  setMyObs: (state, value) => (state.myObs = value),
+  setMySpecies: (state, value) => {
+    state.mySpecies = value
+    state.mySpeciesLastUpdated = now()
+  },
+  setMyObs: (state, value) => {
+    state.myObs = value
+    state.myObsLastUpdated = now()
+  },
   setTab: (state, value) => (state.tabIndex = value),
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
@@ -40,7 +49,6 @@ const mutations = {
 
 const actions = {
   async getMyObs({ commit, dispatch, rootGetters }) {
-    // FIXME make the service worker do the caching
     commit('setMyObs', [])
     const myUserId = rootGetters.myUserId
     const urlSuffix = `/observations?user_id=${myUserId}`
@@ -57,11 +65,7 @@ const actions = {
       return false
     }
   },
-  async getMySpecies({ state, commit, dispatch, rootGetters }) {
-    if (state.mySpecies.length) {
-      // FIXME make the service worker do the caching
-      return
-    }
+  async getMySpecies({ commit, dispatch, rootGetters }) {
     commit('setMySpecies', [])
     const myUserId = rootGetters.myUserId
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}`
@@ -162,16 +166,16 @@ const actions = {
     }
   },
   async saveAndUploadIndividual({ dispatch, state }, record) {
-    const now = new Date()
+    const nowDate = new Date()
     const enhancedRecord = Object.assign(record, {
       captive_flag: false, // it's *wild* orchid watch
-      createdAt: now,
+      createdAt: nowDate,
       latitude: state.lat,
       longitude: state.lng,
       // FIXME uploaded records fail the "Date specified" check
-      observed_on: now,
+      observed_on: nowDate,
       positional_accuracy: state.locAccuracy,
-      time_observed_at: now,
+      time_observed_at: nowDate,
       updatedAt: NOT_UPLOADED,
       // FIXME get these from UI
       // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
@@ -300,6 +304,19 @@ const getters = {
     const found = allObs.find(e => e.id === state.selectedObservationId)
     return found
   },
+  isMyObsStale: buildStaleCheckerFn('myObsLastUpdated'),
+  isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated'),
+}
+
+function buildStaleCheckerFn(stateKey) {
+  return function(state) {
+    const lastUpdatedMs = state[stateKey]
+    const staleThresholdMinutes = 10
+    return (
+      !lastUpdatedMs ||
+      lastUpdatedMs < now() - staleThresholdMinutes * 60 * 1000
+    )
+  }
 }
 
 async function resolveWaitingToUploadIdsToRecords(ids) {
@@ -329,6 +346,13 @@ export default {
   actions,
   getters,
 }
+
+export const apiTokenHooks = [
+  store => {
+    store.dispatch('obs/getMyObs')
+    store.dispatch('obs/getMySpecies')
+  },
+]
 
 function fetchSingleRecord(url) {
   return fetch(url)

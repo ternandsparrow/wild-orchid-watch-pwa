@@ -89,7 +89,8 @@ export default {
   },
   computed: {
     ...mapState('obs', ['myObs', 'waitingToUploadRecords']),
-    ...mapGetters('auth', ['myUserId', 'isUserLoggedIn']),
+    ...mapGetters('obs', ['isMyObsStale']),
+    ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('auth', ['apiToken']),
     isWaitingForUpload() {
       return (this.waitingToUploadRecords || []).length
@@ -99,8 +100,10 @@ export default {
     },
   },
   mounted() {
-    this.doRefresh()
-    this.$store.dispatch('obs/refreshWaitingToUpload')
+    if (this.isMyObsStale) {
+      this.doRefresh()
+    }
+    this.$store.dispatch('obs/refreshWaitingToUpload') // FIXME do we need this, it should be maintained elsewhere
   },
   methods: {
     push(obsId) {

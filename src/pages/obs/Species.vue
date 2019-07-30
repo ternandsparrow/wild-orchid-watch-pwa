@@ -1,5 +1,13 @@
 <template>
   <v-ons-page>
+    <v-ons-pull-hook
+      :action="doRefresh"
+      @changestate="pullHookState = $event.state"
+    >
+      <span v-show="pullHookState === 'initial'"> Pull to refresh </span>
+      <span v-show="pullHookState === 'preaction'"> Release </span>
+      <span v-show="pullHookState === 'action'"> Loading... </span>
+    </v-ons-pull-hook>
     <no-records-msg v-show="isNoRecords" />
     <v-ons-list v-show="!isNoRecords">
       <v-ons-list-item
@@ -25,16 +33,22 @@ import { mapState, mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
+  data() {
+    return {
+      pullHookState: 'initial',
+    }
+  },
   computed: {
     ...mapState('obs', ['mySpecies']),
+    ...mapGetters('obs', ['isMySpeciesStale']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     isNoRecords() {
       return !this.mySpecies || this.mySpecies.length === 0
     },
   },
   mounted() {
-    if (this.isUserLoggedIn) {
-      this.$store.dispatch('obs/getMySpecies')
+    if (this.isMySpeciesStale) {
+      this.doRefresh()
     }
   },
   methods: {
@@ -48,6 +62,13 @@ export default {
         return noImagePlaceholderUrl
       }
       return record.defaultPhoto.square_url
+    },
+    async doRefresh(done) {
+      if (this.isUserLoggedIn) {
+        // FIXME need to cache-bust (user agent disk cache) for this and similar
+        await this.$store.dispatch('obs/getMySpecies')
+      }
+      done && done()
     },
   },
 }

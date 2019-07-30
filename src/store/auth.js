@@ -12,6 +12,7 @@ import {
 import {
   chainedError,
   getJsonWithAuth,
+  now,
   postJsonWithAuth,
   postFormDataWithAuth,
 } from '@/misc/helpers'
@@ -31,6 +32,7 @@ export default {
     code_challenge: null,
     code_verifier: null,
     userDetails: {},
+    apiTokenAndUserLastUpdated: null,
   },
   mutations: {
     _setToken: (state, value) => {
@@ -53,6 +55,9 @@ export default {
     },
     _saveUserDetails: (state, value) => {
       state.userDetails = value
+    },
+    markApiTokenAndUserLastUpdated: state => {
+      state.apiTokenAndUserLastUpdated = now()
     },
   },
   getters: {
@@ -201,34 +206,36 @@ export default {
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
-    async _updateApiToken({ dispatch }) {
+    async _updateApiToken({ commit, dispatch }) {
       if (updateApiTokenPromise) {
         // ensure we only make one refresh call
         return updateApiTokenPromise
       }
-      updateApiTokenPromise = dispatch('_updateApiTokenImpl')
+      updateApiTokenPromise = impl()
       return updateApiTokenPromise
-    },
-    async _updateApiTokenImpl({ commit, dispatch }) {
-      try {
-        const resp = await dispatch('doInatGet', {
-          urlSuffix: '/users/api_token',
-        })
-        const apiToken = resp.api_token
-        commit('_setApiToken', apiToken)
-        dispatch('_updateUserDetails')
-      } catch (err) {
-        const status = err.status
-        if (status === 401 || status === 400) {
-          // FIXME make sure you keep the user's data that hasn't been uploaded
-          // but make them login via iNat OAuth again
-          throw new Error(
-            `iNat token is not valid (response status=${status}), user must login again`,
-          )
+      async function impl() {
+        try {
+          const resp = await dispatch('doInatGet', {
+            urlSuffix: '/users/api_token',
+          })
+          const apiToken = resp.api_token
+          commit('_setApiToken', apiToken)
+          dispatch('_updateUserDetails').then(() => {
+            commit('markApiTokenAndUserLastUpdated')
+          })
+        } catch (err) {
+          const status = err.status
+          if (status === 401 || status === 400) {
+            // FIXME make sure you keep the user's data that hasn't been uploaded
+            // but make them login via iNat OAuth again
+            throw new Error(
+              `iNat token is not valid (response status=${status}), user must login again`,
+            )
+          }
+          throw chainedError('Failed to get API token using iNat token', err)
+        } finally {
+          updateApiTokenPromise = null
         }
-        throw chainedError('Failed to get API token using iNat token', err)
-      } finally {
-        updateApiTokenPromise = null
       }
     },
     /**

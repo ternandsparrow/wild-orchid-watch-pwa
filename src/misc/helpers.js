@@ -98,6 +98,10 @@ export function chainedError(msg, err) {
   return err
 }
 
+export function now() {
+  return new Date().getTime()
+}
+
 export const _testonly = {
   isRespJson,
 }

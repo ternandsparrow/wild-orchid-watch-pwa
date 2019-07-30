@@ -4,7 +4,7 @@ import createPersistedState from 'vuex-persistedstate'
 
 import auth from './auth'
 import app from './app'
-import obs from './obs'
+import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
 import navigator from './navigator'
@@ -12,7 +12,7 @@ import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(Vuex)
 
-export default new Vuex.Store({
+const store = new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
   plugins: [
     createPersistedState({
@@ -80,3 +80,21 @@ export default new Vuex.Store({
     },
   },
 })
+
+const allApiTokenHooks = [...obsApiTokenHooks]
+
+store.watch(
+  state => {
+    return state.auth.apiTokenAndUserLastUpdated
+  },
+  () => {
+    console.debug('API Token and user details changed, triggering hooks')
+    for (const curr of allApiTokenHooks) {
+      curr(store)
+    }
+  },
+)
+
+// FIXME watch "is user logged in" state and if not, trigger the login (and onboarder?)
+
+export default store
