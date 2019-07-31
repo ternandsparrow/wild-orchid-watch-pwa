@@ -1,6 +1,6 @@
-import appStore from '@/store/app'
+import objectUnderTest from '@/store/ephemeral'
 
-const getters = appStore.getters
+const getters = objectUnderTest.getters
 
 describe('app module getters', () => {
   describe('newContentAvailable', () => {

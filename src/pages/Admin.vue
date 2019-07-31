@@ -48,14 +48,6 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Force service worker update check
-      </div>
-      <v-ons-button @click="doManualUpdateCheck"
-        >Check for SW update</v-ons-button
-      >
-    </v-ons-card>
-    <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
         >Community workflow</v-ons-button
       >
@@ -132,23 +124,6 @@ export default {
         console.error(`Failed to make ${urlSuffix} API call`, err)
         return
       }
-    },
-    doManualUpdateCheck() {
-      this.$store
-        .dispatch('app/manualServiceWorkerUpdateCheck')
-        .then(isChecking => {
-          if (isChecking) {
-            this.$ons.notification.toast('Checking for updates', {
-              timeout: 3000,
-              animation: 'ascend',
-            })
-            return
-          }
-          this.$ons.notification.toast('No SWReg, cannot check', {
-            timeout: 3000,
-            animation: 'ascend',
-          })
-        })
     },
     doCommunityWorkflow() {
       this.$store.commit('navigator/push', CommunityComponent)

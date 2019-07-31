@@ -1,11 +1,11 @@
 import store from '@/store/index'
 
-store.commit('app/setNetworkOnline', navigator.onLine)
+store.commit('ephemeral/setNetworkOnline', navigator.onLine)
 
 window.addEventListener('online', () =>
-  store.commit('app/setNetworkOnline', true),
+  store.commit('ephemeral/setNetworkOnline', true),
 )
 
 window.addEventListener('offline', () =>
-  store.commit('app/setNetworkOnline', false),
+  store.commit('ephemeral/setNetworkOnline', false),
 )

@@ -21,6 +21,14 @@
           <v-ons-button @click="handleResetOnboarderClick">Reset</v-ons-button>
         </div>
       </ons-list-item>
+      <ons-list-item>
+        <label class="center">
+          Check for app update now
+        </label>
+        <div class="right">
+          <v-ons-button @click="doManualUpdateCheck">Check</v-ons-button>
+        </div>
+      </ons-list-item>
     </v-ons-list>
   </v-ons-page>
 </template>
@@ -65,6 +73,23 @@ export default {
             window.location.reload()
           })
       })
+    },
+    doManualUpdateCheck() {
+      this.$store
+        .dispatch('ephemeral/manualServiceWorkerUpdateCheck')
+        .then(isChecking => {
+          if (isChecking) {
+            this.$ons.notification.toast('Checking for updates', {
+              timeout: 3000,
+              animation: 'ascend',
+            })
+            return
+          }
+          this.$ons.notification.toast('Cannot update, no service worker', {
+            timeout: 3000,
+            animation: 'ascend',
+          })
+        })
     },
   },
 }

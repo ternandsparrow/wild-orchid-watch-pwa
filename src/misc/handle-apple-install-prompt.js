@@ -18,6 +18,6 @@ if (isIosOnBrowser) {
   }
 
   if (isNil(limitDate) || now >= limitDate.getTime()) {
-    store.commit('app/setShowAddToHomeScreenModalForApple', true)
+    store.commit('ephemeral/setShowAddToHomeScreenModalForApple', true)
   }
 }

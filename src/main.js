@@ -37,10 +37,10 @@ new Vue({
     }
 
     window.addEventListener('focus', () => {
-      if (!this.$store.state.app.networkOnLine) {
+      if (!this.$store.state.ephemeral.networkOnLine) {
         return
       }
-      this.$store.dispatch('app/manualServiceWorkerUpdateCheck')
+      this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
     })
   },
   render: h => h(AppNavigator),

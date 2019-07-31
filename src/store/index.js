@@ -4,6 +4,7 @@ import createPersistedState from 'vuex-persistedstate'
 
 import auth from './auth'
 import app from './app'
+import ephemeral from './ephemeral'
 import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
@@ -18,13 +19,16 @@ const store = new Vuex.Store({
     createPersistedState({
       key: 'wow-vuex',
       setState: (key, state, storage) => {
+        const cleanedState = Object.assign({}, state)
         // Don't store Onsen navigator state!
         // Vue components don't serialise well, mainly due the fact they
         // contain functions. Even if they did, we probably don't want to
         // restore them. If we want to restore the user's nav state then we
         // should find another way
-        const cleanedState = Object.assign({}, state)
         delete cleanedState.navigator
+        // don't save anything in the ephemeral module, we assume nothing in
+        // here will serialise or should be saved.
+        delete cleanedState.ephemeral
         return storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),
@@ -56,12 +60,13 @@ const store = new Vuex.Store({
     },
   },
   modules: {
-    auth,
-    app,
-    obs,
     activity,
+    app,
+    auth,
+    ephemeral,
     missions,
     navigator,
+    obs,
     splitter: {
       strict: true,
       namespaced: true,

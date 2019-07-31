@@ -52,6 +52,20 @@ stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
 Now you have a publicly accessible host, with an SSL cert from a trusted CA,
 that also has HotModuleReload. Hack away!
 
+### Testing service worker
+
+To check that the service worker is working as you expect, there's a few things
+you need to do differently.
+
+  1. you can't use the webpack-dev-server, instead you must `yarn build` to
+     produce the binary in the `dist/` dir
+  1. serve the built files using a webserver, and
+      1. set the `NODE_ENV=production` env var
+      1. don't serve the content (or access it) on `localhost` (or `127.0.0.1`)
+      1. make sure the webserver is configure to play nice with an SPA, that is
+         if a request comes in and there's no matching file (e.g.
+         `/oauth-callback`) then it should instead serve up `index.html`
+
 ## Configuring env vars
 There are aspects of this app that can be configured at runtime such as API
 URIs, keys, etc. We achieve this by using `.env*` files that `vue-cli` reads

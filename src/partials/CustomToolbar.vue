@@ -32,7 +32,7 @@ export default {
     backLabel: String,
   },
   computed: {
-    ...mapState('app', ['networkOnLine']),
+    ...mapState('ephemeral', ['networkOnLine']),
     isNotHomeRoute() {
       return this.$route.path !== '/'
     },
