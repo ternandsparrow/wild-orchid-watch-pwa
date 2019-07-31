@@ -15,6 +15,7 @@
           >Waiting to upload</v-ons-list-header
         >
         <!-- FIXME remove duplication from next section -->
+        <!-- FIXME we can't push(curr.inatId) here, what do we do? -->
         <v-ons-list-item
           v-for="curr in waitingToUploadRecords"
           :key="'waiting-' + curr.id"
@@ -36,7 +37,7 @@
           v-for="curr in myObs"
           :key="curr.id"
           modifier="chevron"
-          @click="push(curr.id)"
+          @click="push(curr.inatId)"
         >
           <div class="left">
             <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
@@ -74,7 +75,6 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex'
-import ObsDetailComponent from '@/pages/obs-detail'
 import Individual from '@/pages/new-obs/Individual'
 import Population from '@/pages/new-obs/Population'
 import Mapping from '@/pages/new-obs/Mapping'
@@ -107,8 +107,7 @@ export default {
   },
   methods: {
     push(obsId) {
-      this.$store.commit('obs/setSelectedObservationId', obsId)
-      this.$store.commit('navigator/push', ObsDetailComponent)
+      this.$router.push({ name: 'ObsDetail', params: { id: obsId } })
     },
     onNewObsBtn() {
       this.isNewObsActionsVisible = true

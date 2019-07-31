@@ -301,7 +301,7 @@ const actions = {
 const getters = {
   observationDetail(state) {
     const allObs = [...state.myObs, ...state.waitingToUploadRecords]
-    const found = allObs.find(e => e.id === state.selectedObservationId)
+    const found = allObs.find(e => e.inatId === state.selectedObservationId)
     return found
   },
   isMyObsStale: buildStaleCheckerFn('myObsLastUpdated'),

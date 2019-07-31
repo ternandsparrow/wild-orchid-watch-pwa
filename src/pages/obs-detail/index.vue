@@ -64,7 +64,7 @@
         <!-- TODO add Data Quality widget -->
         <h3>Observation values</h3>
         <v-ons-list>
-          <template v-for="curr of observationDetail.obsFieldValues">
+          <template v-for="curr of nullSafeObs.obsFieldValues">
             <v-ons-list-header
               :key="curr.id + '-header'"
               class="wow-list-header"
@@ -83,10 +83,10 @@
           <h3>Notes</h3>
           <v-ons-list>
             <v-ons-list-item>
-              <div v-show="observationDetail.notes">
-                {{ observationDetail.notes }}
+              <div v-show="nullSafeObs.notes">
+                {{ nullSafeObs.notes }}
               </div>
-              <div v-show="!observationDetail.notes" class="no-notes">
+              <div v-show="!nullSafeObs.notes" class="no-notes">
                 (no notes)
               </div>
             </v-ons-list-item>
@@ -156,6 +156,12 @@ export default {
         lat: parseFloat(geojson.coordinates[1]),
         lng: parseFloat(geojson.coordinates[0]),
       }
+    },
+  },
+  watch: {
+    '$route.params.id'(val) {
+      // should be able to use beforeRouteUpdate() instead, but couldn't get it to work
+      this.$store.commit('obs/setSelectedObservationId', val)
     },
   },
   methods: {

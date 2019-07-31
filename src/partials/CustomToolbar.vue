@@ -10,12 +10,13 @@
           modifier="quiet"
           @click="goHome"
         >
-          <v-ons-icon icon="ion-home, material:md-home"></v-ons-icon>
           Home
         </v-ons-toolbar-button>
       </slot>
     </div>
-    <div class="center">
+    <!-- FIXME get the title always centered regardless of if the left/right is -->
+    <!-- present or how wide they are                                           -->
+    <div class="center text-center">
       <span v-if="!networkOnLine">[Offline] </span>
       <slot>{{ title }}</slot>
     </div>
