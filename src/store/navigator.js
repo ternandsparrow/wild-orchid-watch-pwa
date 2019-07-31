@@ -1,4 +1,8 @@
 import Observations from '@/pages/obs/index'
+import {
+  onboarderComponentName,
+  oauthCallbackComponentName,
+} from '@/misc/constants'
 
 // Note that this whole module will be ignored by vuex-persistedstate because
 // we intercept the "save state" operation and strip it out before writing. So,
@@ -41,5 +45,15 @@ export default {
     pageStack(state) {
       return state.stack
     },
+    isOnboarderVisible(state) {
+      return isTopOfStack(state.stack, onboarderComponentName)
+    },
+    isOauthCallbackVisible(state) {
+      return isTopOfStack(state.stack, oauthCallbackComponentName)
+    },
   },
+}
+
+function isTopOfStack(stack, componentName) {
+  return stack && stack.length && stack[stack.length - 1].name === componentName
 }

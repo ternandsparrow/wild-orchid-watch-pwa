@@ -28,3 +28,7 @@ export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 export const noImagePlaceholderUrl = 'img/no-image-placeholder.png'
 
 export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder.png'
+
+export const onboarderComponentName = 'Onboarder'
+
+export const oauthCallbackComponentName = 'OauthCallback'

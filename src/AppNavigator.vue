@@ -33,6 +33,10 @@
         >update</v-ons-toolbar-button
       >
     </v-ons-toast>
+    <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
+      You are not logged in, you <em>must</em> login to continue
+      <button @click="doLogin">Login</button>
+    </v-ons-toast>
     <v-ons-alert-dialog
       modifier="rowfooter"
       :visible.sync="globalErrorDialogVisible"
@@ -63,13 +67,19 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('auth', ['isUserLoggedIn']),
+    ...mapState('auth', ['isUpdatingApiToken']),
     ...mapGetters('ephemeral', ['newContentAvailable']),
     ...mapState('ephemeral', [
       'showAddToHomeScreenModalForApple',
       'refreshingApp',
     ]),
     ...mapState(['isGlobalErrorState']),
-    ...mapGetters('navigator', ['pageStack']),
+    ...mapGetters('navigator', [
+      'pageStack',
+      'isOnboarderVisible',
+      'isOauthCallbackVisible',
+    ]),
     options() {
       return this.$store.state.navigator.options
     },
@@ -78,6 +88,14 @@ export default {
     },
     contentDownloadingToastVisible() {
       return !this.updateReadyToastVisible && this.refreshingApp
+    },
+    notLoggedInToastVisible() {
+      return (
+        !this.isUserLoggedIn &&
+        !this.isOnboarderVisible &&
+        !this.isOauthCallbackVisible &&
+        !this.isUpdatingApiToken
+      )
     },
   },
   watch: {
@@ -111,6 +129,9 @@ export default {
       this.$router.push({
         name: this.$route.matched[pathIndex].name,
       })
+    },
+    doLogin() {
+      this.$store.dispatch('auth/doLogin')
     },
   },
 }

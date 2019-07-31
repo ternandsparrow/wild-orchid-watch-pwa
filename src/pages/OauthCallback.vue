@@ -16,10 +16,15 @@
 
 <script>
 import { postJson, wowErrorHandler } from '@/misc/helpers'
-import { inatUrlBase, appId, redirectUri } from '@/misc/constants'
+import {
+  inatUrlBase,
+  appId,
+  redirectUri,
+  oauthCallbackComponentName,
+} from '@/misc/constants'
 
 export default {
-  name: 'OauthCallback',
+  name: oauthCallbackComponentName,
   data() {
     return {
       isError: false,
@@ -61,6 +66,7 @@ export default {
         tokenType,
         tokenCreatedAt,
       })
+      this.$store.commit('auth/setIsUpdatingApiToken', true)
       this.$router.push({ name: 'Home' })
     },
   },

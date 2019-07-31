@@ -19,9 +19,6 @@ import {
 
 let updateApiTokenPromise = null
 
-// you should only dispatch doLogin() and saveToken() as an
-// external user, don't commit directly.
-
 export default {
   namespaced: true,
   state: {
@@ -33,6 +30,7 @@ export default {
     code_verifier: null,
     userDetails: {},
     apiTokenAndUserLastUpdated: null,
+    isUpdatingApiToken: false,
   },
   mutations: {
     _setToken: (state, value) => {
@@ -59,6 +57,7 @@ export default {
     markApiTokenAndUserLastUpdated: state => {
       state.apiTokenAndUserLastUpdated = now()
     },
+    setIsUpdatingApiToken: (state, value) => (state.isUpdatingApiToken = value),
   },
   getters: {
     isUserLoggedIn: (state, getters) => {
@@ -222,8 +221,10 @@ export default {
           commit('_setApiToken', apiToken)
           dispatch('_updateUserDetails').then(() => {
             commit('markApiTokenAndUserLastUpdated')
+            commit('setIsUpdatingApiToken', false)
           })
         } catch (err) {
+          commit('setIsUpdatingApiToken', false)
           const status = err.status
           if (status === 401 || status === 400) {
             // FIXME make sure you keep the user's data that hasn't been uploaded
