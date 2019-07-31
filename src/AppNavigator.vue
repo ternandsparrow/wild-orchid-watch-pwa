@@ -24,14 +24,16 @@
     </v-ons-toast>
     <v-ons-toast :visible.sync="updateReadyToastVisible" animation="ascend">
       New version of the app ready.
-      <v-ons-toolbar-button
-        class="wow-toast-btn red"
-        @click="updateReadyToastVisible = false"
-        >not now</v-ons-toolbar-button
-      >
-      <v-ons-toolbar-button class="wow-toast-btn green" @click="onUpdate"
-        >update</v-ons-toolbar-button
-      >
+      <div class="text-right">
+        <v-ons-toolbar-button
+          class="wow-toast-btn red"
+          @click="updateReadyToastVisible = false"
+          >not now</v-ons-toolbar-button
+        >
+        <v-ons-toolbar-button class="wow-toast-btn green" @click="onUpdate"
+          >update</v-ons-toolbar-button
+        >
+      </div>
     </v-ons-toast>
     <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
       You are not logged in, you <em>must</em> login to continue
