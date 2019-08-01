@@ -19,11 +19,15 @@ export const isDeployedToProd = (() => {
 
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 
+export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
 
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
+
+// More "constant" constants from here on
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 

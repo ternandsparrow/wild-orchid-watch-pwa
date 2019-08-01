@@ -88,6 +88,7 @@ jobs:
             VUE_APP_INAT_PROJECT_SLUG=${INAT_PROJECT_SLUG:?}
             VUE_APP_DEPLOYED_ENV_IS_PROD=${WOW_IS_PROD:?}
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
+            VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
             EOF
             echo '[INFO] contents of .env.local'
             cat .env.local
