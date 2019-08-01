@@ -123,10 +123,7 @@ export default {
       },
       selectedTab: 0,
       tabs: [{ icon: 'fa-info' }, { icon: 'fa-comments' }, { icon: 'fa-star' }],
-<<<<<<< HEAD
       currentPosition: { lat: -34.9786554, lng: 138.6487938 },
-=======
->>>>>>> master
     }
   },
   computed: {
@@ -206,7 +203,7 @@ export default {
     doGeolocation() {
       console.log('Doing geolocation call')
       navigator.geolocation.getCurrentPosition(
-        this.handleLocation, 
+        this.handleLocation,
         this.onGeolocationError,
       )
     },

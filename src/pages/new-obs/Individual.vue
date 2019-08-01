@@ -154,7 +154,6 @@ export default {
       ],
       speciesGuess: null,
       photos: {},
-<<<<<<< HEAD
       selectedOrchidType: 'epi',
       orchidTypes: [
         { id: 'epi', label: 'Epiphyte' },
@@ -163,11 +162,9 @@ export default {
       ],
       blah: {}, // FIXME
       currentPosition: { lat: -34.9786554, lng: 138.6487938 }, //FIXME - pull this from the system
-=======
       obsFieldValues: {},
       notes: null,
       isShowSpeciesAutocomplete: false,
->>>>>>> master
     }
   },
   computed: {
