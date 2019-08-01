@@ -1,12 +1,23 @@
 import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
+import jwt from 'jsonwebtoken'
 
-const lsKeyCodeChallenge = 'wow_code_challenge'
-const lsKeyCodeVerifier = 'wow_code_verifier'
-const lsKeyInatToken = 'wow_inat_token'
-const lsKeyInatTokenType = 'wow_inat_token_type'
-const lsKeyInatTokenCreatedAt = 'wow_inat_token_created_at'
-const lsKeyInatApiToken = 'wow_inat_api_token'
+import {
+  apiUrlBase,
+  appId,
+  inatUrlBase,
+  noProfilePicPlaceholderUrl,
+  redirectUri,
+} from '@/misc/constants'
+import {
+  chainedError,
+  getJsonWithAuth,
+  now,
+  postJsonWithAuth,
+  postFormDataWithAuth,
+} from '@/misc/helpers'
+
+let updateApiTokenPromise = null
 
 export default {
   namespaced: true,
@@ -17,61 +28,258 @@ export default {
     apiToken: null,
     code_challenge: null,
     code_verifier: null,
+    userDetails: {},
+    apiTokenAndUserLastUpdated: null,
+    isUpdatingApiToken: false,
   },
   mutations: {
-    setToken: (state, value) => {
+    _setToken: (state, value) => {
       state.token = value
-      localStorage.setItem(lsKeyInatToken, value)
     },
-    setTokenType: (state, value) => {
+    _setTokenType: (state, value) => {
       state.tokenType = value
-      localStorage.setItem(lsKeyInatTokenType, value)
     },
-    setTokenCreatedAt: (state, value) => {
+    _setTokenCreatedAt: (state, value) => {
       state.tokenCreatedAt = value
-      localStorage.setItem(lsKeyInatTokenCreatedAt, value)
     },
-    setApiToken: (state, value) => {
+    _setApiToken: (state, value) => {
       state.apiToken = value
-      localStorage.setItem(lsKeyInatApiToken, value)
     },
-    setCodeChallenge: (state, value) => (state.code_challenge = value),
-    setCodeVerifier: (state, value) => (state.code_verifier = value),
+    _setCodeChallenge: (state, value) => {
+      state.code_challenge = value
+    },
+    _setCodeVerifier: (state, value) => {
+      state.code_verifier = value
+    },
+    _saveUserDetails: (state, value) => {
+      state.userDetails = value
+    },
+    markApiTokenAndUserLastUpdated: state => {
+      state.apiTokenAndUserLastUpdated = now()
+    },
+    setIsUpdatingApiToken: (state, value) => (state.isUpdatingApiToken = value),
   },
   getters: {
-    isUserLoggedIn: state => !isNil(state.token), // FIXME check if expired, does it expire?
+    isUserLoggedIn: (state, getters) => {
+      return !isNil(state.token) && !isNil(getters.myUserId)
+    },
+    userEmail(state) {
+      const result = state.userDetails.email
+      return result ? result : '(no email stored)'
+    },
+    userIcon(state) {
+      const result = state.userDetails.icon
+      return result ? inatUrlBase + result : noProfilePicPlaceholderUrl
+    },
+    myUserId(state) {
+      return state.userDetails.id
+    },
   },
   actions: {
-    init({ commit }) {
-      const valuesToLoad = {
-        [lsKeyCodeChallenge]: 'setCodeChallenge',
-        [lsKeyCodeVerifier]: 'setCodeVerifier',
-        [lsKeyInatToken]: 'setToken',
-        [lsKeyInatTokenType]: 'setTokenType',
-        [lsKeyInatTokenCreatedAt]: 'setTokenCreatedAt',
-        [lsKeyInatApiToken]: 'setApiToken',
-      }
-      for (const currKey of Object.keys(valuesToLoad)) {
-        const commitName = valuesToLoad[currKey]
-        loadFromLocalStorageIfPresent(currKey, commitName, commit)
+    async doApiGet({ state, dispatch }, { urlSuffix }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await getJsonWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to make GET to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
       }
     },
-    generatePkcePair({ commit }) {
+    async doInatGet({ state }, { urlSuffix }) {
+      try {
+        if (!state.token || !state.tokenType) {
+          throw new Error(
+            'iNat token or token type is NOT present, cannot continue',
+          )
+        }
+        const resp = await getJsonWithAuth(
+          `${inatUrlBase}${urlSuffix}`,
+          `${state.tokenType} ${state.token}`,
+        )
+        return resp
+      } catch (err) {
+        throw chainedError(
+          `Failed to make GET to iNat with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
+    async doInatPost({ state }, { urlSuffix, data }) {
+      try {
+        if (!state.token || !state.tokenType) {
+          throw new Error(
+            'iNat token or token type is NOT present, cannot continue',
+          )
+        }
+        const resp = await postJsonWithAuth(
+          `${inatUrlBase}${urlSuffix}`,
+          data,
+          `${state.tokenType} ${state.token}`,
+        )
+        return resp
+      } catch (err) {
+        throw chainedError(
+          `Failed to make POST to iNat with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
+    async doApiPost({ state, dispatch }, { urlSuffix, data }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await postJsonWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          data,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to make POST to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
+    async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await postFormDataWithAuth(
+          `${apiUrlBase}/observation_photos`,
+          formData => {
+            formData.append('observation_photo[observation_id]', obsId)
+            formData.append('file', photoBlob)
+          },
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to POST observation photo attached to observation ID='${obsId}'`,
+          err,
+        )
+      }
+    },
+    saveToken({ commit, dispatch }, vals) {
+      commit('_setToken', vals.token)
+      commit('_setTokenType', vals.tokenType)
+      commit('_setTokenCreatedAt', vals.tokenCreatedAt)
+      dispatch('_updateApiToken')
+      // FIXME trigger a refresh of all other API calls (my obs, etc) or
+      // restructure app with router so that it naturally happens
+    },
+    async doLogin({ state, dispatch }) {
+      await dispatch('_generatePkcePair')
+      const challenge = state.code_challenge
+      location.assign(
+        `${inatUrlBase}/oauth/authorize?
+        client_id=${appId}&
+        redirect_uri=${redirectUri}&
+        code_challenge=${challenge}&
+        code_challenge_method=S256&
+        response_type=code`.replace(/\s/g, ''),
+      )
+    },
+    async doLogout({ state, dispatch }) {
+      try {
+        await dispatch('doInatPost', {
+          urlSuffix: '/oauth/revoke',
+          data: {
+            token: state.token,
+          },
+        })
+      } catch (err) {
+        throw chainedError('Failed to revoke iNat token while logging out', err)
+      }
+    },
+    _generatePkcePair({ commit }) {
       const pair = PkceGenerator()
-      commit('setCodeChallenge', pair.code_challenge)
-      localStorage.setItem(lsKeyCodeChallenge, pair.code_challenge)
-      commit('setCodeVerifier', pair.code_verifier)
-      localStorage.setItem(lsKeyCodeVerifier, pair.code_verifier)
+      commit('_setCodeChallenge', pair.code_challenge)
+      commit('_setCodeVerifier', pair.code_verifier)
+    },
+    async _updateApiToken({ commit, dispatch }) {
+      if (updateApiTokenPromise) {
+        // ensure we only make one refresh call
+        return updateApiTokenPromise
+      }
+      updateApiTokenPromise = impl()
+      return updateApiTokenPromise
+      async function impl() {
+        try {
+          const resp = await dispatch('doInatGet', {
+            urlSuffix: '/users/api_token',
+          })
+          const apiToken = resp.api_token
+          commit('_setApiToken', apiToken)
+          dispatch('_updateUserDetails').then(() => {
+            commit('markApiTokenAndUserLastUpdated')
+            commit('setIsUpdatingApiToken', false)
+          })
+        } catch (err) {
+          commit('setIsUpdatingApiToken', false)
+          const status = err.status
+          if (status === 401 || status === 400) {
+            // FIXME make sure you keep the user's data that hasn't been uploaded
+            // but make them login via iNat OAuth again
+            throw new Error(
+              `iNat token is not valid (response status=${status}), user must login again`,
+            )
+          }
+          throw chainedError('Failed to get API token using iNat token', err)
+        } finally {
+          updateApiTokenPromise = null
+        }
+      }
+    },
+    /**
+     * Updates the copy of the user profile we have stored locally.
+     * Will be called everytime we refresh the API token, which at the time
+     * of writing is every 24hrs.
+     */
+    async _updateUserDetails({ commit, dispatch }) {
+      try {
+        const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
+        const isWrongNumberOfResults = resp.total_results !== 1
+        if (isWrongNumberOfResults) {
+          throw new Error(
+            `Failed to update user details from inat API, request succeeded ` +
+              `but expected result count=1 and got total_results=${
+                resp.total_results
+              }`,
+          )
+        }
+        commit('_saveUserDetails', resp.results[0])
+      } catch (err) {
+        dispatch(
+          'flagGlobalError',
+          { msg: 'Failed to update user details from inat API', err },
+          { root: true },
+        )
+      }
+    },
+    async _refreshApiTokenIfRequired({ dispatch, state }) {
+      if (!state.apiToken) {
+        console.debug('No API token found, forcing refresh')
+        await dispatch('_updateApiToken')
+        return
+      }
+      const decodedJwt = jwt.decode(state.apiToken)
+      const now = new Date().getTime() / 1000
+      const fiveMinutes = 5 * 60
+      const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
+      if (!isTokenExpiredOrCloseTo) {
+        return
+      }
+      console.debug('API token has (or is close to) expired, refreshing.')
+      await dispatch('_updateApiToken')
     },
   },
-}
-
-function loadFromLocalStorageIfPresent(key, commitName, commit) {
-  const val = localStorage.getItem(key)
-  if (isNil(val)) {
-    console.debug(`No value in localStorage for key='${key}'`)
-    return
-  }
-  console.debug(`Found value='${val}' in localStorage for key='${key}'`)
-  commit(commitName, val)
 }

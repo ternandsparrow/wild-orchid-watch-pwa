@@ -29,6 +29,9 @@
       </div>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Login test
+      </div>
       <div>Logged in = {{ isUserLoggedIn }}</div>
       <div>
         Do this first
@@ -45,11 +48,6 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <v-ons-button @click="doManualUpdateCheck"
-        >Check for SW update</v-ons-button
-      >
-    </v-ons-card>
-    <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
         >Community workflow</v-ons-button
       >
@@ -60,8 +58,6 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import { getJsonWithAuth } from '@/misc/helpers'
-import { inatUrlBase, appId, redirectUri, apiUrlBase } from '@/misc/constants'
 import CommunityComponent from '@/pages/new-obs/Community'
 
 export default {
@@ -117,45 +113,17 @@ export default {
       )
     },
     doLogin() {
-      this.$store.dispatch('auth/generatePkcePair')
-      const challenge = this.$store.state.auth.code_challenge
-      location.assign(
-        `${inatUrlBase}/oauth/authorize?
-        client_id=${appId}&
-        redirect_uri=${redirectUri}&
-        code_challenge=${challenge}&
-        code_challenge_method=S256&
-        response_type=code`.replace(/\s/g, ''),
-      )
+      this.$store.dispatch('auth/doLogin')
     },
     async doGetUserDetails() {
+      const urlSuffix = '/users/me'
       try {
-        const resp = await getJsonWithAuth(
-          `${apiUrlBase}/users/me`,
-          this.$store.state.auth.apiToken,
-        )
+        const resp = await this.$store.dispatch('doApiGet', { urlSuffix })
         this.meResp = resp
       } catch (err) {
-        console.error('Failed to make /users/me API call', err)
+        console.error(`Failed to make ${urlSuffix} API call`, err)
         return
       }
-    },
-    doManualUpdateCheck() {
-      this.$store
-        .dispatch('app/manualServiceWorkerUpdateCheck')
-        .then(isChecking => {
-          if (isChecking) {
-            this.$ons.notification.toast('Checking for updates', {
-              timeout: 3000,
-              animation: 'ascend',
-            })
-            return
-          }
-          this.$ons.notification.toast('No SWReg, cannot check', {
-            timeout: 3000,
-            animation: 'ascend',
-          })
-        })
     },
     doCommunityWorkflow() {
       this.$store.commit('navigator/push', CommunityComponent)

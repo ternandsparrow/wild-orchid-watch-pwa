@@ -20,12 +20,37 @@
       :visible.sync="contentDownloadingToastVisible"
       animation="ascend"
     >
-      Downloading new content...
+      Downloading new app version...
     </v-ons-toast>
     <v-ons-toast :visible.sync="updateReadyToastVisible" animation="ascend">
-      New content available.
-      <button @click="onUpdate">update</button>
+      New version of the app ready.
+      <div class="text-right">
+        <v-ons-toolbar-button
+          class="wow-toast-btn red"
+          @click="updateReadyToastVisible = false"
+          >not now</v-ons-toolbar-button
+        >
+        <v-ons-toolbar-button class="wow-toast-btn green" @click="onUpdate"
+          >update</v-ons-toolbar-button
+        >
+      </div>
     </v-ons-toast>
+    <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
+      You are not logged in, you <em>must</em> login to continue
+      <button @click="doLogin">Login</button>
+    </v-ons-toast>
+    <v-ons-alert-dialog
+      modifier="rowfooter"
+      :visible.sync="globalErrorDialogVisible"
+    >
+      <span slot="title">Something broke</span>
+      Sorry about that, try restarting the app or refreshing the webpage
+      <template slot="footer">
+        <v-ons-alert-dialog-button @click="globalErrorDialogVisible = false"
+          >Ok</v-ons-alert-dialog-button
+        >
+      </template>
+    </v-ons-alert-dialog>
   </div>
 </template>
 
@@ -39,14 +64,24 @@ export default {
   // components: { AppleAddToHomeScreenModal },
   data() {
     return {
-      isNotFirstRun: false,
       updateReadyToastVisible: false,
+      globalErrorDialogVisible: false,
     }
   },
   computed: {
-    ...mapGetters('app', ['newContentAvailable']),
-    ...mapState('app', ['showAddToHomeScreenModalForApple', 'refreshingApp']),
-    ...mapGetters('navigator', ['pageStack']),
+    ...mapGetters('auth', ['isUserLoggedIn']),
+    ...mapState('auth', ['isUpdatingApiToken']),
+    ...mapGetters('ephemeral', ['newContentAvailable']),
+    ...mapState('ephemeral', [
+      'showAddToHomeScreenModalForApple',
+      'refreshingApp',
+    ]),
+    ...mapState(['isGlobalErrorState']),
+    ...mapGetters('navigator', [
+      'pageStack',
+      'isOnboarderVisible',
+      'isOauthCallbackVisible',
+    ]),
     options() {
       return this.$store.state.navigator.options
     },
@@ -56,14 +91,28 @@ export default {
     contentDownloadingToastVisible() {
       return !this.updateReadyToastVisible && this.refreshingApp
     },
+    notLoggedInToastVisible() {
+      return (
+        !this.isUserLoggedIn &&
+        !this.isOnboarderVisible &&
+        !this.isOauthCallbackVisible &&
+        !this.isUpdatingApiToken
+      )
+    },
   },
   watch: {
     newContentAvailable(val) {
       this.updateReadyToastVisible = val
     },
+    isGlobalErrorState(val) {
+      if (!val || this.globalErrorDialogVisible) {
+        return
+      }
+      this.globalErrorDialogVisible = val
+    },
   },
   methods: {
-    ...mapActions('app', [
+    ...mapActions('ephemeral', [
       'closeAddToHomeScreenModalForApple',
       'serviceWorkerSkipWaiting',
     ]),
@@ -83,6 +132,23 @@ export default {
         name: this.$route.matched[pathIndex].name,
       })
     },
+    doLogin() {
+      this.$store.dispatch('auth/doLogin')
+    },
   },
 }
 </script>
+
+<style scoped>
+.wow-toast-btn {
+  font-size: 1.3em;
+}
+
+.wow-toast-btn.red {
+  color: #ff4c4c;
+}
+
+.wow-toast-btn.green {
+  color: #04ff00;
+}
+</style>

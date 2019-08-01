@@ -11,8 +11,8 @@
 </template>
 
 <script>
-import MyObs from './MyObs.vue'
-import Species from './Species.vue'
+import MyObs from './MyObs'
+import Species from './Species'
 
 export default {
   name: 'Observations',

@@ -80,14 +80,17 @@ jobs:
           # we need to escape (\) the << otherwise CircleCI complains
           command: |
             cat \<<EOF > .env.local
-            VUE_APP_INAT_BASE_URL=$INAT_BASE_URL
-            VUE_APP_INAT_STATIC_BASE_URL=$INAT_STATIC_BASE_URL
-            VUE_APP_API_URL_BASE=$API_URL_BASE
-            VUE_APP_OAUTH_APP_ID=$OAUTH_APP_ID
-            VUE_APP_OAUTH_REDIRECT_URI=$OAUTH_REDIRECT_URI
-            VUE_APP_INAT_PROJECT_SLUG=wild-orchid-watch-australia
-            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            VUE_APP_INAT_BASE_URL=${INAT_BASE_URL:?}
+            VUE_APP_INAT_STATIC_BASE_URL=${INAT_STATIC_BASE_URL:?}
+            VUE_APP_API_BASE_URL=${API_BASE_URL:?}
+            VUE_APP_OAUTH_APP_ID=${OAUTH_APP_ID:?}
+            VUE_APP_OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:?}
+            VUE_APP_INAT_PROJECT_SLUG=${INAT_PROJECT_SLUG:?}
+            VUE_APP_DEPLOYED_ENV_IS_PROD=${WOW_IS_PROD:?}
+            VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             EOF
+            echo '[INFO] contents of .env.local'
+            cat .env.local
       - run:
           name: 'Build'
           command: yarn build

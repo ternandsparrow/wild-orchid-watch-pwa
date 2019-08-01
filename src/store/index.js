@@ -1,56 +1,72 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
+import createPersistedState from 'vuex-persistedstate'
 
 import auth from './auth'
 import app from './app'
-import obs from './obs'
+import ephemeral from './ephemeral'
+import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
+import navigator from './navigator'
+import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(Vuex)
 
-export default new Vuex.Store({
+const store = new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
-  modules: {
-    auth,
-    app,
-    obs,
-    activity,
-    missions,
-    navigator: {
-      strict: true,
-      namespaced: true,
-      state: {
-        stack: [],
-        options: {},
+  plugins: [
+    createPersistedState({
+      key: 'wow-vuex',
+      setState: (key, state, storage) => {
+        const cleanedState = Object.assign({}, state)
+        // Don't store Onsen navigator state!
+        // Vue components don't serialise well, mainly due the fact they
+        // contain functions. Even if they did, we probably don't want to
+        // restore them. If we want to restore the user's nav state then we
+        // should find another way
+        delete cleanedState.navigator
+        // don't save anything in the ephemeral module, we assume nothing in
+        // here will serialise or should be saved.
+        delete cleanedState.ephemeral
+        return storage.setItem(key, JSON.stringify(cleanedState))
       },
-      mutations: {
-        push(state, page) {
-          state.stack.push(page)
-        },
-        pop(state) {
-          if (state.stack.length > 1) {
-            state.stack.pop()
-          }
-        },
-        replace(state, page) {
-          state.stack.pop()
-          state.stack.push(page)
-        },
-        reset(state, page) {
-          state.stack = Array.isArray(page) ? page : [page || state.stack[0]]
-        },
-        options(state, newOptions = {}) {
-          state.options = newOptions
-        },
-      },
-      getters: {
-        pageStack(state) {
-          return state.stack
-        },
-      },
+    }),
+  ],
+  state: {
+    isGlobalErrorState: false,
+  },
+  mutations: {
+    _flagGlobalError: state => (state.isGlobalErrorState = true),
+  },
+  actions: {
+    doApiGet({ dispatch }, argObj) {
+      return dispatch('auth/doApiGet', argObj)
     },
-
+    doApiPost({ dispatch }, argObj) {
+      return dispatch('auth/doApiPost', argObj)
+    },
+    doPhotoPost({ dispatch }, argObj) {
+      return dispatch('auth/doPhotoPost', argObj)
+    },
+    flagGlobalError({ commit }, { msg, err }) {
+      commit('_flagGlobalError')
+      wowErrorHandler(msg, err)
+    },
+  },
+  getters: {
+    myUserId(state, getters) {
+      return getters['auth/myUserId']
+    },
+  },
+  modules: {
+    activity,
+    app,
+    auth,
+    ephemeral,
+    missions,
+    navigator,
+    obs,
     splitter: {
       strict: true,
       namespaced: true,
@@ -69,3 +85,21 @@ export default new Vuex.Store({
     },
   },
 })
+
+const allApiTokenHooks = [...obsApiTokenHooks]
+
+store.watch(
+  state => {
+    return state.auth.apiTokenAndUserLastUpdated
+  },
+  () => {
+    console.debug('API Token and user details changed, triggering hooks')
+    for (const curr of allApiTokenHooks) {
+      curr(store)
+    }
+  },
+)
+
+// FIXME watch "is user logged in" state and if not, trigger the login (and onboarder?)
+
+export default store

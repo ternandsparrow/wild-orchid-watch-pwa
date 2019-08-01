@@ -9,14 +9,14 @@
       overscrollable
       :index.sync="carouselIndex"
     >
-      <v-ons-carousel-item :style="{ 'background-color': items.BLUE }">
-        <v-ons-card class="wowOnboarderCard">
+      <v-ons-carousel-item>
+        <v-ons-card class="wow-card">
           <img
             src="@/assets/appicon-wow.png"
             alt="Wild Orchid Watch"
-            class="wowLogoOnboarder"
+            class="wow-onboarder-logo"
           />
-          <div class="title">
+          <div class="title text-center mt-1">
             Welcome!
           </div>
           <div class="content">
@@ -24,14 +24,11 @@
             App. We're excited to have your help with the project!
           </div>
         </v-ons-card>
+        <div class="swipe-msg">swipe to next page</div>
+        <i class="swipe-dot"></i>
       </v-ons-carousel-item>
-      <v-ons-carousel-item :style="{ 'background-color': items.DARK }">
-        <v-ons-card>
-          <img
-            src="@/assets/appicon-wow.png"
-            alt="Wild Orchid Watch"
-            class="wowLogoOnboarder"
-          />
+      <v-ons-carousel-item>
+        <v-ons-card class="wow-card">
           <div class="title">
             Data Collection
           </div>
@@ -42,13 +39,8 @@
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
-      <v-ons-carousel-item :style="{ 'background-color': items.ORANGE }">
-        <v-ons-card>
-          <img
-            src="@/assets/appicon-wow.png"
-            alt="Wild Orchid Watch"
-            class="wowLogoOnboarder"
-          />
+      <v-ons-carousel-item>
+        <v-ons-card class="wow-card">
           <div class="title">
             Safety
           </div>
@@ -58,13 +50,8 @@
           </div>
         </v-ons-card>
       </v-ons-carousel-item>
-      <v-ons-carousel-item :style="{ 'background-color': items.GREEN }">
-        <v-ons-card class="center">
-          <img
-            src="@/assets/appicon-wow.png"
-            alt="Wild Orchid Watch"
-            class="wowLogoOnboarder"
-          />
+      <v-ons-carousel-item>
+        <v-ons-card class="wow-card">
           <div class="title">
             Scientific use
           </div>
@@ -74,34 +61,24 @@
             ecosystem and biodiversity change.
           </div>
           <v-ons-list>
-            <ons-list-item
-              class="notAccepted"
-              :class="{ accepted: tsandcsAccepted }"
-            >
-              <div>
-                <label class="center small-text">
-                  I have read and accepted the WoW Field Data Collection App's
-                  Terms and Conditions
-                </label>
-                <!-- 
-                <a :href="subcategory.html" @click.prevent="showTAndCs($event)"
-                  >Terms and Conditions
-                </a>
-                -->
-                <label class="right">
-                  <v-ons-checkbox
-                    v-model="tsandcsAccepted"
-                    :value="tsandcsAccepted"
-                  />
-                </label>
-              </div>
-            </ons-list-item>
+            <v-ons-list-item tappable>
+              <label class="left">
+                <v-ons-checkbox v-model="tsAndCsAccepted" input-id="accepted">
+                </v-ons-checkbox>
+              </label>
+              <label class="center" for="accepted">
+                I have read and accepted the WoW Field Data Collection App's
+                Terms and Conditions
+              </label>
+            </v-ons-list-item>
             <ons-list-item>
               <div>
-                <v-ons-button v-if="!tsandcsAccepted" @click="showTAndCs"
+                <!-- FIXME tell user they'll be logging in with iNat? -->
+                <!-- FIXME check if we're already logged in and shortcut if so -->
+                <v-ons-button v-if="!tsAndCsAccepted" @click="showTAndCs"
                   >View Terms and Conditions</v-ons-button
                 >
-                <v-ons-button v-if="tsandcsAccepted" @click="handleDoneClick"
+                <v-ons-button v-if="tsAndCsAccepted" @click="handleDoneClick"
                   >OK, let's go...!
                 </v-ons-button>
               </div>
@@ -111,62 +88,64 @@
       </v-ons-carousel-item>
     </v-ons-carousel>
     <carousel-dots
-      :dot-count="Object.keys(items).length"
+      :dot-count="cardCount"
       :selected-index="carouselIndex"
       :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
+    <!-- FIXME update content of T and C doc so talk about WOW, not OEH -->
     <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <div style="width:100%; height:70vh;">
-        <!-- div class="dialogDiv" -->
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <span v-html="tAndCHtml"></span>
+      <div style="width:80vw; height:90vh;">
+        <iframe
+          src="/wow-t-and-c.html"
+          frameborder="0"
+          class="wow-t-c-iframe"
+          height="100%"
+          width="100%"
+        ></iframe>
       </div>
     </v-ons-dialog>
-
-    <!-- v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <v-ons-page>
-        <v-ons-toolbar>sdfjhsd jhgdsffsghd</v-ons-toolbar>
-        this si sowdflnsdlf sd kjfhsdfjds sdfjhsdsd fdfsfsdf sdfsdfsfdsdfsdf<br />
-        sdfsdfsfdsdfsdf dfgdggffffff ggggg
-      </v-ons-page>
-    </v-ons-dialog-->
   </v-ons-page>
 </template>
 
 <script>
+import { onboarderComponentName } from '@/misc/constants'
 // FIXME can't use this local import method until we get a fix for
 // https://github.com/OnsenUI/OnsenUI/issues/2662. Using global
 // components in main.js in the interim.
 // import CarouselDots from '@/partials/CarouselDots'
 
 export default {
+  name: onboarderComponentName,
   data() {
     return {
       carouselIndex: 0,
-      items: {
-        BLUE: '#085078',
-        DARK: '#373B44',
-        ORANGE: '#D38312',
-        GREEN: 'green',
-      },
+      cardCount: 4, // needs to match how many cards we have, TODO make dynamic
       extraDotsStyle: {
         position: 'absolute',
-        bottom: '40px',
+        bottom: 0,
         left: 0,
         right: 0,
+        color: '#333',
       },
-      tsandcsAccepted: false,
       tsAndCsModalVisible: false,
-      tAndCHtml: require('@/assets/wow-t-and-c.html'),
     }
+  },
+  computed: {
+    tsAndCsAccepted: {
+      get() {
+        return this.$store.state.app.tsAndCsAccepted
+      },
+      set(newVal) {
+        this.$store.commit('app/setTsAndCsAccepted', newVal)
+      },
+    },
   },
   // components: { CarouselDots },
   methods: {
     handleDoneClick() {
-      localStorage.setItem('isNotFirstRun', true)
-      localStorage.setItem('tsandcsAccepted', true)
-      this.$store.commit('navigator/pop')
+      this.$store.commit('app/setIsFirstRun', false)
+      this.$store.dispatch('auth/doLogin')
     },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
@@ -179,38 +158,54 @@ export default {
 </script>
 
 <style scoped>
-ons-carousel-item {
-  display: table;
-  text-align: center;
-}
-
-.wowLogoOnboarder {
+.wow-onboarder-logo {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  width: 90%;
+  max-width: 90%;
 }
 
-.wowOnboarderCard {
-  height: '90%';
+.wow-card {
+  overflow-y: auto;
+  max-height: 80vh;
 }
 
-.notAccepted {
-  margin-top: 10px;
-  border-radius: 25px;
-  background-color: rgb(255, 16, 16);
-}
-.accepted {
-  margin-top: 10px;
-  border-radius: 25px;
-  background-color: rgb(0, 187, 0);
+.swipe-msg {
+  font-size: 1.5em;
+  color: grey;
+  text-align: center;
+  margin-bottom: 1em;
 }
 
-.invisible {
-  visibility: hidden;
+.swipe-dot {
+  background: grey;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  animation: swipe 2s ease-in-out infinite;
+  opacity: 0.5;
+  display: block;
+  margin: 0 auto;
+  transform-origin: bottom;
+  box-shadow: 0px 0px 15px;
 }
 
-.dialogDiv {
-  min-height: 300px;
+@keyframes swipe {
+  0% {
+    transform: translate(200%);
+  }
+  100% {
+    transform: translate(-200%);
+  }
+}
+
+.content {
+  color: #444;
+}
+
+.wow-t-c-iframe {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
 }
 </style>

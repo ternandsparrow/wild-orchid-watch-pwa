@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <div v-if="isNoRecords" class="no-records-msg">Nothing to see here</div>
+    <no-records-msg v-if="isNoRecords" />
     <v-ons-list v-if="!isNoRecords">
       <v-ons-list-item
         v-for="curr in followingEvents"
@@ -34,6 +34,7 @@ export default {
     },
   },
   created() {
+    // FIXME check if logged in first
     this.$store.dispatch('activity/getFollowingEvents')
   },
   methods: {

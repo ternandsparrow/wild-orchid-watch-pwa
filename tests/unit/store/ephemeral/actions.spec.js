@@ -1,6 +1,6 @@
-import appStore from '@/store/app'
+import objectUnderTest from '@/store/ephemeral'
 
-const actions = appStore.actions
+const actions = objectUnderTest.actions
 const commit = jest.fn()
 
 afterEach(() => {

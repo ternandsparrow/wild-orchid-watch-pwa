@@ -1,6 +1,6 @@
-import appStore from '@/store/app'
+import objectUnderTest from '@/store/ephemeral'
 
-const mutations = appStore.mutations
+const mutations = objectUnderTest.mutations
 
 describe('app module mutation', () => {
   describe('setNetworkOnline', () => {

@@ -17,10 +17,18 @@ export const isDeployedToProd = (() => {
   return process.env.VUE_APP_DEPLOYED_ENV_IS_PROD === 'true'
 })()
 
+export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
 
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
-export const noImagePlaceholderUrl = 'img/no-image-placeholder.png'
+export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
+
+export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder.png'
+
+export const onboarderComponentName = 'Onboarder'
+
+export const oauthCallbackComponentName = 'OauthCallback'

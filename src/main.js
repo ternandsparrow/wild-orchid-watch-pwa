@@ -15,15 +15,13 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import * as VueGoogleMaps from 'vue2-google-maps'
+import { googleMapsApiKey } from '@/misc/constants'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
-// initiating google map
 Vue.use(VueGoogleMaps, {
-  load: {
-    key: 'AIzaSyCApM5lvha5-V76wO5clTzCoRl9puQCrGQ',
-  },
+  load: { key: googleMapsApiKey },
 })
 
 new Vue({
@@ -38,13 +36,11 @@ new Vue({
       document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
     }
 
-    this.$store.dispatch('auth/init')
-
     window.addEventListener('focus', () => {
-      if (!this.$store.state.app.networkOnLine) {
+      if (!this.$store.state.ephemeral.networkOnLine) {
         return
       }
-      this.$store.dispatch('app/manualServiceWorkerUpdateCheck')
+      this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
     })
   },
   render: h => h(AppNavigator),

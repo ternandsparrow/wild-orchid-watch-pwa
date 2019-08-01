@@ -10,19 +10,19 @@ if (process.env.NODE_ENV === 'production') {
     registered(registration) {
       console.debug('Service worker has been registered.')
       // TODO is this the right spot, or is ready() better?
-      store.commit('app/setServiceWorkerRegistration', registration)
+      store.commit('ephemeral/setServiceWorkerRegistration', registration)
     },
     cached() {
-      store.commit('app/setRefreshingApp', false)
+      store.commit('ephemeral/setRefreshingApp', false)
       console.debug('Content has been cached for offline use.')
     },
     updatefound() {
-      store.commit('app/setRefreshingApp', true) // FIXME should we bother with this?
+      store.commit('ephemeral/setRefreshingApp', true)
       console.debug('New content is downloading.')
     },
     updated(reg) {
-      store.commit('app/setRefreshingApp', false)
-      store.commit(`app/setSWRegistrationForNewContent`, reg)
+      store.commit('ephemeral/setRefreshingApp', false)
+      store.commit(`ephemeral/setSWRegistrationForNewContent`, reg)
       console.debug('New content is available; please refresh.')
     },
     offline() {
@@ -39,13 +39,14 @@ if (process.env.NODE_ENV === 'production') {
 let refreshing = false
 // This is triggered when a new service worker take over
 if (!navigator.serviceWorker) {
-  // FIXME why?!?!
-  console.warn('No service worker! Things might break')
+  console.warn(
+    'No service worker! Things might break. Are you ' +
+      'serving on localhost OR over HTTPS?',
+  )
 } else {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return
     refreshing = true
-
     window.location.reload()
   })
 }

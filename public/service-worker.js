@@ -1,3 +1,12 @@
+importScripts('./wow-env-vars.js') // written by DumpVueEnvVarsWebpackPlugin
+// vars come from script imported above
+const apiUrl = VUE_APP_API_BASE_URL
+console.debug(`Using API URL = ${apiUrl}`)
+const inatUrl = VUE_APP_INAT_BASE_URL
+console.debug(`Using iNat URL = ${inatUrl}`)
+const inatStaticUrl = VUE_APP_INAT_STATIC_BASE_URL
+console.debug(`Using iNat static URL = ${inatStaticUrl}`)
+
 workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
 
 /**
@@ -28,13 +37,44 @@ workbox.routing.registerRoute(
   'GET',
 )
 
+// never cache requests for API auth tokens.
+// we don't need to worry about the iNat token as that is a POST
 workbox.routing.registerRoute(
-  new RegExp('^https://api.inaturalist.org/v1/.*'),
-  // FIXME is cacheFirst the best choice?
-  // FIXME consider setting an expiry or max elements in cache
-  workbox.strategies.cacheFirst(),
+  `${inatUrl}/users/api_token`,
+  new workbox.strategies.NetworkOnly(),
   'GET',
 )
+
+workbox.routing.registerRoute(
+  new RegExp(`^${apiUrl}/.*`),
+  new workbox.strategies.NetworkFirst({
+    networkTimeoutSeconds: 10,
+  }),
+  'GET',
+)
+
+workbox.routing.registerRoute(
+  new RegExp(`^${inatUrl}/.*`),
+  new workbox.strategies.StaleWhileRevalidate({
+    // TODO is this relevant? If so, do we want it?
+    // plugins: [
+    //   new workbox.expiration.Plugin({
+    //     maxEntries: 100, // TODO is this enough?
+    //     maxAgeSeconds: 60 * 60, // 1 hour
+    //   }),
+    // ],
+  }),
+  'GET',
+)
+
+const isStaticServerDifferent = inatUrl !== inatStaticUrl
+if (isStaticServerDifferent) {
+  workbox.routing.registerRoute(
+    new RegExp(`^${inatStaticUrl}/.*`),
+    new workbox.strategies.StaleWhileRevalidate(),
+    'GET',
+  )
+}
 
 addEventListener('message', messageEvent => {
   if (messageEvent.data === 'skipWaiting') return self.skipWaiting()

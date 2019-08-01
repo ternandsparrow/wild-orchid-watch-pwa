@@ -7,8 +7,9 @@
       </template>
     </custom-toolbar>
     <v-ons-list>
-      <v-ons-list-header>Photos</v-ons-list-header>
+      <v-ons-list-header class="wow-list-header">Photos</v-ons-list-header>
       <v-ons-list-item :modifier="md ? 'nodivider' : ''">
+        <!-- FIXME make it obvious this scrolls or just show all 6 items in a flex grid -->
         <v-ons-carousel item-width="20%" swipeable overscrollable>
           <v-ons-carousel-item
             v-for="(curr, $index) of photoMenu"
@@ -25,7 +26,7 @@
               @change="onPhotoAdded(curr)"
             />
             <label :for="'photo' + $index">
-              <!-- FIXME allow deleting photo -->
+              <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
               <div class="thumb-container">
                 <v-ons-icon
                   v-if="!photos[curr.id]"
@@ -44,49 +45,94 @@
           </v-ons-carousel-item>
         </v-ons-carousel>
       </v-ons-list-item>
-      <div class="map-container text-center">
-        <google-map :marker-position="currentPosition" />
-      </div>
-      <template v-for="currField of filteredFields">
-        <v-ons-list-header :key="currField.id + '-list'">{{
-          currField.name
-        }}</v-ons-list-header>
-        <!-- <v-ons-list-item>{{ currField.description }}</v-ons-list-item> -->
-        <template v-if="currField.datatype === 'text'">
-          <v-ons-list-item
-            v-for="(currValue, $index) in currField.allowedValues"
-            :key="currField.id + '-' + $index"
-            tappable
-            :modifier="
-              $index === currField.allowedValues.length - 1 ? 'longdivider' : ''
-            "
+      <v-ons-list-header class="wow-list-header"
+        >Species guess</v-ons-list-header
+      >
+      <v-ons-list-item tappable modifier="nodivider">
+        <!-- FIXME suggest recently used species or nearby ones -->
+        <v-ons-input
+          v-model="speciesGuess"
+          float
+          placeholder="e.g. snail orchid"
+          type="text"
+          @keyup="onSpeciesInput"
+        >
+        </v-ons-input>
+      </v-ons-list-item>
+      <div v-show="isShowSpeciesAutocomplete">
+        <ul>
+          <!-- FIXME do we use name or common name? -->
+          <!-- FIXME turn this into an actual autocomplete, bootstrap-vue has a good one -->
+          <li
+            v-for="curr of speciesAutocompleteItems"
+            :key="curr.id"
+            class="autocomplete-item"
+            @click="doSelectAutocomplete(curr.name)"
           >
-            <label class="left">
-              <v-ons-radio
-                v-model="blah[currField.id]"
-                :input-id="'field-' + currField.id + '-' + $index"
+            {{ curr.name }}
+          </li>
+        </ul>
+      </div>
+      <template v-for="currField of displayableObsFields">
+        <v-ons-list-header
+          :key="currField.id + '-list'"
+          class="wow-list-header"
+          >{{ currField.name }}</v-ons-list-header
+        >
+        <v-ons-list-item
+          :key="currField.id + '-obs-field'"
+          modifier="nodivider"
+        >
+          <!-- FIXME show *required* marker -->
+          <!-- FIXME allow deselecting a value from optional -->
+          <!-- FIXME turn yes/no questions into switches -->
+          <div class="wow-obs-field-input-container">
+            <v-ons-select
+              v-if="currField.wowDatatype === 'select'"
+              v-model="obsFieldValues[currField.id]"
+              style="width: 80%"
+            >
+              <option
+                v-for="(currValue, $index) in currField.allowedValues"
+                :key="currField.id + '-' + $index"
                 :value="currValue"
               >
-              </v-ons-radio>
-            </label>
-            <label :for="'field-' + currField.id + '-' + $index" class="center">
-              {{ currValue }}
-            </label>
-          </v-ons-list-item>
-        </template>
-        <v-ons-list-item
-          v-if="currField.datatype === 'numeric'"
-          :key="currField.id + '-numeric'"
-        >
-          <v-ons-input
-            v-model="blah[currField.id]"
-            float
-            placeholder="Input value"
-            type="number"
-          >
-          </v-ons-input>
+                {{ currValue }}
+              </option>
+            </v-ons-select>
+            <v-ons-input
+              v-else-if="currField.wowDatatype === 'numeric'"
+              v-model="obsFieldValues[currField.id]"
+              float
+              placeholder="Input value"
+              type="number"
+            >
+            </v-ons-input>
+            <textarea
+              v-else-if="currField.wowDatatype === 'text'"
+              v-model="obsFieldValues[currField.id]"
+              placeholder="Input value"
+              class="wow-textarea"
+            >
+            </textarea>
+            <div v-else :key="currField.id + '-fixme'" style="color: red;">
+              FIXME - support '{{ currField.wowDatatype }}' field type
+            </div>
+          </div>
+          <div v-show="currField.description" class="wow-obs-field-desc">
+            {{ currField.description }}
+          </div>
         </v-ons-list-item>
       </template>
+      <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
+      <v-ons-list-item>
+        <v-ons-input
+          v-model="notes"
+          class="width100"
+          type="text"
+          placeholder="anything else noteworthy"
+        ></v-ons-input>
+      </v-ons-list-item>
     </v-ons-list>
   </v-ons-page>
 </template>
@@ -106,7 +152,9 @@ export default {
         { id: 'pol', name: 'Visiting pollinators' },
         { id: 'hab', name: 'Habitat' },
       ],
+      speciesGuess: null,
       photos: {},
+<<<<<<< HEAD
       selectedOrchidType: 'epi',
       orchidTypes: [
         { id: 'epi', label: 'Epiphyte' },
@@ -115,37 +163,85 @@ export default {
       ],
       blah: {}, // FIXME
       currentPosition: { lat: -34.9786554, lng: 138.6487938 }, //FIXME - pull this from the system
+=======
+      obsFieldValues: {},
+      notes: null,
+      isShowSpeciesAutocomplete: false,
+>>>>>>> master
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields']),
-    filteredFields() {
-      // FIXME remove when we can handle species picker
-      return this.obsFields.filter(e => [20267, 20225].indexOf(e.id) === -1)
+    ...mapState('obs', ['obsFields', 'lat', 'lng', 'speciesAutocompleteItems']),
+    displayableObsFields() {
+      // TODO create config file in /public so the client updates it more
+      // frequently than the app code itself
+      // FIXME filter out when orchidType !== epiphyte
+      //   - host tree species
+      //   - epiphyte height
+      // FIXME filter out when doing individual
+      //   - accuracy of count
+      //   - count of individuals recorded
+      const clonedObsFields = this.obsFields.slice(0)
+      const result = clonedObsFields.reduce((accum, curr) => {
+        const hasAllowedValues = (curr.allowedValues || []).length
+        const wowDatatype = hasAllowedValues ? 'select' : curr.datatype
+        accum.push({
+          ...curr,
+          wowDatatype,
+        })
+        return accum
+      }, [])
+      result.sort((a, b) => {
+        if (a.position < b.position) {
+          return -1
+        }
+        if (a.position > b.position) {
+          return 1
+        }
+        return 0
+      })
+      return result
     },
   },
-  created() {
-    this.$store.dispatch('obs/getObsFields')
+  mounted() {
+    this.$store.dispatch('obs/getObsFields').then(() => {
+      this.setDefaultAnswers()
+    })
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
       return accum
     }, {})
+    this.$store.dispatch('obs/markUserGeolocation')
   },
   methods: {
+    setDefaultAnswers() {
+      // FIXME are these defaults ok? Should we be smarter like picking the last used values?
+      this.obsFieldValues = this.displayableObsFields.reduce((accum, curr) => {
+        const hasSelectOptions = (curr.allowedValues || []).length
+        if (!hasSelectOptions) {
+          return accum
+        }
+        accum[curr.id] = curr.allowedValues[0]
+        return accum
+      }, {})
+    },
     async onSave() {
       try {
         const record = {
-          photos: this.photoMenu
-            .map(e => {
-              const currPhoto = this.photos[e.id]
-              if (!currPhoto) {
-                return null // FIXME ok?
-              }
-              return currPhoto.file
-            })
-            .filter(e => !!e),
+          photos: this.photoMenu.reduce((accum, curr) => {
+            const currPhoto = this.photos[curr.id]
+            if (!currPhoto) {
+              return accum
+            }
+            // TODO can we also store "photo type" on the server?
+            accum.push(currPhoto.file)
+            return accum
+          }, []),
           orchidType: this.selectedOrchidType,
+          species_guess: this.speciesGuess,
+          obsFieldValues: this.obsFieldValues,
+          description: this.notes,
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)
         setTimeout(() => {
@@ -178,6 +274,14 @@ export default {
         file,
         url: URL.createObjectURL(file),
       }
+    },
+    async onSpeciesInput() {
+      await this.$store.dispatch('obs/doSpeciesAutocomplete', this.speciesGuess)
+      this.isShowSpeciesAutocomplete = true
+    },
+    doSelectAutocomplete(selected) {
+      this.speciesGuess = selected
+      this.isShowSpeciesAutocomplete = false
     },
     photoRef(e) {
       return 'photo-' + e.id
@@ -249,6 +353,7 @@ export default {
   height: 100%;
 }
 
+<<<<<<< HEAD
 // FIXME - make these map styles global?
 .map-container {
   padding: 2em 0;
@@ -256,5 +361,30 @@ export default {
 
 .map-container img {
   width: 90vw;
+=======
+.width100 {
+  width: 100%;
+}
+
+.autocomplete-item {
+  margin: 1em auto;
+}
+
+.wow-obs-field-desc {
+  color: #888;
+  font-size: 0.7em;
+  margin-top: 0.5em;
+}
+
+.wow-obs-field-input-container {
+  width: 100%;
+}
+
+.wow-textarea {
+  padding: 12px 16px 14px;
+  border-radius: 4px;
+  width: 80%;
+  height: 5em;
+>>>>>>> master
 }
 </style>

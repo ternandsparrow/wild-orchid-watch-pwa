@@ -15,15 +15,15 @@
   },
   "engines": {
     "npm": ">=5.5.0",
-    "node": ">=9.3.0"
+    "node": ">=8.16.0"
   },
   "dependencies": {
     "core-js": "^3.1.3",
     "dexie": "^2.0.4",
-    "html-loader": "0.5.5",
     "is_js": "^0.9.0",
+    "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.11",
-    "onsenui": "^2.10.8",
+    "onsenui": "^2.10.9",
     "pkce-challenge": "^1.0.3",
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",
@@ -33,7 +33,8 @@
     "vue-onsenui": "^2.6.2",
     "vue-router": "3.0.7",
     "vue2-google-maps": "0.10.7",
-    "vuex": "^3.1.1"
+    "vuex": "^3.1.1",
+    "vuex-persistedstate": "^2.5.4"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.132",

@@ -1,6 +1,7 @@
 <template>
   <v-ons-page>
-    <v-ons-list>
+    <no-records-msg v-if="isNoRecords" />
+    <v-ons-list v-if="!isNoRecords">
       <v-ons-list-item
         v-for="curr in myEvents"
         :key="curr.id"
@@ -28,8 +29,12 @@ import { noImagePlaceholderUrl } from '@/misc/constants'
 export default {
   computed: {
     ...mapState('activity', ['myEvents']),
+    isNoRecords() {
+      return !this.myEvents || this.myEvents.length === 0
+    },
   },
   created() {
+    // FIXME check if logged in first
     this.$store.dispatch('activity/getMyEvents')
   },
   methods: {
