@@ -1,6 +1,7 @@
 // To (properly) support Safari <10.1, we need a shim:
 // https://dexie.org/docs/IndexedDB-on-Safari
 import Dexie from 'dexie'
+import { wowWarnHandler } from '@/misc/helpers'
 
 const db = new Dexie('WowDb')
 
@@ -24,8 +25,8 @@ export async function deleteAllDatabases() {
       d.delete()
       console.debug(`Successfully deleted the '${name}' database`)
     } catch (err) {
-      console.warn(`Failed to delete the '${name}' database`, err)
-      // FIXME send something to rollbar
+      const msg = `Failed to delete the '${name}' database`
+      wowWarnHandler(msg, err)
     }
   }
 }

@@ -24,3 +24,5 @@ firebase-debug.log
 *.njsproj
 *.sln
 *.sw*
+
+scripts/current-version.js

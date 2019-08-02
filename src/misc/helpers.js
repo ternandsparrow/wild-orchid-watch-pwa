@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
+
 const commonHeaders = {
   Accept: 'application/json',
 }
@@ -11,7 +13,16 @@ const jsonHeaders = {
 // this eventually
 export function wowErrorHandler(msg, err) {
   console.error(msg, err)
-  // FIXME notify Rollbar
+  const processedError = chainedError(msg, err)
+  Sentry.captureException(processedError)
+}
+
+export function wowWarnHandler(msg, err) {
+  console.warn(msg, err)
+  Sentry.withScope(scope => {
+    scope.setLevel('warning')
+    Sentry.captureException(chainedError(msg, err))
+  })
 }
 
 export function postJson(url, data = {}) {

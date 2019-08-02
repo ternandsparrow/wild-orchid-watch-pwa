@@ -6,6 +6,8 @@ import './wow-global.css'
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
 import 'pwacompat'
+import * as Sentry from '@sentry/browser'
+import * as Integrations from '@sentry/integrations'
 
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
@@ -15,7 +17,12 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import * as VueGoogleMaps from 'vue2-google-maps'
-import { googleMapsApiKey } from '@/misc/constants'
+import {
+  googleMapsApiKey,
+  sentryDsn,
+  appVersion,
+  isDeployedToProd,
+} from '@/misc/constants'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
@@ -23,6 +30,21 @@ Vue.config.productionTip = false
 Vue.use(VueGoogleMaps, {
   load: { key: googleMapsApiKey },
 })
+
+if (process.env.NODE_ENV !== 'development') {
+  // don't init Sentry during dev, otherwise it won't print render errors to
+  // the console, see https://github.com/vuejs/vue/issues/8433
+  Sentry.init({
+    dsn: sentryDsn,
+    integrations: [new Integrations.Vue({ Vue, attachProps: true })],
+    release: appVersion,
+  })
+  Sentry.configureScope(scope => {
+    // TODO might be better to have more granularity; config that defines the env name
+    const envName = isDeployedToProd ? 'production' : 'development'
+    scope.setTag('environment', envName)
+  })
+}
 
 new Vue({
   el: '#app',
