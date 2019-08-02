@@ -17,7 +17,12 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import * as VueGoogleMaps from 'vue2-google-maps'
-import { googleMapsApiKey, sentryDsn } from '@/misc/constants'
+import {
+  googleMapsApiKey,
+  sentryDsn,
+  appVersion,
+  isDeployedToProd,
+} from '@/misc/constants'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
@@ -32,9 +37,13 @@ if (process.env.NODE_ENV !== 'development') {
   Sentry.init({
     dsn: sentryDsn,
     integrations: [new Integrations.Vue({ Vue, attachProps: true })],
+    release: appVersion,
   })
-  // TODO look at capturing user, when they login, https://docs.sentry.io/enriching-error-data/context/?platform=browsernpm#capturing-the-user
-  // FIXME add source maps to Sentry https://docs.sentry.io/platforms/javascript/#source-maps
+  Sentry.configureScope(scope => {
+    // TODO might be better to have more granularity; config that defines the env name
+    const envName = isDeployedToProd ? 'production' : 'development'
+    scope.setTag('environment', envName)
+  })
 }
 
 new Vue({

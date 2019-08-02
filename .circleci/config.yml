@@ -94,7 +94,7 @@ jobs:
             cat .env.local
       - run:
           name: 'Build'
-          command: yarn build
+          command: ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .

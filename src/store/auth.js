@@ -1,6 +1,7 @@
 import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
 import jwt from 'jsonwebtoken'
+import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
 
 import {
   apiUrlBase,
@@ -73,6 +74,9 @@ export default {
     },
     myUserId(state) {
       return state.userDetails.id
+    },
+    myUsername(state) {
+      return state.userDetails.login
     },
   },
   actions: {
@@ -169,12 +173,11 @@ export default {
       }
     },
     saveToken({ commit, dispatch }, vals) {
+      // note: we're setting the *iNat* token here, the API token is different
       commit('_setToken', vals.token)
       commit('_setTokenType', vals.tokenType)
       commit('_setTokenCreatedAt', vals.tokenCreatedAt)
       dispatch('_updateApiToken')
-      // FIXME trigger a refresh of all other API calls (my obs, etc) or
-      // restructure app with router so that it naturally happens
     },
     async doLogin({ state, dispatch }) {
       await dispatch('_generatePkcePair')
@@ -244,7 +247,7 @@ export default {
      * Will be called everytime we refresh the API token, which at the time
      * of writing is every 24hrs.
      */
-    async _updateUserDetails({ commit, dispatch }) {
+    async _updateUserDetails({ commit, dispatch, getters }) {
       try {
         const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
         const isWrongNumberOfResults = resp.total_results !== 1
@@ -257,6 +260,9 @@ export default {
           )
         }
         commit('_saveUserDetails', resp.results[0])
+        Sentry.configureScope(scope => {
+          scope.setUser({ username: getters.myUsername })
+        })
       } catch (err) {
         dispatch(
           'flagGlobalError',

@@ -39,6 +39,7 @@
     "vuex-persistedstate": "^2.5.4"
   },
   "devDependencies": {
+    "@sentry/webpack-plugin": "^1.8.0",
     "@types/lodash": "^4.14.132",
     "@vue/cli-plugin-babel": "^3.8.0",
     "@vue/cli-plugin-e2e-cypress": "^3.8.0",
