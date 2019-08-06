@@ -3,9 +3,8 @@
     <v-ons-navigator
       swipeable
       swipe-target-width="50px"
-      :page-stack="pageStack"
+      :page-stack="mainStack"
       :pop-page="storePop"
-      :options="options"
       :class="{ 'border-radius': borderRadius }"
     ></v-ons-navigator>
     <!-- FIXME get apple "add to home" working                         -->
@@ -56,6 +55,11 @@
 
 <script>
 import { mapState, mapActions, mapGetters } from 'vuex'
+import {
+  mainStack,
+  isOnboarderVisible,
+  isOauthCallbackVisible,
+} from '@/misc/nav-stacks'
 
 // import AppleAddToHomeScreenModal from '@/components/AppleAddToHomeScreenModal'
 
@@ -66,6 +70,7 @@ export default {
     return {
       updateReadyToastVisible: false,
       globalErrorDialogVisible: false,
+      mainStack,
     }
   },
   computed: {
@@ -77,14 +82,6 @@ export default {
       'refreshingApp',
     ]),
     ...mapState(['isGlobalErrorState']),
-    ...mapGetters('navigator', [
-      'pageStack',
-      'isOnboarderVisible',
-      'isOauthCallbackVisible',
-    ]),
-    options() {
-      return this.$store.state.navigator.options
-    },
     borderRadius() {
       return new URL(window.location).searchParams.get('borderradius') !== null
     },
@@ -94,8 +91,8 @@ export default {
     notLoggedInToastVisible() {
       return (
         !this.isUserLoggedIn &&
-        !this.isOnboarderVisible &&
-        !this.isOauthCallbackVisible &&
+        !isOnboarderVisible &&
+        !isOauthCallbackVisible &&
         !this.isUpdatingApiToken
       )
     },
@@ -122,9 +119,9 @@ export default {
     },
     storePop() {
       // FIXME we don't need this pageStack check when all parts of the app have a unique route
-      const isNavWithoutRoute = this.pageStack.length > 1
+      const isNavWithoutRoute = this.mainStack.length > 1
       if (isNavWithoutRoute) {
-        this.$store.commit('navigator/pop')
+        this.mainStack.pop()
         return
       }
       const pathIndex = Math.max(0, this.$route.matched.length - 2)

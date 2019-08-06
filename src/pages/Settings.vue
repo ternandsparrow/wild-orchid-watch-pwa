@@ -29,15 +29,51 @@
           <v-ons-button @click="doManualUpdateCheck">Check</v-ons-button>
         </div>
       </ons-list-item>
+      <ons-list-item>
+        <label class="center">
+          When to upload
+        </label>
+        <div class="right">
+          <v-ons-select v-model="whenToUpload">
+            <option
+              v-for="curr in whenToUploadOptions"
+              :key="'wtu-' + curr.value"
+              :value="curr.value"
+            >
+              {{ curr.label }}
+            </option>
+          </v-ons-select>
+        </div>
+      </ons-list-item>
     </v-ons-list>
   </v-ons-page>
 </template>
 
 <script>
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
+import { alwaysUpload, neverUpload } from '@/misc/constants'
 
 export default {
   name: 'Settings',
+  data() {
+    return {
+      whenToUploadOptions: [
+        // FIXME support more options: only WiFi
+        { value: alwaysUpload, label: 'Always' },
+        { value: neverUpload, label: 'Never' },
+      ],
+    }
+  },
+  computed: {
+    whenToUpload: {
+      get() {
+        return this.$store.state.app.whenToUpload
+      },
+      set(newValue) {
+        this.$store.commit('app/setWhenToUpload', newValue)
+      },
+    },
+  },
   mounted() {
     this.$store.commit('app/setTopTitle', 'Settings')
   },

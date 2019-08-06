@@ -2,15 +2,23 @@
   <v-ons-toolbar :class="{ offline: !networkOnLine }">
     <div class="left">
       <slot name="left">
-        <v-ons-back-button v-if="backLabel && !isNotHomeRoute">
+        <!-- FIXME can we simplify these cases? -->
+        <v-ons-back-button v-if="backLabel && isHomeRoute">
           {{ backLabel }}
         </v-ons-back-button>
         <v-ons-toolbar-button
-          v-if="isNotHomeRoute"
+          v-if="!cancellable && !isHomeRoute"
           modifier="quiet"
           @click="goHome"
         >
           Home
+        </v-ons-toolbar-button>
+        <v-ons-toolbar-button
+          v-if="cancellable && !isHomeRoute"
+          modifier="quiet"
+          @click="goBack"
+        >
+          Cancel
         </v-ons-toolbar-button>
       </slot>
     </div>
@@ -31,16 +39,27 @@ export default {
   props: {
     title: String,
     backLabel: String,
+    cancellable: Boolean,
   },
   computed: {
     ...mapState('ephemeral', ['networkOnLine']),
-    isNotHomeRoute() {
-      return this.$route.path !== '/'
+    isHomeRoute() {
+      return this.$route.path === '/'
     },
   },
   methods: {
     goHome() {
       this.$router.push('/')
+    },
+    goBack() {
+      const msg = 'Are you sure you want to cancel?'
+      this.$ons.notification.confirm(msg).then(isConfirmed => {
+        if (!isConfirmed) {
+          return
+        }
+        this.$emit('cancelled')
+        this.$router.go(-1)
+      })
     },
   },
 }

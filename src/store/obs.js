@@ -10,6 +10,8 @@ import db from '@/indexeddb/dexie-store'
 
 const NOT_UPLOADED = -1
 
+let photoObjectUrlsInUse = []
+
 const state = {
   lat: null,
   lng: null,
@@ -167,6 +169,10 @@ const actions = {
   },
   async saveAndUploadIndividual({ dispatch, state }, record) {
     const nowDate = new Date()
+    // TODO change to be our internal format
+    //   - use camel case names
+    //   - only assign values we care about
+    //   - let the rest of the values be assigned on upload
     const enhancedRecord = Object.assign(record, {
       captive_flag: false, // it's *wild* orchid watch
       createdAt: nowDate,
@@ -190,13 +196,16 @@ const actions = {
       // uuid: '3ab8f7ab-ac5b-4e9b-af7f-15730b0d9b66',
     })
     // FIXME compress photos
-    // FIXME should store record in our domain format and then map to API
-    // format on the way out
+    // FIXME need to handle new(put) vs edit(update?)
     await db.obs.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
   },
   _getWaitingToUploadIds() {
+    // FIXME how do we deal with edited records? Do we still show the old
+    // version plus the new one as waiting? Probably not. How do we find edited
+    // records? Do we set updatedAt back to NOT_UPLOADED, or use a separate
+    // flag?
     return db.obs
       .where('updatedAt')
       .equals(NOT_UPLOADED)
@@ -207,16 +216,22 @@ const actions = {
     const records = await resolveWaitingToUploadIdsToRecords(ids)
     commit('setWaitingToUploadRecords', records)
   },
-  async scheduleUpload({ dispatch }) {
+  async scheduleUpload({ dispatch, rootGetters }) {
     // FIXME use Background Sync API with auto-retry
     //       Background sync might just be configuring workbox to retry our
     //       POSTs requests to the API
+    // FIXME how do we handle dev or no service worker support?
     // FIXME remove the following workaround when we have background sync working
+    if (!rootGetters['canUploadNow']) {
+      // FIXME need to still *schedule* uploads
+      return
+    }
     const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
     for (const currId of waitingToUploadIds) {
       try {
         const dbRecord = await db.obs.get(currId)
         const ignoredKeys = ['id', 'photos', 'updatedAt']
+        // FIXME replace following with mapObsFromOurIntoApiDomain
         const apiRecord = {
           ignore_photos: true,
           observation: Object.keys(dbRecord).reduce((accum, currKey) => {
@@ -244,20 +259,19 @@ const actions = {
           )
         }
         for (const curr of dbRecord.photos) {
-          const photoResp = await dispatch(
+          // TODO can we also store "photo type", curr.type, on the server?
+          await dispatch(
             'doPhotoPost',
             {
               obsId: newRecordId,
-              photoBlob: curr, // FIXME is this right object?
+              photoBlob: curr.file,
             },
             { root: true },
           )
-          // FIXME update DB with photoResp values
           // FIXME trap one photo failure so others can still try
-          console.log(photoResp.id) // FIXME delete line when we use photoResp var
         }
         for (const currId of Object.keys(dbRecord.obsFieldValues)) {
-          const obsFieldResp = await dispatch(
+          await dispatch(
             'doApiPost',
             {
               urlSuffix: '/observation_field_values',
@@ -270,13 +284,15 @@ const actions = {
             },
             { root: true },
           )
-          // FIXME update DB with obsFieldResp values
           // FIXME trap one failure so others can still try
-          console.log(obsFieldResp.id) // FIXME delete line when we use photoResp var
-          // FIXME once we know that all parts have uploaded correctly:
-          //  - replace the Vuex/Dexie record with freshly pulled
-          //    record that has been mapped
         }
+        // FIXME once we know that all parts have uploaded correctly:
+        //  - replace the Vuex/Dexie record with freshly pulled
+        //    record that has been mapped
+        // FIXME consider doing another GET for the new obs and storing the
+        // result, rather than trying to save the response for each piece as we
+        // get it. Or we might be able to wait until all operations are
+        // complete and refresh the whole list of obs at once
       } catch (err) {
         dispatch(
           'flagGlobalError',
@@ -324,19 +340,42 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
     .where('id')
     .anyOf(ids)
     .toArray(records => {
+      revokeExistingObjectUrls() // FIXME might be calling wrongly, getting a 404-ish
       return records.map(e => {
+        // FIXME this should be pretty much straight from the DB as we persist
+        // in our internal schema. We will still need to generate the photo
+        // ObjectURLs
+        const photos = e.photos.map((p, $index) => {
+          const tempId = e.id * 100 * -1 + $index
+          const objectUrl = mintObjectUrl(p.file)
+          const result = {
+            id: tempId,
+            url: objectUrl,
+            licenseCode: 'FIXME', // FIXME set this to our default, from config?
+            attribution: 'FIXME', // FIXME set this to our default, from config?
+          }
+          verifyWowDomainPhoto(result)
+          return result
+        })
         return {
-          id: e.id,
-          // FIXME apparently we should call revokeObjectURL when we're done.
-          // Maybe in the destroy() lifecycle hook of vue? Or, store a list
-          // of all URLs we create in this store and we can just clear them
-          // all as the first step in the next run.
-          photos: e.photos.map(v => URL.createObjectURL(v)),
-          placeGuess: '-34.96958,138.6305383', // FIXME just use coords?
-          speciesGuess: 'Genusus Speciesus', // FIXME use user's answer
+          ...e,
+          photos,
         }
       })
     })
+}
+
+function mintObjectUrl(blob) {
+  const result = URL.createObjectURL(blob)
+  photoObjectUrlsInUse.push(result)
+  return result
+}
+
+function revokeExistingObjectUrls() {
+  for (const curr of photoObjectUrlsInUse) {
+    URL.revokeObjectURL(curr)
+  }
+  photoObjectUrlsInUse = []
 }
 
 export default {
@@ -386,13 +425,23 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return accum
   }, {})
   result.inatId = obsFromApi.id
-  const photos = (obsFromApi.photos || []).map(p => p.url)
+  // TODO what's the difference between .photos and .observation_photos?
+  const photos = (obsFromApi.photos || []).map(p => {
+    const result = {
+      url: p.url,
+      id: p.id,
+      licenseCode: p.license_code,
+      attribution: p.attribution,
+    }
+    verifyWowDomainPhoto(result)
+    return result
+  })
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
   const obsFieldValues = obsFromApi.ofvs.map(o => {
     return {
-      id: o.id,
+      id: o.id, // FIXME do we need this instance ID for anything?
       fieldId: o.field_id,
       datatype: o.datatype,
       name: processObsFieldName(o.name),
@@ -408,6 +457,31 @@ function processObsFieldName(fieldName) {
   return (fieldName || '').replace(obsFieldPrefix, '')
 }
 
+/**
+ * Assert that the record matches our schema.
+ *
+ * Using a verifier seems more maintainable than a mapper function. A mapper
+ * would have a growing list of either unnamed params or named params which
+ * would already be the result object. A verifier lets your freehand map the
+ * object but it still shows linkage between all the locations we do mapping
+ * (hopefully not many).
+ */
+function verifyWowDomainPhoto(photo) {
+  let msg = ''
+  assertFieldPresent('id')
+  assertFieldPresent('url')
+  assertFieldPresent('licenseCode')
+  assertFieldPresent('attribution')
+  if (msg) {
+    throw new Error(msg)
+  }
+  return
+  function assertFieldPresent(fieldName) {
+    photo[fieldName] || (msg += `'${fieldName}' is missing. `)
+  }
+}
+
 export const _testonly = {
   mapObsFromApiIntoOurDomain,
+  verifyWowDomainPhoto,
 }

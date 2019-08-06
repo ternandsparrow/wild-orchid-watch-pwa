@@ -6,8 +6,20 @@ describe('mapObsFromApiIntoOurDomain', () => {
     const result = _testonly.mapObsFromApiIntoOurDomain(record)
     expect(result).toHaveProperty('inatId', 42)
     expect(result).toHaveProperty('photos', [
-      'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
-      'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+      {
+        id: 14,
+        licenseCode: 'cc-by-nc',
+        url:
+          'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
+        attribution: '(c) tom, some rights reserved (CC BY-NC)',
+      },
+      {
+        id: 15,
+        licenseCode: 'cc-by-nc',
+        url:
+          'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+        attribution: '(c) tom, some rights reserved (CC BY-NC)',
+      },
     ])
     expect(result.placeGuess).toBeNull()
     expect(result).toHaveProperty('speciesGuess', 'a species guess')
@@ -21,6 +33,79 @@ describe('mapObsFromApiIntoOurDomain', () => {
       },
     ])
     expect(result).toHaveProperty('notes', 'some notes')
+  })
+})
+
+describe('verifyWowDomainPhoto', () => {
+  it('should pass a valid record', () => {
+    const record = {
+      id: 1,
+      url: 'http://blah',
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    _testonly.verifyWowDomainPhoto(record)
+    // expect nothing is thrown
+  })
+
+  it('should fail a record missing an ID', () => {
+    const record = {
+      // no 'id'
+      url: 'http://blah',
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing a URL', () => {
+    const record = {
+      id: 33,
+      // no URL
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing a license code', () => {
+    const record = {
+      id: 33,
+      url: 'http://some.ph/oto.jpg',
+      // no licenseCode
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing an attribution', () => {
+    const record = {
+      id: 33,
+      url: 'http://some.ph/oto.jpg',
+      licenseCode: 'cc-by-nc',
+      // no attribution
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
   })
 })
 

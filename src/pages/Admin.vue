@@ -59,6 +59,7 @@
 import { mapGetters } from 'vuex'
 
 import CommunityComponent from '@/pages/new-obs/Community'
+import { mainStack } from '@/misc/nav-stacks'
 
 export default {
   data() {
@@ -126,7 +127,7 @@ export default {
       }
     },
     doCommunityWorkflow() {
-      this.$store.commit('navigator/push', CommunityComponent)
+      mainStack.push(CommunityComponent) // FIXME change to using router
     },
   },
 }

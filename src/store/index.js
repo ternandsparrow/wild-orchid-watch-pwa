@@ -8,8 +8,8 @@ import ephemeral from './ephemeral'
 import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
-import navigator from './navigator'
 import { wowErrorHandler } from '@/misc/helpers'
+import { neverUpload } from '@/misc/constants'
 
 Vue.use(Vuex)
 
@@ -20,12 +20,6 @@ const store = new Vuex.Store({
       key: 'wow-vuex',
       setState: (key, state, storage) => {
         const cleanedState = Object.assign({}, state)
-        // Don't store Onsen navigator state!
-        // Vue components don't serialise well, mainly due the fact they
-        // contain functions. Even if they did, we probably don't want to
-        // restore them. If we want to restore the user's nav state then we
-        // should find another way
-        delete cleanedState.navigator
         // don't save anything in the ephemeral module, we assume nothing in
         // here will serialise or should be saved.
         delete cleanedState.ephemeral
@@ -58,6 +52,14 @@ const store = new Vuex.Store({
     myUserId(state, getters) {
       return getters['auth/myUserId']
     },
+    canUploadNow(state, getters) {
+      // TODO when we support "only on WiFi", we'll need to check the current
+      // connection type
+      return !getters['isUploadsDisabled']
+    },
+    isUploadsDisabled(state) {
+      return state.app.whenToUpload === neverUpload
+    },
   },
   modules: {
     activity,
@@ -65,7 +67,6 @@ const store = new Vuex.Store({
     auth,
     ephemeral,
     missions,
-    navigator,
     obs,
     splitter: {
       strict: true,

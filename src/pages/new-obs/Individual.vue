@@ -1,50 +1,68 @@
 <template>
   <v-ons-page>
-    <!-- FIXME add confirmation to cancel -->
-    <custom-toolbar back-label="Cancel" title="New individual observation">
+    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
     </custom-toolbar>
     <v-ons-list>
       <v-ons-list-header class="wow-list-header">Photos</v-ons-list-header>
-      <v-ons-list-item :modifier="md ? 'nodivider' : ''">
-        <!-- FIXME make it obvious this scrolls or just show all 6 items in a flex grid -->
-        <v-ons-carousel item-width="20%" swipeable overscrollable>
-          <v-ons-carousel-item
-            v-for="(curr, $index) of photoMenu"
-            :key="curr.name"
-            class="photo-item"
+      <div class="photo-container">
+        <div
+          v-for="(curr, $index) of photoMenu"
+          :key="curr.name"
+          class="photo-item"
+        >
+          <input
+            :id="'photo' + $index"
+            :ref="photoRef(curr)"
+            type="file"
+            :name="'photo' + $index"
+            accept="image/png, image/jpeg"
+            class="photo-button"
+            @change="onPhotoAdded(curr)"
+          />
+          <label :for="'photo' + $index">
+            <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
+            <div class="thumb-container">
+              <v-ons-icon
+                v-if="!photos[curr.id]"
+                class="the-icon"
+                icon="md-image-o"
+              ></v-ons-icon>
+              <div
+                v-if="photos[curr.id]"
+                :style="{
+                  'background-image': 'url(' + photos[curr.id].url + ')',
+                }"
+              ></div>
+            </div>
+            <div class="photo-label-text">{{ curr.name }}</div>
+          </label>
+        </div>
+      </div>
+      <!-- FIXME show conditionally, only when there are uploaded photos -->
+      <template v-if="uploadedPhotos.length">
+        <v-ons-list-item>
+          <div class="photo-title">Uploaded photos</div>
+        </v-ons-list-item>
+        <v-ons-list-item>
+          <div
+            v-for="curr of uploadedPhotos"
+            :key="curr.id"
+            class="uploaded-photo-item"
           >
-            <input
-              :id="'photo' + $index"
-              :ref="photoRef(curr)"
-              type="file"
-              :name="'photo' + $index"
-              accept="image/png, image/jpeg"
-              class="photo-button"
-              @change="onPhotoAdded(curr)"
-            />
-            <label :for="'photo' + $index">
-              <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
-              <div class="thumb-container">
-                <v-ons-icon
-                  v-if="!photos[curr.id]"
-                  class="the-icon"
-                  icon="md-image-o"
-                ></v-ons-icon>
-                <div
-                  v-if="photos[curr.id]"
-                  :style="{
-                    'background-image': 'url(' + photos[curr.id].url + ')',
-                  }"
-                ></div>
-              </div>
-              <div class="photo-label-text">{{ curr.name }}</div>
-            </label>
-          </v-ons-carousel-item>
-        </v-ons-carousel>
-      </v-ons-list-item>
+            <!-- TODO add click event to photo to open larger view -->
+            <img :src="curr.url" />
+            <div
+              class="text-center less-prominent"
+              @click="onDeleteUploadedPhoto(curr)"
+            >
+              <v-ons-icon icon="md-delete"></v-ons-icon>
+            </div>
+          </div>
+        </v-ons-list-item>
+      </template>
       <v-ons-list-header class="wow-list-header"
         >Species guess</v-ons-list-header
       >
@@ -154,6 +172,7 @@ export default {
       ],
       speciesGuess: null,
       photos: {},
+      uploadedPhotos: [],
       obsFieldValues: {},
       notes: null,
       isShowSpeciesAutocomplete: false,
@@ -191,19 +210,57 @@ export default {
       })
       return result
     },
+    isEdit() {
+      // TODO should be able to wire directly into the props:{} of
+      // this component but suspect Onsen gets in the way.
+      return this.$route.matched[0].props.default.isEdit
+    },
+    title() {
+      return this.isEdit ? 'Edit observation' : 'New observation'
+    },
   },
   mounted() {
-    this.$store.dispatch('obs/getObsFields').then(() => {
-      this.setDefaultAnswers()
-    })
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
       return accum
     }, {})
-    this.$store.dispatch('obs/markUserGeolocation')
+    if (this.isEdit) {
+      // pre-populate obs fields
+      const obsDetail = this.$store.getters['obs/observationDetail']
+      this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
+        accum[curr.fieldId] = curr.value
+        return accum
+      }, {})
+      if (obsDetail.speciesGuess) {
+        this.speciesGuess = obsDetail.speciesGuess
+      }
+      if (obsDetail.notes) {
+        this.notes = obsDetail.notes
+      }
+      // pre-populate photos
+      // FIXME we don't know what type any given photo is, how can we store
+      // this on the server? A do-not-edit obs field just for metadata?
+      this.uploadedPhotos = obsDetail.photos
+      // FIXME support changing, or at least showing, geolocation
+    } else {
+      // "new" mode
+      this.$store.dispatch('obs/getObsFields').then(() => {
+        this.setDefaultAnswers()
+      })
+      this.$store.dispatch('obs/markUserGeolocation')
+    }
   },
   methods: {
+    onCancel() {
+      // FIXME implement, is there anything to clean up or is it all local?
+    },
+    onDeleteUploadedPhoto(/*FIXME photoRecord*/) {
+      // FIXME implement
+      // FIXME should be able to delete by ID, save them up and do it on 'save'
+      // do we do DELETEs on the photos or just leave them out of the PUT for the obs record
+      alert('FIXME implement')
+    },
     setDefaultAnswers() {
       // FIXME are these defaults ok? Should we be smarter like picking the last used values?
       this.obsFieldValues = this.displayableObsFields.reduce((accum, curr) => {
@@ -223,12 +280,11 @@ export default {
             if (!currPhoto) {
               return accum
             }
-            // TODO can we also store "photo type" on the server?
-            accum.push(currPhoto.file)
+            accum.push({ type: curr.id, file: currPhoto.file })
             return accum
           }, []),
-          orchidType: this.selectedOrchidType,
-          species_guess: this.speciesGuess,
+          speciesGuess: this.speciesGuess,
+          // FIXME add placeGuess
           obsFieldValues: this.obsFieldValues,
           description: this.notes,
         }
@@ -241,7 +297,7 @@ export default {
             animation: 'ascend',
           })
         }, 800)
-        this.$store.commit('navigator/pop')
+        this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
       } catch (err) {
         // FIXME show failure to user, any info on how to fix it
         this.$ons.notification.alert('Something went wrong :(')
@@ -276,10 +332,18 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.photo-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .photo-item {
   background-color: #fff;
   border-radius: 4px;
   text-align: center;
+  flex-grow: 1;
+  /* TODO add media queries for larger res and more items per row */
+  width: 30%;
 }
 
 .photo-button {
@@ -347,5 +411,18 @@ export default {
   border-radius: 4px;
   width: 80%;
   height: 5em;
+}
+
+.less-prominent {
+  color: #686868;
+}
+
+.photo-title {
+  font-weight: bold;
+  margin-top: 1em;
+}
+
+.uploaded-photo-item {
+  margin: 0.25em 0.5em;
 }
 </style>

@@ -12,7 +12,10 @@
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
         <v-ons-list-header v-if="isWaitingForUpload"
-          >Waiting to upload</v-ons-list-header
+          >Waiting to upload
+          <span v-if="isUploadsDisabled"
+            >(Uploads disabled in settings)</span
+          ></v-ons-list-header
         >
         <!-- FIXME remove duplication from next section -->
         <!-- FIXME we can't push(curr.inatId) here, what do we do? -->
@@ -56,13 +59,7 @@
       <v-ons-action-sheet-button icon="fa-user-alt" @click="onIndividual"
         >Individual</v-ons-action-sheet-button
       >
-      <!-- TODO uncomment when we have support -->
-      <!-- <v-ons-action-sheet-button icon="fa-users" @click="onPopulation"       -->
-      <!--   >Population</v-ons-action-sheet-button                               -->
-      <!-- >                                                                      -->
-      <!-- <v-ons-action-sheet-button icon="fa-map-marked-alt" @click="onMapping" -->
-      <!--   >Mapping</v-ons-action-sheet-button                                  -->
-      <!-- >                                                                      -->
+      <!-- TODO support mapping records, and population if it needs a separate page -->
       <v-ons-action-sheet-button
         v-if="!md"
         icon="fa-map-marked-alt"
@@ -75,9 +72,6 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex'
-import Individual from '@/pages/new-obs/Individual'
-import Population from '@/pages/new-obs/Population'
-import Mapping from '@/pages/new-obs/Mapping'
 import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
@@ -88,10 +82,11 @@ export default {
     }
   },
   computed: {
+    ...mapGetters(['isUploadsDisabled']),
+    ...mapState('auth', ['apiToken']),
+    ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('obs', ['myObs', 'waitingToUploadRecords']),
     ...mapGetters('obs', ['isMyObsStale']),
-    ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapState('auth', ['apiToken']),
     isWaitingForUpload() {
       return (this.waitingToUploadRecords || []).length
     },
@@ -114,21 +109,13 @@ export default {
     },
     onIndividual() {
       this.isNewObsActionsVisible = false
-      this.$store.commit('navigator/push', Individual)
-    },
-    onPopulation() {
-      this.isNewObsActionsVisible = false
-      this.$store.commit('navigator/push', Population)
-    },
-    onMapping() {
-      this.isNewObsActionsVisible = false
-      this.$store.commit('navigator/push', Mapping)
+      this.$router.push({ name: 'ObsNew' })
     },
     firstPhoto(record) {
       if (!record || !record.photos || !record.photos.length) {
         return noImagePlaceholderUrl
       }
-      return record.photos[0]
+      return record.photos[0].url
     },
     speciesGuess(record) {
       return record.speciesGuess || '(No species name)'

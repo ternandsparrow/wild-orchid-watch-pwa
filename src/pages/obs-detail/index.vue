@@ -110,6 +110,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
+import { mainStack } from '@/misc/nav-stacks'
 
 export default {
   name: 'ObsDetail',
@@ -136,7 +137,7 @@ export default {
     },
     photos() {
       return (this.nullSafeObs.photos || []).map(e =>
-        e.replace('square', 'medium'),
+        e.url.replace('square', 'medium'),
       )
     },
     isShowDots() {
@@ -180,7 +181,7 @@ export default {
                 return
               }
               this.$store.dispatch('obs/deleteSelectedRecord')
-              this.$store.commit('navigator/pop')
+              mainStack.pop()
             })
         },
       }
@@ -192,12 +193,13 @@ export default {
         })
         .then(selIndex => {
           const key = Object.keys(menu)[selIndex]
-          menu[key]()
+          const selectedItemFn = menu[key]
+          selectedItemFn && selectedItemFn()
         })
     },
     onEdit() {
-      // FIXME swap to edit mode
-      this.$ons.notification.alert('FIXME swap to edit mode')
+      const obsId = this.nullSafeObs.inatId // FIXME need to also check .id for local-only records
+      this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
     },
   },
 }

@@ -7,6 +7,9 @@ import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/index'
 import Admin from '@/pages/Admin'
 import NotFound from '@/pages/NotFound'
+import Individual from '@/pages/new-obs/Individual'
+import Onboarder from '@/pages/Onboarder'
+import { mainStackReplace } from '@/misc/nav-stacks'
 
 Vue.use(VueRouter)
 
@@ -27,14 +30,29 @@ const router = new VueRouter({
       path: '/obs/:id(\\d+)',
       name: 'ObsDetail',
       component: ObsDetail,
-      beforeEnter(to, from, next) {
-        const obsId = parseInt(to.params.id)
-        store.commit('obs/setSelectedObservationId', obsId)
-        if (!store.getters['obs/observationDetail']) {
-          return next({ name: 'NotFound', replace: true })
-        }
-        return next()
+      beforeEnter: resolveObsByIdOrNotFound,
+    },
+    {
+      path: '/obs/:id(\\d+)/edit',
+      name: 'ObsEdit',
+      component: Individual,
+      beforeEnter: resolveObsByIdOrNotFound,
+      props: {
+        isEdit: true,
       },
+    },
+    {
+      path: '/obs/new',
+      name: 'ObsNew',
+      component: Individual,
+      props: {
+        isEdit: false,
+      },
+    },
+    {
+      path: '/onboarder',
+      name: 'Onboarder',
+      component: Onboarder,
     },
     {
       path: '/zzadmin',
@@ -55,8 +73,18 @@ const router = new VueRouter({
 
 router.beforeEach((to, from, next) => {
   // Reset pageStack to the new route
-  store.commit('navigator/reset', to.matched.map(m => m.components.default))
+  const matchedComponents = to.matched.map(m => m.components.default)
+  mainStackReplace(matchedComponents)
   next()
 })
+
+function resolveObsByIdOrNotFound(to, from, next) {
+  const obsId = parseInt(to.params.id)
+  store.commit('obs/setSelectedObservationId', obsId)
+  if (!store.getters['obs/observationDetail']) {
+    return next({ name: 'NotFound', replace: true })
+  }
+  return next()
+}
 
 export default router

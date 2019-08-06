@@ -36,3 +36,7 @@ export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder.png'
 export const onboarderComponentName = 'Onboarder'
 
 export const oauthCallbackComponentName = 'OauthCallback'
+
+export const alwaysUpload = 'ALWAYS'
+
+export const neverUpload = 'NEVER'

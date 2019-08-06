@@ -65,10 +65,11 @@
 import { mapGetters } from 'vuex'
 
 import Observations from '@/pages/obs/index'
-import Activity from '@/pages/activity/index'
-import Missions from '@/pages/missions/index'
+// import Activity from '@/pages/activity/index'
+// import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
 import { appVersion, isDeployedToProd } from '@/misc/constants'
+import { innerPageStackReplace } from '@/misc/nav-stacks'
 
 export default {
   data() {
@@ -110,16 +111,17 @@ export default {
           icon: 'ion-home, material:md-home',
           component: Observations,
         },
-        {
-          title: 'Missions',
-          icon: 'md-compass',
-          component: Missions,
-        },
-        {
-          title: 'Activity',
-          icon: 'md-accounts-alt',
-          component: Activity,
-        },
+        // FIXME uncomment when they have real content
+        // {
+        //   title: 'Missions',
+        //   icon: 'md-compass',
+        //   component: Missions,
+        // },
+        // {
+        //   title: 'Activity',
+        //   icon: 'md-accounts-alt',
+        //   component: Activity,
+        // },
         {
           title: 'Settings',
           icon: 'md-settings',
@@ -137,7 +139,7 @@ export default {
   methods: {
     loadView(index) {
       const component = this.access[index].component
-      this.$store.commit('navigator/pushInnerPage', component)
+      innerPageStackReplace(component) // TODO are we happy with no back for these pages?
       this.$store.commit('splitter/toggle')
     },
     loadLink(url) {
