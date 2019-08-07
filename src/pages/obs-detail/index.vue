@@ -66,12 +66,12 @@
         <v-ons-list>
           <template v-for="curr of nullSafeObs.obsFieldValues">
             <v-ons-list-header
-              :key="curr.id + '-header'"
+              :key="curr.fieldId + '-header'"
               class="wow-list-header"
               >{{ curr.name }}</v-ons-list-header
             >
             <v-ons-list-item
-              :key="curr.id + '-value'"
+              :key="curr.fieldId + '-value'"
               modifier="nodivider"
               class="wow-list-item"
             >
@@ -110,7 +110,6 @@
 <script>
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
-import { mainStack } from '@/misc/nav-stacks'
 
 export default {
   name: 'ObsDetail',
@@ -181,7 +180,7 @@ export default {
                 return
               }
               this.$store.dispatch('obs/deleteSelectedRecord')
-              mainStack.pop()
+              this.$router.push({ name: 'Home' })
             })
         },
       }

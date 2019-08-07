@@ -44,6 +44,79 @@ describe('isRespJson', () => {
   })
 })
 
+describe('verifyWowDomainPhoto', () => {
+  it('should pass a valid record', () => {
+    const record = {
+      id: 1,
+      url: 'http://blah',
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    _testonly.verifyWowDomainPhoto(record)
+    // expect nothing is thrown
+  })
+
+  it('should fail a record missing an ID', () => {
+    const record = {
+      // no 'id'
+      url: 'http://blah',
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing a URL', () => {
+    const record = {
+      id: 33,
+      // no URL
+      licenseCode: 'cc-by-nc',
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing a license code', () => {
+    const record = {
+      id: 33,
+      url: 'http://some.ph/oto.jpg',
+      // no licenseCode
+      attribution: '(c) user, some rights reserved (CC BY-NC)',
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should fail a record missing an attribution', () => {
+    const record = {
+      id: 33,
+      url: 'http://some.ph/oto.jpg',
+      licenseCode: 'cc-by-nc',
+      // no attribution
+    }
+    try {
+      _testonly.verifyWowDomainPhoto(record)
+      fail('error should have been thrown')
+    } catch (err) {
+      // success
+    }
+  })
+})
+
 function mockResp(mimeStr) {
   return {
     headers: {

@@ -7,10 +7,12 @@ import CarouselDots from '@/partials/CarouselDots'
 import CustomToolbar from '@/partials/CustomToolbar'
 import GoogleMap from '@/components/googleMap'
 import NoRecordsMsg from '@/partials/NoRecordsMsg'
+import ObsList from '@/partials/ObsList'
 import RelativeTabbar from '@/partials/RelativeTabbar'
 
 Vue.component('carousel-dots', CarouselDots)
 Vue.component('custom-toolbar', CustomToolbar)
 Vue.component('google-map', GoogleMap)
 Vue.component('no-records-msg', NoRecordsMsg)
+Vue.component('obs-list', ObsList)
 Vue.component('relative-tabbar', RelativeTabbar)

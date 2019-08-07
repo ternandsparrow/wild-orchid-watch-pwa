@@ -12,10 +12,11 @@ import {
 } from '@/misc/constants'
 import {
   chainedError,
+  deleteWithAuth,
   getJsonWithAuth,
   now,
-  postJsonWithAuth,
   postFormDataWithAuth,
+  postJsonWithAuth,
 } from '@/misc/helpers'
 
 let updateApiTokenPromise = null
@@ -92,6 +93,22 @@ export default {
         // TODO if we get a 401, could refresh token and retry
         throw chainedError(
           `Failed to make GET to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
+    async doApiDelete({ state, dispatch }, { urlSuffix }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await deleteWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to make DELETE to API with URL suffix='${urlSuffix}'`,
           err,
         )
       }

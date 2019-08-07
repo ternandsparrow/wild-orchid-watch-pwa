@@ -157,6 +157,10 @@
 
 <script>
 import { mapState } from 'vuex'
+import { verifyWowDomainPhoto } from '@/misc/helpers'
+
+// TODO add a guard for page refresh to warn about lost changes, mainly for
+// webpage users
 
 export default {
   name: 'Individual',
@@ -176,6 +180,7 @@ export default {
       obsFieldValues: {},
       notes: null,
       isShowSpeciesAutocomplete: false,
+      photoIdsToDelete: [],
     }
   },
   computed: {
@@ -183,10 +188,10 @@ export default {
     displayableObsFields() {
       // TODO create config file in /public so the client updates it more
       // frequently than the app code itself
-      // FIXME filter out when orchidType !== epiphyte
+      // FIXME set invisible flag when orchidType !== epiphyte
       //   - host tree species
       //   - epiphyte height
-      // FIXME filter out when doing individual
+      // FIXME set invisible flag when doing individual
       //   - accuracy of count
       //   - count of individuals recorded
       const clonedObsFields = this.obsFields.slice(0)
@@ -255,11 +260,10 @@ export default {
     onCancel() {
       // FIXME implement, is there anything to clean up or is it all local?
     },
-    onDeleteUploadedPhoto(/*FIXME photoRecord*/) {
-      // FIXME implement
-      // FIXME should be able to delete by ID, save them up and do it on 'save'
-      // do we do DELETEs on the photos or just leave them out of the PUT for the obs record
-      alert('FIXME implement')
+    onDeleteUploadedPhoto(record) {
+      const id = record.id
+      this.photoIdsToDelete.push(id)
+      this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
     },
     setDefaultAnswers() {
       // FIXME are these defaults ok? Should we be smarter like picking the last used values?
@@ -273,19 +277,60 @@ export default {
       }, {})
     },
     async onSave() {
+      if (this.isEdit) {
+        this.$ons.notification.alert('FIXME - implement save for edit')
+        return
+        // FIXME phase 1: just PUT what we have. Phase 2: check if we need to do the PUT first
+        // FIXME use this code to delete photos:
+        // this.photoIdsToDelete.forEach(id => {
+        //   await this.$store.dispatch(
+        //     'doApiDelete',
+        //     { urlSuffix: `/observation_photos/${id}` },
+        //   )
+        // })
+      }
       try {
         const record = {
-          photos: this.photoMenu.reduce((accum, curr) => {
+          photos: this.photoMenu.reduce((accum, curr, $index) => {
             const currPhoto = this.photos[curr.id]
             if (!currPhoto) {
               return accum
             }
-            accum.push({ type: curr.id, file: currPhoto.file })
+            const tempId = -1 + $index
+            const photo = {
+              id: tempId,
+              url: '(set at render time)',
+              type: curr.id,
+              file: currPhoto.file,
+              // TODO read and use user's default settings for these:
+              licenseCode: 'default',
+              attribution: 'default',
+            }
+            verifyWowDomainPhoto(photo)
+            accum.push(photo)
             return accum
           }, []),
           speciesGuess: this.speciesGuess,
           // FIXME add placeGuess
-          obsFieldValues: this.obsFieldValues,
+          obsFieldValues: Object.keys(this.obsFieldValues).reduce(
+            (accum, currKey) => {
+              const obsFieldDef = this.displayableObsFields.find(
+                e => e.id == currKey,
+              )
+              if (!obsFieldDef) {
+                // FIXME notify Sentry of error, but do we push on an either
+                // hide this element or show an error message?
+              }
+              accum.push({
+                fieldId: parseInt(currKey),
+                name: obsFieldDef.name,
+                value: this.obsFieldValues[currKey],
+                datatype: obsFieldDef.datatype,
+              })
+              return accum
+            },
+            [],
+          ),
           description: this.notes,
         }
         this.$store.dispatch('obs/saveAndUploadIndividual', record)

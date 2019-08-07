@@ -27,13 +27,13 @@ const router = new VueRouter({
       component: OauthCallback,
     },
     {
-      path: '/obs/:id(\\d+)',
+      path: '/obs/:id(-?\\d+)',
       name: 'ObsDetail',
       component: ObsDetail,
       beforeEnter: resolveObsByIdOrNotFound,
     },
     {
-      path: '/obs/:id(\\d+)/edit',
+      path: '/obs/:id(-?\\d+)/edit',
       name: 'ObsEdit',
       component: Individual,
       beforeEnter: resolveObsByIdOrNotFound,

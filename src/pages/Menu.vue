@@ -140,7 +140,7 @@ export default {
     loadView(index) {
       const component = this.access[index].component
       innerPageStackReplace(component) // TODO are we happy with no back for these pages?
-      this.$store.commit('splitter/toggle')
+      this.$store.commit('ephemeral/toggleSplitter')
     },
     loadLink(url) {
       window.open(url, '_blank')
@@ -160,7 +160,7 @@ export default {
         return
       }
       this.$router.push({ name: 'Admin' })
-      this.$store.commit('splitter/toggle')
+      this.$store.commit('ephemeral/toggleSplitter')
     },
   },
 }

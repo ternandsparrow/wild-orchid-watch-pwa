@@ -73,6 +73,18 @@ export function getJsonWithAuth(url, authHeaderValue) {
   }).then(handleResp)
 }
 
+export function deleteWithAuth(url, authHeaderValue) {
+  return fetch(url, {
+    method: 'DELETE',
+    mode: 'cors',
+    cache: 'no-store',
+    headers: {
+      ...jsonHeaders,
+      Authorization: authHeaderValue,
+    },
+  }).then(handleResp)
+}
+
 async function handleResp(resp) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok
@@ -99,12 +111,42 @@ async function handleResp(resp) {
   })
 }
 
+/**
+ * Assert that the record matches our schema.
+ *
+ * Using a verifier seems more maintainable than a mapper function. A mapper
+ * would have a growing list of either unnamed params or named params which
+ * would already be the result object. A verifier lets your freehand map the
+ * object but it still shows linkage between all the locations we do mapping
+ * (hopefully not many).
+ */
+export function verifyWowDomainPhoto(photo) {
+  let msg = ''
+  assertFieldPresent('id')
+  assertFieldPresent('url')
+  assertFieldPresent('licenseCode')
+  assertFieldPresent('attribution')
+  if (msg) {
+    throw new Error(msg)
+  }
+  return
+  function assertFieldPresent(fieldName) {
+    photo[fieldName] || (msg += `'${fieldName}' is missing. `)
+  }
+}
+
 function isRespJson(resp) {
   const mimeStr = resp.headers.get('Content-Type') || ''
   return /application\/(\w+(\.\w+)*\+)?json/.test(mimeStr)
 }
 
 export function chainedError(msg, err) {
+  if (!err) {
+    return new Error(
+      `${msg}\nError while handling error: chainedError` +
+        ` was called without an error to chain`,
+    )
+  }
   err.message = `${msg}\nCaused by: ${err.message}`
   return err
 }
@@ -115,4 +157,5 @@ export function now() {
 
 export const _testonly = {
   isRespJson,
+  verifyWowDomainPhoto,
 }

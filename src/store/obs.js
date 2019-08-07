@@ -5,7 +5,7 @@ import {
   obsFieldPrefix,
   obsFieldSeparatorChar,
 } from '@/misc/constants'
-import { now } from '@/misc/helpers'
+import { now, chainedError, verifyWowDomainPhoto } from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
 const NOT_UPLOADED = -1
@@ -18,6 +18,7 @@ const state = {
   locAccuracy: null,
   myObs: [],
   myObsLastUpdated: null,
+  isUpdatingMyObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: null,
   obsFields: [],
@@ -39,6 +40,7 @@ const mutations = {
     state.myObsLastUpdated = now()
   },
   setTab: (state, value) => (state.tabIndex = value),
+  setIsUpdatingMyObs: (state, value) => (state.isUpdatingMyObs = value),
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
   setLat: (state, value) => (state.lat = value),
@@ -51,8 +53,9 @@ const mutations = {
 
 const actions = {
   async getMyObs({ commit, dispatch, rootGetters }) {
-    commit('setMyObs', [])
+    commit('setIsUpdatingMyObs', true)
     const myUserId = rootGetters.myUserId
+    // TODO look at only pulling "new" records to save on bandwidth
     const urlSuffix = `/observations?user_id=${myUserId}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
@@ -65,10 +68,11 @@ const actions = {
         { root: true },
       )
       return false
+    } finally {
+      commit('setIsUpdatingMyObs', false)
     }
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
-    commit('setMySpecies', [])
     const myUserId = rootGetters.myUserId
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}`
     try {
@@ -223,28 +227,16 @@ const actions = {
     // FIXME how do we handle dev or no service worker support?
     // FIXME remove the following workaround when we have background sync working
     if (!rootGetters['canUploadNow']) {
-      // FIXME need to still *schedule* uploads
       return
     }
     const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
     for (const currId of waitingToUploadIds) {
       try {
         const dbRecord = await db.obs.get(currId)
-        const ignoredKeys = ['id', 'photos', 'updatedAt']
-        // FIXME replace following with mapObsFromOurIntoApiDomain
-        const apiRecord = {
-          ignore_photos: true,
-          observation: Object.keys(dbRecord).reduce((accum, currKey) => {
-            const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
-            if (isNotIgnored) {
-              accum[currKey] = dbRecord[currKey]
-            }
-            return accum
-          }, {}),
-        }
+        const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
         const obsResp = await dispatch(
           'doApiPost',
-          { urlSuffix: '/observations', data: apiRecord },
+          { urlSuffix: '/observations', data: apiRecords.observationPostBody },
           { root: true },
         )
         const newRecordId = obsResp.id
@@ -258,41 +250,39 @@ const actions = {
             `Dexie update operation to set updatedAt for (Dexie) ID='${currId}' failed`,
           )
         }
-        for (const curr of dbRecord.photos) {
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          // TODO go parallel
           // TODO can we also store "photo type", curr.type, on the server?
           await dispatch(
             'doPhotoPost',
             {
               obsId: newRecordId,
-              photoBlob: curr.file,
+              ...curr,
             },
             { root: true },
           )
           // FIXME trap one photo failure so others can still try
         }
-        for (const currId of Object.keys(dbRecord.obsFieldValues)) {
+        for (const curr of apiRecords.obsFieldPostBodyPartials) {
+          // TODO go parallel
           await dispatch(
             'doApiPost',
             {
               urlSuffix: '/observation_field_values',
               data: {
                 observation_id: newRecordId,
-                observation_field_id: currId,
-                // TODO do we need to filter out null value?
-                value: dbRecord.obsFieldValues[currId],
+                ...curr,
               },
             },
             { root: true },
           )
           // FIXME trap one failure so others can still try
         }
-        // FIXME once we know that all parts have uploaded correctly:
-        //  - replace the Vuex/Dexie record with freshly pulled
-        //    record that has been mapped
-        // FIXME consider doing another GET for the new obs and storing the
-        // result, rather than trying to save the response for each piece as we
-        // get it. Or we might be able to wait until all operations are
-        // complete and refresh the whole list of obs at once
+        // TODO are we confident that everything has worked? Do we need to go
+        // further like setting a UUID on this record then waiting until we see
+        // if come back down when we request the latest obs, then delete? If we
+        // do this, we need to set a flag on the DB record to hide it from UI
+        await deleteDexieRecordById(dbRecord.id)
       } catch (err) {
         dispatch(
           'flagGlobalError',
@@ -307,11 +297,44 @@ const actions = {
       }
     }
   },
-  async deleteSelectedRecord({ state, dispatch }) {
+  async deleteSelectedRecord({ state, dispatch, commit }) {
     const recordId = state.selectedObservationId
-    await db.obs.delete(recordId)
-    await dispatch('refreshWaitingToUpload')
+    if (isWaitingToUploadRecord(recordId)) {
+      const dexieId = localObsIdToDexieId(recordId)
+      await deleteDexieRecordById(dexieId)
+      // FIXME handle when in process of uploading, maybe queue delete operation?
+      await dispatch('refreshWaitingToUpload')
+    } else {
+      // FIXME handle when offline
+      const { photos } = state.myObs.find(e => e.inatId === recordId)
+      const myObsWithoutDeleted = state.myObs.filter(e => e.inatId !== recordId)
+      commit('setMyObs', myObsWithoutDeleted)
+      commit('setIsUpdatingMyObs', true)
+      photos.forEach(async p => {
+        await dispatch(
+          'doApiDelete',
+          { urlSuffix: `/observation_photos/${p.id}` },
+          { root: true },
+        )
+      })
+      await dispatch(
+        'doApiDelete',
+        { urlSuffix: `/observations/${recordId}` },
+        { root: true },
+      )
+      await dispatch('getMyObs')
+      dispatch('getMySpecies')
+    }
+    commit('setSelectedObservationId', null)
   },
+}
+
+async function deleteDexieRecordById(id) {
+  try {
+    return db.obs.delete(id)
+  } catch (err) {
+    throw chainedError(`Failed to delete dexie record with ID='${id}'`, err)
+  }
 }
 
 const getters = {
@@ -322,6 +345,14 @@ const getters = {
   },
   isMyObsStale: buildStaleCheckerFn('myObsLastUpdated'),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated'),
+}
+
+function localObsIdToDexieId(id) {
+  return Math.abs(id)
+}
+
+function isWaitingToUploadRecord(id) {
+  return id < 0
 }
 
 function buildStaleCheckerFn(stateKey) {
@@ -342,23 +373,17 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
     .toArray(records => {
       revokeExistingObjectUrls() // FIXME might be calling wrongly, getting a 404-ish
       return records.map(e => {
-        // FIXME this should be pretty much straight from the DB as we persist
-        // in our internal schema. We will still need to generate the photo
-        // ObjectURLs
-        const photos = e.photos.map((p, $index) => {
-          const tempId = e.id * 100 * -1 + $index
+        const photos = e.photos.map(p => {
           const objectUrl = mintObjectUrl(p.file)
           const result = {
-            id: tempId,
+            ...p,
             url: objectUrl,
-            licenseCode: 'FIXME', // FIXME set this to our default, from config?
-            attribution: 'FIXME', // FIXME set this to our default, from config?
           }
-          verifyWowDomainPhoto(result)
           return result
         })
         return {
           ...e,
+          inatId: -1 * e.id,
           photos,
         }
       })
@@ -441,7 +466,6 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.speciesGuess = obsFromApi.species_guess
   const obsFieldValues = obsFromApi.ofvs.map(o => {
     return {
-      id: o.id, // FIXME do we need this instance ID for anything?
       fieldId: o.field_id,
       datatype: o.datatype,
       name: processObsFieldName(o.name),
@@ -457,31 +481,48 @@ function processObsFieldName(fieldName) {
   return (fieldName || '').replace(obsFieldPrefix, '')
 }
 
-/**
- * Assert that the record matches our schema.
- *
- * Using a verifier seems more maintainable than a mapper function. A mapper
- * would have a growing list of either unnamed params or named params which
- * would already be the result object. A verifier lets your freehand map the
- * object but it still shows linkage between all the locations we do mapping
- * (hopefully not many).
- */
-function verifyWowDomainPhoto(photo) {
-  let msg = ''
-  assertFieldPresent('id')
-  assertFieldPresent('url')
-  assertFieldPresent('licenseCode')
-  assertFieldPresent('attribution')
-  if (msg) {
-    throw new Error(msg)
+function mapObsFromOurDomainOntoApi(dbRecord) {
+  const ignoredKeys = [
+    'id',
+    'photos',
+    'updatedAt',
+    'obsFieldValues',
+    'speciesGuess',
+    'placeGuess',
+    'createdAt',
+  ]
+  const result = {}
+  result.observationPostBody = {
+    ignore_photos: true,
+    observation: Object.keys(dbRecord).reduce(
+      (accum, currKey) => {
+        const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
+        const value = dbRecord[currKey]
+        if (isNotIgnored && isAnswer(value)) {
+          accum[currKey] = value
+        }
+        return accum
+      },
+      {
+        species_guess: dbRecord.speciesGuess,
+        created_at: dbRecord.createdAt,
+      },
+    ),
   }
-  return
-  function assertFieldPresent(fieldName) {
-    photo[fieldName] || (msg += `'${fieldName}' is missing. `)
-  }
+  result.obsFieldPostBodyPartials = dbRecord.obsFieldValues.map(e => ({
+    observation_field_id: e.fieldId,
+    value: e.value,
+  }))
+  result.photoPostBodyPartials = dbRecord.photos.map(e => ({
+    photoBlob: e.file,
+  }))
+  return result
+}
+
+function isAnswer(val) {
+  return ['undefined', 'null'].indexOf(typeof val) < 0
 }
 
 export const _testonly = {
   mapObsFromApiIntoOurDomain,
-  verifyWowDomainPhoto,
 }

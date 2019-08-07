@@ -14,6 +14,7 @@ const state = {
   showAddToHomeScreenModalForApple: false,
   swReg: null, // current sw
   SWRegistrationForNewContent: null, // new, waiting sw
+  isSplitterOpen: false,
 }
 
 const mutations = {
@@ -24,6 +25,13 @@ const mutations = {
     (state.showAddToHomeScreenModalForApple = value),
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
   setServiceWorkerRegistration: (state, value) => (state.swReg = value),
+  toggleSplitter(state, shouldOpen) {
+    if (typeof shouldOpen === 'boolean') {
+      state.isSplitterOpen = shouldOpen
+    } else {
+      state.isSplitterOpen = !state.open
+    }
+  },
 }
 
 const actions = {

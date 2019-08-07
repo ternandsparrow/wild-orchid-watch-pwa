@@ -71,6 +71,7 @@ export default {
       },
       set(newValue) {
         this.$store.commit('app/setWhenToUpload', newValue)
+        this.$store.dispatch('obs/scheduleUpload')
       },
     },
   },

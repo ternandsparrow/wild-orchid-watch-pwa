@@ -46,10 +46,10 @@ export default {
     ...mapState('app', ['topTitle', 'isFirstRun']),
     isOpen: {
       get() {
-        return this.$store.state.splitter.open
+        return this.$store.state.ephemeral.isSplitterOpen
       },
       set(newValue) {
-        this.$store.commit('splitter/toggle', newValue)
+        this.$store.commit('ephemeral/toggleSplitter', newValue)
       },
     },
   },
@@ -61,7 +61,7 @@ export default {
   },
   methods: {
     onMenuClick() {
-      this.$store.commit('splitter/toggle')
+      this.$store.commit('ephemeral/toggleSplitter')
     },
   },
 }

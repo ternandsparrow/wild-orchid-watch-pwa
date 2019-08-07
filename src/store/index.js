@@ -43,6 +43,9 @@ const store = new Vuex.Store({
     doPhotoPost({ dispatch }, argObj) {
       return dispatch('auth/doPhotoPost', argObj)
     },
+    doApiDelete({ dispatch }, argObj) {
+      return dispatch('auth/doApiDelete', argObj)
+    },
     flagGlobalError({ commit }, { msg, err }) {
       commit('_flagGlobalError')
       wowErrorHandler(msg, err)
@@ -68,22 +71,6 @@ const store = new Vuex.Store({
     ephemeral,
     missions,
     obs,
-    splitter: {
-      strict: true,
-      namespaced: true,
-      state: {
-        open: false,
-      },
-      mutations: {
-        toggle(state, shouldOpen) {
-          if (typeof shouldOpen === 'boolean') {
-            state.open = shouldOpen
-          } else {
-            state.open = !state.open
-          }
-        },
-      },
-    },
   },
 })
 
