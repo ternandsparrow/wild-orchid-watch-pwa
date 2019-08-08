@@ -68,9 +68,13 @@ import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
 // import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
-import { appVersion, isDeployedToProd } from '@/misc/constants'
+import {
+  appVersion,
+  isDeployedToProd,
+  inatUrlBase,
+  inatProjectSlug,
+} from '@/misc/constants'
 import { innerPageStackReplace } from '@/misc/nav-stacks'
-import { inatUrlBase, inatProjectSlug } from '@/misc/constants'
 
 export default {
   data() {

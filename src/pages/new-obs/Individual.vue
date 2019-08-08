@@ -230,13 +230,16 @@ export default {
       accum[curr.id] = null
       return accum
     }, {})
+    const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
     if (this.isEdit) {
-      // pre-populate obs fields
       const obsDetail = this.$store.getters['obs/observationDetail']
-      this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
-        accum[curr.fieldId] = curr.value
-        return accum
-      }, {})
+      obsFieldsPromise.then(() => {
+        // pre-populate obs fields
+        this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
+          accum[curr.fieldId] = curr.value
+          return accum
+        }, {})
+      })
       if (obsDetail.speciesGuess) {
         this.speciesGuess = obsDetail.speciesGuess
       }
@@ -250,7 +253,7 @@ export default {
       // FIXME support changing, or at least showing, geolocation
     } else {
       // "new" mode
-      this.$store.dispatch('obs/getObsFields').then(() => {
+      obsFieldsPromise.then(() => {
         this.setDefaultAnswers()
       })
       this.$store.dispatch('obs/markUserGeolocation')
@@ -277,18 +280,6 @@ export default {
       }, {})
     },
     async onSave() {
-      if (this.isEdit) {
-        this.$ons.notification.alert('FIXME - implement save for edit')
-        return
-        // FIXME phase 1: just PUT what we have. Phase 2: check if we need to do the PUT first
-        // FIXME use this code to delete photos:
-        // this.photoIdsToDelete.forEach(id => {
-        //   await this.$store.dispatch(
-        //     'doApiDelete',
-        //     { urlSuffix: `/observation_photos/${id}` },
-        //   )
-        // })
-      }
       try {
         const record = {
           photos: this.photoMenu.reduce((accum, curr, $index) => {
@@ -296,7 +287,7 @@ export default {
             if (!currPhoto) {
               return accum
             }
-            const tempId = -1 + $index
+            const tempId = -1 * $index
             const photo = {
               id: tempId,
               url: '(set at render time)',
@@ -318,8 +309,9 @@ export default {
                 e => e.id == currKey,
               )
               if (!obsFieldDef) {
-                // FIXME notify Sentry of error, but do we push on an either
-                // hide this element or show an error message?
+                // FIXME notify Sentry of error, but do we push on? And if so,
+                // do we either hide this element or show an error message inplace
+                // of it?
               }
               accum.push({
                 fieldId: parseInt(currKey),
@@ -333,20 +325,31 @@ export default {
           ),
           description: this.notes,
         }
-        this.$store.dispatch('obs/saveAndUploadIndividual', record)
+        if (this.isEdit) {
+          // FIXME check if anything has changed before continuing
+          await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
+            record,
+            existingRecordId: this.$store.state.obs.selectedObservationId,
+            photoIdsToDelete: this.photoIdsToDelete,
+            // FIXME what about setting optional obs fields to have no value? DELETE them?
+          })
+        } else {
+          await this.$store.dispatch('obs/saveAndScheduleUpload', record)
+        }
         setTimeout(() => {
           // FIXME should this say something about uploading (or not if
           // offline)? We don't want to confuse "saved" with "uploaded to inat"
           this.$ons.notification.toast('Successfully saved', {
             timeout: 5000,
             animation: 'ascend',
+            // TODO add dismiss button
           })
         }, 800)
         this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
       } catch (err) {
         // FIXME show failure to user, any info on how to fix it
         this.$ons.notification.alert('Something went wrong :(')
-        throw err
+        throw err // FIXME show alert AND throw? Can we use the global error catcher?
       }
     },
     onPhotoAdded(photoDefObj) {

@@ -43,6 +43,18 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   }).then(handleResp)
 }
 
+export function putJsonWithAuth(url, data = {}, authHeaderValue) {
+  return fetch(url, {
+    method: 'PUT',
+    mode: 'cors',
+    headers: {
+      ...jsonHeaders,
+      Authorization: authHeaderValue,
+    },
+    body: JSON.stringify(data),
+  }).then(handleResp)
+}
+
 export function postFormDataWithAuth(
   url,
   populateFormDataCallback,
@@ -131,7 +143,8 @@ export function verifyWowDomainPhoto(photo) {
   }
   return
   function assertFieldPresent(fieldName) {
-    photo[fieldName] || (msg += `'${fieldName}' is missing. `)
+    photo[fieldName] ||
+      (msg += `Invalid photo record, '${fieldName}' is missing. `)
   }
 }
 

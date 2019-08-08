@@ -40,6 +40,9 @@ const store = new Vuex.Store({
     doApiPost({ dispatch }, argObj) {
       return dispatch('auth/doApiPost', argObj)
     },
+    doApiPut({ dispatch }, argObj) {
+      return dispatch('auth/doApiPut', argObj)
+    },
     doPhotoPost({ dispatch }, argObj) {
       return dispatch('auth/doPhotoPost', argObj)
     },

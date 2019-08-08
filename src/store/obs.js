@@ -26,6 +26,8 @@ const state = {
   speciesAutocompleteItems: [],
   tabIndex: 0,
   waitingToUploadRecords: [],
+  projectInfo: null,
+  projectInfoLastUpdated: null,
 }
 
 const mutations = {
@@ -38,6 +40,10 @@ const mutations = {
   setMyObs: (state, value) => {
     state.myObs = value
     state.myObsLastUpdated = now()
+  },
+  setProjectInfo: (state, value) => {
+    state.projectInfo = value
+    state.projectInfoLastUpdated = now()
   },
   setTab: (state, value) => (state.tabIndex = value),
   setIsUpdatingMyObs: (state, value) => (state.isUpdatingMyObs = value),
@@ -56,7 +62,7 @@ const actions = {
     commit('setIsUpdatingMyObs', true)
     const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
-    const urlSuffix = `/observations?user_id=${myUserId}`
+    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
@@ -74,7 +80,7 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations/species_counts?user_id=${myUserId}`
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
@@ -118,30 +124,47 @@ const actions = {
       },
     )
   },
-  async getObsFields({ commit }) {
-    commit('setObsFields', [])
+  async getProjectInfoUsingCache({ state, dispatch }) {
+    // TODO add logic to periodically refresh this (once a day?)
+    const alreadyCachedResult = state.projectInfo
+    if (alreadyCachedResult) {
+      return alreadyCachedResult
+    }
+    return dispatch('getProjectInfo')
+  },
+  async getProjectInfo({ state, commit }) {
     const url = apiUrlBase + '/projects/' + inatProjectSlug
-    const fields = await fetchSingleRecord(url).then(function(d) {
-      if (!d) {
-        return null
+    try {
+      const projectInfo = await fetchSingleRecord(url)
+      if (!projectInfo) {
+        throw new Error(
+          'Request to get project info was successful, but ' +
+            `contained no result, cannot continue, projectInfo='${projectInfo}'`,
+        )
       }
-      // TODO should we store the other project info too?
-      // FIXME should we read project_observation_rules to get required fields?
-      return d.project_observation_fields.map(e => {
-        const f = e.observation_field
-        return {
-          id: f.id,
-          position: e.position,
-          required: e.required,
-          name: processObsFieldName(f.name),
-          description: f.description,
-          datatype: f.datatype,
-          allowedValues: (f.allowed_values || '')
-            .split(obsFieldSeparatorChar)
-            .filter(x => !!x) // remove zero length strings
-            .sort(),
-        }
-      })
+      commit('setProjectInfo', projectInfo)
+      return state.projectInfo
+    } catch (err) {
+      throw chainedError('Failed to get project info', err)
+    }
+  },
+  async getObsFields({ commit, dispatch }) {
+    const projectInfo = await dispatch('getProjectInfoUsingCache')
+    const fields = projectInfo.project_observation_fields.map(field => {
+      // we have the field definition *and* the relationship to the project
+      const obsField = field.observation_field
+      return {
+        id: obsField.id,
+        position: field.position,
+        required: field.required,
+        name: processObsFieldName(obsField.name),
+        description: obsField.description,
+        datatype: obsField.datatype,
+        allowedValues: (obsField.allowed_values || '')
+          .split(obsFieldSeparatorChar)
+          .filter(x => !!x) // remove zero length strings
+          .sort(),
+      }
     })
     commit('setObsFields', fields)
   },
@@ -171,7 +194,72 @@ const actions = {
       return false
     }
   },
-  async saveAndUploadIndividual({ dispatch, state }, record) {
+  async saveEditAndScheduleUpdate(
+    { dispatch },
+    { record, photoIdsToDelete, existingRecordId },
+  ) {
+    // TODO Can we schedule this by
+    //   - updating the DB now
+    //   - keep a table of operations to perform that hold things like photoIdsToDelete
+    // FIXME handle errors
+    // FIXME not actually scheduling, we're doing it now
+    await Promise.all(
+      photoIdsToDelete.map(id => {
+        return dispatch(
+          'doApiDelete',
+          {
+            urlSuffix: `/observation_photos/${id}`,
+          },
+          { root: true },
+        )
+      }),
+    )
+    // FIXME de-dupe with stuff in save function
+    // FIXME need to do merge
+    //   - use our fields that can change
+    //   - use fields from server that we need
+    //   - set relevant fields: updated at
+    const apiRecords = mapObsFromOurDomainOntoApi(record)
+    await dispatch(
+      'doApiPut',
+      {
+        urlSuffix: `/observations/${existingRecordId}`,
+        data: apiRecords.observationPostBody,
+      },
+      { root: true },
+    )
+    // adding new photos
+    for (const curr of apiRecords.photoPostBodyPartials) {
+      // TODO go parallel
+      // TODO can we also store "photo type", curr.type, on the server?
+      await dispatch(
+        'doPhotoPost',
+        {
+          obsId: existingRecordId,
+          ...curr,
+        },
+        { root: true },
+      )
+      // FIXME trap one photo failure so others can still try
+    }
+    await Promise.all(
+      apiRecords.obsFieldPostBodyPartials.map(curr => {
+        return dispatch(
+          'doApiPost',
+          {
+            urlSuffix: '/observation_field_values',
+            data: {
+              observation_id: existingRecordId,
+              ...curr,
+            },
+          },
+          { root: true },
+        )
+        // FIXME trap one failure so others can still try
+      }),
+    )
+  },
+  async saveNewAndScheduleUpload({ dispatch, state }, record) {
     const nowDate = new Date()
     // TODO change to be our internal format
     //   - use camel case names
@@ -243,7 +331,6 @@ const actions = {
         const isUpdated = await db.obs.update(currId, {
           updatedAt: obsResp.updatedAt,
           inatId: newRecordId,
-          // FIXME should we update other (all) values?
         })
         if (!isUpdated) {
           throw new Error(
@@ -263,24 +350,28 @@ const actions = {
           )
           // FIXME trap one photo failure so others can still try
         }
-        for (const curr of apiRecords.obsFieldPostBodyPartials) {
-          // TODO go parallel
-          await dispatch(
-            'doApiPost',
-            {
-              urlSuffix: '/observation_field_values',
-              data: {
-                observation_id: newRecordId,
-                ...curr,
+        await Promise.all(
+          apiRecords.obsFieldPostBodyPartials.map(curr => {
+            return dispatch(
+              'doApiPost',
+              {
+                urlSuffix: '/observation_field_values',
+                data: {
+                  observation_id: newRecordId,
+                  ...curr,
+                },
               },
-            },
-            { root: true },
-          )
-          // FIXME trap one failure so others can still try
-        }
+              { root: true },
+            )
+            // FIXME trap one failure so others can still try
+          }),
+        )
+        // FIXME only run for first save, don't need for edit
+        // must be run AFTER obs fields have been uploaded
+        await dispatch('_linkObsWithProject', { recordId: newRecordId })
         // TODO are we confident that everything has worked? Do we need to go
         // further like setting a UUID on this record then waiting until we see
-        // if come back down when we request the latest obs, then delete? If we
+        // it come back down when we request the latest obs, then delete? If we
         // do this, we need to set a flag on the DB record to hide it from UI
         await deleteDexieRecordById(dbRecord.id)
       } catch (err) {
@@ -291,10 +382,36 @@ const actions = {
         )
         // TODO should we let the loop try the next one or short-circuit?
         // FIXME add this item to the retry queue
+        // FIXME do we need to be atomic and rollback?
       } finally {
         await dispatch('refreshWaitingToUpload')
+        // FIXME there is a race condition here where the server might not
+        // include our new record in the response. Should we set a delay to
+        // workaround it?
         await dispatch('getMyObs')
       }
+    }
+  },
+  async _linkObsWithProject({ dispatch }, { recordId }) {
+    const projectId = (await dispatch('getProjectInfoUsingCache')).id
+    try {
+      await dispatch(
+        'doApiPost',
+        {
+          urlSuffix: '/project_observations',
+          data: {
+            project_id: projectId,
+            observation_id: recordId,
+          },
+        },
+        { root: true },
+      )
+    } catch (err) {
+      throw new chainedError(
+        `Failed to link observation ID='${recordId}' ` +
+          `to project ID='${projectId}'`,
+        err,
+      )
     }
   },
   async deleteSelectedRecord({ state, dispatch, commit }) {
@@ -422,7 +539,7 @@ function fetchSingleRecord(url) {
   return fetch(url)
     .then(function(resp) {
       if (!resp.ok) {
-        console.error('Made fetch() but it was not ok')
+        console.error(`Made fetch() for url='${url}' but it was not ok`)
         return false
       }
       return resp.json()
@@ -430,13 +547,9 @@ function fetchSingleRecord(url) {
     .then(function(body) {
       // FIXME also check for total_results > 1
       if (!body.total_results) {
-        return false
+        return null
       }
       return body.results[0]
-    })
-    .catch(err => {
-      console.error('Failed to make fetch() call', err)
-      return false
     })
 }
 
