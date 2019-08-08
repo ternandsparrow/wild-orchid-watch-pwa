@@ -29,7 +29,7 @@ const mutations = {
     if (typeof shouldOpen === 'boolean') {
       state.isSplitterOpen = shouldOpen
     } else {
-      state.isSplitterOpen = !state.open
+      state.isSplitterOpen = !state.isSplitterOpen
     }
   },
 }
