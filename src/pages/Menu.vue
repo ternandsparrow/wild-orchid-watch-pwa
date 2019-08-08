@@ -70,6 +70,7 @@ import Observations from '@/pages/obs/index'
 import Settings from '@/pages/Settings'
 import { appVersion, isDeployedToProd } from '@/misc/constants'
 import { innerPageStackReplace } from '@/misc/nav-stacks'
+import { inatUrlBase, inatProjectSlug } from '@/misc/constants'
 
 export default {
   data() {
@@ -86,8 +87,7 @@ export default {
         {
           title: 'iNaturalist',
           icon: 'ion-leaf',
-          url:
-            'https://www.inaturalist.org/projects/wild-orchid-watch-australia-beta',
+          url: `${inatUrlBase}/projects/${inatProjectSlug}`,
         },
         {
           title: 'Instagram',
