@@ -40,3 +40,5 @@ export const oauthCallbackComponentName = 'OauthCallback'
 export const alwaysUpload = 'ALWAYS'
 
 export const neverUpload = 'NEVER'
+
+export const persistedStateLocalStorageKey = 'wow-vuex'

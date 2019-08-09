@@ -37,15 +37,31 @@
         Do this first
         <v-ons-button @click="doLogin">Login</v-ons-button>
       </div>
-      <div>
+      <p>
         Then make the call...
         <v-ons-button @click="doGetUserDetails"
           >Test API call to /users/me</v-ons-button
         >
-        <div style="font-family: monospace; white-space: pre;">
-          Result = {{ meResp }}
-        </div>
+      </p>
+      <div class="code-style">Result = {{ meResp }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Dump vuex from localStorage
       </div>
+      <p>
+        <v-ons-checkbox input-id="include-obs" v-model="isIncludeObs">
+        </v-ons-checkbox>
+        <label for="include-obs">
+          Include observations
+        </label>
+      </p>
+
+      <p></p>
+      <p>
+        <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
+      </p>
+      <div class="code-style">{{ vuexDump }}</div>
     </v-ons-card>
     <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
@@ -60,6 +76,7 @@ import { mapGetters } from 'vuex'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
+import { persistedStateLocalStorageKey } from '@/misc/constants'
 
 export default {
   data() {
@@ -71,6 +88,8 @@ export default {
       storageUsage: 0,
       storageUsedPercent: 0,
       meResp: '(nothing yet)',
+      vuexDump: '(nothing yet)',
+      isIncludeObs: false,
     }
   },
   computed: {
@@ -88,6 +107,14 @@ export default {
     this.updateStorageStats()
   },
   methods: {
+    doVuexDump() {
+      const rawDump = localStorage.getItem(persistedStateLocalStorageKey)
+      const parsed = JSON.parse(rawDump)
+      if (!this.isIncludeObs) {
+        parsed.obs.myObs = `(excluded, ${parsed.obs.myObs.length} item array)`
+      }
+      this.vuexDump = JSON.stringify(parsed, null, 2)
+    },
     async updateStorageStats() {
       const estimate = await navigator.storage.estimate()
       this.storageQuota = estimate.quota
@@ -148,5 +175,10 @@ function twoDecimalPlaces(v) {
 
 .mono {
   font-family: monospace;
+}
+
+.code-style {
+  font-family: monospace;
+  white-space: pre;
 }
 </style>

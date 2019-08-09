@@ -9,7 +9,7 @@ import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
 import { wowErrorHandler } from '@/misc/helpers'
-import { neverUpload } from '@/misc/constants'
+import { neverUpload, persistedStateLocalStorageKey } from '@/misc/constants'
 
 Vue.use(Vuex)
 
@@ -17,7 +17,7 @@ const store = new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
   plugins: [
     createPersistedState({
-      key: 'wow-vuex',
+      key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
         const cleanedState = Object.assign({}, state)
         // don't save anything in the ephemeral module, we assume nothing in
