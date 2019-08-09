@@ -270,6 +270,7 @@ const actions = {
       createdAt: nowDate,
       latitude: state.lat,
       longitude: state.lng,
+      geoprivacy: 'obscured',
       // FIXME uploaded records fail the "Date specified" check
       observed_on: nowDate,
       positional_accuracy: state.locAccuracy,
@@ -288,7 +289,6 @@ const actions = {
       // uuid: '3ab8f7ab-ac5b-4e9b-af7f-15730b0d9b66',
     })
     // FIXME compress photos
-    // FIXME need to handle new(put) vs edit(update?)
     await db.obs.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
@@ -554,7 +554,7 @@ function fetchSingleRecord(url) {
 }
 
 function mapObsFromApiIntoOurDomain(obsFromApi) {
-  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson']
+  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
     if (!isNil(value)) {
@@ -577,6 +577,11 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
+  result.notes = obsFromApi.description
+  result.geolocationAccuracy = obsFromApi.positional_accuracy
+  const { lat, lng } = mapGeojsonToLatLng(result.geojson)
+  result.lat = lat
+  result.lng = lng
   const obsFieldValues = obsFromApi.ofvs.map(o => {
     return {
       fieldId: o.field_id,
@@ -586,8 +591,18 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     }
   })
   result.obsFieldValues = obsFieldValues
-  result.notes = obsFromApi.description
   return result
+}
+
+function mapGeojsonToLatLng(geojson) {
+  if (!geojson || geojson.type !== 'Point') {
+    // FIXME maybe pull the first point in the shape?
+    return { lat: null, lng: null }
+  }
+  return {
+    lat: parseFloat(geojson.coordinates[1]),
+    lng: parseFloat(geojson.coordinates[0]),
+  }
 }
 
 function processObsFieldName(fieldName) {

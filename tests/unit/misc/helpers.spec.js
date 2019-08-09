@@ -1,5 +1,27 @@
 import { _testonly } from '@/misc/helpers'
 
+describe('formatMetricDistance', () => {
+  it('should handle less than 1 km', () => {
+    const result = _testonly.formatMetricDistance(123)
+    expect(result).toEqual('123m')
+  })
+
+  it('should handle greater than 1 km', () => {
+    const result = _testonly.formatMetricDistance(8323)
+    expect(result).toEqual('8.3km')
+  })
+
+  it('should handle 0', () => {
+    const result = _testonly.formatMetricDistance(0)
+    expect(result).toEqual(0)
+  })
+
+  it('should handle falsy', () => {
+    const result = _testonly.formatMetricDistance(null)
+    expect(result).toBeNull()
+  })
+})
+
 describe('isRespJson', () => {
   it('should handle a basic application/json', () => {
     const resp = mockResp('application/json')

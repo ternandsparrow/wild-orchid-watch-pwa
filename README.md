@@ -105,5 +105,8 @@ You can run unit tests one off with: `yarn test:unit`.
 If you want the unit tests to run every time you save a file (watch mode), use:
 `yarn test:unit --watchAll`.
 
+Unit tests use Jest. You can find the doco for `expect()` at
+[https://jestjs.io/docs/en/expect]().
+
 ## TODO
   1. add install to homescreen button or notification for iOS

@@ -28,12 +28,16 @@
           </div>
         </v-ons-carousel-item>
       </v-ons-carousel>
-      <img
-        v-if="!isPhotos"
-        :src="noImagePlaceholderUrl"
-        class="a-photo"
-        alt="placeholder image as no photos are available"
-      />
+      <div v-if="!isPhotos" class="photo-container">
+        <div class="text-center no-photo">
+          <p>No photos</p>
+          <img
+            :src="noImagePlaceholderUrl"
+            class="a-photo"
+            alt="placeholder image as no photos are available"
+          />
+        </div>
+      </div>
       <carousel-dots
         v-if="isShowDots"
         :dot-count="photos.length"
@@ -42,6 +46,7 @@
         @dot-click="onDotClick"
       ></carousel-dots>
       <!-- FIXME add link to species record -->
+      <!-- FIXME show correct name based on prefers community ID or not -->
       <div class="title">{{ nullSafeObs.speciesGuess }}</div>
     </v-ons-card>
     <relative-tabbar
@@ -51,17 +56,10 @@
     ></relative-tabbar>
     <div class="tab-container">
       <div v-if="selectedTab === 0">
-        <h3>Geolocation</h3>
-        <div v-if="obsCoords" class="map-container text-center">
-          <google-map :marker-position="obsCoords" />
-        </div>
-        <!-- TODO add textual details of location: lat, lng, accuracy -->
-        <!-- FIXME handle geoprivacy. Inform user of setting and show obscurity box if supplied -->
-        <div v-if="!obsCoords" class="text-center">
-          <!-- TODO style this text -->
-          No geolocation details available
-        </div>
-        <!-- TODO add Data Quality widget -->
+        <!-- FIXME show quality grade, quality metrics -->
+        <!-- FIXME show date observed: relative and absolute -->
+        <!-- FIXME show date updated: relative and absolute -->
+        <!-- TODO show faves, flags, spam? -->
         <h3>Observation values</h3>
         <v-ons-list>
           <template v-for="curr of nullSafeObs.obsFieldValues">
@@ -94,15 +92,36 @@
         </div>
       </div>
       <div v-if="selectedTab === 1">
-        <p class="text-center" style="color: red;">
-          TODO add identifications and comments
-        </p>
+        <h3>Geolocation</h3>
+        <!-- FIXME show obscurity box -->
+        <!-- FIXME show accuracy circle -->
+        <div v-if="obsCoords">
+          <div class="map-container text-center">
+            <google-map :marker-position="obsCoords" />
+          </div>
+          <h4>Details</h4>
+          <table class="geolocation-detail">
+            <tbody>
+              <tr v-for="curr of geolocationDetails" :key="curr.label">
+                <th>{{ curr.label }}</th>
+                <td v-if="curr.value">{{ curr.value }}</td>
+                <td v-if="!curr.value" class="no-value">(no value)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="!obsCoords" class="text-center no-map-msg">
+          No geolocation details available
+          <div class="no-map-icon">
+            <v-ons-icon icon="fa-frown" />
+          </div>
+        </div>
       </div>
-      <div v-if="selectedTab === 2">
-        <p class="text-center" style="color: red;">
-          TODO add button for starring
-        </p>
-      </div>
+      <!-- <div v-if="selectedTab === 2">                -->
+      <!--   <p class="text-center" style="color: red;"> -->
+      <!--     TODO add comments and identifications     -->
+      <!--   </p>                                        -->
+      <!-- </div>                                        -->
     </div>
   </v-ons-page>
 </template>
@@ -110,6 +129,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
+import { formatMetricDistance } from '@/misc/helpers'
 
 export default {
   name: 'ObsDetail',
@@ -118,11 +138,14 @@ export default {
       noImagePlaceholderUrl,
       carouselIndex: 0,
       extraDotsStyle: {
-        position: 'relative',
-        top: '-2em',
+        color: '#5d5d5d',
       },
       selectedTab: 0,
-      tabs: [{ icon: 'fa-info' }, { icon: 'fa-comments' }, { icon: 'fa-star' }],
+      tabs: [
+        { icon: 'fa-info' },
+        { icon: 'fa-map-marked-alt' },
+        // { icon: 'fa-comments' }, FIXME uncomment when we get the content
+      ],
     }
   },
   computed: {
@@ -142,19 +165,22 @@ export default {
     isShowDots() {
       return this.photos.length > 1
     },
+    geolocationDetails() {
+      const config = {
+        Latitude: this.nullSafeObs.lat,
+        Longitude: this.nullSafeObs.lng,
+        Accuracy: formatMetricDistance(this.nullSafeObs.geolocationAccuracy),
+        Geoprivacy: this.nullSafeObs.geoprivacy,
+      }
+      return Object.keys(config).map(k => ({
+        label: k,
+        value: config[k],
+      }))
+    },
     obsCoords() {
-      const geojson = this.nullSafeObs.geojson
-      if (!geojson) {
-        // FIXME hide map and inform user there is no location info
-        return null
-      }
-      if (geojson.type !== 'Point') {
-        // FIXME maybe pull the first point in the shape?
-        return null
-      }
       return {
-        lat: parseFloat(geojson.coordinates[1]),
-        lng: parseFloat(geojson.coordinates[0]),
+        lat: this.nullSafeObs.lat,
+        lng: this.nullSafeObs.lng,
       }
     },
   },
@@ -204,9 +230,19 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .a-photo {
-  width: 100%;
+  max-width: 100%;
+}
+
+.no-photo {
+  p {
+    color: #666;
+  }
+
+  img {
+    border-radius: 20px;
+  }
 }
 
 .photo-container {
@@ -214,19 +250,20 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #6b6b6b;
+  background-color: #e4e4e4;
 }
 
 .map-container {
-  padding: 2em 0;
-}
+  padding: 0;
 
-.map-container img {
-  width: 90vw;
+  img {
+    width: 90vw;
+  }
 }
 
 .tab-container {
   padding: 0 5px;
+  margin-bottom: 1em;
 }
 
 .tabbar-fixer ons-tabbar,
@@ -236,5 +273,35 @@ export default {
 
 .no-notes {
   color: #999;
+}
+
+table.geolocation-detail {
+  background: #fff;
+  width: 90vw;
+  margin: 0 auto;
+
+  th {
+    width: 30vw;
+    text-align: right;
+  }
+
+  td {
+    text-align: left;
+    padding-left: 1em;
+    font-family: monospace;
+  }
+}
+
+.no-value {
+  color: #777;
+}
+
+.no-map-msg {
+  color: #777;
+
+  .no-map-icon {
+    font-size: 3em;
+    color: #bbb;
+  }
 }
 </style>

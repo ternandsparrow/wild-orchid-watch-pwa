@@ -287,7 +287,7 @@ export default {
             if (!currPhoto) {
               return accum
             }
-            const tempId = -1 * $index
+            const tempId = -1 * ($index - 1)
             const photo = {
               id: tempId,
               url: '(set at render time)',
@@ -334,7 +334,7 @@ export default {
             // FIXME what about setting optional obs fields to have no value? DELETE them?
           })
         } else {
-          await this.$store.dispatch('obs/saveAndScheduleUpload', record)
+          await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)
         }
         setTimeout(() => {
           // FIXME should this say something about uploading (or not if

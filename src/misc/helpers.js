@@ -168,7 +168,18 @@ export function now() {
   return new Date().getTime()
 }
 
+export function formatMetricDistance(metres) {
+  if (!metres) {
+    return metres
+  } else if (metres < 1000) {
+    return `${metres}m`
+  }
+  const kmVal = (metres / 1000).toFixed(1)
+  return `${kmVal}km`
+}
+
 export const _testonly = {
   isRespJson,
   verifyWowDomainPhoto,
+  formatMetricDistance,
 }
