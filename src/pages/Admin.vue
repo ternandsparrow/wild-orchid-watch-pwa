@@ -46,11 +46,32 @@
       <div class="code-style">Result = {{ meResp }}</div>
     </v-ons-card>
     <v-ons-card>
+      <div class="standalone-title">
+        Configuration
+      </div>
+      <v-ons-list>
+        <template v-for="curr of configItems">
+          <v-ons-list-header
+            :key="curr.label + '-header'"
+            class="wow-list-header"
+          >
+            {{ curr.label }}
+          </v-ons-list-header>
+          <v-ons-list-item
+            :key="curr.label + '-value'"
+            class="config-item-value"
+          >
+            {{ curr.value }}
+          </v-ons-list-item>
+        </template>
+      </v-ons-list>
+    </v-ons-card>
+    <v-ons-card>
       <div class="title">
         Dump vuex from localStorage
       </div>
       <p>
-        <v-ons-checkbox input-id="include-obs" v-model="isIncludeObs">
+        <v-ons-checkbox v-model="isIncludeObs" input-id="include-obs">
         </v-ons-checkbox>
         <label for="include-obs">
           Include observations
@@ -76,7 +97,7 @@ import { mapGetters } from 'vuex'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
-import { persistedStateLocalStorageKey } from '@/misc/constants'
+import * as constants from '@/misc/constants'
 
 export default {
   data() {
@@ -90,6 +111,7 @@ export default {
       meResp: '(nothing yet)',
       vuexDump: '(nothing yet)',
       isIncludeObs: false,
+      configItems: [],
     }
   },
   computed: {
@@ -105,10 +127,49 @@ export default {
   },
   created() {
     this.updateStorageStats()
+    this.computeConfigItems()
   },
   methods: {
+    computeConfigItems() {
+      const nonSecretKeys = [
+        'inatUrlBase',
+        'inatStaticUrlBase',
+        'redirectUri',
+        'inatProjectSlug',
+        'isDeployedToProd',
+        'obsFieldSeparatorChar',
+        'appVersion',
+      ]
+      const partialResult = nonSecretKeys.map(e => ({
+        label: e,
+        value: constants[e],
+      }))
+      const result = [
+        ...partialResult,
+        { label: 'obsFieldPrefix', value: `"${constants.obsFieldPrefix}"` },
+        { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
+        {
+          label: 'googleMapsApiKey',
+          value: (v => v.replace(new RegExp(`.{${v.length - 4}}`), '(snip)'))(
+            constants.googleMapsApiKey,
+          ),
+        },
+        {
+          label: 'sentryDsn',
+          value: constants.sentryDsn.replace(/.{25}/, '(snip)'),
+        },
+      ]
+      result.sort((a, b) => {
+        if (a.label < b.label) return -1
+        if (a.label > b.label) return 1
+        return 0
+      })
+      this.configItems = result
+    },
     doVuexDump() {
-      const rawDump = localStorage.getItem(persistedStateLocalStorageKey)
+      const rawDump = localStorage.getItem(
+        constants.persistedStateLocalStorageKey,
+      )
       const parsed = JSON.parse(rawDump)
       if (!this.isIncludeObs) {
         parsed.obs.myObs = `(excluded, ${parsed.obs.myObs.length} item array)`
@@ -164,7 +225,7 @@ function twoDecimalPlaces(v) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .success-msg {
   color: green;
 }
@@ -180,5 +241,14 @@ function twoDecimalPlaces(v) {
 .code-style {
   font-family: monospace;
   white-space: pre;
+}
+
+.standalone-title {
+  font-size: 1.5em;
+}
+
+.config-item-value {
+  font-family: monospace;
+  overflow: auto;
 }
 </style>
