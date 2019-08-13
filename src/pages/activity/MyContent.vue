@@ -41,7 +41,7 @@ export default {
     push(eventId) {
       // FIXME implement this
       // this.$store.commit('obs/setSelectedObservationId', obsId)
-      // this.$store.commit('navigator/push', ObsDetailComponent)
+      // this.$router.push({name: 'FIXME content detail component name'})
       this.$ons.notification.alert('FIXME - implement this')
       console.debug(eventId)
     },

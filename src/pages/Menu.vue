@@ -65,10 +65,16 @@
 import { mapGetters } from 'vuex'
 
 import Observations from '@/pages/obs/index'
-import Activity from '@/pages/activity/index'
-import Missions from '@/pages/missions/index'
+// import Activity from '@/pages/activity/index'
+// import Missions from '@/pages/missions/index'
 import Settings from '@/pages/Settings'
-import { appVersion, isDeployedToProd } from '@/misc/constants'
+import {
+  appVersion,
+  isDeployedToProd,
+  inatUrlBase,
+  inatProjectSlug,
+} from '@/misc/constants'
+import { innerPageStackReplace } from '@/misc/nav-stacks'
 
 export default {
   data() {
@@ -85,8 +91,7 @@ export default {
         {
           title: 'iNaturalist',
           icon: 'ion-leaf',
-          url:
-            'https://www.inaturalist.org/projects/wild-orchid-watch-australia-beta',
+          url: `${inatUrlBase}/projects/${inatProjectSlug}`,
         },
         {
           title: 'Instagram',
@@ -110,16 +115,17 @@ export default {
           icon: 'ion-home, material:md-home',
           component: Observations,
         },
-        {
-          title: 'Missions',
-          icon: 'md-compass',
-          component: Missions,
-        },
-        {
-          title: 'Activity',
-          icon: 'md-accounts-alt',
-          component: Activity,
-        },
+        // FIXME uncomment when they have real content
+        // {
+        //   title: 'Missions',
+        //   icon: 'md-compass',
+        //   component: Missions,
+        // },
+        // {
+        //   title: 'Activity',
+        //   icon: 'md-accounts-alt',
+        //   component: Activity,
+        // },
         {
           title: 'Settings',
           icon: 'md-settings',
@@ -137,8 +143,8 @@ export default {
   methods: {
     loadView(index) {
       const component = this.access[index].component
-      this.$store.commit('navigator/pushInnerPage', component)
-      this.$store.commit('splitter/toggle')
+      innerPageStackReplace(component) // TODO are we happy with no back for these pages?
+      this.$store.commit('ephemeral/toggleSplitter')
     },
     loadLink(url) {
       window.open(url, '_blank')
@@ -158,7 +164,7 @@ export default {
         return
       }
       this.$router.push({ name: 'Admin' })
-      this.$store.commit('splitter/toggle')
+      this.$store.commit('ephemeral/toggleSplitter')
     },
   },
 }

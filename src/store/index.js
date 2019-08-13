@@ -8,8 +8,8 @@ import ephemeral from './ephemeral'
 import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
 import missions from './missions'
-import navigator from './navigator'
 import { wowErrorHandler } from '@/misc/helpers'
+import { neverUpload, persistedStateLocalStorageKey } from '@/misc/constants'
 
 Vue.use(Vuex)
 
@@ -17,15 +17,9 @@ const store = new Vuex.Store({
   strict: process.env.NODE_ENV !== 'production',
   plugins: [
     createPersistedState({
-      key: 'wow-vuex',
+      key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
         const cleanedState = Object.assign({}, state)
-        // Don't store Onsen navigator state!
-        // Vue components don't serialise well, mainly due the fact they
-        // contain functions. Even if they did, we probably don't want to
-        // restore them. If we want to restore the user's nav state then we
-        // should find another way
-        delete cleanedState.navigator
         // don't save anything in the ephemeral module, we assume nothing in
         // here will serialise or should be saved.
         delete cleanedState.ephemeral
@@ -46,8 +40,14 @@ const store = new Vuex.Store({
     doApiPost({ dispatch }, argObj) {
       return dispatch('auth/doApiPost', argObj)
     },
+    doApiPut({ dispatch }, argObj) {
+      return dispatch('auth/doApiPut', argObj)
+    },
     doPhotoPost({ dispatch }, argObj) {
       return dispatch('auth/doPhotoPost', argObj)
+    },
+    doApiDelete({ dispatch }, argObj) {
+      return dispatch('auth/doApiDelete', argObj)
     },
     flagGlobalError({ commit }, { msg, err }) {
       commit('_flagGlobalError')
@@ -58,6 +58,14 @@ const store = new Vuex.Store({
     myUserId(state, getters) {
       return getters['auth/myUserId']
     },
+    canUploadNow(state, getters) {
+      // TODO when we support "only on WiFi", we'll need to check the current
+      // connection type
+      return !getters['isUploadsDisabled']
+    },
+    isUploadsDisabled(state) {
+      return state.app.whenToUpload === neverUpload
+    },
   },
   modules: {
     activity,
@@ -65,24 +73,7 @@ const store = new Vuex.Store({
     auth,
     ephemeral,
     missions,
-    navigator,
     obs,
-    splitter: {
-      strict: true,
-      namespaced: true,
-      state: {
-        open: false,
-      },
-      mutations: {
-        toggle(state, shouldOpen) {
-          if (typeof shouldOpen === 'boolean') {
-            state.open = shouldOpen
-          } else {
-            state.open = !state.open
-          }
-        },
-      },
-    },
   },
 })
 

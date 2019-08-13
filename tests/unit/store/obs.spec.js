@@ -6,14 +6,25 @@ describe('mapObsFromApiIntoOurDomain', () => {
     const result = _testonly.mapObsFromApiIntoOurDomain(record)
     expect(result).toHaveProperty('inatId', 42)
     expect(result).toHaveProperty('photos', [
-      'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
-      'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+      {
+        id: 14,
+        licenseCode: 'cc-by-nc',
+        url:
+          'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
+        attribution: '(c) tom, some rights reserved (CC BY-NC)',
+      },
+      {
+        id: 15,
+        licenseCode: 'cc-by-nc',
+        url:
+          'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+        attribution: '(c) tom, some rights reserved (CC BY-NC)',
+      },
     ])
     expect(result.placeGuess).toBeNull()
     expect(result).toHaveProperty('speciesGuess', 'a species guess')
     expect(result).toHaveProperty('obsFieldValues', [
       {
-        id: 4,
         fieldId: 1,
         datatype: 'text',
         name: 'Orchid type',

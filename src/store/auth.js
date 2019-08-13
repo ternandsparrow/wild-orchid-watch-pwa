@@ -12,10 +12,12 @@ import {
 } from '@/misc/constants'
 import {
   chainedError,
+  deleteWithAuth,
   getJsonWithAuth,
   now,
-  postJsonWithAuth,
   postFormDataWithAuth,
+  postJsonWithAuth,
+  putJsonWithAuth,
 } from '@/misc/helpers'
 
 let updateApiTokenPromise = null
@@ -96,6 +98,22 @@ export default {
         )
       }
     },
+    async doApiDelete({ state, dispatch }, { urlSuffix }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await deleteWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to make DELETE to API with URL suffix='${urlSuffix}'`,
+          err,
+        )
+      }
+    },
     async doInatGet({ state }, { urlSuffix }) {
       try {
         if (!state.token || !state.tokenType) {
@@ -130,7 +148,8 @@ export default {
         return resp
       } catch (err) {
         throw chainedError(
-          `Failed to make POST to iNat with URL suffix='${urlSuffix}'`,
+          `Failed to make POST to iNat with URL suffix='${urlSuffix}'` +
+            `data='${JSON.stringify(data)}'`,
           err,
         )
       }
@@ -147,7 +166,26 @@ export default {
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
         throw chainedError(
-          `Failed to make POST to API with URL suffix='${urlSuffix}'`,
+          `Failed to make POST to API with URL suffix='${urlSuffix}' and ` +
+            `data='${JSON.stringify(data)}'`,
+          err,
+        )
+      }
+    },
+    async doApiPut({ state, dispatch }, { urlSuffix, data }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await putJsonWithAuth(
+          `${apiUrlBase}${urlSuffix}`,
+          data,
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(
+          `Failed to make PUT to API with URL suffix='${urlSuffix}' and ` +
+            `data='${JSON.stringify(data)}'`,
           err,
         )
       }

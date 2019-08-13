@@ -31,35 +31,37 @@
 <script>
 import { mapState } from 'vuex'
 
-import Onboarder from '@/pages/Onboarder'
 import MenuPage from '@/pages/Menu'
-
-// FIXME add separate routes for all child pages
+import { innerPageStack } from '@/misc/nav-stacks'
 
 export default {
   name: 'WowHeader',
   components: { MenuPage },
+  data() {
+    return {
+      innerPageStack,
+    }
+  },
   computed: {
     ...mapState('app', ['topTitle', 'isFirstRun']),
-    ...mapState('navigator', ['innerPageStack']),
     isOpen: {
       get() {
-        return this.$store.state.splitter.open
+        return this.$store.state.ephemeral.isSplitterOpen
       },
       set(newValue) {
-        this.$store.commit('splitter/toggle', newValue)
+        this.$store.commit('ephemeral/toggleSplitter', newValue)
       },
     },
   },
   mounted() {
     // Check for onboarding
     if (this.isFirstRun) {
-      this.$store.commit('navigator/push', Onboarder)
+      this.$router.replace({ name: 'Onboarder' })
     }
   },
   methods: {
     onMenuClick() {
-      this.$store.commit('splitter/toggle')
+      this.$store.commit('ephemeral/toggleSplitter')
     },
   },
 }

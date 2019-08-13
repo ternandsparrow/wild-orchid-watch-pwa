@@ -5,10 +5,12 @@ import {
   obsFieldPrefix,
   obsFieldSeparatorChar,
 } from '@/misc/constants'
-import { now } from '@/misc/helpers'
+import { now, chainedError, verifyWowDomainPhoto } from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
 const NOT_UPLOADED = -1
+
+let photoObjectUrlsInUse = []
 
 const state = {
   lat: null,
@@ -16,6 +18,7 @@ const state = {
   locAccuracy: null,
   myObs: [],
   myObsLastUpdated: null,
+  isUpdatingMyObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: null,
   obsFields: [],
@@ -23,6 +26,8 @@ const state = {
   speciesAutocompleteItems: [],
   tabIndex: 0,
   waitingToUploadRecords: [],
+  projectInfo: null,
+  projectInfoLastUpdated: null,
 }
 
 const mutations = {
@@ -36,7 +41,12 @@ const mutations = {
     state.myObs = value
     state.myObsLastUpdated = now()
   },
+  setProjectInfo: (state, value) => {
+    state.projectInfo = value
+    state.projectInfoLastUpdated = now()
+  },
   setTab: (state, value) => (state.tabIndex = value),
+  setIsUpdatingMyObs: (state, value) => (state.isUpdatingMyObs = value),
   setWaitingToUploadRecords: (state, value) =>
     (state.waitingToUploadRecords = value),
   setLat: (state, value) => (state.lat = value),
@@ -49,9 +59,10 @@ const mutations = {
 
 const actions = {
   async getMyObs({ commit, dispatch, rootGetters }) {
-    commit('setMyObs', [])
+    commit('setIsUpdatingMyObs', true)
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations?user_id=${myUserId}`
+    // TODO look at only pulling "new" records to save on bandwidth
+    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
@@ -63,12 +74,13 @@ const actions = {
         { root: true },
       )
       return false
+    } finally {
+      commit('setIsUpdatingMyObs', false)
     }
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
-    commit('setMySpecies', [])
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations/species_counts?user_id=${myUserId}`
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
@@ -112,30 +124,47 @@ const actions = {
       },
     )
   },
-  async getObsFields({ commit }) {
-    commit('setObsFields', [])
+  async getProjectInfoUsingCache({ state, dispatch }) {
+    // TODO add logic to periodically refresh this (once a day?)
+    const alreadyCachedResult = state.projectInfo
+    if (alreadyCachedResult) {
+      return alreadyCachedResult
+    }
+    return dispatch('getProjectInfo')
+  },
+  async getProjectInfo({ state, commit }) {
     const url = apiUrlBase + '/projects/' + inatProjectSlug
-    const fields = await fetchSingleRecord(url).then(function(d) {
-      if (!d) {
-        return null
+    try {
+      const projectInfo = await fetchSingleRecord(url)
+      if (!projectInfo) {
+        throw new Error(
+          'Request to get project info was successful, but ' +
+            `contained no result, cannot continue, projectInfo='${projectInfo}'`,
+        )
       }
-      // TODO should we store the other project info too?
-      // FIXME should we read project_observation_rules to get required fields?
-      return d.project_observation_fields.map(e => {
-        const f = e.observation_field
-        return {
-          id: f.id,
-          position: e.position,
-          required: e.required,
-          name: processObsFieldName(f.name),
-          description: f.description,
-          datatype: f.datatype,
-          allowedValues: (f.allowed_values || '')
-            .split(obsFieldSeparatorChar)
-            .filter(x => !!x) // remove zero length strings
-            .sort(),
-        }
-      })
+      commit('setProjectInfo', projectInfo)
+      return state.projectInfo
+    } catch (err) {
+      throw chainedError('Failed to get project info', err)
+    }
+  },
+  async getObsFields({ commit, dispatch }) {
+    const projectInfo = await dispatch('getProjectInfoUsingCache')
+    const fields = projectInfo.project_observation_fields.map(field => {
+      // we have the field definition *and* the relationship to the project
+      const obsField = field.observation_field
+      return {
+        id: obsField.id,
+        position: field.position,
+        required: field.required,
+        name: processObsFieldName(obsField.name),
+        description: obsField.description,
+        datatype: obsField.datatype,
+        allowedValues: (obsField.allowed_values || '')
+          .split(obsFieldSeparatorChar)
+          .filter(x => !!x) // remove zero length strings
+          .sort(),
+      }
     })
     commit('setObsFields', fields)
   },
@@ -165,13 +194,83 @@ const actions = {
       return false
     }
   },
-  async saveAndUploadIndividual({ dispatch, state }, record) {
+  async saveEditAndScheduleUpdate(
+    { dispatch },
+    { record, photoIdsToDelete, existingRecordId },
+  ) {
+    // TODO Can we schedule this by
+    //   - updating the DB now
+    //   - keep a table of operations to perform that hold things like photoIdsToDelete
+    // FIXME handle errors
+    // FIXME not actually scheduling, we're doing it now
+    await Promise.all(
+      photoIdsToDelete.map(id => {
+        return dispatch(
+          'doApiDelete',
+          {
+            urlSuffix: `/observation_photos/${id}`,
+          },
+          { root: true },
+        )
+      }),
+    )
+    // FIXME de-dupe with stuff in save function
+    // FIXME need to do merge
+    //   - use our fields that can change
+    //   - use fields from server that we need
+    //   - set relevant fields: updated at
+    const apiRecords = mapObsFromOurDomainOntoApi(record)
+    await dispatch(
+      'doApiPut',
+      {
+        urlSuffix: `/observations/${existingRecordId}`,
+        data: apiRecords.observationPostBody,
+      },
+      { root: true },
+    )
+    // adding new photos
+    for (const curr of apiRecords.photoPostBodyPartials) {
+      // TODO go parallel
+      // TODO can we also store "photo type", curr.type, on the server?
+      await dispatch(
+        'doPhotoPost',
+        {
+          obsId: existingRecordId,
+          ...curr,
+        },
+        { root: true },
+      )
+      // FIXME trap one photo failure so others can still try
+    }
+    await Promise.all(
+      apiRecords.obsFieldPostBodyPartials.map(curr => {
+        return dispatch(
+          'doApiPost',
+          {
+            urlSuffix: '/observation_field_values',
+            data: {
+              observation_id: existingRecordId,
+              ...curr,
+            },
+          },
+          { root: true },
+        )
+        // FIXME trap one failure so others can still try
+      }),
+    )
+  },
+  async saveNewAndScheduleUpload({ dispatch, state }, record) {
     const nowDate = new Date()
+    // TODO change to be our internal format
+    //   - use camel case names
+    //   - only assign values we care about
+    //   - let the rest of the values be assigned on upload
     const enhancedRecord = Object.assign(record, {
       captive_flag: false, // it's *wild* orchid watch
       createdAt: nowDate,
       latitude: state.lat,
       longitude: state.lng,
+      geoprivacy: 'obscured',
       // FIXME uploaded records fail the "Date specified" check
       observed_on: nowDate,
       positional_accuracy: state.locAccuracy,
@@ -190,13 +289,15 @@ const actions = {
       // uuid: '3ab8f7ab-ac5b-4e9b-af7f-15730b0d9b66',
     })
     // FIXME compress photos
-    // FIXME should store record in our domain format and then map to API
-    // format on the way out
     await db.obs.put(enhancedRecord)
     dispatch('scheduleUpload')
     await dispatch('refreshWaitingToUpload')
   },
   _getWaitingToUploadIds() {
+    // FIXME how do we deal with edited records? Do we still show the old
+    // version plus the new one as waiting? Probably not. How do we find edited
+    // records? Do we set updatedAt back to NOT_UPLOADED, or use a separate
+    // flag?
     return db.obs
       .where('updatedAt')
       .equals(NOT_UPLOADED)
@@ -207,76 +308,72 @@ const actions = {
     const records = await resolveWaitingToUploadIdsToRecords(ids)
     commit('setWaitingToUploadRecords', records)
   },
-  async scheduleUpload({ dispatch }) {
+  async scheduleUpload({ dispatch, rootGetters }) {
     // FIXME use Background Sync API with auto-retry
     //       Background sync might just be configuring workbox to retry our
     //       POSTs requests to the API
+    // FIXME how do we handle dev or no service worker support?
     // FIXME remove the following workaround when we have background sync working
+    if (!rootGetters['canUploadNow']) {
+      return
+    }
     const waitingToUploadIds = await dispatch('_getWaitingToUploadIds')
     for (const currId of waitingToUploadIds) {
       try {
         const dbRecord = await db.obs.get(currId)
-        const ignoredKeys = ['id', 'photos', 'updatedAt']
-        const apiRecord = {
-          ignore_photos: true,
-          observation: Object.keys(dbRecord).reduce((accum, currKey) => {
-            const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
-            if (isNotIgnored) {
-              accum[currKey] = dbRecord[currKey]
-            }
-            return accum
-          }, {}),
-        }
+        const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
         const obsResp = await dispatch(
           'doApiPost',
-          { urlSuffix: '/observations', data: apiRecord },
+          { urlSuffix: '/observations', data: apiRecords.observationPostBody },
           { root: true },
         )
         const newRecordId = obsResp.id
         const isUpdated = await db.obs.update(currId, {
           updatedAt: obsResp.updatedAt,
           inatId: newRecordId,
-          // FIXME should we update other (all) values?
         })
         if (!isUpdated) {
           throw new Error(
             `Dexie update operation to set updatedAt for (Dexie) ID='${currId}' failed`,
           )
         }
-        for (const curr of dbRecord.photos) {
-          const photoResp = await dispatch(
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          // TODO go parallel
+          // TODO can we also store "photo type", curr.type, on the server?
+          await dispatch(
             'doPhotoPost',
             {
               obsId: newRecordId,
-              photoBlob: curr, // FIXME is this right object?
+              ...curr,
             },
             { root: true },
           )
-          // FIXME update DB with photoResp values
           // FIXME trap one photo failure so others can still try
-          console.log(photoResp.id) // FIXME delete line when we use photoResp var
         }
-        for (const currId of Object.keys(dbRecord.obsFieldValues)) {
-          const obsFieldResp = await dispatch(
-            'doApiPost',
-            {
-              urlSuffix: '/observation_field_values',
-              data: {
-                observation_id: newRecordId,
-                observation_field_id: currId,
-                // TODO do we need to filter out null value?
-                value: dbRecord.obsFieldValues[currId],
+        await Promise.all(
+          apiRecords.obsFieldPostBodyPartials.map(curr => {
+            return dispatch(
+              'doApiPost',
+              {
+                urlSuffix: '/observation_field_values',
+                data: {
+                  observation_id: newRecordId,
+                  ...curr,
+                },
               },
-            },
-            { root: true },
-          )
-          // FIXME update DB with obsFieldResp values
-          // FIXME trap one failure so others can still try
-          console.log(obsFieldResp.id) // FIXME delete line when we use photoResp var
-          // FIXME once we know that all parts have uploaded correctly:
-          //  - replace the Vuex/Dexie record with freshly pulled
-          //    record that has been mapped
-        }
+              { root: true },
+            )
+            // FIXME trap one failure so others can still try
+          }),
+        )
+        // FIXME only run for first save, don't need for edit
+        // must be run AFTER obs fields have been uploaded
+        await dispatch('_linkObsWithProject', { recordId: newRecordId })
+        // TODO are we confident that everything has worked? Do we need to go
+        // further like setting a UUID on this record then waiting until we see
+        // it come back down when we request the latest obs, then delete? If we
+        // do this, we need to set a flag on the DB record to hide it from UI
+        await deleteDexieRecordById(dbRecord.id)
       } catch (err) {
         dispatch(
           'flagGlobalError',
@@ -285,17 +382,76 @@ const actions = {
         )
         // TODO should we let the loop try the next one or short-circuit?
         // FIXME add this item to the retry queue
+        // FIXME do we need to be atomic and rollback?
       } finally {
         await dispatch('refreshWaitingToUpload')
+        // FIXME there is a race condition here where the server might not
+        // include our new record in the response. Should we set a delay to
+        // workaround it?
         await dispatch('getMyObs')
       }
     }
   },
-  async deleteSelectedRecord({ state, dispatch }) {
-    const recordId = state.selectedObservationId
-    await db.obs.delete(recordId)
-    await dispatch('refreshWaitingToUpload')
+  async _linkObsWithProject({ dispatch }, { recordId }) {
+    const projectId = (await dispatch('getProjectInfoUsingCache')).id
+    try {
+      await dispatch(
+        'doApiPost',
+        {
+          urlSuffix: '/project_observations',
+          data: {
+            project_id: projectId,
+            observation_id: recordId,
+          },
+        },
+        { root: true },
+      )
+    } catch (err) {
+      throw new chainedError(
+        `Failed to link observation ID='${recordId}' ` +
+          `to project ID='${projectId}'`,
+        err,
+      )
+    }
   },
+  async deleteSelectedRecord({ state, dispatch, commit }) {
+    const recordId = state.selectedObservationId
+    if (isWaitingToUploadRecord(recordId)) {
+      const dexieId = localObsIdToDexieId(recordId)
+      await deleteDexieRecordById(dexieId)
+      // FIXME handle when in process of uploading, maybe queue delete operation?
+      await dispatch('refreshWaitingToUpload')
+    } else {
+      // FIXME handle when offline
+      const { photos } = state.myObs.find(e => e.inatId === recordId)
+      const myObsWithoutDeleted = state.myObs.filter(e => e.inatId !== recordId)
+      commit('setMyObs', myObsWithoutDeleted)
+      commit('setIsUpdatingMyObs', true)
+      photos.forEach(async p => {
+        await dispatch(
+          'doApiDelete',
+          { urlSuffix: `/observation_photos/${p.id}` },
+          { root: true },
+        )
+      })
+      await dispatch(
+        'doApiDelete',
+        { urlSuffix: `/observations/${recordId}` },
+        { root: true },
+      )
+      await dispatch('getMyObs')
+      dispatch('getMySpecies')
+    }
+    commit('setSelectedObservationId', null)
+  },
+}
+
+async function deleteDexieRecordById(id) {
+  try {
+    return db.obs.delete(id)
+  } catch (err) {
+    throw chainedError(`Failed to delete dexie record with ID='${id}'`, err)
+  }
 }
 
 const getters = {
@@ -306,6 +462,14 @@ const getters = {
   },
   isMyObsStale: buildStaleCheckerFn('myObsLastUpdated'),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated'),
+}
+
+function localObsIdToDexieId(id) {
+  return Math.abs(id)
+}
+
+function isWaitingToUploadRecord(id) {
+  return id < 0
 }
 
 function buildStaleCheckerFn(stateKey) {
@@ -324,19 +488,36 @@ async function resolveWaitingToUploadIdsToRecords(ids) {
     .where('id')
     .anyOf(ids)
     .toArray(records => {
+      revokeExistingObjectUrls() // FIXME might be calling wrongly, getting a 404-ish
       return records.map(e => {
+        const photos = e.photos.map(p => {
+          const objectUrl = mintObjectUrl(p.file)
+          const result = {
+            ...p,
+            url: objectUrl,
+          }
+          return result
+        })
         return {
-          id: e.id,
-          // FIXME apparently we should call revokeObjectURL when we're done.
-          // Maybe in the destroy() lifecycle hook of vue? Or, store a list
-          // of all URLs we create in this store and we can just clear them
-          // all as the first step in the next run.
-          photos: e.photos.map(v => URL.createObjectURL(v)),
-          placeGuess: '-34.96958,138.6305383', // FIXME just use coords?
-          speciesGuess: 'Genusus Speciesus', // FIXME use user's answer
+          ...e,
+          inatId: -1 * e.id,
+          photos,
         }
       })
     })
+}
+
+function mintObjectUrl(blob) {
+  const result = URL.createObjectURL(blob)
+  photoObjectUrlsInUse.push(result)
+  return result
+}
+
+function revokeExistingObjectUrls() {
+  for (const curr of photoObjectUrlsInUse) {
+    URL.revokeObjectURL(curr)
+  }
+  photoObjectUrlsInUse = []
 }
 
 export default {
@@ -358,7 +539,7 @@ function fetchSingleRecord(url) {
   return fetch(url)
     .then(function(resp) {
       if (!resp.ok) {
-        console.error('Made fetch() but it was not ok')
+        console.error(`Made fetch() for url='${url}' but it was not ok`)
         return false
       }
       return resp.json()
@@ -366,18 +547,14 @@ function fetchSingleRecord(url) {
     .then(function(body) {
       // FIXME also check for total_results > 1
       if (!body.total_results) {
-        return false
+        return null
       }
       return body.results[0]
-    })
-    .catch(err => {
-      console.error('Failed to make fetch() call', err)
-      return false
     })
 }
 
 function mapObsFromApiIntoOurDomain(obsFromApi) {
-  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson']
+  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
     if (!isNil(value)) {
@@ -386,13 +563,27 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return accum
   }, {})
   result.inatId = obsFromApi.id
-  const photos = (obsFromApi.photos || []).map(p => p.url)
+  // TODO what's the difference between .photos and .observation_photos?
+  const photos = (obsFromApi.photos || []).map(p => {
+    const result = {
+      url: p.url,
+      id: p.id,
+      licenseCode: p.license_code,
+      attribution: p.attribution,
+    }
+    verifyWowDomainPhoto(result)
+    return result
+  })
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
+  result.notes = obsFromApi.description
+  result.geolocationAccuracy = obsFromApi.positional_accuracy
+  const { lat, lng } = mapGeojsonToLatLng(result.geojson)
+  result.lat = lat
+  result.lng = lng
   const obsFieldValues = obsFromApi.ofvs.map(o => {
     return {
-      id: o.id,
       fieldId: o.field_id,
       datatype: o.datatype,
       name: processObsFieldName(o.name),
@@ -400,12 +591,64 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     }
   })
   result.obsFieldValues = obsFieldValues
-  result.notes = obsFromApi.description
   return result
+}
+
+function mapGeojsonToLatLng(geojson) {
+  if (!geojson || geojson.type !== 'Point') {
+    // FIXME maybe pull the first point in the shape?
+    return { lat: null, lng: null }
+  }
+  return {
+    lat: parseFloat(geojson.coordinates[1]),
+    lng: parseFloat(geojson.coordinates[0]),
+  }
 }
 
 function processObsFieldName(fieldName) {
   return (fieldName || '').replace(obsFieldPrefix, '')
+}
+
+function mapObsFromOurDomainOntoApi(dbRecord) {
+  const ignoredKeys = [
+    'id',
+    'photos',
+    'updatedAt',
+    'obsFieldValues',
+    'speciesGuess',
+    'placeGuess',
+    'createdAt',
+  ]
+  const result = {}
+  result.observationPostBody = {
+    ignore_photos: true,
+    observation: Object.keys(dbRecord).reduce(
+      (accum, currKey) => {
+        const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
+        const value = dbRecord[currKey]
+        if (isNotIgnored && isAnswer(value)) {
+          accum[currKey] = value
+        }
+        return accum
+      },
+      {
+        species_guess: dbRecord.speciesGuess,
+        created_at: dbRecord.createdAt,
+      },
+    ),
+  }
+  result.obsFieldPostBodyPartials = dbRecord.obsFieldValues.map(e => ({
+    observation_field_id: e.fieldId,
+    value: e.value,
+  }))
+  result.photoPostBodyPartials = dbRecord.photos.map(e => ({
+    photoBlob: e.file,
+  }))
+  return result
+}
+
+function isAnswer(val) {
+  return ['undefined', 'null'].indexOf(typeof val) < 0
 }
 
 export const _testonly = {

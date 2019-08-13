@@ -43,6 +43,18 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   }).then(handleResp)
 }
 
+export function putJsonWithAuth(url, data = {}, authHeaderValue) {
+  return fetch(url, {
+    method: 'PUT',
+    mode: 'cors',
+    headers: {
+      ...jsonHeaders,
+      Authorization: authHeaderValue,
+    },
+    body: JSON.stringify(data),
+  }).then(handleResp)
+}
+
 export function postFormDataWithAuth(
   url,
   populateFormDataCallback,
@@ -66,6 +78,18 @@ export function getJsonWithAuth(url, authHeaderValue) {
     method: 'GET',
     mode: 'cors',
     cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
+    headers: {
+      ...jsonHeaders,
+      Authorization: authHeaderValue,
+    },
+  }).then(handleResp)
+}
+
+export function deleteWithAuth(url, authHeaderValue) {
+  return fetch(url, {
+    method: 'DELETE',
+    mode: 'cors',
+    cache: 'no-store',
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
@@ -99,12 +123,43 @@ async function handleResp(resp) {
   })
 }
 
+/**
+ * Assert that the record matches our schema.
+ *
+ * Using a verifier seems more maintainable than a mapper function. A mapper
+ * would have a growing list of either unnamed params or named params which
+ * would already be the result object. A verifier lets your freehand map the
+ * object but it still shows linkage between all the locations we do mapping
+ * (hopefully not many).
+ */
+export function verifyWowDomainPhoto(photo) {
+  let msg = ''
+  assertFieldPresent('id')
+  assertFieldPresent('url')
+  assertFieldPresent('licenseCode')
+  assertFieldPresent('attribution')
+  if (msg) {
+    throw new Error(msg)
+  }
+  return
+  function assertFieldPresent(fieldName) {
+    photo[fieldName] ||
+      (msg += `Invalid photo record, '${fieldName}' is missing. `)
+  }
+}
+
 function isRespJson(resp) {
   const mimeStr = resp.headers.get('Content-Type') || ''
   return /application\/(\w+(\.\w+)*\+)?json/.test(mimeStr)
 }
 
 export function chainedError(msg, err) {
+  if (!err) {
+    return new Error(
+      `${msg}\nError while handling error: chainedError` +
+        ` was called without an error to chain`,
+    )
+  }
   err.message = `${msg}\nCaused by: ${err.message}`
   return err
 }
@@ -113,6 +168,18 @@ export function now() {
   return new Date().getTime()
 }
 
+export function formatMetricDistance(metres) {
+  if (!metres) {
+    return metres
+  } else if (metres < 1000) {
+    return `${metres}m`
+  }
+  const kmVal = (metres / 1000).toFixed(1)
+  return `${kmVal}km`
+}
+
 export const _testonly = {
   isRespJson,
+  verifyWowDomainPhoto,
+  formatMetricDistance,
 }
