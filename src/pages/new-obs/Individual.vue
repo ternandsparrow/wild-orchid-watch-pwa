@@ -469,6 +469,8 @@ export default {
 
 .map-container img {
   width: 90vw;
+}
+
 .width100 {
   width: 100%;
 }
