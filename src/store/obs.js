@@ -168,10 +168,9 @@ const actions = {
     })
     commit('setObsFields', fields)
   },
-  async doSpeciesAutocomplete({ commit, dispatch }, partialText) {
+  async doSpeciesAutocomplete({ dispatch }, partialText) {
     if (!partialText) {
-      commit('setSpeciesAutocompleteItems', [])
-      return
+      return []
     }
     const urlSuffix = `/taxa/autocomplete?q=${partialText}`
     try {
@@ -181,17 +180,12 @@ const actions = {
         name: d.name,
         preferrerCommonName: d.preferred_common_name,
       }))
-      commit('setSpeciesAutocompleteItems', records)
+      return records
     } catch (err) {
-      dispatch(
-        'flagGlobalError',
-        {
-          msg: `Failed to perform species autocomplete on text='${partialText}'`,
-          err,
-        },
-        { root: true },
+      throw chainedError(
+        'Failed to do species autocomplete with text=' + partialText,
+        err,
       )
-      return false
     }
   },
   async saveEditAndScheduleUpdate(
