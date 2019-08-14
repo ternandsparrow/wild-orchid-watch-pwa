@@ -12,7 +12,7 @@
 
 <script>
 import MyObs from './MyObs'
-import Species from './Species'
+// import Species from './Species'
 
 export default {
   name: 'Observations',
@@ -24,11 +24,12 @@ export default {
           icon: this.md ? null : 'ion-home',
           page: MyObs,
         },
-        {
-          label: 'Species',
-          icon: this.md ? null : 'ion-leaf',
-          page: Species,
-        },
+        // FIXME uncomment when we have the species detail pages done
+        // {
+        //   label: 'Species',
+        //   icon: this.md ? null : 'ion-leaf',
+        //   page: Species,
+        // },
       ],
     }
   },

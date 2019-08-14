@@ -66,31 +66,15 @@
       <v-ons-list-header class="wow-list-header"
         >Species guess</v-ons-list-header
       >
-      <v-ons-list-item tappable modifier="nodivider">
+      <v-ons-list-item>
         <!-- FIXME suggest recently used species or nearby ones -->
-        <v-ons-input
-          v-model="speciesGuess"
-          float
-          placeholder="e.g. snail orchid"
-          type="text"
-          @keyup="onSpeciesInput"
-        >
-        </v-ons-input>
+        <wow-autocomplete
+          :items="speciesAutocompleteItems"
+          placeholder-text="e.g. snail orchid"
+          @change="onSpeciesInput"
+          @item-selected="onSpeciesGuessSet"
+        />
       </v-ons-list-item>
-      <div v-show="isShowSpeciesAutocomplete">
-        <ul>
-          <!-- FIXME do we use name or common name? -->
-          <!-- FIXME turn this into an actual autocomplete, bootstrap-vue has a good one -->
-          <li
-            v-for="curr of speciesAutocompleteItems"
-            :key="curr.id"
-            class="autocomplete-item"
-            @click="doSelectAutocomplete(curr.name)"
-          >
-            {{ curr.name }}
-          </li>
-        </ul>
-      </div>
       <template v-for="currField of displayableObsFields">
         <v-ons-list-header
           :key="currField.id + '-list'"
@@ -187,12 +171,12 @@ export default {
       uploadedPhotos: [],
       obsFieldValues: {},
       notes: null,
-      isShowSpeciesAutocomplete: false,
       photoIdsToDelete: [],
+      speciesAutocompleteItems: [],
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields', 'lat', 'lng', 'speciesAutocompleteItems']),
+    ...mapState('obs', ['obsFields', 'lat', 'lng']),
     displayableObsFields() {
       // TODO create config file in /public so the client updates it more
       // frequently than the app code itself
@@ -268,6 +252,9 @@ export default {
     }
   },
   methods: {
+    onSpeciesGuessSet(selected) {
+      this.speciesGuess = selected
+    },
     onCancel() {
       // FIXME implement, is there anything to clean up or is it all local?
     },
@@ -376,13 +363,23 @@ export default {
         url: URL.createObjectURL(file),
       }
     },
-    async onSpeciesInput() {
-      await this.$store.dispatch('obs/doSpeciesAutocomplete', this.speciesGuess)
-      this.isShowSpeciesAutocomplete = true
-    },
-    doSelectAutocomplete(selected) {
-      this.speciesGuess = selected
-      this.isShowSpeciesAutocomplete = false
+    async onSpeciesInput(newVal) {
+      try {
+        const values = await this.$store.dispatch(
+          'obs/doSpeciesAutocomplete',
+          newVal,
+        )
+        this.speciesAutocompleteItems = values
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to perform species autocomplete on text='${newVal}'`,
+            err,
+          },
+          { root: true },
+        )
+      }
     },
     photoRef(e) {
       return 'photo-' + e.id
@@ -473,10 +470,6 @@ export default {
 
 .width100 {
   width: 100%;
-}
-
-.autocomplete-item {
-  margin: 1em auto;
 }
 
 .wow-obs-field-desc {
