@@ -7,7 +7,7 @@ set -euo pipefail
 cd `dirname "$0"`
 
 commitHash=`git log -1 --format=%h`
-timestamp=`date +%Y%m%d-%H%M%S`
+timestamp=`TZ='Australia/Adelaide' date +%Y%m%d-%H%M%S`
 
 cat <<EOF > current-version.js
 module.exports = '$commitHash.$timestamp'
