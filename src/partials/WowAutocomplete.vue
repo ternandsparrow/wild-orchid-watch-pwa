@@ -31,7 +31,9 @@ export default {
   name: 'WowAutocomplete',
   props: {
     placeholderText: String,
+    initialValue: String,
     items: Array,
+    extraCallbackData: Number,
   },
   data() {
     return {
@@ -39,15 +41,24 @@ export default {
       isShowAutocomplete: false,
     }
   },
+  mounted() {
+    this.theValue = this.initialValue
+  },
   methods: {
     async onKeyup() {
-      this.$emit('change', this.theValue)
+      this.$emit('change', {
+        value: this.theValue,
+        extra: this.extraCallbackData,
+      })
       this.isShowAutocomplete = true
     },
     onSelect(selected) {
       this.theValue = selected
       this.isShowAutocomplete = false
-      this.$emit('item-selected', this.theValue)
+      this.$emit('item-selected', {
+        value: this.theValue,
+        extra: this.extraCallbackData,
+      })
     },
     onFocus() {
       // FIXME scroll input to top-ish of page, something like

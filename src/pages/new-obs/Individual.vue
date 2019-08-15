@@ -69,9 +69,9 @@
       <v-ons-list-item>
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
-          :items="speciesAutocompleteItems"
+          :items="speciesGuessAutocompleteItems"
           placeholder-text="e.g. snail orchid"
-          @change="onSpeciesInput"
+          @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
         />
       </v-ons-list-item>
@@ -117,7 +117,16 @@
               class="wow-textarea"
             >
             </textarea>
-            <div v-else :key="currField.id + '-fixme'" style="color: red;">
+            <wow-autocomplete
+              v-else-if="currField.wowDatatype === 'taxon'"
+              :items="taxonQuestionAutocompleteItems[currField.id]"
+              :initial-value="obsFieldValues[currField.id]"
+              placeholder-text="e.g. snail orchid"
+              :extra-callback-data="currField.id"
+              @change="onTaxonQuestionInput"
+              @item-selected="onTaxonQuestionSet"
+            />
+            <div v-else style="color: red;">
               FIXME - support '{{ currField.wowDatatype }}' field type
             </div>
           </div>
@@ -164,7 +173,8 @@ export default {
       obsFieldValues: {},
       notes: null,
       photoIdsToDelete: [],
-      speciesAutocompleteItems: [],
+      speciesGuessAutocompleteItems: [],
+      taxonQuestionAutocompleteItems: {},
     }
   },
   computed: {
@@ -214,6 +224,13 @@ export default {
       accum[curr.id] = null
       return accum
     }, {})
+    this.taxonQuestionAutocompleteItems = this.displayableObsFields
+      .filter(f => f.wowDatatype === 'taxon')
+      .reduce((accum, curr) => {
+        // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
+        accum[curr.id] = null
+        return accum
+      }, {})
     const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
     if (this.isEdit) {
       const obsDetail = this.$store.getters['obs/observationDetail']
@@ -244,8 +261,12 @@ export default {
     }
   },
   methods: {
-    onSpeciesGuessSet(selected) {
-      this.speciesGuess = selected
+    onSpeciesGuessSet(data) {
+      this.speciesGuess = data.value
+    },
+    onTaxonQuestionSet(data) {
+      const fieldId = data.extra
+      this.obsFieldValues[fieldId] = data.value
     },
     onCancel() {
       // FIXME implement, is there anything to clean up or is it all local?
@@ -351,13 +372,22 @@ export default {
         url: URL.createObjectURL(file),
       }
     },
-    async onSpeciesInput(newVal) {
+    async onSpeciesGuessInput(data) {
+      const result = await this.doSpeciesAutocomplete(data.value)
+      this.speciesGuessAutocompleteItems = result
+    },
+    async onTaxonQuestionInput(data) {
+      const result = await this.doSpeciesAutocomplete(data.value)
+      const fieldId = data.extra
+      this.taxonQuestionAutocompleteItems[fieldId] = result
+    },
+    async doSpeciesAutocomplete(q) {
       try {
         const values = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
-          newVal,
+          q,
         )
-        this.speciesAutocompleteItems = values
+        return values
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
