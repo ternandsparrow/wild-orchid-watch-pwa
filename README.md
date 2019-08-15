@@ -67,7 +67,7 @@ you need to do differently.
          `/oauth-callback`) then it should instead serve up `index.html`
 
 ## Configuring env vars
-There are aspects of this app that can be configured at runtime such as API
+There are aspects of this app that can be configured at deploy-time such as API
 URIs, keys, etc. We achieve this by using `.env*` files that `vue-cli` reads
 and injects for us. [See the
 doco](https://cli.vuejs.org/guide/mode-and-env.html#environment-variables) for
@@ -107,6 +107,9 @@ If you want the unit tests to run every time you save a file (watch mode), use:
 
 Unit tests use Jest. You can find the doco for `expect()` at
 [https://jestjs.io/docs/en/expect]().
+
+## Architecture
+See [./ARCHITECTURE.md]() for details on how this app is built.
 
 ## TODO
   1. add install to homescreen button or notification for iOS

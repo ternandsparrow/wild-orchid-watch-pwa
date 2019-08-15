@@ -40,7 +40,7 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function putJsonWithAuth(url, data = {}, authHeaderValue) {
@@ -52,7 +52,7 @@ export function putJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function postFormDataWithAuth(
@@ -70,7 +70,12 @@ export function postFormDataWithAuth(
       Authorization: authHeaderValue,
     },
     body: formData,
-  }).then(handleResp)
+  }).then(handleJsonResp)
+}
+
+export function getJson(url) {
+  const authHeader = null
+  return getJsonWithAuth(url, authHeader)
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
@@ -82,7 +87,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function deleteWithAuth(url, authHeaderValue) {
@@ -94,10 +99,10 @@ export function deleteWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
-async function handleResp(resp) {
+async function handleJsonResp(resp) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok
   try {
@@ -107,20 +112,21 @@ async function handleResp(resp) {
   } catch (err) {
     throw chainedError('Failed while parsing JSON response', err)
   }
+  // resp either NOT ok or NOT JSON, prep nice error msg
   const bodyAccessor = isJson ? 'json' : 'text'
   const bodyPromise = resp.bodyUsed
     ? Promise.resolve('(body already used)')
     : resp[bodyAccessor]()
-  return bodyPromise.then(body => {
-    return Promise.reject({
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: resp.headers,
-      url: resp.url,
-      body,
-      msg: `Resp ok=${isRespOk}, Resp is JSON=${isJson}`,
-    })
-  })
+  const body = await bodyPromise
+  const trimmedBody = typeof body === 'string' ? body.substr(0, 300) : body
+  let msg = `\n  Resp ok=${isRespOk},\n`
+  msg += `  Resp is JSON=${isJson}\n`
+  msg += `  status=${resp.status}\n`
+  msg += `  statusText=${resp.statusText}\n`
+  msg += `  headers=${JSON.stringify(resp.headers)}\n`
+  msg += `  url=${resp.url}\n`
+  msg += `  body first 300 chars='${trimmedBody}'`
+  throw new Error(msg)
 }
 
 /**

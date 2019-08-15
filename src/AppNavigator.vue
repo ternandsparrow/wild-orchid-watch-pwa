@@ -73,6 +73,9 @@ export default {
       mainStack,
     }
   },
+  mounted() {
+    this.$store.dispatch('app/refreshRuntimeConfig')
+  },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('auth', ['isUpdatingApiToken']),
