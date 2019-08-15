@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
+import { isNil } from 'lodash'
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -184,8 +185,36 @@ export function formatMetricDistance(metres) {
   return `${kmVal}km`
 }
 
+export function buildUrlSuffix(path, params = {}) {
+  const querystring = Object.keys(params).reduce((accum, currKey) => {
+    const value = params[currKey]
+    if (isNil(value)) {
+      return accum
+    }
+    return `${accum}${currKey}=${value}&`
+  }, '')
+  const qsSep = querystring ? '?' : ''
+  return `${path}${qsSep}${querystring.replace(/&$/, '')}`
+}
+
+/**
+ * Returns a function that can be used as a vuex getter to check if the
+ * specified timestamp field has expired, so the corresponding field is
+ * considered stale.
+ */
+export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
+  return function(state) {
+    const lastUpdatedMs = state[stateKey]
+    return (
+      !lastUpdatedMs ||
+      lastUpdatedMs < now() - staleThresholdMinutes * 60 * 1000
+    )
+  }
+}
+
 export const _testonly = {
+  buildUrlSuffix,
+  formatMetricDistance,
   isRespJson,
   verifyWowDomainPhoto,
-  formatMetricDistance,
 }

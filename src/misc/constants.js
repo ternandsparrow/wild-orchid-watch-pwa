@@ -21,6 +21,15 @@ export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
+const assumedIdOfLifeTaxa = 1 // everything should have "Life" as an ancestor
+// iNaturalist deals with much more taxa than what we're interested in. We only
+// want orchids so we specify an integer ID (the ID in
+// inaturalist.org/taxa/<ID>) here and we'll use it to filter species lists
+// (like autocomplete) to only include taxa that have this node as an ancestor
+export const targetTaxaNodeId = parseInt(
+  process.env.VUE_APP_TARGET_TAXA_ID || assumedIdOfLifeTaxa,
+)
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '

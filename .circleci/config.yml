@@ -89,6 +89,7 @@ jobs:
             VUE_APP_DEPLOYED_ENV_IS_PROD=${WOW_IS_PROD:?}
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            VUE_APP_TARGET_TAXA_ID=${TARGET_TAXA_ID:?}
             EOF
             echo '[INFO] contents of .env.local'
             cat .env.local

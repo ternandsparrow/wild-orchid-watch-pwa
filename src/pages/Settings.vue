@@ -15,10 +15,20 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center">
-          Show onboarder next time the App launches
+          View onboarder again
         </label>
         <div class="right">
-          <v-ons-button @click="handleResetOnboarderClick">Reset</v-ons-button>
+          <v-ons-button @click="handleResetOnboarderClick"
+            >Show now</v-ons-button
+          >
+        </div>
+      </ons-list-item>
+      <ons-list-item>
+        <label class="center">
+          Refresh iNaturalist profile
+        </label>
+        <div class="right">
+          <v-ons-button @click="doInatProfileRefresh">Refresh</v-ons-button>
         </div>
       </ons-list-item>
       <ons-list-item>
@@ -79,12 +89,20 @@ export default {
     this.$store.commit('app/setTopTitle', 'Settings')
   },
   methods: {
+    async doInatProfileRefresh() {
+      await this.$store.dispatch('auth/updateUserDetails')
+      this.$ons.notification.toast('Profile refreshed', {
+        timeout: 2000,
+        animation: 'ascend',
+      })
+    },
     handleResetOnboarderClick() {
       this.$store.commit('app/setIsFirstRun', true)
       this.$ons.notification.toast('Onboarder reset', {
         timeout: 1000,
         animation: 'ascend',
       })
+      window.location.reload()
     },
     doLogout() {
       // FIXME check if we have unsync'd observations and warn they'll be lost

@@ -32,7 +32,8 @@ export default {
     code_challenge: null,
     code_verifier: null,
     userDetails: {},
-    apiTokenAndUserLastUpdated: null,
+    userDetailsLastUpdated: 0,
+    apiTokenAndUserLastUpdated: 0,
     isUpdatingApiToken: false,
   },
   mutations: {
@@ -56,6 +57,7 @@ export default {
     },
     _saveUserDetails: (state, value) => {
       state.userDetails = value
+      state.userDetailsLastUpdated = now()
     },
     markApiTokenAndUserLastUpdated: state => {
       state.apiTokenAndUserLastUpdated = now()
@@ -79,6 +81,12 @@ export default {
     },
     myUsername(state) {
       return state.userDetails.login
+    },
+    myLocale(state) {
+      return state.userDetails.locale
+    },
+    myPlaceId(state) {
+      return state.userDetails.place_id
     },
   },
   actions: {
@@ -260,7 +268,7 @@ export default {
           })
           const apiToken = resp.api_token
           commit('_setApiToken', apiToken)
-          dispatch('_updateUserDetails').then(() => {
+          dispatch('updateUserDetails').then(() => {
             commit('markApiTokenAndUserLastUpdated')
             commit('setIsUpdatingApiToken', false)
           })
@@ -285,7 +293,7 @@ export default {
      * Will be called everytime we refresh the API token, which at the time
      * of writing is every 24hrs.
      */
-    async _updateUserDetails({ commit, dispatch, getters }) {
+    async updateUserDetails({ commit, dispatch, getters }) {
       try {
         const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
         const isWrongNumberOfResults = resp.total_results !== 1

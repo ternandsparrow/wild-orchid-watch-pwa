@@ -139,6 +139,37 @@ describe('verifyWowDomainPhoto', () => {
   })
 })
 
+describe('buildUrlSuffix', () => {
+  it('should build a URL with no params', () => {
+    const result = _testonly.buildUrlSuffix('/blah')
+    expect(result).toEqual('/blah')
+  })
+
+  it('should build a URL with empty params', () => {
+    const result = _testonly.buildUrlSuffix('/blah', {})
+    expect(result).toEqual('/blah')
+  })
+
+  it('should build a URL with one param', () => {
+    const result = _testonly.buildUrlSuffix('/blah', { foo: 'bar' })
+    expect(result).toEqual('/blah?foo=bar')
+  })
+
+  it('should build a URL with params', () => {
+    const result = _testonly.buildUrlSuffix('/blah', { foo: 'bar', baz: 123 })
+    expect(result).toEqual('/blah?foo=bar&baz=123')
+  })
+
+  it('should exclude params that are null-ish', () => {
+    const result = _testonly.buildUrlSuffix('/blah', {
+      foo: 'bar',
+      baz: null,
+      something: undefined,
+    })
+    expect(result).toEqual('/blah?foo=bar')
+  })
+})
+
 function mockResp(mimeStr) {
   return {
     headers: {

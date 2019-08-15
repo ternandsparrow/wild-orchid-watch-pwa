@@ -44,6 +44,10 @@ best of both worlds.
 
 ## Vuex
 TODO
+  - central state mgmt
+  - data shared between components
+  - persisted to localStorage
+  - root exports facades for impls in modules so we don't have cross module dependencies 
 
 
 ## Dexie.js

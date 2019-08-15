@@ -4,8 +4,15 @@ import {
   inatProjectSlug,
   obsFieldPrefix,
   obsFieldSeparatorChar,
+  targetTaxaNodeId,
 } from '@/misc/constants'
-import { now, chainedError, verifyWowDomainPhoto } from '@/misc/helpers'
+import {
+  buildStaleCheckerFn,
+  buildUrlSuffix,
+  chainedError,
+  now,
+  verifyWowDomainPhoto,
+} from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
 const NOT_UPLOADED = -1
@@ -17,17 +24,17 @@ const state = {
   lng: null,
   locAccuracy: null,
   myObs: [],
-  myObsLastUpdated: null,
+  myObsLastUpdated: 0,
   isUpdatingMyObs: false,
   mySpecies: [],
-  mySpeciesLastUpdated: null,
+  mySpeciesLastUpdated: 0,
   obsFields: [],
   selectedObservationId: null,
   speciesAutocompleteItems: [],
   tabIndex: 0,
   waitingToUploadRecords: [],
   projectInfo: null,
-  projectInfoLastUpdated: null,
+  projectInfoLastUpdated: 0,
 }
 
 const mutations = {
@@ -168,18 +175,28 @@ const actions = {
     })
     commit('setObsFields', fields)
   },
-  async doSpeciesAutocomplete({ dispatch }, partialText) {
+  async doSpeciesAutocomplete({ dispatch, getters }, partialText) {
     if (!partialText) {
       return []
     }
-    const urlSuffix = `/taxa/autocomplete?q=${partialText}`
+    const locale = getters.myLocale
+    const placeId = getters.myPlaceId
+    const urlSuffix = buildUrlSuffix('/taxa/autocomplete', {
+      q: partialText,
+      locale: locale,
+      preferred_place_id: placeId,
+    })
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      const records = resp.results.map(d => ({
-        id: d.id,
-        name: d.name,
-        preferrerCommonName: d.preferred_common_name,
-      }))
+      const records = resp.results
+        .filter(d => d.ancestor_ids.find(e => e === targetTaxaNodeId))
+        .map(d => ({
+          id: d.id,
+          name: d.name,
+          preferrerCommonName: d.preferred_common_name,
+        }))
+      // FIXME we might want bigger pages or perform paging to get enough
+      // results to fill the UI
       return records
     } catch (err) {
       throw chainedError(
@@ -454,8 +471,8 @@ const getters = {
     const found = allObs.find(e => e.inatId === state.selectedObservationId)
     return found
   },
-  isMyObsStale: buildStaleCheckerFn('myObsLastUpdated'),
-  isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated'),
+  isMyObsStale: buildStaleCheckerFn('myObsLastUpdated', 10),
+  isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
 }
 
 function localObsIdToDexieId(id) {
@@ -464,17 +481,6 @@ function localObsIdToDexieId(id) {
 
 function isWaitingToUploadRecord(id) {
   return id < 0
-}
-
-function buildStaleCheckerFn(stateKey) {
-  return function(state) {
-    const lastUpdatedMs = state[stateKey]
-    const staleThresholdMinutes = 10
-    return (
-      !lastUpdatedMs ||
-      lastUpdatedMs < now() - staleThresholdMinutes * 60 * 1000
-    )
-  }
 }
 
 async function resolveWaitingToUploadIdsToRecords(ids) {
