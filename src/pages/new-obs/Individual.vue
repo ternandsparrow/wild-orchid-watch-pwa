@@ -392,7 +392,7 @@ export default {
         this.$store.dispatch(
           'flagGlobalError',
           {
-            msg: `Failed to perform species autocomplete on text='${newVal}'`,
+            msg: `Failed to perform species autocomplete on text='${q}'`,
             err,
           },
           { root: true },
