@@ -41,7 +41,6 @@
           </label>
         </div>
       </div>
-      <!-- FIXME show conditionally, only when there are uploaded photos -->
       <template v-if="uploadedPhotos.length">
         <v-ons-list-item>
           <div class="photo-title">Uploaded photos</div>
@@ -77,11 +76,13 @@
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
         <v-ons-list-header
+          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-list'"
           class="wow-list-header"
           >{{ currField.name }}</v-ons-list-header
         >
         <v-ons-list-item
+          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
         >
@@ -151,12 +152,23 @@
 <script>
 import { mapState } from 'vuex'
 import { verifyWowDomainPhoto } from '@/misc/helpers'
+import {
+  accuracyOfCountObsFieldDefault,
+  accuracyOfCountObsFieldId,
+  countOfIndividualsObsFieldDefault,
+  countOfIndividualsObsFieldId,
+  epiphyteHeightObsFieldId,
+  hostTreeSpeciesObsFieldId,
+  orchidTypeObsFieldDefault,
+  orchidTypeObsFieldId,
+  orchidTypeEpiphyte,
+} from '@/misc/constants'
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
 
 export default {
-  name: 'Individual',
+  name: 'SingleSpecies',
   data() {
     return {
       photoMenu: [
@@ -171,6 +183,7 @@ export default {
       photos: {},
       uploadedPhotos: [],
       obsFieldValues: {},
+      obsFieldVisibility: {},
       notes: null,
       photoIdsToDelete: [],
       speciesGuessAutocompleteItems: [],
@@ -180,14 +193,6 @@ export default {
   computed: {
     ...mapState('obs', ['obsFields', 'lat', 'lng']),
     displayableObsFields() {
-      // TODO create config file in /public so the client updates it more
-      // frequently than the app code itself
-      // FIXME set invisible flag when orchidType !== epiphyte
-      //   - host tree species
-      //   - epiphyte height
-      // FIXME set invisible flag when doing individual
-      //   - accuracy of count
-      //   - count of individuals recorded
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
         const hasAllowedValues = (curr.allowedValues || []).length
@@ -210,12 +215,19 @@ export default {
       return result
     },
     isEdit() {
-      // TODO should be able to wire directly into the props:{} of
-      // this component but suspect Onsen gets in the way.
+      // TODO should be able to wire directly into the props:{isEdit: Boolean}
+      // of this component but suspect Onsen gets in the way.
       return this.$route.matched[0].props.default.isEdit
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
+    },
+  },
+  watch: {
+    [`obsFieldValues.${orchidTypeObsFieldId}`](newVal) {
+      const isEpiphyte = newVal === orchidTypeEpiphyte
+      this.obsFieldVisibility[hostTreeSpeciesObsFieldId] = isEpiphyte
+      this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
     },
   },
   mounted() {
@@ -235,6 +247,7 @@ export default {
     if (this.isEdit) {
       const obsDetail = this.$store.getters['obs/observationDetail']
       obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
         // pre-populate obs fields
         this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
           accum[curr.fieldId] = curr.value
@@ -255,12 +268,22 @@ export default {
     } else {
       // "new" mode
       obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
       })
       this.$store.dispatch('obs/markUserGeolocation')
     }
   },
   methods: {
+    setDefaultObsFieldVisibility() {
+      this.obsFieldVisibility = this.displayableObsFields.reduce(
+        (accum, curr) => {
+          accum[curr.id] = true
+          return accum
+        },
+        {},
+      )
+    },
     onSpeciesGuessSet(data) {
       this.speciesGuess = data.value
     },
@@ -277,15 +300,70 @@ export default {
       this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
     },
     setDefaultAnswers() {
-      // FIXME are these defaults ok? Should we be smarter like picking the last used values?
-      this.obsFieldValues = this.displayableObsFields.reduce((accum, curr) => {
-        const hasSelectOptions = (curr.allowedValues || []).length
-        if (!hasSelectOptions) {
-          return accum
-        }
-        accum[curr.id] = curr.allowedValues[0]
-        return accum
-      }, {})
+      try {
+        // FIXME are these defaults ok? Should we be smarter like picking the last used values?
+        // Or should we have a button to "clone previous observation"?
+        this.obsFieldValues = this.displayableObsFields.reduce(
+          (accum, curr) => {
+            const hasSelectOptions = (curr.allowedValues || []).length
+            if (!hasSelectOptions) {
+              return accum
+            }
+            accum[curr.id] = curr.allowedValues[0]
+            return accum
+          },
+          {},
+        )
+        this.setDefaultIfSupplied(
+          accuracyOfCountObsFieldId,
+          accuracyOfCountObsFieldDefault,
+        )
+        this.setDefaultIfSupplied(
+          countOfIndividualsObsFieldId,
+          countOfIndividualsObsFieldDefault,
+        )
+        this.setDefaultIfSupplied(
+          orchidTypeObsFieldId,
+          orchidTypeObsFieldDefault,
+        )
+      } catch (err) {
+        // FIXME the UI doesn't reflect this error, is it because we're in mounted()?
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to set default answers`,
+            err,
+          },
+          { root: true },
+        )
+      }
+    },
+    setDefaultIfSupplied(fieldId, defaultValue) {
+      const fieldDef = this.getObsFieldDef(fieldId)
+      const isValidValue =
+        fieldDef.wowDatatype !== 'select' ||
+        fieldDef.allowedValues.indexOf(defaultValue) >= 0
+      if (!isValidValue) {
+        throw new Error(
+          `Cannot set field ID='${fieldId}' ` +
+            `(name='${
+              fieldDef.name
+            }') to value='${defaultValue}' as it's not ` +
+            `in the allowedValues=[${fieldDef.allowedValues}]`,
+        )
+      }
+      this.obsFieldValues[fieldId] = defaultValue
+    },
+    getObsFieldDef(fieldId) {
+      const result = this.displayableObsFields.find(f => f.id === fieldId)
+      if (!result) {
+        const availableIds = this.displayableObsFields.map(f => f.id)
+        throw new Error(
+          `Failed to find obs field definition with ` +
+            `ID='${fieldId}' from available IDs=[${availableIds}]`,
+        )
+      }
+      return result
     },
     async onSave() {
       try {
@@ -313,14 +391,11 @@ export default {
           // FIXME add placeGuess
           obsFieldValues: Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
-              const obsFieldDef = this.displayableObsFields.find(
-                e => e.id == currKey,
-              )
-              if (!obsFieldDef) {
-                // FIXME notify Sentry of error, but do we push on? And if so,
-                // do we either hide this element or show an error message inplace
-                // of it?
+              const isVisible = this.obsFieldVisibility[currKey]
+              if (!isVisible) {
+                return accum
               }
+              const obsFieldDef = this.getObsFieldDef(currKey)
               accum.push({
                 fieldId: parseInt(currKey),
                 name: obsFieldDef.name,

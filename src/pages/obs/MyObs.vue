@@ -35,8 +35,8 @@
       <v-ons-icon icon="md-plus"></v-ons-icon>
     </v-ons-fab>
     <v-ons-action-sheet :visible.sync="isNewObsActionsVisible" cancelable>
-      <v-ons-action-sheet-button icon="fa-user-alt" @click="onIndividual"
-        >Individual</v-ons-action-sheet-button
+      <v-ons-action-sheet-button icon="fa-seedling" @click="onNewSingleSpecies"
+        >Single species</v-ons-action-sheet-button
       >
       <!-- TODO support mapping records, and population if it needs a separate page -->
       <v-ons-action-sheet-button
@@ -85,9 +85,9 @@ export default {
     onNewObsBtn() {
       this.isNewObsActionsVisible = true
     },
-    onIndividual() {
+    onNewSingleSpecies() {
       this.isNewObsActionsVisible = false
-      this.$router.push({ name: 'ObsNew' })
+      this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
     doRefresh(done) {
       if (this.isUserLoggedIn) {
