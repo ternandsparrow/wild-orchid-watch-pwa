@@ -21,13 +21,13 @@ export default {
       tabs: [
         {
           label: 'Observations',
-          icon: this.md ? null : 'ion-home',
+          icon: this.md ? null : 'fa-binoculars',
           page: MyObs,
         },
         // FIXME uncomment when we have the species detail pages done
         // {
         //   label: 'Species',
-        //   icon: this.md ? null : 'ion-leaf',
+        //   icon: this.md ? null : 'fa-leaf',
         //   page: Species,
         // },
       ],

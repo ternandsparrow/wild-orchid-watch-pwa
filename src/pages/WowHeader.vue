@@ -18,7 +18,7 @@
           <custom-toolbar>
             {{ topTitle }}
             <v-ons-toolbar-button slot="left" @click="onMenuClick">
-              <v-ons-icon icon="ion-navicon, material:md-menu"></v-ons-icon>
+              <v-ons-icon icon="md-menu"></v-ons-icon>
             </v-ons-toolbar-button>
           </custom-toolbar>
           <v-ons-navigator :page-stack="innerPageStack"></v-ons-navigator>

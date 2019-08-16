@@ -1,5 +1,5 @@
-import store from '@/store/index'
 import { isNil } from 'lodash'
+import store from '@/store/index'
 
 const isIosOnBrowser =
   ['iPhone', 'iPad', 'iPod'].includes(navigator.platform) &&
