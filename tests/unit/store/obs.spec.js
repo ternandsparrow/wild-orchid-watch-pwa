@@ -26,6 +26,7 @@ describe('mapObsFromApiIntoOurDomain', () => {
     expect(result).toHaveProperty('obsFieldValues', [
       {
         fieldId: 1,
+        relationshipId: 4,
         datatype: 'text',
         name: 'Orchid type',
         value: 'Terrestrial',

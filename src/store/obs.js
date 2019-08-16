@@ -207,7 +207,7 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { dispatch },
-    { record, photoIdsToDelete, existingRecordId },
+    { record, photoIdsToDelete, existingRecordId, obsFieldIdsToDelete },
   ) {
     // TODO Can we schedule this by
     //   - updating the DB now
@@ -220,6 +220,17 @@ const actions = {
           'doApiDelete',
           {
             urlSuffix: `/observation_photos/${id}`,
+          },
+          { root: true },
+        )
+      }),
+    )
+    await Promise.all(
+      obsFieldIdsToDelete.map(id => {
+        return dispatch(
+          'doApiDelete',
+          {
+            urlSuffix: `/observation_field_values/${id}`,
           },
           { root: true },
         )
@@ -584,6 +595,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.lng = lng
   const obsFieldValues = obsFromApi.ofvs.map(o => {
     return {
+      relationshipId: o.id,
       fieldId: o.field_id,
       datatype: o.datatype,
       name: processObsFieldName(o.name),

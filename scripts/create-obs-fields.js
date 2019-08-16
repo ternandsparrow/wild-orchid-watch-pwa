@@ -46,7 +46,7 @@ const obsFields = [
   {
     name: 'Altitude metres',
     description:
-      'Altitude (in metres) above sea level that observation was made',
+      'Altitude (in metres), compared to sea level, that observation was made at',
     datatype: 'numeric',
     allowedValues: '',
   },

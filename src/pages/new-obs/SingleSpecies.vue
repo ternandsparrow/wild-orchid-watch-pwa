@@ -86,8 +86,6 @@
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
         >
-          <!-- FIXME show *required* marker -->
-          <!-- FIXME allow deselecting a value from optional -->
           <!-- FIXME turn yes/no questions into switches -->
           <div class="wow-obs-field-input-container">
             <v-ons-select
@@ -95,6 +93,9 @@
               v-model="obsFieldValues[currField.id]"
               style="width: 80%"
             >
+              <option v-if="!currField.required" :value="null">
+                (No value)
+              </option>
               <option
                 v-for="(currValue, $index) in currField.allowedValues"
                 :key="currField.id + '-' + $index"
@@ -110,6 +111,7 @@
               placeholder="Input value"
               type="number"
             >
+              <!-- FIXME validate non-negative and non-zero if applicable -->
             </v-ons-input>
             <textarea
               v-else-if="currField.wowDatatype === 'text'"
@@ -131,7 +133,8 @@
               FIXME - support '{{ currField.wowDatatype }}' field type
             </div>
           </div>
-          <div v-show="currField.description" class="wow-obs-field-desc">
+          <div class="wow-obs-field-desc">
+            <span v-if="currField.required" class="required">(required)</span>
             {{ currField.description }}
           </div>
         </v-ons-list-item>
@@ -150,7 +153,8 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
+import { isNil, trim } from 'lodash'
 import { verifyWowDomainPhoto } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
@@ -183,6 +187,7 @@ export default {
       photos: {},
       uploadedPhotos: [],
       obsFieldValues: {},
+      obsFieldInitialValues: {}, // for comparing after edit
       obsFieldVisibility: {},
       notes: null,
       photoIdsToDelete: [],
@@ -192,6 +197,7 @@ export default {
   },
   computed: {
     ...mapState('obs', ['obsFields', 'lat', 'lng']),
+    ...mapGetters('obs', ['observationDetail']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
@@ -245,25 +251,29 @@ export default {
       }, {})
     const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
     if (this.isEdit) {
-      const obsDetail = this.$store.getters['obs/observationDetail']
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
+        this.setDefaultAnswers()
         // pre-populate obs fields
-        this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
-          accum[curr.fieldId] = curr.value
-          return accum
-        }, {})
+        this.obsFieldValues = this.observationDetail.obsFieldValues.reduce(
+          (accum, curr) => {
+            accum[curr.fieldId] = curr.value
+            return accum
+          },
+          this.obsFieldValues,
+        )
+        this.obsFieldInitialValues = Object.assign({}, this.obsFieldValues)
       })
-      if (obsDetail.speciesGuess) {
-        this.speciesGuess = obsDetail.speciesGuess
+      if (this.observationDetail.speciesGuess) {
+        this.speciesGuess = this.observationDetail.speciesGuess
       }
-      if (obsDetail.notes) {
-        this.notes = obsDetail.notes
+      if (this.observationDetail.notes) {
+        this.notes = this.observationDetail.notes
       }
       // pre-populate photos
       // FIXME we don't know what type any given photo is, how can we store
       // this on the server? A do-not-edit obs field just for metadata?
-      this.uploadedPhotos = obsDetail.photos
+      this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
     } else {
       // "new" mode
@@ -309,7 +319,7 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            accum[curr.id] = curr.allowedValues[0]
+            accum[curr.id] = curr.required ? curr.allowedValues[0] : null
             return accum
           },
           {},
@@ -355,17 +365,24 @@ export default {
       this.obsFieldValues[fieldId] = defaultValue
     },
     getObsFieldDef(fieldId) {
-      const result = this.displayableObsFields.find(f => f.id === fieldId)
+      const result = this.displayableObsFields.find(
+        f => f.id === parseInt(fieldId),
+      )
       if (!result) {
-        const availableIds = this.displayableObsFields.map(f => f.id)
+        const availableIds = this.displayableObsFields.map(f => f.id).sort()
         throw new Error(
           `Failed to find obs field definition with ` +
-            `ID='${fieldId}' from available IDs=[${availableIds}]`,
+            `ID='${fieldId}' (type=${typeof fieldId}) from available ` +
+            `IDs=[${availableIds}]`,
         )
       }
       return result
     },
     async onSave() {
+      // TODO assert that all required fields are filled. Currently they have
+      // to be because there's always a valid default that can't be unselected.
+      // If we change that so all fields require conscious filling, then we need
+      // to validate.
       try {
         const record = {
           photos: this.photoMenu.reduce((accum, curr, $index) => {
@@ -396,10 +413,14 @@ export default {
                 return accum
               }
               const obsFieldDef = this.getObsFieldDef(currKey)
+              const value = this.obsFieldValues[currKey]
+              if (isDeletedObsFieldValue(value)) {
+                return accum
+              }
               accum.push({
                 fieldId: parseInt(currKey),
                 name: obsFieldDef.name,
-                value: this.obsFieldValues[currKey],
+                value: value,
                 datatype: obsFieldDef.datatype,
               })
               return accum
@@ -409,12 +430,37 @@ export default {
           description: this.notes,
         }
         if (this.isEdit) {
+          const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
+            (accum, currKey) => {
+              const value = this.obsFieldValues[currKey]
+              const hadValueBeforeEditing = !isNil(
+                this.obsFieldInitialValues[currKey],
+              )
+              const isEmpty = isDeletedObsFieldValue(value)
+              if (isEmpty && hadValueBeforeEditing) {
+                const obsFieldInstance = this.observationDetail.obsFieldValues.find(
+                  f => f.fieldId === parseInt(currKey),
+                )
+                if (!obsFieldInstance) {
+                  throw new Error(
+                    `Could not get obs field instance with fieldId='${currKey}' ` +
+                      `(type=${typeof currKey}) from available instances='${JSON.stringify(
+                        this.observationDetail.obsFieldValues,
+                      )}'`,
+                  )
+                }
+                accum.push(obsFieldInstance.relationshipId)
+              }
+              return accum
+            },
+            [],
+          )
           // FIXME check if anything has changed before continuing
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
             existingRecordId: this.$store.state.obs.selectedObservationId,
             photoIdsToDelete: this.photoIdsToDelete,
-            // FIXME what about setting optional obs fields to have no value? DELETE them?
+            obsFieldIdsToDelete,
           })
         } else {
           await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)
@@ -478,6 +524,10 @@ export default {
       return 'photo-' + e.id
     },
   },
+}
+
+function isDeletedObsFieldValue(value) {
+  return isNil(value) || (typeof value === 'string' && trim(value).length === 0)
 }
 </script>
 
@@ -570,5 +620,9 @@ export default {
 
 .uploaded-photo-item {
   margin: 0.25em 0.5em;
+}
+
+.required {
+  color: red;
 }
 </style>
