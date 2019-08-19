@@ -73,6 +73,9 @@
           @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
         />
+        <div class="wow-obs-field-desc">
+          Which species is this observation of?
+        </div>
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
         <v-ons-list-header
@@ -121,7 +124,7 @@
             >
             </textarea>
             <wow-autocomplete
-              v-else-if="currField.wowDatatype === 'taxon'"
+              v-else-if="currField.wowDatatype === taxonFieldType"
               :items="taxonQuestionAutocompleteItems[currField.id]"
               :initial-value="obsFieldValues[currField.id]"
               placeholder-text="e.g. snail orchid"
@@ -149,6 +152,7 @@
         ></v-ons-input>
       </v-ons-list-item>
     </v-ons-list>
+    <div class="footer-whitespace"></div>
   </v-ons-page>
 </template>
 
@@ -167,6 +171,9 @@ import {
   orchidTypeObsFieldId,
   orchidTypeEpiphyte,
 } from '@/misc/constants'
+
+const speciesGuessRecentTaxaKey = 'speciesGuess'
+const taxonFieldType = 'taxon'
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
@@ -193,11 +200,13 @@ export default {
       photoIdsToDelete: [],
       speciesGuessAutocompleteItems: [],
       taxonQuestionAutocompleteItems: {},
+      taxonFieldType,
     }
   },
   computed: {
     ...mapState('obs', ['obsFields', 'lat', 'lng']),
     ...mapGetters('obs', ['observationDetail']),
+    ...mapState('ephemeral', ['networkOnLine']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
@@ -219,6 +228,11 @@ export default {
         return 0
       })
       return result
+    },
+    taxonQuestionIds() {
+      return this.displayableObsFields
+        .filter(f => f.wowDatatype === taxonFieldType)
+        .map(e => e.id)
     },
     isEdit() {
       // TODO should be able to wire directly into the props:{isEdit: Boolean}
@@ -243,7 +257,7 @@ export default {
       return accum
     }, {})
     this.taxonQuestionAutocompleteItems = this.displayableObsFields
-      .filter(f => f.wowDatatype === 'taxon')
+      .filter(f => f.wowDatatype === taxonFieldType)
       .reduce((accum, curr) => {
         // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
         accum[curr.id] = null
@@ -283,8 +297,22 @@ export default {
       })
       this.$store.dispatch('obs/markUserGeolocation')
     }
+    this.setRecentlyUsedTaxa()
   },
   methods: {
+    setRecentlyUsedTaxa() {
+      this.speciesGuessAutocompleteItems = (
+        this.$store.state.obs.recentlyUsedTaxa[speciesGuessRecentTaxaKey] || []
+      ).map(mapToAutocompleteItem)
+      for (const currId of this.taxonQuestionIds) {
+        this.taxonQuestionAutocompleteItems[currId] = (
+          this.$store.state.obs.recentlyUsedTaxa[currId] || []
+        ).map(mapToAutocompleteItem)
+      }
+      function mapToAutocompleteItem(simpleValue) {
+        return { id: simpleValue, name: simpleValue }
+      }
+    },
     setDefaultObsFieldVisibility() {
       this.obsFieldVisibility = this.displayableObsFields.reduce(
         (accum, curr) => {
@@ -384,6 +412,16 @@ export default {
       // If we change that so all fields require conscious filling, then we need
       // to validate.
       try {
+        this.$store.commit('obs/addRecentlyUsedTaxa', {
+          type: speciesGuessRecentTaxaKey,
+          value: this.speciesGuess,
+        })
+        for (const currId of this.taxonQuestionIds) {
+          this.$store.commit('obs/addRecentlyUsedTaxa', {
+            type: currId,
+            value: this.obsFieldValues[currId],
+          })
+        }
         const record = {
           photos: this.photoMenu.reduce((accum, curr, $index) => {
             const currPhoto = this.photos[curr.id]
@@ -503,6 +541,9 @@ export default {
       this.taxonQuestionAutocompleteItems[fieldId] = result
     },
     async doSpeciesAutocomplete(q) {
+      if (!this.networkOnLine) {
+        return
+      }
       try {
         const values = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
@@ -518,6 +559,8 @@ export default {
           },
           { root: true },
         )
+        // at least give the user a chance to use their input as-is
+        return []
       }
     },
     photoRef(e) {
@@ -624,5 +667,9 @@ function isDeletedObsFieldValue(value) {
 
 .required {
   color: red;
+}
+
+.footer-whitespace {
+  height: 50vh;
 }
 </style>

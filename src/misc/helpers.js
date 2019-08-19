@@ -13,13 +13,13 @@ const jsonHeaders = {
 // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
 // this eventually
 export function wowErrorHandler(msg, err) {
-  console.error(msg, err)
+  console.error(msg, err || '(no error object passed')
   const processedError = chainedError(msg, err)
   Sentry.captureException(processedError)
 }
 
 export function wowWarnHandler(msg, err) {
-  console.warn(msg, err)
+  console.warn(msg, err || '(no error object passed)')
   Sentry.withScope(scope => {
     scope.setLevel('warning')
     Sentry.captureException(chainedError(msg, err))
@@ -163,8 +163,7 @@ function isRespJson(resp) {
 export function chainedError(msg, err) {
   if (!err) {
     return new Error(
-      `${msg}\nError while handling error: chainedError` +
-        ` was called without an error to chain`,
+      `${msg}\nWARNING: chainedError` + ` was called without an error to chain`,
     )
   }
   err.message = `${msg}\nCaused by: ${err.message}`

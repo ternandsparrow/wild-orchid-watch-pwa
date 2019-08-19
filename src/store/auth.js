@@ -122,13 +122,21 @@ export default {
         )
       }
     },
-    async doInatGet({ state }, { urlSuffix }) {
+    assertInatTokenValid({ state, commit }) {
+      if (state.token && state.tokenType) {
+        return
+      }
+      // TODO this commit might be redundant as the login message should
+      // already be shown. Perhaps we should get more obvious? But then maybe
+      // we shouldn't so the user can finish saving the observation locally
+      commit('ephemeral/setForceShowLoginToast', true, { root: true }) // TODO remove cross module dependency, use a facade at the root
+      throw new Error(
+        'iNat token or token type is NOT present, cannot make call. Forcing user to login again',
+      )
+    },
+    async doInatGet({ state, dispatch }, { urlSuffix }) {
       try {
-        if (!state.token || !state.tokenType) {
-          throw new Error(
-            'iNat token or token type is NOT present, cannot continue',
-          )
-        }
+        dispatch('assertInatTokenValid')
         const resp = await getJsonWithAuth(
           `${inatUrlBase}${urlSuffix}`,
           `${state.tokenType} ${state.token}`,
@@ -141,13 +149,9 @@ export default {
         )
       }
     },
-    async doInatPost({ state }, { urlSuffix, data }) {
+    async doInatPost({ state, dispatch }, { urlSuffix, data }) {
       try {
-        if (!state.token || !state.tokenType) {
-          throw new Error(
-            'iNat token or token type is NOT present, cannot continue',
-          )
-        }
+        dispatch('assertInatTokenValid')
         const resp = await postJsonWithAuth(
           `${inatUrlBase}${urlSuffix}`,
           data,

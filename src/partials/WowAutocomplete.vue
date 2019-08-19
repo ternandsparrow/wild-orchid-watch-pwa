@@ -12,7 +12,7 @@
       >
       </v-ons-input>
     </div>
-    <div v-show="isShowAutocomplete">
+    <div v-show="isShowSuggestions">
       <ul class="autocomplete-list">
         <li v-if="theValue" @click="onSelect(theValue)">
           Use "<em>{{ theValue }}</em
@@ -38,8 +38,15 @@ export default {
   data() {
     return {
       theValue: null,
-      isShowAutocomplete: false,
+      showItemsMasterSwitch: true,
     }
+  },
+  computed: {
+    isShowSuggestions() {
+      const isItems = (this.items || []).length > 0
+      const isInput = (this.theValue || '').trim().length > 0
+      return this.showItemsMasterSwitch && (isItems || isInput)
+    },
   },
   mounted() {
     this.theValue = this.initialValue
@@ -50,15 +57,15 @@ export default {
         value: this.theValue,
         extra: this.extraCallbackData,
       })
-      this.isShowAutocomplete = true
+      this.showItemsMasterSwitch = true
     },
     onSelect(selected) {
       this.theValue = selected
-      this.isShowAutocomplete = false
       this.$emit('item-selected', {
         value: this.theValue,
         extra: this.extraCallbackData,
       })
+      this.showItemsMasterSwitch = false
     },
     onFocus() {
       // FIXME scroll input to top-ish of page, something like

@@ -35,6 +35,7 @@ const state = {
   waitingToUploadRecords: [],
   projectInfo: null,
   projectInfoLastUpdated: 0,
+  recentlyUsedTaxa: {},
 }
 
 const mutations = {
@@ -62,6 +63,21 @@ const mutations = {
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
+  addRecentlyUsedTaxa: (state, { type, value }) => {
+    const isValueEmpty = (value || '').trim().length === 0
+    if (isValueEmpty) {
+      return
+    }
+    const stack = state.recentlyUsedTaxa[type] || []
+    const existingIndex = stack.indexOf(value)
+    const isValueAlreadyInStack = existingIndex >= 0
+    if (isValueAlreadyInStack) {
+      stack.splice(existingIndex, 1)
+    }
+    stack.splice(0, 0, value)
+    const maxItems = 20
+    state.recentlyUsedTaxa[type] = stack.slice(0, maxItems)
+  },
 }
 
 const actions = {
@@ -193,7 +209,7 @@ const actions = {
         .map(d => ({
           id: d.id,
           name: d.name,
-          preferrerCommonName: d.preferred_common_name,
+          preferredCommonName: d.preferred_common_name,
         }))
       // FIXME we might want bigger pages or perform paging to get enough
       // results to fill the UI

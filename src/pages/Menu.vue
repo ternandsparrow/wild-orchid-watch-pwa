@@ -112,7 +112,7 @@ export default {
       access: [
         {
           title: 'My observations',
-          icon: 'ion-home, material:md-home',
+          icon: 'md-home',
           component: Observations,
         },
         // FIXME uncomment when they have real content
