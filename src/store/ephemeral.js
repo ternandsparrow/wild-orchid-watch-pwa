@@ -39,7 +39,7 @@ const mutations = {
 
 const actions = {
   closeAddToHomeScreenModalForApple: async ({ commit }) => {
-    localStorage.setItem('addToHomeIosPromptLastDate', Date.now())
+    commit('app/setAddToHomeIosPromptLastDate', Date.now(), { root: true })
     commit('setShowAddToHomeScreenModalForApple', false)
   },
 

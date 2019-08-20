@@ -380,7 +380,7 @@ export default {
       const fieldDef = this.getObsFieldDef(fieldId)
       const isValidValue =
         fieldDef.wowDatatype !== 'select' ||
-        fieldDef.allowedValues.indexOf(defaultValue) >= 0
+        fieldDef.allowedValues.includes(defaultValue)
       if (!isValidValue) {
         throw new Error(
           `Cannot set field ID='${fieldId}' ` +

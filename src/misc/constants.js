@@ -10,6 +10,8 @@ export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
+export const appTitle = process.env.VUE_APP_TITLE
+
 export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
 export const appId = process.env.VUE_APP_OAUTH_APP_ID

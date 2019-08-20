@@ -12,7 +12,7 @@ import * as VueGoogleMaps from 'vue2-google-maps'
 
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
-import '@/misc/handle-apple-install-prompt'
+import initAppleInstallPrompt from '@/misc/handle-apple-install-prompt'
 import store from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
@@ -64,6 +64,8 @@ new Vue({
       }
       this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
     })
+    // TODO should we delay this so it doesn't show over the onboarder?
+    initAppleInstallPrompt()
   },
   render: h => h(AppNavigator),
   router,

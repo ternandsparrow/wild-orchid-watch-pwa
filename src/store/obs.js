@@ -652,7 +652,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     ignore_photos: true,
     observation: Object.keys(dbRecord).reduce(
       (accum, currKey) => {
-        const isNotIgnored = ignoredKeys.indexOf(currKey) < 0
+        const isNotIgnored = !ignoredKeys.includes(currKey)
         const value = dbRecord[currKey]
         if (isNotIgnored && isAnswer(value)) {
           accum[currKey] = value
@@ -676,7 +676,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
 }
 
 function isAnswer(val) {
-  return ['undefined', 'null'].indexOf(typeof val) < 0
+  return !['undefined', 'null'].includes(typeof val)
 }
 
 export const _testonly = {

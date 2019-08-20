@@ -3,11 +3,11 @@
     <div class="modal-wrapper">
       <div class="close" @click="$emit('close')"></div>
       <div class="main-content">
-        <img class="app-logo" src="@/assets/logo.png" />
+        <img class="app-logo" src="@/assets/wow-logo.png" />
         <h3 class="title">Install WOW</h3>
         <p class="description">
-          Install this application to your home screen for quickly and easy
-          access when you're on the go.
+          Install this application to your home screen for quick and easy
+          access.
         </p>
       </div>
 
@@ -28,6 +28,8 @@
   margin: 30px;
   background: white;
   position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 
   .close {
     position: absolute;
