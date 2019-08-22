@@ -1,23 +1,24 @@
-import store from '@/store/index'
 import { isNil } from 'lodash'
+import store from '@/store'
 
-const isIosOnBrowser =
-  ['iPhone', 'iPad', 'iPod'].includes(navigator.platform) &&
-  !window.navigator.standalone
+export default function() {
+  const isIosOnBrowser =
+    ['iPhone', 'iPad', 'iPod'].includes(navigator.platform) &&
+    !window.navigator.standalone
 
-if (isIosOnBrowser) {
-  const now = Date.now()
-  let limitDate = null
-  const addToHomeIosPromptLastDate = localStorage.getItem(
-    'addToHomeIosPromptLastDate',
-  )
+  if (isIosOnBrowser) {
+    const now = Date.now()
+    let limitDate = null
+    const addToHomeIosPromptLastDate =
+      store.state.app.addToHomeIosPromptLastDate
 
-  if (!isNil(addToHomeIosPromptLastDate)) {
-    limitDate = new Date(parseInt(addToHomeIosPromptLastDate))
-    limitDate.setMonth(limitDate.getMonth() + 1)
-  }
+    if (!isNil(addToHomeIosPromptLastDate)) {
+      limitDate = new Date(parseInt(addToHomeIosPromptLastDate))
+      limitDate.setMonth(limitDate.getMonth() + 1)
+    }
 
-  if (isNil(limitDate) || now >= limitDate.getTime()) {
-    store.commit('ephemeral/setShowAddToHomeScreenModalForApple', true)
+    if (isNil(limitDate) || now >= limitDate.getTime()) {
+      store.commit('ephemeral/setShowAddToHomeScreenModalForApple', true)
+    }
   }
 }

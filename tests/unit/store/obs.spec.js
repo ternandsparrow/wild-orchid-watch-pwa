@@ -1,4 +1,98 @@
-import { _testonly } from '@/store/obs'
+import objectUnderTest, { _testonly } from '@/store/obs'
+
+describe('mutations', () => {
+  describe('addRecentlyUsedTaxa', () => {
+    it('should create the type key when it does not already exist', () => {
+      const state = {
+        recentlyUsedTaxa: {},
+      }
+      objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
+        type: 'speciesGuess',
+        value: 'species one',
+      })
+      expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(1)
+      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('species one')
+    })
+
+    it('should add to the top of the stack when it already exists', () => {
+      const state = {
+        recentlyUsedTaxa: {
+          speciesGuess: ['species existing'],
+        },
+      }
+      objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
+        type: 'speciesGuess',
+        value: 'species new',
+      })
+      expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(2)
+      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('species new')
+    })
+
+    it('should move an entry to the top of the stack when it already exists', () => {
+      const state = {
+        recentlyUsedTaxa: {
+          speciesGuess: ['aaa', 'bbb', 'ccc'],
+        },
+      }
+      objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
+        type: 'speciesGuess',
+        value: 'ccc',
+      })
+      expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
+      expect(state.recentlyUsedTaxa.speciesGuess).toEqual(['ccc', 'aaa', 'bbb'])
+    })
+
+    it('should ignore an empty value', () => {
+      const state = {
+        recentlyUsedTaxa: {
+          speciesGuess: ['aaa', 'bbb', 'ccc'],
+        },
+      }
+      objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
+        type: 'speciesGuess',
+        value: '',
+      })
+      expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
+      expect(state.recentlyUsedTaxa.speciesGuess).toEqual(['aaa', 'bbb', 'ccc'])
+    })
+
+    it('should maintain a stack of a maximum size', () => {
+      const state = {
+        recentlyUsedTaxa: {
+          speciesGuess: [
+            '1',
+            '2',
+            '3',
+            '4',
+            '5',
+            '6',
+            '7',
+            '8',
+            '9',
+            '10',
+            '11',
+            '12',
+            '13',
+            '14',
+            '15',
+            '16',
+            '17',
+            '18',
+            '19',
+            '20',
+          ],
+        },
+      }
+      objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
+        type: 'speciesGuess',
+        value: 'bump',
+      })
+      expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(20)
+      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('bump')
+      expect(state.recentlyUsedTaxa.speciesGuess[19]).toEqual('19')
+    })
+  })
+})
 
 describe('mapObsFromApiIntoOurDomain', () => {
   it('should map a record with everything', () => {
@@ -26,6 +120,7 @@ describe('mapObsFromApiIntoOurDomain', () => {
     expect(result).toHaveProperty('obsFieldValues', [
       {
         fieldId: 1,
+        relationshipId: 4,
         datatype: 'text',
         name: 'Orchid type',
         value: 'Terrestrial',

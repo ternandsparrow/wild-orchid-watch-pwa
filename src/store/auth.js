@@ -32,7 +32,8 @@ export default {
     code_challenge: null,
     code_verifier: null,
     userDetails: {},
-    apiTokenAndUserLastUpdated: null,
+    userDetailsLastUpdated: 0,
+    apiTokenAndUserLastUpdated: 0,
     isUpdatingApiToken: false,
   },
   mutations: {
@@ -56,6 +57,7 @@ export default {
     },
     _saveUserDetails: (state, value) => {
       state.userDetails = value
+      state.userDetailsLastUpdated = now()
     },
     markApiTokenAndUserLastUpdated: state => {
       state.apiTokenAndUserLastUpdated = now()
@@ -79,6 +81,12 @@ export default {
     },
     myUsername(state) {
       return state.userDetails.login
+    },
+    myLocale(state) {
+      return state.userDetails.locale
+    },
+    myPlaceId(state) {
+      return state.userDetails.place_id
     },
   },
   actions: {
@@ -114,13 +122,21 @@ export default {
         )
       }
     },
-    async doInatGet({ state }, { urlSuffix }) {
+    assertInatTokenValid({ state, commit }) {
+      if (state.token && state.tokenType) {
+        return
+      }
+      // TODO this commit might be redundant as the login message should
+      // already be shown. Perhaps we should get more obvious? But then maybe
+      // we shouldn't so the user can finish saving the observation locally
+      commit('ephemeral/setForceShowLoginToast', true, { root: true }) // TODO remove cross module dependency, use a facade at the root
+      throw new Error(
+        'iNat token or token type is NOT present, cannot make call. Forcing user to login again',
+      )
+    },
+    async doInatGet({ state, dispatch }, { urlSuffix }) {
       try {
-        if (!state.token || !state.tokenType) {
-          throw new Error(
-            'iNat token or token type is NOT present, cannot continue',
-          )
-        }
+        dispatch('assertInatTokenValid')
         const resp = await getJsonWithAuth(
           `${inatUrlBase}${urlSuffix}`,
           `${state.tokenType} ${state.token}`,
@@ -133,13 +149,9 @@ export default {
         )
       }
     },
-    async doInatPost({ state }, { urlSuffix, data }) {
+    async doInatPost({ state, dispatch }, { urlSuffix, data }) {
       try {
-        if (!state.token || !state.tokenType) {
-          throw new Error(
-            'iNat token or token type is NOT present, cannot continue',
-          )
-        }
+        dispatch('assertInatTokenValid')
         const resp = await postJsonWithAuth(
           `${inatUrlBase}${urlSuffix}`,
           data,
@@ -260,7 +272,7 @@ export default {
           })
           const apiToken = resp.api_token
           commit('_setApiToken', apiToken)
-          dispatch('_updateUserDetails').then(() => {
+          dispatch('updateUserDetails').then(() => {
             commit('markApiTokenAndUserLastUpdated')
             commit('setIsUpdatingApiToken', false)
           })
@@ -285,7 +297,7 @@ export default {
      * Will be called everytime we refresh the API token, which at the time
      * of writing is every 24hrs.
      */
-    async _updateUserDetails({ commit, dispatch, getters }) {
+    async updateUserDetails({ commit, dispatch, getters }) {
       try {
         const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
         const isWrongNumberOfResults = resp.total_results !== 1

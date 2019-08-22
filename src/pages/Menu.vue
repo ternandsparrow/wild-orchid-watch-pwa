@@ -90,29 +90,29 @@ export default {
         },
         {
           title: 'iNaturalist',
-          icon: 'ion-leaf',
+          icon: 'fa-leaf',
           url: `${inatUrlBase}/projects/${inatProjectSlug}`,
         },
         {
           title: 'Instagram',
-          icon: 'ion-social-instagram',
+          icon: 'ion-logo-instagram',
           url: 'http://instagram.com/wildorchidwatch',
         },
         {
           title: 'Twitter',
-          icon: 'ion-social-twitter',
+          icon: 'ion-logo-twitter',
           url: 'https://twitter.com/wildorchidwatch',
         },
         {
           title: 'Facebook',
-          icon: 'ion-social-facebook',
+          icon: 'ion-logo-facebook',
           url: 'https://www.facebook.com/WildOrchidWatch/',
         },
       ],
       access: [
         {
           title: 'My observations',
-          icon: 'ion-home, material:md-home',
+          icon: 'md-home',
           component: Observations,
         },
         // FIXME uncomment when they have real content

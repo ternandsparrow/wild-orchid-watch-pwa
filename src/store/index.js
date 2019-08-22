@@ -58,6 +58,12 @@ const store = new Vuex.Store({
     myUserId(state, getters) {
       return getters['auth/myUserId']
     },
+    myLocale(state, getters) {
+      return getters['auth/myLocale']
+    },
+    myPlaceId(state, getters) {
+      return getters['auth/myPlaceId']
+    },
     canUploadNow(state, getters) {
       // TODO when we support "only on WiFi", we'll need to check the current
       // connection type

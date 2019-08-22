@@ -15,6 +15,7 @@ const state = {
   swReg: null, // current sw
   SWRegistrationForNewContent: null, // new, waiting sw
   isSplitterOpen: false,
+  isForceShowLoginToast: false,
 }
 
 const mutations = {
@@ -32,11 +33,13 @@ const mutations = {
       state.isSplitterOpen = !state.isSplitterOpen
     }
   },
+  setForceShowLoginToast: (state, value) =>
+    (state.isForceShowLoginToast = value),
 }
 
 const actions = {
   closeAddToHomeScreenModalForApple: async ({ commit }) => {
-    localStorage.setItem('addToHomeIosPromptLastDate', Date.now())
+    commit('app/setAddToHomeIosPromptLastDate', Date.now(), { root: true })
     commit('setShowAddToHomeScreenModalForApple', false)
   },
 

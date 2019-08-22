@@ -1,11 +1,12 @@
-import { alwaysUpload } from '@/misc/constants'
+import { alwaysUpload, appTitle } from '@/misc/constants'
 
 const state = {
-  appTitle: process.env.VUE_APP_TITLE,
+  appTitle: appTitle,
   isFirstRun: true, // remember we restore state from localStorage, so this is default
   topTitle: 'Wild Orchid Watch',
   tsAndCsAccepted: false,
   whenToUpload: alwaysUpload,
+  addToHomeIosPromptLastDate: null,
 }
 
 const mutations = {
@@ -13,6 +14,8 @@ const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
   setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToUpload: (state, value) => (state.whenToUpload = value),
+  setAddToHomeIosPromptLastDate: (state, value) =>
+    (state.addToHomeIosPromptLastDate = value),
 }
 
 const actions = {}

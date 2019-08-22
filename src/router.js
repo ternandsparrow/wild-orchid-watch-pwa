@@ -7,7 +7,7 @@ import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/index'
 import Admin from '@/pages/Admin'
 import NotFound from '@/pages/NotFound'
-import Individual from '@/pages/new-obs/Individual'
+import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Onboarder from '@/pages/Onboarder'
 import { mainStackReplace } from '@/misc/nav-stacks'
 
@@ -35,7 +35,7 @@ const router = new VueRouter({
     {
       path: '/obs/:id(-?\\d+)/edit',
       name: 'ObsEdit',
-      component: Individual,
+      component: SingleSpecies,
       beforeEnter: resolveObsByIdOrNotFound,
       props: {
         isEdit: true,
@@ -43,12 +43,14 @@ const router = new VueRouter({
     },
     {
       path: '/obs/new',
-      name: 'ObsNew',
-      component: Individual,
+      name: 'ObsNewSingleSpecies',
+      component: SingleSpecies,
       props: {
         isEdit: false,
       },
     },
+    // TODO use /obs/new-community for multiple species
+    // TODO use /obs/new-mapping for mapping record
     {
       path: '/onboarder',
       name: 'Onboarder',

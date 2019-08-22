@@ -41,7 +41,6 @@
           </label>
         </div>
       </div>
-      <!-- FIXME show conditionally, only when there are uploaded photos -->
       <template v-if="uploadedPhotos.length">
         <v-ons-list-item>
           <div class="photo-title">Uploaded photos</div>
@@ -69,24 +68,27 @@
       <v-ons-list-item>
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
-          :items="speciesAutocompleteItems"
+          :items="speciesGuessAutocompleteItems"
           placeholder-text="e.g. snail orchid"
-          @change="onSpeciesInput"
+          @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
         />
+        <div class="wow-obs-field-desc">
+          Which species is this observation of?
+        </div>
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
         <v-ons-list-header
+          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-list'"
           class="wow-list-header"
           >{{ currField.name }}</v-ons-list-header
         >
         <v-ons-list-item
+          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
         >
-          <!-- FIXME show *required* marker -->
-          <!-- FIXME allow deselecting a value from optional -->
           <!-- FIXME turn yes/no questions into switches -->
           <div class="wow-obs-field-input-container">
             <v-ons-select
@@ -94,6 +96,9 @@
               v-model="obsFieldValues[currField.id]"
               style="width: 80%"
             >
+              <option v-if="!currField.required" :value="null">
+                (No value)
+              </option>
               <option
                 v-for="(currValue, $index) in currField.allowedValues"
                 :key="currField.id + '-' + $index"
@@ -109,6 +114,7 @@
               placeholder="Input value"
               type="number"
             >
+              <!-- FIXME validate non-negative and non-zero if applicable -->
             </v-ons-input>
             <textarea
               v-else-if="currField.wowDatatype === 'text'"
@@ -117,11 +123,21 @@
               class="wow-textarea"
             >
             </textarea>
-            <div v-else :key="currField.id + '-fixme'" style="color: red;">
+            <wow-autocomplete
+              v-else-if="currField.wowDatatype === taxonFieldType"
+              :items="taxonQuestionAutocompleteItems[currField.id]"
+              :initial-value="obsFieldValues[currField.id]"
+              placeholder-text="e.g. snail orchid"
+              :extra-callback-data="currField.id"
+              @change="onTaxonQuestionInput"
+              @item-selected="onTaxonQuestionSet"
+            />
+            <div v-else style="color: red;">
               FIXME - support '{{ currField.wowDatatype }}' field type
             </div>
           </div>
-          <div v-show="currField.description" class="wow-obs-field-desc">
+          <div class="wow-obs-field-desc">
+            <span v-if="currField.required" class="required">(required)</span>
             {{ currField.description }}
           </div>
         </v-ons-list-item>
@@ -136,18 +152,34 @@
         ></v-ons-input>
       </v-ons-list-item>
     </v-ons-list>
+    <div class="footer-whitespace"></div>
   </v-ons-page>
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
+import { isNil, trim } from 'lodash'
 import { verifyWowDomainPhoto } from '@/misc/helpers'
+import {
+  accuracyOfCountObsFieldDefault,
+  accuracyOfCountObsFieldId,
+  countOfIndividualsObsFieldDefault,
+  countOfIndividualsObsFieldId,
+  epiphyteHeightObsFieldId,
+  hostTreeSpeciesObsFieldId,
+  orchidTypeObsFieldDefault,
+  orchidTypeObsFieldId,
+  orchidTypeEpiphyte,
+} from '@/misc/constants'
+
+const speciesGuessRecentTaxaKey = 'speciesGuess'
+const taxonFieldType = 'taxon'
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
 
 export default {
-  name: 'Individual',
+  name: 'SingleSpecies',
   data() {
     return {
       photoMenu: [
@@ -170,22 +202,20 @@ export default {
       currentPosition: { lat: -34.9786554, lng: 138.6487938 }, //FIXME - pull this from the system
       uploadedPhotos: [],
       obsFieldValues: {},
+      obsFieldInitialValues: {}, // for comparing after edit
+      obsFieldVisibility: {},
       notes: null,
       photoIdsToDelete: [],
-      speciesAutocompleteItems: [],
+      speciesGuessAutocompleteItems: [],
+      taxonQuestionAutocompleteItems: {},
+      taxonFieldType,
     }
   },
   computed: {
     ...mapState('obs', ['obsFields', 'lat', 'lng']),
+    ...mapGetters('obs', ['observationDetail']),
+    ...mapState('ephemeral', ['networkOnLine']),
     displayableObsFields() {
-      // TODO create config file in /public so the client updates it more
-      // frequently than the app code itself
-      // FIXME set invisible flag when orchidType !== epiphyte
-      //   - host tree species
-      //   - epiphyte height
-      // FIXME set invisible flag when doing individual
-      //   - accuracy of count
-      //   - count of individuals recorded
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
         const hasAllowedValues = (curr.allowedValues || []).length
@@ -207,13 +237,25 @@ export default {
       })
       return result
     },
+    taxonQuestionIds() {
+      return this.displayableObsFields
+        .filter(f => f.wowDatatype === taxonFieldType)
+        .map(e => e.id)
+    },
     isEdit() {
-      // TODO should be able to wire directly into the props:{} of
-      // this component but suspect Onsen gets in the way.
+      // TODO should be able to wire directly into the props:{isEdit: Boolean}
+      // of this component but suspect Onsen gets in the way.
       return this.$route.matched[0].props.default.isEdit
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
+    },
+  },
+  watch: {
+    [`obsFieldValues.${orchidTypeObsFieldId}`](newVal) {
+      const isEpiphyte = newVal === orchidTypeEpiphyte
+      this.obsFieldVisibility[hostTreeSpeciesObsFieldId] = isEpiphyte
+      this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
     },
   },
   mounted() {
@@ -222,38 +264,78 @@ export default {
       accum[curr.id] = null
       return accum
     }, {})
+    this.taxonQuestionAutocompleteItems = this.displayableObsFields
+      .filter(f => f.wowDatatype === taxonFieldType)
+      .reduce((accum, curr) => {
+        // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
+        accum[curr.id] = null
+        return accum
+      }, {})
     const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
     if (this.isEdit) {
-      const obsDetail = this.$store.getters['obs/observationDetail']
       obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
+        this.setDefaultAnswers()
         // pre-populate obs fields
-        this.obsFieldValues = obsDetail.obsFieldValues.reduce((accum, curr) => {
-          accum[curr.fieldId] = curr.value
-          return accum
-        }, {})
+        this.obsFieldValues = this.observationDetail.obsFieldValues.reduce(
+          (accum, curr) => {
+            accum[curr.fieldId] = curr.value
+            return accum
+          },
+          this.obsFieldValues,
+        )
+        this.obsFieldInitialValues = Object.assign({}, this.obsFieldValues)
       })
-      if (obsDetail.speciesGuess) {
-        this.speciesGuess = obsDetail.speciesGuess
+      if (this.observationDetail.speciesGuess) {
+        this.speciesGuess = this.observationDetail.speciesGuess
       }
-      if (obsDetail.notes) {
-        this.notes = obsDetail.notes
+      if (this.observationDetail.notes) {
+        this.notes = this.observationDetail.notes
       }
       // pre-populate photos
       // FIXME we don't know what type any given photo is, how can we store
       // this on the server? A do-not-edit obs field just for metadata?
-      this.uploadedPhotos = obsDetail.photos
+      this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
     } else {
       // "new" mode
       obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
       })
       this.$store.dispatch('obs/markUserGeolocation')
     }
+    this.setRecentlyUsedTaxa()
   },
   methods: {
-    onSpeciesGuessSet(selected) {
-      this.speciesGuess = selected
+    setRecentlyUsedTaxa() {
+      this.speciesGuessAutocompleteItems = (
+        this.$store.state.obs.recentlyUsedTaxa[speciesGuessRecentTaxaKey] || []
+      ).map(mapToAutocompleteItem)
+      for (const currId of this.taxonQuestionIds) {
+        this.taxonQuestionAutocompleteItems[currId] = (
+          this.$store.state.obs.recentlyUsedTaxa[currId] || []
+        ).map(mapToAutocompleteItem)
+      }
+      function mapToAutocompleteItem(simpleValue) {
+        return { id: simpleValue, name: simpleValue }
+      }
+    },
+    setDefaultObsFieldVisibility() {
+      this.obsFieldVisibility = this.displayableObsFields.reduce(
+        (accum, curr) => {
+          accum[curr.id] = true
+          return accum
+        },
+        {},
+      )
+    },
+    onSpeciesGuessSet(data) {
+      this.speciesGuess = data.value
+    },
+    onTaxonQuestionSet(data) {
+      const fieldId = data.extra
+      this.obsFieldValues[fieldId] = data.value
     },
     onCancel() {
       // FIXME implement, is there anything to clean up or is it all local?
@@ -264,18 +346,90 @@ export default {
       this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
     },
     setDefaultAnswers() {
-      // FIXME are these defaults ok? Should we be smarter like picking the last used values?
-      this.obsFieldValues = this.displayableObsFields.reduce((accum, curr) => {
-        const hasSelectOptions = (curr.allowedValues || []).length
-        if (!hasSelectOptions) {
-          return accum
-        }
-        accum[curr.id] = curr.allowedValues[0]
-        return accum
-      }, {})
+      try {
+        // FIXME are these defaults ok? Should we be smarter like picking the last used values?
+        // Or should we have a button to "clone previous observation"?
+        this.obsFieldValues = this.displayableObsFields.reduce(
+          (accum, curr) => {
+            const hasSelectOptions = (curr.allowedValues || []).length
+            if (!hasSelectOptions) {
+              return accum
+            }
+            accum[curr.id] = curr.required ? curr.allowedValues[0] : null
+            return accum
+          },
+          {},
+        )
+        this.setDefaultIfSupplied(
+          accuracyOfCountObsFieldId,
+          accuracyOfCountObsFieldDefault,
+        )
+        this.setDefaultIfSupplied(
+          countOfIndividualsObsFieldId,
+          countOfIndividualsObsFieldDefault,
+        )
+        this.setDefaultIfSupplied(
+          orchidTypeObsFieldId,
+          orchidTypeObsFieldDefault,
+        )
+      } catch (err) {
+        // FIXME the UI doesn't reflect this error, is it because we're in mounted()?
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to set default answers`,
+            err,
+          },
+          { root: true },
+        )
+      }
+    },
+    setDefaultIfSupplied(fieldId, defaultValue) {
+      const fieldDef = this.getObsFieldDef(fieldId)
+      const isValidValue =
+        fieldDef.wowDatatype !== 'select' ||
+        fieldDef.allowedValues.includes(defaultValue)
+      if (!isValidValue) {
+        throw new Error(
+          `Cannot set field ID='${fieldId}' ` +
+            `(name='${
+              fieldDef.name
+            }') to value='${defaultValue}' as it's not ` +
+            `in the allowedValues=[${fieldDef.allowedValues}]`,
+        )
+      }
+      this.obsFieldValues[fieldId] = defaultValue
+    },
+    getObsFieldDef(fieldId) {
+      const result = this.displayableObsFields.find(
+        f => f.id === parseInt(fieldId),
+      )
+      if (!result) {
+        const availableIds = this.displayableObsFields.map(f => f.id).sort()
+        throw new Error(
+          `Failed to find obs field definition with ` +
+            `ID='${fieldId}' (type=${typeof fieldId}) from available ` +
+            `IDs=[${availableIds}]`,
+        )
+      }
+      return result
     },
     async onSave() {
+      // TODO assert that all required fields are filled. Currently they have
+      // to be because there's always a valid default that can't be unselected.
+      // If we change that so all fields require conscious filling, then we need
+      // to validate.
       try {
+        this.$store.commit('obs/addRecentlyUsedTaxa', {
+          type: speciesGuessRecentTaxaKey,
+          value: this.speciesGuess,
+        })
+        for (const currId of this.taxonQuestionIds) {
+          this.$store.commit('obs/addRecentlyUsedTaxa', {
+            type: currId,
+            value: this.obsFieldValues[currId],
+          })
+        }
         const record = {
           photos: this.photoMenu.reduce((accum, curr, $index) => {
             const currPhoto = this.photos[curr.id]
@@ -300,18 +454,19 @@ export default {
           // FIXME add placeGuess
           obsFieldValues: Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
-              const obsFieldDef = this.displayableObsFields.find(
-                e => e.id == currKey,
-              )
-              if (!obsFieldDef) {
-                // FIXME notify Sentry of error, but do we push on? And if so,
-                // do we either hide this element or show an error message inplace
-                // of it?
+              const isVisible = this.obsFieldVisibility[currKey]
+              if (!isVisible) {
+                return accum
+              }
+              const obsFieldDef = this.getObsFieldDef(currKey)
+              const value = this.obsFieldValues[currKey]
+              if (isDeletedObsFieldValue(value)) {
+                return accum
               }
               accum.push({
                 fieldId: parseInt(currKey),
                 name: obsFieldDef.name,
-                value: this.obsFieldValues[currKey],
+                value: value,
                 datatype: obsFieldDef.datatype,
               })
               return accum
@@ -321,12 +476,37 @@ export default {
           description: this.notes,
         }
         if (this.isEdit) {
+          const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
+            (accum, currKey) => {
+              const value = this.obsFieldValues[currKey]
+              const hadValueBeforeEditing = !isNil(
+                this.obsFieldInitialValues[currKey],
+              )
+              const isEmpty = isDeletedObsFieldValue(value)
+              if (isEmpty && hadValueBeforeEditing) {
+                const obsFieldInstance = this.observationDetail.obsFieldValues.find(
+                  f => f.fieldId === parseInt(currKey),
+                )
+                if (!obsFieldInstance) {
+                  throw new Error(
+                    `Could not get obs field instance with fieldId='${currKey}' ` +
+                      `(type=${typeof currKey}) from available instances='${JSON.stringify(
+                        this.observationDetail.obsFieldValues,
+                      )}'`,
+                  )
+                }
+                accum.push(obsFieldInstance.relationshipId)
+              }
+              return accum
+            },
+            [],
+          )
           // FIXME check if anything has changed before continuing
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
             existingRecordId: this.$store.state.obs.selectedObservationId,
             photoIdsToDelete: this.photoIdsToDelete,
-            // FIXME what about setting optional obs fields to have no value? DELETE them?
+            obsFieldIdsToDelete,
           })
         } else {
           await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)
@@ -363,22 +543,36 @@ export default {
         url: URL.createObjectURL(file),
       }
     },
-    async onSpeciesInput(newVal) {
+    async onSpeciesGuessInput(data) {
+      const result = await this.doSpeciesAutocomplete(data.value)
+      this.speciesGuessAutocompleteItems = result
+    },
+    async onTaxonQuestionInput(data) {
+      const result = await this.doSpeciesAutocomplete(data.value)
+      const fieldId = data.extra
+      this.taxonQuestionAutocompleteItems[fieldId] = result
+    },
+    async doSpeciesAutocomplete(q) {
+      if (!this.networkOnLine) {
+        return
+      }
       try {
         const values = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
-          newVal,
+          q,
         )
-        this.speciesAutocompleteItems = values
+        return values
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
           {
-            msg: `Failed to perform species autocomplete on text='${newVal}'`,
+            msg: `Failed to perform species autocomplete on text='${q}'`,
             err,
           },
           { root: true },
         )
+        // at least give the user a chance to use their input as-is
+        return []
       }
     },
     photoRef(e) {
@@ -399,6 +593,10 @@ export default {
       this.$ons.notification.alert('FIXME handle the error:' + error)
     },
   },
+}
+
+function isDeletedObsFieldValue(value) {
+  return isNil(value) || (typeof value === 'string' && trim(value).length === 0)
 }
 </script>
 
@@ -500,5 +698,13 @@ export default {
 
 .uploaded-photo-item {
   margin: 0.25em 0.5em;
+}
+
+.required {
+  color: red;
+}
+
+.footer-whitespace {
+  height: 50vh;
 }
 </style>

@@ -12,7 +12,7 @@
       >
       </v-ons-input>
     </div>
-    <div v-show="isShowAutocomplete">
+    <div v-show="isShowSuggestions">
       <ul class="autocomplete-list">
         <li v-if="theValue" @click="onSelect(theValue)">
           Use "<em>{{ theValue }}</em
@@ -31,23 +31,41 @@ export default {
   name: 'WowAutocomplete',
   props: {
     placeholderText: String,
+    initialValue: String,
     items: Array,
+    extraCallbackData: Number,
   },
   data() {
     return {
       theValue: null,
-      isShowAutocomplete: false,
+      showItemsMasterSwitch: true,
     }
+  },
+  computed: {
+    isShowSuggestions() {
+      const isItems = (this.items || []).length > 0
+      const isInput = (this.theValue || '').trim().length > 0
+      return this.showItemsMasterSwitch && (isItems || isInput)
+    },
+  },
+  mounted() {
+    this.theValue = this.initialValue
   },
   methods: {
     async onKeyup() {
-      this.$emit('change', this.theValue)
-      this.isShowAutocomplete = true
+      this.$emit('change', {
+        value: this.theValue,
+        extra: this.extraCallbackData,
+      })
+      this.showItemsMasterSwitch = true
     },
     onSelect(selected) {
       this.theValue = selected
-      this.isShowAutocomplete = false
-      this.$emit('item-selected', this.theValue)
+      this.$emit('item-selected', {
+        value: this.theValue,
+        extra: this.extraCallbackData,
+      })
+      this.showItemsMasterSwitch = false
     },
     onFocus() {
       // FIXME scroll input to top-ish of page, something like
@@ -59,7 +77,7 @@ export default {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .main-container {
   width: 100%;
 }

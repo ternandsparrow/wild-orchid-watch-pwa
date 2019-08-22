@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
+import { isNil } from 'lodash'
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -12,13 +13,13 @@ const jsonHeaders = {
 // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
 // this eventually
 export function wowErrorHandler(msg, err) {
-  console.error(msg, err)
+  console.error(msg, err || '(no error object passed')
   const processedError = chainedError(msg, err)
   Sentry.captureException(processedError)
 }
 
 export function wowWarnHandler(msg, err) {
-  console.warn(msg, err)
+  console.warn(msg, err || '(no error object passed)')
   Sentry.withScope(scope => {
     scope.setLevel('warning')
     Sentry.captureException(chainedError(msg, err))
@@ -40,7 +41,7 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function putJsonWithAuth(url, data = {}, authHeaderValue) {
@@ -52,7 +53,7 @@ export function putJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function postFormDataWithAuth(
@@ -70,7 +71,12 @@ export function postFormDataWithAuth(
       Authorization: authHeaderValue,
     },
     body: formData,
-  }).then(handleResp)
+  }).then(handleJsonResp)
+}
+
+export function getJson(url) {
+  const authHeader = null
+  return getJsonWithAuth(url, authHeader)
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
@@ -82,7 +88,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
 export function deleteWithAuth(url, authHeaderValue) {
@@ -94,10 +100,10 @@ export function deleteWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleResp)
+  }).then(handleJsonResp)
 }
 
-async function handleResp(resp) {
+async function handleJsonResp(resp) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok
   try {
@@ -107,20 +113,21 @@ async function handleResp(resp) {
   } catch (err) {
     throw chainedError('Failed while parsing JSON response', err)
   }
+  // resp either NOT ok or NOT JSON, prep nice error msg
   const bodyAccessor = isJson ? 'json' : 'text'
   const bodyPromise = resp.bodyUsed
     ? Promise.resolve('(body already used)')
     : resp[bodyAccessor]()
-  return bodyPromise.then(body => {
-    return Promise.reject({
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: resp.headers,
-      url: resp.url,
-      body,
-      msg: `Resp ok=${isRespOk}, Resp is JSON=${isJson}`,
-    })
-  })
+  const body = await bodyPromise
+  const trimmedBody = typeof body === 'string' ? body.substr(0, 300) : body
+  let msg = `\n  Resp ok=${isRespOk},\n`
+  msg += `  Resp is JSON=${isJson}\n`
+  msg += `  status=${resp.status}\n`
+  msg += `  statusText=${resp.statusText}\n`
+  msg += `  headers=${JSON.stringify(resp.headers)}\n`
+  msg += `  url=${resp.url}\n`
+  msg += `  body first 300 chars='${trimmedBody}'`
+  throw new Error(msg)
 }
 
 /**
@@ -156,8 +163,7 @@ function isRespJson(resp) {
 export function chainedError(msg, err) {
   if (!err) {
     return new Error(
-      `${msg}\nError while handling error: chainedError` +
-        ` was called without an error to chain`,
+      `${msg}\nWARNING: chainedError` + ` was called without an error to chain`,
     )
   }
   err.message = `${msg}\nCaused by: ${err.message}`
@@ -178,8 +184,36 @@ export function formatMetricDistance(metres) {
   return `${kmVal}km`
 }
 
+export function buildUrlSuffix(path, params = {}) {
+  const querystring = Object.keys(params).reduce((accum, currKey) => {
+    const value = params[currKey]
+    if (isNil(value)) {
+      return accum
+    }
+    return `${accum}${currKey}=${value}&`
+  }, '')
+  const qsSep = querystring ? '?' : ''
+  return `${path}${qsSep}${querystring.replace(/&$/, '')}`
+}
+
+/**
+ * Returns a function that can be used as a vuex getter to check if the
+ * specified timestamp field has expired, so the corresponding field is
+ * considered stale.
+ */
+export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
+  return function(state) {
+    const lastUpdatedMs = state[stateKey]
+    return (
+      !lastUpdatedMs ||
+      lastUpdatedMs < now() - staleThresholdMinutes * 60 * 1000
+    )
+  }
+}
+
 export const _testonly = {
+  buildUrlSuffix,
+  formatMetricDistance,
   isRespJson,
   verifyWowDomainPhoto,
-  formatMetricDistance,
 }

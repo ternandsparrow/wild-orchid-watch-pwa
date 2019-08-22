@@ -79,7 +79,8 @@ jobs:
           name: 'Write env var overrides'
           # we need to escape (\) the << otherwise CircleCI complains
           command: |
-            cat \<<EOF > .env.local
+            theFile=.env.local
+            cat \<<EOF > $theFile
             VUE_APP_INAT_BASE_URL=${INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${API_BASE_URL:?}
@@ -89,7 +90,22 @@ jobs:
             VUE_APP_DEPLOYED_ENV_IS_PROD=${WOW_IS_PROD:?}
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            VUE_APP_TARGET_TAXA_ID=${TARGET_TAXA_ID:?}
+            VUE_APP_OBS_FIELD_ID_ACCURACY=${OBS_FIELD_ID_ACCURACY:?}
+            VUE_APP_OBS_FIELD_ID_COUNT=${OBS_FIELD_ID_COUNT:?}
+            VUE_APP_OBS_FIELD_ID_ORCHID_TYPE=${OBS_FIELD_ID_ORCHID_TYPE:?}
+            VUE_APP_OBS_FIELD_ID_HOST_TREE=${OBS_FIELD_ID_HOST_TREE:?}
+            VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
             EOF
+            [ ! -z $OBS_FIELD_DEFAULT_ACCURACY ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
+            }
+            [ ! -z $OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
+            }
+            [ ! -z $OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
+              echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
+            }
             echo '[INFO] contents of .env.local'
             cat .env.local
       - run:
