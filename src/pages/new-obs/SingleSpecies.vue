@@ -428,7 +428,7 @@ export default {
             if (!currPhoto) {
               return accum
             }
-            const tempId = -1 * ($index - 1)
+            const tempId = -1 * ($index + 1)
             const photo = {
               id: tempId,
               url: '(set at render time)',
@@ -467,6 +467,7 @@ export default {
           ),
           description: this.notes,
         }
+        // FIXME change to strategy pattern
         if (this.isEdit) {
           const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
@@ -476,17 +477,7 @@ export default {
               )
               const isEmpty = isDeletedObsFieldValue(value)
               if (isEmpty && hadValueBeforeEditing) {
-                const obsFieldInstance = this.observationDetail.obsFieldValues.find(
-                  f => f.fieldId === parseInt(currKey),
-                )
-                if (!obsFieldInstance) {
-                  throw new Error(
-                    `Could not get obs field instance with fieldId='${currKey}' ` +
-                      `(type=${typeof currKey}) from available instances='${JSON.stringify(
-                        this.observationDetail.obsFieldValues,
-                      )}'`,
-                  )
-                }
+                const obsFieldInstance = this.getObsFieldInstance(currKey)
                 accum.push(obsFieldInstance.relationshipId)
               }
               return accum
@@ -518,6 +509,20 @@ export default {
         this.$ons.notification.alert('Something went wrong :(')
         throw err // FIXME show alert AND throw? Can we use the global error catcher?
       }
+    },
+    getObsFieldInstance(fieldId) {
+      const result = this.observationDetail.obsFieldValues.find(
+        f => f.fieldId === parseInt(fieldId),
+      )
+      if (!result) {
+        throw new Error(
+          `Could not get obs field instance with fieldId='${fieldId}' ` +
+            `(type=${typeof fieldId}) from available instances='${JSON.stringify(
+              this.observationDetail.obsFieldValues,
+            )}'`,
+        )
+      }
+      return result
     },
     onPhotoAdded(photoDefObj) {
       const type = photoDefObj.id

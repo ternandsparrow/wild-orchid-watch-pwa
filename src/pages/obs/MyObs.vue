@@ -17,11 +17,11 @@
         <v-ons-list-header v-if="isWaitingForUpload"
           >Waiting to upload
           <span v-if="isUploadsDisabled"
-            >(Uploads disabled in settings)</span
+            >(Uploads <span class="red">disabled</span> in settings)</span
           ></v-ons-list-header
         >
         <obs-list
-          :records="waitingToUploadRecords"
+          :records="uiVisibleLocalRecords"
           key-prefix="waiting-"
           @item-click="push"
         />
@@ -62,14 +62,15 @@ export default {
   computed: {
     ...mapGetters(['isUploadsDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapState('obs', ['myObs', 'waitingToUploadRecords', 'isUpdatingMyObs']),
+    // FIXME need to change to getters for remoteRecords and localRecords
+    // We'll need to filter the remote records to exclude anything with local edits/deletes
+    ...mapState('obs', ['myObs', 'uiVisibleLocalRecords', 'isUpdatingMyObs']),
     ...mapGetters('obs', ['isMyObsStale']),
     isWaitingForUpload() {
-      return (this.waitingToUploadRecords || []).length
+      return (this.uiVisibleLocalRecords || []).length
     },
     isNoRecords() {
-      // TODO should we also check waitingToUploadRecords?
-      return (this.myObs || []).length === 0
+      return (this.myObs || []).length === 0 && !this.isWaitingForUpload
     },
   },
   mounted() {
@@ -110,5 +111,9 @@ export default {
   color: #555;
   padding: 0.25em;
   font-size: 0.9em;
+}
+
+.red {
+  color: red;
 }
 </style>

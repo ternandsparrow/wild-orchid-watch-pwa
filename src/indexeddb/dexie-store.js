@@ -2,6 +2,7 @@
 // https://dexie.org/docs/IndexedDB-on-Safari
 import Dexie from 'dexie'
 import { wowWarnHandler } from '@/misc/helpers'
+import { successfullyProcessedAtFieldName } from '@/misc/constants'
 
 const db = new Dexie('WowDb')
 
@@ -11,6 +12,10 @@ db.version(1).stores({
 
 db.version(2).stores({
   obs: '++id, updatedAt',
+})
+
+db.version(3).stores({
+  obs: `++id, updatedAt, ${successfullyProcessedAtFieldName}`,
 })
 
 export default db

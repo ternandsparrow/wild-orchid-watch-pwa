@@ -151,7 +151,9 @@ export function verifyWowDomainPhoto(photo) {
   return
   function assertFieldPresent(fieldName) {
     photo[fieldName] ||
-      (msg += `Invalid photo record, '${fieldName}' is missing. `)
+      (msg += `Invalid photo record, ${fieldName}='${
+        photo[fieldName]
+      }' is missing. `)
   }
 }
 
