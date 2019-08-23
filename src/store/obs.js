@@ -5,21 +5,31 @@ import {
   inatProjectSlug,
   obsFieldPrefix,
   obsFieldSeparatorChar,
-  successfullyProcessedAtFieldName,
+  recordProcessingOutcomeFieldName,
   targetTaxaNodeId,
 } from '@/misc/constants'
 import {
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
+  makeEnumValidator,
   now,
   verifyWowDomainPhoto,
 } from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
-const NOT_UPLOADED = -1
-const NOT_PROCESSED = 0
-const isDeletedFieldName = 'isDeleted'
+const hasRemoteRecordFieldName = 'hasRemoteRecord'
+const isRemotePhotoFieldName = 'isRemote'
+
+const recordTypeFieldName = 'recordType'
+const recordType = makeEnumValidator(['delete', 'edit', 'new'])
+
+const recordProcessingOutcome = makeEnumValidator([
+  'waiting', // waiting to be processed
+  'success', // successfully processed
+  'userError', // processed but encountered an error the user can fix
+  'systemError', // processed but encountered an error the user CANNOT fix
+])
 
 let photoObjectUrlsInUse = []
 
@@ -27,16 +37,16 @@ const state = {
   lat: null,
   lng: null,
   locAccuracy: null,
-  myObs: [],
-  myObsLastUpdated: 0,
-  isUpdatingMyObs: false,
+  allRemoteObs: [],
+  allRemoteObsLastUpdated: 0,
+  isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
   obsFields: [],
   selectedObservationId: null,
   speciesAutocompleteItems: [],
   tabIndex: 0,
-  uiVisibleLocalRecords: [],
+  _uiVisibleLocalRecords: [],
   localQueueSummary: [],
   projectInfo: null,
   projectInfoLastUpdated: 0,
@@ -51,18 +61,18 @@ const mutations = {
     state.mySpecies = value
     state.mySpeciesLastUpdated = now()
   },
-  setMyObs: (state, value) => {
-    state.myObs = value
-    state.myObsLastUpdated = now()
+  setAllRemoteObs: (state, value) => {
+    state.allRemoteObs = value
+    state.allRemoteObsLastUpdated = now()
   },
   setProjectInfo: (state, value) => {
     state.projectInfo = value
     state.projectInfoLastUpdated = now()
   },
   setTab: (state, value) => (state.tabIndex = value),
-  setIsUpdatingMyObs: (state, value) => (state.isUpdatingMyObs = value),
+  setIsUpdatingRemoteObs: (state, value) => (state.isUpdatingRemoteObs = value),
   setUiVisibleLocalRecords: (state, value) =>
-    (state.uiVisibleLocalRecords = value),
+    (state._uiVisibleLocalRecords = value),
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
   setLat: (state, value) => (state.lat = value),
   setLng: (state, value) => (state.lng = value),
@@ -90,27 +100,45 @@ const mutations = {
 }
 
 const actions = {
-  async getMyObs({ commit, dispatch, rootGetters }) {
-    // FIXME rename this fn to getRemoteObs
-    commit('setIsUpdatingMyObs', true)
+  async refreshRemoteObs({ commit, dispatch, rootGetters }) {
+    commit('setIsUpdatingRemoteObs', true)
     const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
     const urlSuffix = `/observations?user_id=${myUserId}&project_id=${inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
-      // FIXME consider doing processing here to use the record.uuid to confirm
-      // success and then delete the corresponding local record
-      commit('setMyObs', records)
+      commit('setAllRemoteObs', records)
+      await dispatch('cleanSuccessfulLocalRecordsRemoteHasEchoed')
     } catch (err) {
       dispatch(
         'flagGlobalError',
-        { msg: 'Failed to get my observations', err },
+        {
+          msg: 'Failed to refresh remote observations',
+          userMsg: 'Error while trying to update observations list',
+          err,
+        },
         { root: true },
       )
       return false
     } finally {
-      commit('setIsUpdatingMyObs', false)
+      commit('setIsUpdatingRemoteObs', false)
+    }
+  },
+  async cleanSuccessfulLocalRecordsRemoteHasEchoed({ getters }) {
+    const uuidsOfRemoteRecords = getters.remoteRecords.map(e => e.uuid)
+    const successfulLocalRecordIdsToDelete = getters.successfulLocalQueueSummary
+      .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
+      .map(e => e.id)
+    try {
+      await Promise.all(
+        successfulLocalRecordIdsToDelete.map(e => deleteDexieRecordById(e)),
+      )
+    } catch (err) {
+      throw chainedError(
+        `Failed while try to delete the following successful ` +
+          `IDs from Dexie=[${successfulLocalRecordIdsToDelete}]`,
+      )
     }
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
@@ -233,32 +261,64 @@ const actions = {
       )
     }
   },
+  async deleteSelectedLocalEditOnly({ state, dispatch }) {
+    const dexieId = localObsIdToDexieId(state.selectedObservationId)
+    await db.obs.delete(dexieId)
+    await dispatch('refreshLocalRecordQueue')
+  },
   async saveEditAndScheduleUpdate(
-    { dispatch },
+    { dispatch, getters },
     { record, photoIdsToDelete, existingRecordId, obsFieldIdsToDelete },
   ) {
+    const remoteRecord = getters.remoteRecords.find(
+      e => e.inatId === existingRecordId,
+    )
+    let photos = compressPhotos(record.photos) || []
+    if (remoteRecord) {
+      // FIXME when doing two local edits, are we saving photos from the first edit?
+      const remotePhotos = (remoteRecord.photos || []).map(p => ({
+        ...p,
+        [isRemotePhotoFieldName]: true,
+      }))
+      photos = [...photos, ...remotePhotos]
+    }
     try {
       const nowDate = new Date()
       const enhancedRecord = Object.assign(record, {
-        photos: compressPhotos(record.photos),
-        [successfullyProcessedAtFieldName]: 0,
-        updatedAt: nowDate,
+        inatId: existingRecordId,
+        photos,
+        updated_at: nowDate,
         wowMeta: {
-          existingRecordId: existingRecordId,
-          [isDeletedFieldName]: false,
+          [recordTypeFieldName]: recordType('edit'),
+          [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
+            'waiting',
+          ),
+          [hasRemoteRecordFieldName]: !!remoteRecord,
           photoIdsToDelete: photoIdsToDelete,
           obsFieldIdsToDelete: obsFieldIdsToDelete,
         },
       })
-      // recordId will be < 0 if we're editing a local record, but we don't store
-      // the IDs as negative in Dexie. If we're editing a remote record, this
-      // will be the ID of the new DB record
-      const dexieId = Math.abs(existingRecordId)
       try {
-        // Dexie Table.put() with the second param will clobber or insert
-        await db.obs.put(enhancedRecord, dexieId)
-        // FIXME do we need to do merge our local changes over the remote record?
-        // FIXME should we be doing PUTs for modified obsFieldValues?
+        const dexieIdOfExistingLocalEditRecord = (() => {
+          const found = state.localQueueSummary
+            .filter(
+              e => e[recordTypeFieldName] === recordType('edit'),
+              // we aren't filtering on reportProcessingOutcome because if it's
+              // waiting then we just clobber it, if there's an error then it's
+              // *meant* to be clobbered when the user fixes it and if it's
+              // success then we save the record having to be deleted. This
+              // success case could be a race condition however so we'll have
+              // to keep an eye on that
+            )
+            .find(e => e.inatId === existingRecordId)
+          return (found || {}).id
+        })()
+        if (dexieIdOfExistingLocalEditRecord) {
+          enhancedRecord.id = dexieIdOfExistingLocalEditRecord
+        }
+        // FIXME do we need to do merge our local changes over the remote
+        // record? Get the createdAt date perhaps?
+        await db.obs.put(enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
           photos: enhancedRecord.photos.map(p => ({
@@ -277,8 +337,8 @@ const actions = {
     } catch (err) {
       throw chainedError(
         `Failed to save edited record with ` +
-          `ID='${existingRecordId}' to local queue.` +
-          err,
+          `ID='${existingRecordId}' to local queue.`,
+        err,
       )
     }
   },
@@ -291,26 +351,29 @@ const actions = {
       //   - let the rest of the values be assigned on upload
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
-        createdAt: nowDate,
+        created_at: nowDate,
         latitude: state.lat,
         longitude: state.lng,
         geoprivacy: 'obscured',
         // FIXME uploaded records fail the "Date specified" check
+        // are we sending the date in the correct format? ISO string or ms number
         observed_on: nowDate,
         positional_accuracy: state.locAccuracy,
         photos: compressPhotos(record.photos),
-        [successfullyProcessedAtFieldName]: 0,
         time_observed_at: nowDate,
-        updatedAt: NOT_UPLOADED,
+        updated_at: nowDate, // FIXME do we set this or does the server?
         wowMeta: {
-          existingRecordId: null,
-          [isDeletedFieldName]: false,
+          [recordTypeFieldName]: recordType('new'),
+          [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
+            'waiting',
+          ),
+          [hasRemoteRecordFieldName]: false,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
         },
         uuid: uuid(),
         // FIXME get these from UI
-        // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
+        // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
         // FIXME what do we do with these?
         // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
         // owners_identification_from_vision: false,
@@ -332,7 +395,7 @@ const actions = {
       }
       dispatch('onLocalRecordEvent')
     } catch (err) {
-      throw chainedError(`Failed to save new record to local queue.` + err)
+      throw chainedError(`Failed to save new record to local queue.`, err)
     }
   },
   async onLocalRecordEvent({ state, dispatch }) {
@@ -340,73 +403,114 @@ const actions = {
     if (state.isProcessingLocalQueue) {
       return
     }
+    // FIXME can we use Vuex.watch to trigger processLocalQueue when we have
+    // something in the local queue?
     dispatch('processLocalQueue')
   },
   async refreshLocalRecordQueue({ commit }) {
-    const localQueueSummary = await db.obs
-      .where(successfullyProcessedAtFieldName)
-      .equals(NOT_PROCESSED)
-      .toArray(records => {
-        return records.map(r => ({
-          id: r.id,
-          [successfullyProcessedAtFieldName]:
-            r[successfullyProcessedAtFieldName],
-          [isDeletedFieldName]: r.wowMeta[isDeletedFieldName],
-          isUserError: false,
-          isSystemError: false,
-        }))
-      })
+    const localQueueSummary = await db.obs.toArray(records => {
+      return records.map(r => ({
+        id: r.id,
+        inatId: r.inatId,
+        [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
+        [recordProcessingOutcomeFieldName]:
+          r.wowMeta[recordProcessingOutcomeFieldName],
+        uuid: r.uuid,
+      }))
+    })
     commit('setLocalQueueSummary', localQueueSummary)
     const uiVisibleLocalIds = localQueueSummary
-      .filter(e => !e[isDeletedFieldName])
+      .filter(e => e[recordTypeFieldName] !== recordType('delete'))
       .map(e => e.id)
     const records = await resolveLocalRecordIds(uiVisibleLocalIds)
     commit('setUiVisibleLocalRecords', records)
   },
-  async processLocalQueue({ state, commit, dispatch, rootGetters }) {
+  /**
+   * Process actions (new/edit/delete) in the local queue.
+   * If there are records to process, we process one then call ourselves again.
+   * Only when there are no records left to process do we set the 'currently
+   * processing' status to false.
+   */
+  async processLocalQueue({ getters, commit, dispatch, rootGetters }) {
+    const logPrefix = '[localQueue]'
+    console.debug(`${logPrefix} Starting to process local queue`)
     // FIXME use Background Sync API with auto-retry
     //       Background sync might just be configuring workbox to retry our
     //       POSTs requests to the API
     // FIXME how do we handle dev or no service worker support?
-    // FIXME remove the following workaround when we have background sync working
-    // FIXME check if we're already processing uploads, not sure what'll happen
-    // if we queue multiple runs of this method
+    // FIXME how do we ensure we only have one "thread" of processing running?
     if (!rootGetters['canUploadNow']) {
       // FIXME with background sync, we need to create the HTTP request so do
       // we just go ahead anyway? Need to differentiate between being offline
       // and user setting upload policy to NEVER
-      // FIXME do we still process edits/deletes when upload policy == NEVER?
+      console.debug(`${logPrefix} Processing is disallowed, giving up.`)
       return
     }
     commit('setIsProcessingLocalQueue', true)
-    const isRecordToProcess = state.localQueueSummary.length
-    if (isRecordToProcess) {
+    const waitingQueue = getters.waitingLocalQueueSummary
+    const isRecordToProcess = waitingQueue.length
+    if (!isRecordToProcess) {
+      console.debug(`${logPrefix} No record to process, ending processing.`)
       commit('setIsProcessingLocalQueue', false)
       return
     }
-    const idToProcess = state.localQueueSummary[0].id
+    const idToProcess = waitingQueue[0].id
     try {
       const dbRecord = await db.obs.get(idToProcess)
-      await dispatch('processWaitingDbRecord', dbRecord)
-      await dispatch('refreshLocalRecordQueue')
-      // FIXME there is a race condition here where the server might not
-      // include our new record in the response. Should we set a delay to
-      // workaround it?
-      await dispatch('getMyObs')
-    } catch (err) {
-      // FIXME need to figure out if this is a user error (flag record for
-      // attention in UI) or a system error (flag record as error?)
-      dispatch(
-        'flagGlobalError',
-        { msg: `Failed to process Dexie record with ID='${idToProcess}'`, err },
-        { root: true },
+      console.debug(
+        `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
       )
-      // TODO should we try the next one or short-circuit?
-      // FIXME add this item to the retry queue?
-      // FIXME mark dbRecord as having an error
-      // FIXME do we need to be atomic and rollback?
+      await dispatch('processWaitingDbRecord', dbRecord)
+      await dispatch('setRecordProcessingOutcome', {
+        id: idToProcess,
+        outcome: 'success',
+      })
+      console.debug(
+        `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
+      )
+      dispatch('refreshRemoteObs')
+      await dispatch('refreshLocalRecordQueue')
+    } catch (err) {
+      // FIXME how do we compute this?
+      const isUserError = false
+      if (isUserError) {
+        console.debug(
+          `Failed to process Dexie record with ID='${idToProcess}' ` +
+            `due to a user error. Notifying the user.`,
+        )
+        // FIXME send toast (or system notification?) to notify user that they
+        // need to check obs list
+        await dispatch('setRecordProcessingOutcome', {
+          id: idToProcess,
+          outcome: 'userError',
+        })
+      } else {
+        // TODO should we try the next one or short-circuit? For system error, maybe halt as it might affect others?
+        // FIXME do we need to be atomic and rollback?
+        await dispatch('setRecordProcessingOutcome', {
+          id: idToProcess,
+          outcome: 'systemError',
+        })
+        dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to process Dexie record with ID='${idToProcess}'`,
+            // FIXME use something more user friendly than the ID
+            userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+            err,
+          },
+          { root: true },
+        )
+      }
     }
     dispatch('processLocalQueue')
+  },
+  setRecordProcessingOutcome({ id, outcome }) {
+    return db.obs.update(id, {
+      wowMeta: {
+        [recordProcessingOutcomeFieldName]: recordProcessingOutcome(outcome),
+      },
+    })
   },
   async _createObservation({ dispatch }, { obsRecord, dexieRecordId }) {
     const obsResp = await dispatch(
@@ -416,7 +520,7 @@ const actions = {
     )
     const newRecordId = obsResp.id
     const isUpdated = await db.obs.update(dexieRecordId, {
-      updatedAt: obsResp.updatedAt,
+      updated_at: obsResp.updated_at,
     })
     if (!isUpdated) {
       throw new Error(
@@ -438,7 +542,7 @@ const actions = {
       { root: true },
     )
     const isUpdated = await db.obs.update(dexieRecordId, {
-      updatedAt: obsResp.updatedAt,
+      updated_at: obsResp.updated_at,
     })
     if (!isUpdated) {
       throw new Error(
@@ -496,7 +600,8 @@ const actions = {
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += dbRecord.wowMeta.photoIdsToDelete.length
     tasksLeftTodo += dbRecord.wowMeta.obsFieldIdsToDelete.length
-    const isEditMode = !isNil(dbRecord.inatId) // FIXME won't work
+    const isEditMode =
+      dbRecord.wowMeta[recordTypeFieldName] === recordType('edit')
     let inatRecordId
     if (isEditMode) {
       inatRecordId = await dispatch('_editObservation', {
@@ -539,6 +644,7 @@ const actions = {
         })
       }),
     )
+    // FIXME should we be doing PUTs for modified obsFieldValues?
     await Promise.all(
       apiRecords.obsFieldPostBodyPartials.map(curr => {
         return dispatch('_createObsFieldValue', {
@@ -551,12 +657,6 @@ const actions = {
       // FIXME trap one failure so others can still try
     )
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
-    // TODO are we confident that everything has worked? Do we need to go
-    // further like setting a UUID on this record then waiting until we see
-    // it come back down when we request the latest obs, then delete? If we
-    // do this, we need to set a flag on the DB record to hide it from UI
-    await deleteDexieRecordById(dbRecord.id)
-    // FIXME need to mark record as having been processed
   },
   async _linkObsWithProject({ dispatch }, { recordId }) {
     const projectId = (await dispatch('getProjectInfoUsingCache')).id
@@ -594,10 +694,12 @@ const actions = {
       await dispatch('refreshLocalRecordQueue')
     } else {
       // FIXME handle when offline
-      const { photos } = state.myObs.find(e => e.inatId === recordId)
-      const myObsWithoutDeleted = state.myObs.filter(e => e.inatId !== recordId)
-      commit('setMyObs', myObsWithoutDeleted)
-      commit('setIsUpdatingMyObs', true)
+      const { photos } = state.allRemoteObs.find(e => e.inatId === recordId)
+      const allRemoteObsWithoutDeleted = state.allRemoteObs.filter(
+        e => e.inatId !== recordId,
+      )
+      commit('setAllRemoteObs', allRemoteObsWithoutDeleted)
+      commit('setIsUpdatingRemoteObs', true)
       photos.forEach(async p => {
         await dispatch(
           'doApiDelete',
@@ -610,7 +712,7 @@ const actions = {
         { urlSuffix: `/observations/${recordId}` },
         { root: true },
       )
-      await dispatch('getMyObs')
+      await dispatch('refreshRemoteObs')
       dispatch('getMySpecies')
     }
     commit('setSelectedObservationId', null)
@@ -626,19 +728,45 @@ async function deleteDexieRecordById(id) {
 }
 
 const getters = {
-  observationDetail(state) {
-    const allObs = [...state.myObs, ...state.uiVisibleLocalRecords]
+  observationDetail(state, getters) {
+    const allObs = [...getters.remoteRecords, ...getters.localRecords]
     const found = allObs.find(e => e.inatId === state.selectedObservationId)
     return found
   },
   localRecords(state) {
-    // FIXME return all local records except deletes
+    return state._uiVisibleLocalRecords
   },
   remoteRecords(state) {
-    // FIXME return remote records but filter out local edits/deletes
+    const localRecordIds = state.localQueueSummary.map(e => e.inatId)
+    return state.allRemoteObs.filter(e => !localRecordIds.includes(e.inatId))
   },
-  isMyObsStale: buildStaleCheckerFn('myObsLastUpdated', 10),
+  isRemoteObsStale: buildStaleCheckerFn('allRemoteObsLastUpdated', 10),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
+  isSelectedRecordEditOfRemote(state, getters) {
+    const selectedId = state.selectedObservationId
+    return getters.localRecords
+      .filter(
+        e =>
+          e.wowMeta[recordTypeFieldName] === recordType('edit') &&
+          e.wowMeta[hasRemoteRecordFieldName],
+      )
+      .map(e => e.inatId)
+      .includes(selectedId)
+  },
+  waitingLocalQueueSummary(state) {
+    return state.localQueueSummary.filter(
+      e =>
+        e[recordProcessingOutcomeFieldName] ===
+        recordProcessingOutcome('waiting'),
+    )
+  },
+  successfulLocalQueueSummary(state) {
+    return state.localQueueSummary.filter(
+      e =>
+        e[recordProcessingOutcomeFieldName] ===
+        recordProcessingOutcome('success'),
+    )
+  },
 }
 
 function localObsIdToDexieId(id) {
@@ -654,23 +782,36 @@ async function resolveLocalRecordIds(ids) {
     .where('id')
     .anyOf(ids)
     .toArray(records => {
-      revokeExistingObjectUrls() // FIXME might be calling wrongly, getting a 404-ish
+      // FIXME sometimes triggers a 404 because we revoke the in-use URLs
+      // before we've set the new ones. Possible solution: set the new values,
+      // then revoke the old
+      revokeExistingObjectUrls()
       return records.map(e => {
-        const photos = e.photos.map(p => {
-          const objectUrl = mintObjectUrl(p.file)
-          const result = {
-            ...p,
-            url: objectUrl,
-          }
-          return result
-        })
-        return {
+        const photos = e.photos.map(mapPhotoFromDbToUi)
+        const result = {
           ...e,
-          inatId: -1 * e.id,
+          // FIXME perform same field mappings as from API? created_at, updated_at, etc
           photos,
         }
+        if (!result.inatId) {
+          // new records won't have it set, edit and delete will
+          result.inatId = -1 * e.id
+        }
+        return result
       })
     })
+}
+
+function mapPhotoFromDbToUi(p) {
+  if (p[isRemotePhotoFieldName]) {
+    return p
+  }
+  const objectUrl = mintObjectUrl(p.file)
+  const result = {
+    ...p,
+    url: objectUrl,
+  }
+  return result
 }
 
 function mintObjectUrl(blob) {
@@ -696,7 +837,7 @@ export default {
 
 export const apiTokenHooks = [
   store => {
-    store.dispatch('obs/getMyObs')
+    store.dispatch('obs/refreshRemoteObs')
     store.dispatch('obs/getMySpecies')
   },
 ]
@@ -720,7 +861,7 @@ function fetchSingleRecord(url) {
 }
 
 function mapObsFromApiIntoOurDomain(obsFromApi) {
-  const directMappingKeys = ['createdAt', 'updatedAt', 'geojson', 'geoprivacy']
+  const directMappingKeys = ['uuid', 'geojson', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
     if (!isNil(value)) {
@@ -740,6 +881,8 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     verifyWowDomainPhoto(result)
     return result
   })
+  result.createdAt = new Date(obsFromApi.created_at)
+  result.updatedAt = new Date(obsFromApi.updated_at)
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -778,14 +921,11 @@ function processObsFieldName(fieldName) {
 
 function mapObsFromOurDomainOntoApi(dbRecord) {
   const ignoredKeys = [
-    'createdAt',
     'id',
     'obsFieldValues',
     'photos',
     'placeGuess',
     'speciesGuess',
-    successfullyProcessedAtFieldName,
-    'updatedAt',
     'wowMeta',
   ]
   const createObsTask = 1
@@ -814,9 +954,11 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = dbRecord.photos.map(e => ({
-    photoBlob: e.file,
-  }))
+  result.photoPostBodyPartials = dbRecord.photos
+    .filter(e => !e[isRemotePhotoFieldName])
+    .map(e => ({
+      photoBlob: e.file,
+    }))
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }

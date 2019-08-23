@@ -64,8 +64,11 @@ new Vue({
       }
       this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
     })
+
     // TODO should we delay this so it doesn't show over the onboarder?
     initAppleInstallPrompt()
+
+    this.$store.dispatch('obs/refreshLocalRecordQueue')
   },
   render: h => h(AppNavigator),
   router,

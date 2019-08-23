@@ -48,8 +48,11 @@ export default {
       return this.showItemsMasterSwitch && (isItems || isInput)
     },
   },
-  mounted() {
+  beforeMount() {
     this.theValue = this.initialValue
+    if (this.theValue) {
+      this.showItemsMasterSwitch = false
+    }
   },
   methods: {
     async onKeyup() {

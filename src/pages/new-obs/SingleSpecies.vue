@@ -69,6 +69,7 @@
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
+          :initial-value="speciesGuess"
           placeholder-text="e.g. snail orchid"
           @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
@@ -250,7 +251,7 @@ export default {
       this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
     },
   },
-  mounted() {
+  beforeMount() {
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
@@ -668,6 +669,11 @@ function isDeletedObsFieldValue(value) {
 
 .uploaded-photo-item {
   margin: 0.25em 0.5em;
+
+  img {
+    max-width: 100px;
+    max-height: 100px;
+  }
 }
 
 .required {

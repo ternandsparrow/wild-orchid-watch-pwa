@@ -3,7 +3,7 @@ import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
 import auth from './auth'
-import app from './app'
+import app, { callback as appCallback } from './app'
 import ephemeral from './ephemeral'
 import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
 import activity from './activity'
@@ -29,9 +29,17 @@ const store = new Vuex.Store({
   ],
   state: {
     isGlobalErrorState: false,
+    globalErrorUserMsg: null,
   },
   mutations: {
-    _flagGlobalError: state => (state.isGlobalErrorState = true),
+    _flagGlobalError: (state, userMsg) => {
+      state.isGlobalErrorState = true
+      state.globalErrorUserMsg = userMsg
+    },
+    resetGlobalErrorState: state => {
+      state.isGlobalErrorState = false
+      state.globalErrorUserMsg = null
+    },
   },
   actions: {
     doApiGet({ dispatch }, argObj) {
@@ -49,8 +57,8 @@ const store = new Vuex.Store({
     doApiDelete({ dispatch }, argObj) {
       return dispatch('auth/doApiDelete', argObj)
     },
-    flagGlobalError({ commit }, { msg, err }) {
-      commit('_flagGlobalError')
+    flagGlobalError({ commit }, { msg, userMsg, err }) {
+      commit('_flagGlobalError', userMsg)
       wowErrorHandler(msg, err)
     },
   },
@@ -67,10 +75,10 @@ const store = new Vuex.Store({
     canUploadNow(state, getters) {
       // TODO when we support "only on WiFi", we'll need to check the current
       // connection type
-      return !getters['isUploadsDisabled']
+      return !getters['isSyncDisabled']
     },
-    isUploadsDisabled(state) {
-      return state.app.whenToUpload === neverUpload
+    isSyncDisabled(state) {
+      return state.app.whenToSync === neverUpload
     },
   },
   modules: {
@@ -86,9 +94,7 @@ const store = new Vuex.Store({
 const allApiTokenHooks = [...obsApiTokenHooks]
 
 store.watch(
-  state => {
-    return state.auth.apiTokenAndUserLastUpdated
-  },
+  state => state.auth.apiTokenAndUserLastUpdated,
   () => {
     console.debug('API Token and user details changed, triggering hooks')
     for (const curr of allApiTokenHooks) {
@@ -97,6 +103,6 @@ store.watch(
   },
 )
 
-// FIXME watch "is user logged in" state and if not, trigger the login (and onboarder?)
+appCallback(store)
 
 export default store

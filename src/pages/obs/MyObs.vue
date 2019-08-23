@@ -9,26 +9,26 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div v-if="isUpdatingMyObs" class="updating-msg text-center">
+      <div v-if="isUpdatingRemoteObs" class="updating-msg text-center">
         Updating
       </div>
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
         <v-ons-list-header v-if="isWaitingForUpload"
           >Waiting to upload
-          <span v-if="isUploadsDisabled"
-            >(Uploads <span class="red">disabled</span> in settings)</span
+          <span v-if="isSyncDisabled"
+            >(Sync <span class="red">disabled</span> in settings)</span
           ></v-ons-list-header
         >
         <obs-list
-          :records="uiVisibleLocalRecords"
+          :records="localRecords"
           key-prefix="waiting-"
           @item-click="push"
         />
         <v-ons-list-header v-if="isWaitingForUpload"
           >Uploaded</v-ons-list-header
         >
-        <obs-list :records="myObs" @item-click="push" />
+        <obs-list :records="remoteRecords" @item-click="push" />
       </v-ons-list>
     </div>
     <v-ons-fab position="bottom right" @click="onNewObsBtn">
@@ -60,24 +60,23 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['isUploadsDisabled']),
+    ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     // FIXME need to change to getters for remoteRecords and localRecords
     // We'll need to filter the remote records to exclude anything with local edits/deletes
-    ...mapState('obs', ['myObs', 'uiVisibleLocalRecords', 'isUpdatingMyObs']),
-    ...mapGetters('obs', ['isMyObsStale']),
+    ...mapState('obs', ['isUpdatingRemoteObs']),
+    ...mapGetters('obs', ['isRemoteObsStale', 'localRecords', 'remoteRecords']),
     isWaitingForUpload() {
-      return (this.uiVisibleLocalRecords || []).length
+      return (this.localRecords || []).length
     },
     isNoRecords() {
-      return (this.myObs || []).length === 0 && !this.isWaitingForUpload
+      return (this.remoteRecords || []).length === 0 && !this.isWaitingForUpload
     },
   },
   mounted() {
-    if (this.isMyObsStale) {
+    if (this.isRemoteObsStale) {
       this.doRefresh()
     }
-    this.$store.dispatch('obs/refreshWaitingToUpload') // FIXME do we need this, it should be maintained elsewhere
   },
   methods: {
     push(obsId) {
@@ -92,7 +91,7 @@ export default {
     },
     doRefresh(done) {
       if (this.isUserLoggedIn) {
-        this.$store.dispatch('obs/getMyObs')
+        this.$store.dispatch('obs/refreshRemoteObs')
       }
       done && done()
     },

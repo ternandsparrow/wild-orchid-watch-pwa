@@ -93,4 +93,4 @@ export const neverUpload = 'NEVER'
 
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
-export const successfullyProcessedAtFieldName = 'successfullyProcessedAt'
+export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'

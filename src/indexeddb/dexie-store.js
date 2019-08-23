@@ -1,8 +1,8 @@
-// To (properly) support Safari <10.1, we need a shim:
+// TODO To (properly) support Safari <10.1, we need a shim:
 // https://dexie.org/docs/IndexedDB-on-Safari
 import Dexie from 'dexie'
 import { wowWarnHandler } from '@/misc/helpers'
-import { successfullyProcessedAtFieldName } from '@/misc/constants'
+import { recordProcessingOutcomeFieldName } from '@/misc/constants'
 
 const db = new Dexie('WowDb')
 
@@ -15,7 +15,11 @@ db.version(2).stores({
 })
 
 db.version(3).stores({
-  obs: `++id, updatedAt, ${successfullyProcessedAtFieldName}`,
+  obs: `++id, updatedAt, successfullyProcessedAt`,
+})
+
+db.version(4).stores({
+  obs: `++id, wowMeta.${recordProcessingOutcomeFieldName}`,
 })
 
 export default db

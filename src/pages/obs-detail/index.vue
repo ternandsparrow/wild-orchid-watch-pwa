@@ -149,7 +149,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('obs', ['observationDetail']),
+    ...mapGetters('obs', ['observationDetail', 'isSelectedRecordEditOfRemote']),
     nullSafeObs() {
       // FIXME is this a code smell?
       return this.observationDetail || {}
@@ -205,10 +205,64 @@ export default {
               if (!answer) {
                 return
               }
-              this.$store.dispatch('obs/deleteSelectedRecord')
+              this.$store
+                .dispatch('obs/deleteSelectedRecord')
+                .then(() => {
+                  this.$ons.notification.toast('Record deleted!', {
+                    timeout: 3000,
+                    animation: 'ascend',
+                  })
+                })
+                .catch(err => {
+                  this.$store.dispatch(
+                    'flagGlobalError',
+                    {
+                      msg: 'Failed to (completely) delete record',
+                      userMsg: 'Error while deleting record.',
+                      err,
+                    },
+                    { root: true },
+                  )
+                })
               this.$router.push({ name: 'Home' })
             })
         },
+      }
+      if (this.isSelectedRecordEditOfRemote) {
+        menu['Delete only local edit'] = () => {
+          // FIXME handle when we're currently uploading this record
+          this.$ons.notification
+            .confirm(
+              'This record has an edit that has NOT yet been ' +
+                'synchronised to the server. Do you want to delete only the local ' +
+                'changes so the record on the server stays unchanged?',
+            )
+            .then(answer => {
+              if (!answer) {
+                return
+              }
+              this.$store
+                .dispatch('obs/deleteSelectedLocalEditOnly')
+                .then(() => {
+                  this.$ons.notification.toast('Local edit deleted!', {
+                    timeout: 3000,
+                    animation: 'ascend',
+                  })
+                })
+                .catch(err => {
+                  this.$store.dispatch(
+                    'flagGlobalError',
+                    {
+                      msg: 'Failed to delete local edit on remote record',
+                      userMsg: 'Error while deleting local edit.',
+                      err,
+                    },
+                    { root: true },
+                  )
+                })
+              this.$router.push({ name: 'Home' })
+            })
+        }
       }
       this.$ons
         .openActionSheet({

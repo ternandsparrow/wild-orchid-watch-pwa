@@ -213,9 +213,30 @@ export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
   }
 }
 
+/**
+ * Takes an array of valid values and returns a validator function. The
+ * validator function takes a single param and returns it as-is if valid,
+ * otherwise throws an error.
+ */
+export function makeEnumValidator(array) {
+  if (array.constructor !== Array || !array.length) {
+    throw new Error('Input must be a non-empty array!')
+  }
+  return function(enumItem) {
+    const isValid = array.includes(enumItem)
+    if (!isValid) {
+      throw new Error(
+        `Invalid enum value='${enumItem}' is not in valid values=[${array}]`,
+      )
+    }
+    return enumItem
+  }
+}
+
 export const _testonly = {
   buildUrlSuffix,
   formatMetricDistance,
   isRespJson,
+  makeEnumValidator,
   verifyWowDomainPhoto,
 }
