@@ -12,6 +12,18 @@
     </custom-toolbar>
     <!-- FIXME add user and timestamp -->
 
+    <v-ons-card v-show="isSystemError" class="error-card">
+      <div class="title">Error uploading record</div>
+      <p>
+        This is not your fault. Many issues could cause this but the first step
+        is to try to upload the record again and see if that works.
+      </p>
+      <p>
+        <v-ons-button @click="resetProcessingOutcome"
+          >Retry upload</v-ons-button
+        >
+      </p>
+    </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
         v-if="isPhotos"
@@ -130,6 +142,7 @@
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
 import { formatMetricDistance } from '@/misc/helpers'
+import { isObsSystemError } from '@/store/obs'
 
 export default {
   name: 'ObsDetail',
@@ -150,6 +163,9 @@ export default {
   },
   computed: {
     ...mapGetters('obs', ['observationDetail', 'isSelectedRecordEditOfRemote']),
+    isSystemError() {
+      return isObsSystemError(this.nullSafeObs)
+    },
     nullSafeObs() {
       // FIXME is this a code smell?
       return this.observationDetail || {}
@@ -191,6 +207,28 @@ export default {
     },
   },
   methods: {
+    resetProcessingOutcome() {
+      this.$store
+        .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
+        .then(() => {
+          this.$ons.notification.toast('Retrying upload', {
+            timeout: 3000,
+            animation: 'ascend',
+          })
+        })
+        .catch(err => {
+          this.$store.dispatch(
+            'flagGlobalError',
+            {
+              msg: 'Failed to reset processing outcome after error',
+              userMsg: 'Error while retrying upload',
+              err,
+            },
+            { root: true },
+          )
+        })
+      this.$router.push({ name: 'Home' })
+    },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
@@ -357,5 +395,10 @@ table.geolocation-detail {
     font-size: 3em;
     color: #bbb;
   }
+}
+
+.error-card {
+  background-color: #ffe4e8;
+  color: red;
 }
 </style>

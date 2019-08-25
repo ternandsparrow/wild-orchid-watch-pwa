@@ -119,11 +119,14 @@ async function handleJsonResp(resp) {
     ? Promise.resolve('(body already used)')
     : resp[bodyAccessor]()
   const body = await bodyPromise
-  const trimmedBody = typeof body === 'string' ? body.substr(0, 300) : body
+  const trimmedBody =
+    typeof body === 'string'
+      ? body.substr(0, 300)
+      : JSON.stringify(body).substr(0, 300)
   let msg = `\n  Resp ok=${isRespOk},\n`
   msg += `  Resp is JSON=${isJson}\n`
   msg += `  status=${resp.status}\n`
-  msg += `  statusText=${resp.statusText}\n`
+  msg += `  statusText='${resp.statusText}'\n`
   msg += `  headers=${JSON.stringify(resp.headers)}\n`
   msg += `  url=${resp.url}\n`
   msg += `  body first 300 chars='${trimmedBody}'`
