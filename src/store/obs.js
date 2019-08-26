@@ -135,18 +135,18 @@ const actions = {
       .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
       .map(e => e.id)
     console.debug(
-      `Deleting Dexie IDs that remote ` +
+      `Deleting Db IDs that remote ` +
         `has echoed back=[${successfulLocalRecordIdsToDelete}]`,
     )
     try {
       await Promise.all(
-        successfulLocalRecordIdsToDelete.map(e => deleteDexieRecordById(e)),
+        successfulLocalRecordIdsToDelete.map(e => deleteDbRecordById(e)),
       )
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw chainedError(
         `Failed while try to delete the following successful ` +
-          `IDs from Dexie=[${successfulLocalRecordIdsToDelete}]`,
+          `IDs from Db=[${successfulLocalRecordIdsToDelete}]`,
         err,
       )
     }
@@ -271,13 +271,13 @@ const actions = {
       )
     }
   },
-  findDexieIdForInatId({ state }, inatId) {
+  findDbIdForInatId({ state }, inatId) {
     const result = (
       state.localQueueSummary.find(e => e.inatId === inatId) || {}
     ).id
     if (!result) {
       throw new Error(
-        `Could not resolve inatId='${inatId}' to a Dexie ID ` +
+        `Could not resolve inatId='${inatId}' to a Db ID ` +
           `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
       )
     }
@@ -286,8 +286,8 @@ const actions = {
   async deleteSelectedLocalEditOnly({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
     try {
-      const dexieId = await dispatch('findDexieIdForInatId', selectedInatId)
-      await db.obs.delete(dexieId)
+      const dbId = await dispatch('findDbIdForInatId', selectedInatId)
+      await db.obs.delete(dbId)
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw new chainedError(
@@ -358,7 +358,7 @@ const actions = {
           })),
         })
         throw chainedError(
-          `Failed to write record to Dexie with ` +
+          `Failed to write record to Db with ` +
             `ID='${existingRecordId}'.\n` +
             `record=${JSON.stringify(loggingSafeRecord)}`,
           err,
@@ -419,7 +419,7 @@ const actions = {
           })),
         })
         throw chainedError(
-          `Failed to write record to Dexie\n` +
+          `Failed to write record to Db\n` +
             `record=${JSON.stringify(loggingSafeRecord)}`,
           err,
         )
@@ -509,7 +509,7 @@ const actions = {
       const isUserError = false
       if (isUserError) {
         console.debug(
-          `Failed to process Dexie record with ID='${idToProcess}' ` +
+          `Failed to process Db record with ID='${idToProcess}' ` +
             `due to a user error. Notifying the user.`,
         )
         // FIXME send toast (or system notification?) to notify user that they
@@ -522,7 +522,7 @@ const actions = {
         dispatch(
           'flagGlobalError',
           {
-            msg: `Failed to process Dexie record with ID='${idToProcess}'`,
+            msg: `Failed to process Db record with ID='${idToProcess}'`,
             // FIXME use something more user friendly than the ID
             userMsg: `Error while trying upload record with ID='${idToProcess}'`,
             err,
@@ -533,26 +533,26 @@ const actions = {
     }
     dispatch('processLocalQueue')
   },
-  async _createObservation({ dispatch }, { obsRecord, dexieRecordId }) {
+  async _createObservation({ dispatch }, { obsRecord, dbRecordId }) {
     const obsResp = await dispatch(
       'doApiPost',
       { urlSuffix: '/observations', data: obsRecord },
       { root: true },
     )
     const newRecordId = obsResp.id
-    const isUpdated = await db.obs.update(dexieRecordId, {
+    const isUpdated = await db.obs.update(dbRecordId, {
       updated_at: obsResp.updated_at,
     })
     if (!isUpdated) {
       throw new Error(
-        `Dexie update operation to set updatedAt for (Dexie) ID='${dexieRecordId}' failed`,
+        `Db update operation to set updatedAt for (Db) ID='${dbRecordId}' failed`,
       )
     }
     return newRecordId
   },
   async _editObservation(
     { dispatch },
-    { obsRecord, dexieRecordId, inatRecordId },
+    { obsRecord, dbRecordId, inatRecordId },
   ) {
     const obsResp = await dispatch(
       'doApiPut',
@@ -562,12 +562,12 @@ const actions = {
       },
       { root: true },
     )
-    const isUpdated = await db.obs.update(dexieRecordId, {
+    const isUpdated = await db.obs.update(dbRecordId, {
       updated_at: obsResp.updated_at,
     })
     if (!isUpdated) {
       throw new Error(
-        `Dexie update operation to set updatedAt for (Dexie) ID='${dexieRecordId}' failed`,
+        `Db update operation to set updatedAt for (Db) ID='${dbRecordId}' failed`,
       )
     }
     return inatRecordId
@@ -627,7 +627,7 @@ const actions = {
           tasksLeftTodo += linkWithProjectTask
           const inatRecordId = await dispatch('_createObservation', {
             obsRecord: apiRecords.observationPostBody,
-            dexieRecordId: dbRecord.id,
+            dbRecordId: dbRecord.id,
           })
           return inatRecordId
         },
@@ -640,7 +640,7 @@ const actions = {
         async start() {
           const inatRecordId = await dispatch('_editObservation', {
             obsRecord: apiRecords.observationPostBody,
-            dexieRecordId: dbRecord.id,
+            dbRecordId: dbRecord.id,
             inatRecordId: dbRecord.inatId,
           })
           return inatRecordId
@@ -725,8 +725,8 @@ const actions = {
     //  queue db record with flag set to delete remote, if exists
     //  trigger refreshLocalRecordQueue
     if (isLocalRecord(recordId)) {
-      const dexieId = localObsIdToDexieId(recordId)
-      await deleteDexieRecordById(dexieId)
+      const dbId = localObsIdToDbId(recordId)
+      await deleteDbRecordById(dbId)
       // FIXME handle when in process of uploading, maybe queue delete operation?
       // FIXME might have to also delete remote copy
       await dispatch('refreshLocalRecordQueue')
@@ -757,17 +757,17 @@ const actions = {
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
-    const dexieId = await dispatch('findDexieIdForInatId', selectedInatId)
-    await setRecordProcessingOutcome(dexieId, 'waiting')
+    const dbId = await dispatch('findDbIdForInatId', selectedInatId)
+    await setRecordProcessingOutcome(dbId, 'waiting')
     return dispatch('onLocalRecordEvent')
   },
 }
 
-async function deleteDexieRecordById(id) {
+async function deleteDbRecordById(id) {
   try {
     return db.obs.delete(id)
   } catch (err) {
-    throw chainedError(`Failed to delete dexie record with ID='${id}'`, err)
+    throw chainedError(`Failed to delete db record with ID='${id}'`, err)
   }
 }
 
@@ -823,7 +823,7 @@ const getters = {
   },
 }
 
-function localObsIdToDexieId(id) {
+function localObsIdToDbId(id) {
   return Math.abs(id)
 }
 
@@ -1036,10 +1036,10 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   return result
 }
 
-function setRecordProcessingOutcome(dexieId, outcome) {
+function setRecordProcessingOutcome(dbId, outcome) {
   return db.obs
     .where('id')
-    .equals(dexieId)
+    .equals(dbId)
     .modify({
       [`wowMeta.${recordProcessingOutcomeFieldName}`]: recordProcessingOutcome(
         outcome,

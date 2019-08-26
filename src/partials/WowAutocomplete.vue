@@ -48,13 +48,13 @@ export default {
       return this.showItemsMasterSwitch && (isItems || isInput)
     },
   },
-  beforeMount() {
-    this.onInitialValueSet(this.initialValue)
-  },
   watch: {
     initialValue(newVal) {
       this.onInitialValueSet(newVal)
     },
+  },
+  beforeMount() {
+    this.onInitialValueSet(this.initialValue)
   },
   methods: {
     onInitialValueSet(newVal) {
