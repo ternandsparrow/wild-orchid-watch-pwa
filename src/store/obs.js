@@ -392,7 +392,7 @@ const actions = {
         positional_accuracy: state.locAccuracy,
         photos: compressPhotos(record.photos),
         time_observed_at: nowDate,
-        updated_at: nowDate, // FIXME do we set this or does the server?
+        updated_at: nowDate,
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -778,11 +778,21 @@ const getters = {
     return found
   },
   localRecords(state) {
-    return state._uiVisibleLocalRecords
+    return state._uiVisibleLocalRecords.map(currLocal => {
+      const existingValues =
+        state.allRemoteObs.find(
+          currRemote => currRemote.inatId === currLocal.inatId,
+        ) || {}
+      const dontModifyTheOtherObjects = {}
+      return Object.assign(dontModifyTheOtherObjects, existingValues, currLocal)
+    })
   },
   remoteRecords(state) {
     const localRecordIds = state.localQueueSummary.map(e => e.inatId)
-    return state.allRemoteObs.filter(e => !localRecordIds.includes(e.inatId))
+    return state.allRemoteObs.filter(e => {
+      const recordHasLocalActionPending = localRecordIds.includes(e.inatId)
+      return !recordHasLocalActionPending
+    })
   },
   isRemoteObsStale: buildStaleCheckerFn('allRemoteObsLastUpdated', 10),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
@@ -828,15 +838,17 @@ async function resolveLocalRecordIds(ids) {
     .toArray()
   // FIXME sometimes triggers a 404 because we revoke the in-use URLs
   // before we've set the new ones. Possible solution: set the new values,
-  // then revoke the old
+  // then revoke the old. Doesn't affect users as-is though.
   revokeExistingObjectUrls()
   return rawRecords.map(e => {
     const photos = e.photos.map(mapPhotoFromDbToUi)
     const result = {
       ...e,
-      // FIXME perform same field mappings as from API? created_at, updated_at, etc
+      lat: e.latitude,
+      lng: e.longitude,
       photos,
     }
+    commonApiToOurDomainObsMapping(result, e)
     if (!result.inatId) {
       // new records won't have it set, edit and delete will
       result.inatId = -1 * e.id
@@ -910,6 +922,16 @@ function fetchSingleRecord(url) {
     })
 }
 
+/**
+ * Common in the sense that we use it both for items from the API *and* items
+ * from our local DB
+ */
+function commonApiToOurDomainObsMapping(result, obsFromApi) {
+  // FIXME there's more to do here to align our internal DB records to the
+  // format that the API uses
+  result.geolocationAccuracy = obsFromApi.positional_accuracy
+}
+
 function mapObsFromApiIntoOurDomain(obsFromApi) {
   const directMappingKeys = ['uuid', 'geojson', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
@@ -938,7 +960,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
   result.notes = obsFromApi.description
-  result.geolocationAccuracy = obsFromApi.positional_accuracy
+  commonApiToOurDomainObsMapping(result, obsFromApi)
   const { lat, lng } = mapGeojsonToLatLng(result.geojson)
   result.lat = lat
   result.lng = lng

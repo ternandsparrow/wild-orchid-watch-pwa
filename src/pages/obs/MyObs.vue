@@ -38,7 +38,7 @@
       <v-ons-action-sheet-button icon="fa-seedling" @click="onNewSingleSpecies"
         >Single species</v-ons-action-sheet-button
       >
-      <!-- TODO support mapping records, and population if it needs a separate page -->
+      <!-- TODO support mapping records -->
       <v-ons-action-sheet-button
         v-if="!md"
         icon="fa-map-marked-alt"

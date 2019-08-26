@@ -252,15 +252,10 @@ export default {
                   })
                 })
                 .catch(err => {
-                  this.$store.dispatch(
-                    'flagGlobalError',
-                    {
-                      msg: 'Failed to (completely) delete record',
-                      userMsg: 'Error while deleting record.',
-                      err,
-                    },
-                    { root: true },
-                  )
+                  this.handleMenuError(err, {
+                    msg: 'Failed to (completely) delete record',
+                    userMsg: 'Error while deleting record.',
+                  })
                 })
               this.$router.push({ name: 'Home' })
             })
@@ -288,19 +283,17 @@ export default {
                   })
                 })
                 .catch(err => {
-                  this.$store.dispatch(
-                    'flagGlobalError',
-                    {
-                      msg: 'Failed to delete local edit on remote record',
-                      userMsg: 'Error while deleting local edit.',
-                      err,
-                    },
-                    { root: true },
-                  )
+                  this.handleMenuError(err, {
+                    msg: 'Failed to delete local edit on remote record',
+                    userMsg: 'Error while deleting local edit.',
+                  })
                 })
               this.$router.push({ name: 'Home' })
             })
         }
+      }
+      if (!this.md) {
+        menu.Cancel = () => {}
       }
       this.$ons
         .openActionSheet({
@@ -313,6 +306,13 @@ export default {
           const selectedItemFn = menu[key]
           selectedItemFn && selectedItemFn()
         })
+    },
+    handleMenuError(err, { msg, userMsg }) {
+      this.$store.dispatch(
+        'flagGlobalError',
+        { msg, userMsg, err },
+        { root: true },
+      )
     },
     onEdit() {
       const obsId = this.nullSafeObs.inatId // FIXME need to also check .id for local-only records
