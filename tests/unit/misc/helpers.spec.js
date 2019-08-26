@@ -1,5 +1,43 @@
 import { _testonly } from '@/misc/helpers'
 
+describe('makeEnumValidator', () => {
+  it('should handle valid enum array and valid input to Fn', () => {
+    const fooStatuses = ['aaa', 'bbb', 'ccc']
+    const fooStatus = _testonly.makeEnumValidator(fooStatuses)
+    const result = fooStatus('aaa')
+    expect(result).toEqual('aaa')
+  })
+
+  it('should explode for valid enum array and INvalid input to Fn', () => {
+    const fooStatuses = ['aaa', 'bbb', 'ccc']
+    const fooStatus = _testonly.makeEnumValidator(fooStatuses)
+    try {
+      fooStatus('notvalid')
+      fail('should throw error as input is not valid in the "enum"')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should explode with an empty array', () => {
+    try {
+      _testonly.makeEnumValidator([])
+      fail('error should be thrown')
+    } catch (err) {
+      // success
+    }
+  })
+
+  it('should explode with a non-array input', () => {
+    try {
+      _testonly.makeEnumValidator({ ka: 'boom' })
+      fail('error should be thrown')
+    } catch (err) {
+      // success
+    }
+  })
+})
+
 describe('formatMetricDistance', () => {
   it('should handle less than 1 km', () => {
     const result = _testonly.formatMetricDistance(123)

@@ -106,6 +106,7 @@ describe('mapObsFromApiIntoOurDomain', () => {
         url:
           'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
         attribution: '(c) tom, some rights reserved (CC BY-NC)',
+        isRemote: true,
       },
       {
         id: 15,
@@ -113,6 +114,7 @@ describe('mapObsFromApiIntoOurDomain', () => {
         url:
           'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
         attribution: '(c) tom, some rights reserved (CC BY-NC)',
+        isRemote: true,
       },
     ])
     expect(result.placeGuess).toBeNull()

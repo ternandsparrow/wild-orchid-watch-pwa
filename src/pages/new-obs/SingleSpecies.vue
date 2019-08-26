@@ -43,7 +43,7 @@
       </div>
       <template v-if="uploadedPhotos.length">
         <v-ons-list-item>
-          <div class="photo-title">Uploaded photos</div>
+          <div class="photo-title">Existing photos</div>
         </v-ons-list-item>
         <v-ons-list-item>
           <div
@@ -69,6 +69,7 @@
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
+          :initial-value="speciesGuess"
           placeholder-text="e.g. snail orchid"
           @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
@@ -258,7 +259,7 @@ export default {
       this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
     },
   },
-  mounted() {
+  beforeMount() {
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
@@ -271,8 +272,24 @@ export default {
         accum[curr.id] = null
         return accum
       }, {})
-    const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
+    // FIXME change to caching locally and checking if stale
+    const obsFieldsPromise = this.$store.dispatch('obs/refreshObsFields')
     if (this.isEdit) {
+      this.initForEdit(obsFieldsPromise)
+    } else {
+      this.initForNew(obsFieldsPromise)
+    }
+    this.setRecentlyUsedTaxa()
+  },
+  methods: {
+    initForNew(obsFieldsPromise) {
+      obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
+        this.setDefaultAnswers()
+      })
+      this.$store.dispatch('obs/markUserGeolocation')
+    },
+    initForEdit(obsFieldsPromise) {
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
@@ -297,17 +314,7 @@ export default {
       // this on the server? A do-not-edit obs field just for metadata?
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
-    } else {
-      // "new" mode
-      obsFieldsPromise.then(() => {
-        this.setDefaultObsFieldVisibility()
-        this.setDefaultAnswers()
-      })
-      this.$store.dispatch('obs/markUserGeolocation')
-    }
-    this.setRecentlyUsedTaxa()
-  },
-  methods: {
+    },
     setRecentlyUsedTaxa() {
       this.speciesGuessAutocompleteItems = (
         this.$store.state.obs.recentlyUsedTaxa[speciesGuessRecentTaxaKey] || []
@@ -436,7 +443,7 @@ export default {
             if (!currPhoto) {
               return accum
             }
-            const tempId = -1 * ($index - 1)
+            const tempId = -1 * ($index + 1)
             const photo = {
               id: tempId,
               url: '(set at render time)',
@@ -475,6 +482,7 @@ export default {
           ),
           description: this.notes,
         }
+        // FIXME change to strategy pattern
         if (this.isEdit) {
           const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
@@ -484,17 +492,7 @@ export default {
               )
               const isEmpty = isDeletedObsFieldValue(value)
               if (isEmpty && hadValueBeforeEditing) {
-                const obsFieldInstance = this.observationDetail.obsFieldValues.find(
-                  f => f.fieldId === parseInt(currKey),
-                )
-                if (!obsFieldInstance) {
-                  throw new Error(
-                    `Could not get obs field instance with fieldId='${currKey}' ` +
-                      `(type=${typeof currKey}) from available instances='${JSON.stringify(
-                        this.observationDetail.obsFieldValues,
-                      )}'`,
-                  )
-                }
+                const obsFieldInstance = this.getObsFieldInstance(currKey)
                 accum.push(obsFieldInstance.relationshipId)
               }
               return accum
@@ -530,6 +528,20 @@ export default {
     beforeMount() {
       console.log('beforeMount')
       this.doGeolocation()
+    },
+    getObsFieldInstance(fieldId) {
+      const result = this.observationDetail.obsFieldValues.find(
+        f => f.fieldId === parseInt(fieldId),
+      )
+      if (!result) {
+        throw new Error(
+          `Could not get obs field instance with fieldId='${fieldId}' ` +
+            `(type=${typeof fieldId}) from available instances='${JSON.stringify(
+              this.observationDetail.obsFieldValues,
+            )}'`,
+        )
+      }
+      return result
     },
     onPhotoAdded(photoDefObj) {
       const type = photoDefObj.id
@@ -698,6 +710,11 @@ function isDeletedObsFieldValue(value) {
 
 .uploaded-photo-item {
   margin: 0.25em 0.5em;
+
+  img {
+    max-width: 100px;
+    max-height: 100px;
+  }
 }
 
 .required {
