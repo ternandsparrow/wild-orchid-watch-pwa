@@ -16,6 +16,8 @@ const state = {
   SWRegistrationForNewContent: null, // new, waiting sw
   isSplitterOpen: false,
   isForceShowLoginToast: false,
+  isGlobalErrorState: false,
+  globalErrorUserMsg: null,
 }
 
 const mutations = {
@@ -35,6 +37,14 @@ const mutations = {
   },
   setForceShowLoginToast: (state, value) =>
     (state.isForceShowLoginToast = value),
+  flagGlobalError: (state, userMsg) => {
+    state.isGlobalErrorState = true
+    state.globalErrorUserMsg = userMsg
+  },
+  resetGlobalErrorState: state => {
+    state.isGlobalErrorState = false
+    state.globalErrorUserMsg = null
+  },
 }
 
 const actions = {

@@ -12,6 +12,11 @@
       <div class="center">
         <span class="list-item__title">{{ speciesGuess(curr) }}</span
         ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
+        <span
+          v-show="isSystemError(curr)"
+          class="list-item__subtitle error-indicator"
+          >Error uploading record</span
+        >
       </div>
     </v-ons-list-item>
   </div>
@@ -19,6 +24,7 @@
 
 <script>
 import { noImagePlaceholderUrl } from '@/misc/constants'
+import { isObsSystemError } from '@/store/obs'
 
 export default {
   name: 'ObsList',
@@ -50,6 +56,15 @@ export default {
       const coordString = coords && coords[1] + ',' + coords[0]
       return record.placeGuess || coordString || '(No place guess)'
     },
+    isSystemError(record) {
+      return isObsSystemError(record)
+    },
   },
 }
 </script>
+
+<style lang="scss" scoped>
+.error-indicator {
+  color: red;
+}
+</style>

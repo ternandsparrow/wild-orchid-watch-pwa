@@ -50,10 +50,11 @@
       modifier="rowfooter"
       :visible.sync="globalErrorDialogVisible"
     >
-      <span slot="title">Something broke</span>
-      Sorry about that, try restarting the app or refreshing the webpage
+      <div slot="title">Something broke</div>
+      <p v-if="globalErrorUserMsg">{{ globalErrorUserMsg }}</p>
+      <p>Sorry about that, try restarting the app or refreshing the webpage</p>
       <template slot="footer">
-        <v-ons-alert-dialog-button @click="globalErrorDialogVisible = false"
+        <v-ons-alert-dialog-button @click="onDismissGlobalError"
           >Ok</v-ons-alert-dialog-button
         >
       </template>
@@ -99,11 +100,12 @@ export default {
     ...mapState('auth', ['isUpdatingApiToken']),
     ...mapGetters('ephemeral', ['newContentAvailable']),
     ...mapState('ephemeral', [
+      'globalErrorUserMsg',
       'isForceShowLoginToast',
+      'isGlobalErrorState',
       'refreshingApp',
       'showAddToHomeScreenModalForApple',
     ]),
-    ...mapState(['isGlobalErrorState']),
     borderRadius() {
       return new URL(window.location).searchParams.get('borderradius') !== null
     },
@@ -125,7 +127,7 @@ export default {
       this.updateReadyToastVisible = val
     },
     isGlobalErrorState(val) {
-      if (!val || this.globalErrorDialogVisible) {
+      if (this.globalErrorDialogVisible) {
         return
       }
       this.globalErrorDialogVisible = val
@@ -136,6 +138,10 @@ export default {
       'closeAddToHomeScreenModalForApple',
       'serviceWorkerSkipWaiting',
     ]),
+    onDismissGlobalError() {
+      this.globalErrorDialogVisible = false
+      this.$store.commit('ephemeral/resetGlobalErrorState')
+    },
     onUpdate() {
       this.serviceWorkerSkipWaiting()
       this.updateReadyToastVisible = false

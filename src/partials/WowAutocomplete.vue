@@ -48,10 +48,21 @@ export default {
       return this.showItemsMasterSwitch && (isItems || isInput)
     },
   },
-  mounted() {
-    this.theValue = this.initialValue
+  watch: {
+    initialValue(newVal) {
+      this.onInitialValueSet(newVal)
+    },
+  },
+  beforeMount() {
+    this.onInitialValueSet(this.initialValue)
   },
   methods: {
+    onInitialValueSet(newVal) {
+      this.theValue = newVal
+      if (this.theValue) {
+        this.showItemsMasterSwitch = false
+      }
+    },
     async onKeyup() {
       this.$emit('change', {
         value: this.theValue,

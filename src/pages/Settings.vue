@@ -41,12 +41,12 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center">
-          When to upload
+          When to sync with server
         </label>
         <div class="right">
-          <v-ons-select v-model="whenToUpload">
+          <v-ons-select v-model="whenToSync">
             <option
-              v-for="curr in whenToUploadOptions"
+              v-for="curr in whenToSyncOptions"
               :key="'wtu-' + curr.value"
               :value="curr.value"
             >
@@ -67,7 +67,7 @@ export default {
   name: 'Settings',
   data() {
     return {
-      whenToUploadOptions: [
+      whenToSyncOptions: [
         // FIXME support more options: only WiFi
         { value: alwaysUpload, label: 'Always' },
         { value: neverUpload, label: 'Never' },
@@ -75,13 +75,12 @@ export default {
     }
   },
   computed: {
-    whenToUpload: {
+    whenToSync: {
       get() {
-        return this.$store.state.app.whenToUpload
+        return this.$store.state.app.whenToSync
       },
       set(newValue) {
-        this.$store.commit('app/setWhenToUpload', newValue)
-        this.$store.dispatch('obs/scheduleUpload')
+        this.$store.commit('app/setWhenToSync', newValue)
       },
     },
   },
@@ -107,7 +106,8 @@ export default {
     doLogout() {
       // FIXME check if we have unsync'd observations and warn they'll be lost
       const msg =
-        'Are you sure? All data will from this app will also be deleted.'
+        'Are you sure? All data from this app, including any data ' +
+        'that has not been uploaded, will also be deleted.'
       this.$ons.notification.confirm(msg).then(isConfirmed => {
         if (!isConfirmed) {
           this.$ons.notification.toast('Wipe cancelled', {

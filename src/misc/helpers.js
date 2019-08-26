@@ -119,11 +119,14 @@ async function handleJsonResp(resp) {
     ? Promise.resolve('(body already used)')
     : resp[bodyAccessor]()
   const body = await bodyPromise
-  const trimmedBody = typeof body === 'string' ? body.substr(0, 300) : body
+  const trimmedBody =
+    typeof body === 'string'
+      ? body.substr(0, 300)
+      : JSON.stringify(body).substr(0, 300)
   let msg = `\n  Resp ok=${isRespOk},\n`
   msg += `  Resp is JSON=${isJson}\n`
   msg += `  status=${resp.status}\n`
-  msg += `  statusText=${resp.statusText}\n`
+  msg += `  statusText='${resp.statusText}'\n`
   msg += `  headers=${JSON.stringify(resp.headers)}\n`
   msg += `  url=${resp.url}\n`
   msg += `  body first 300 chars='${trimmedBody}'`
@@ -151,7 +154,9 @@ export function verifyWowDomainPhoto(photo) {
   return
   function assertFieldPresent(fieldName) {
     photo[fieldName] ||
-      (msg += `Invalid photo record, '${fieldName}' is missing. `)
+      (msg += `Invalid photo record, ${fieldName}='${
+        photo[fieldName]
+      }' is missing. `)
   }
 }
 
@@ -211,9 +216,30 @@ export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
   }
 }
 
+/**
+ * Takes an array of valid values and returns a validator function. The
+ * validator function takes a single param and returns it as-is if valid,
+ * otherwise throws an error.
+ */
+export function makeEnumValidator(array) {
+  if (array.constructor !== Array || !array.length) {
+    throw new Error('Input must be a non-empty array!')
+  }
+  return function(enumItem) {
+    const isValid = array.includes(enumItem)
+    if (!isValid) {
+      throw new Error(
+        `Invalid enum value='${enumItem}' is not in valid values=[${array}]`,
+      )
+    }
+    return enumItem
+  }
+}
+
 export const _testonly = {
   buildUrlSuffix,
   formatMetricDistance,
   isRespJson,
+  makeEnumValidator,
   verifyWowDomainPhoto,
 }

@@ -9,26 +9,26 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div v-if="isUpdatingMyObs" class="updating-msg text-center">
+      <div v-if="isUpdatingRemoteObs" class="updating-msg text-center">
         Updating
       </div>
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
         <v-ons-list-header v-if="isWaitingForUpload"
           >Waiting to upload
-          <span v-if="isUploadsDisabled"
-            >(Uploads disabled in settings)</span
+          <span v-if="isSyncDisabled"
+            >(Sync <span class="red">disabled</span> in settings)</span
           ></v-ons-list-header
         >
         <obs-list
-          :records="waitingToUploadRecords"
+          :records="localRecords"
           key-prefix="waiting-"
           @item-click="push"
         />
         <v-ons-list-header v-if="isWaitingForUpload"
           >Uploaded</v-ons-list-header
         >
-        <obs-list :records="myObs" @item-click="push" />
+        <obs-list :records="remoteRecords" @item-click="push" />
       </v-ons-list>
     </div>
     <v-ons-fab position="bottom right" @click="onNewObsBtn">
@@ -38,7 +38,7 @@
       <v-ons-action-sheet-button icon="fa-seedling" @click="onNewSingleSpecies"
         >Single species</v-ons-action-sheet-button
       >
-      <!-- TODO support mapping records, and population if it needs a separate page -->
+      <!-- TODO support mapping records -->
       <v-ons-action-sheet-button
         v-if="!md"
         icon="fa-map-marked-alt"
@@ -60,23 +60,23 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['isUploadsDisabled']),
+    ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapState('obs', ['myObs', 'waitingToUploadRecords', 'isUpdatingMyObs']),
-    ...mapGetters('obs', ['isMyObsStale']),
+    // FIXME need to change to getters for remoteRecords and localRecords
+    // We'll need to filter the remote records to exclude anything with local edits/deletes
+    ...mapState('obs', ['isUpdatingRemoteObs']),
+    ...mapGetters('obs', ['isRemoteObsStale', 'localRecords', 'remoteRecords']),
     isWaitingForUpload() {
-      return (this.waitingToUploadRecords || []).length
+      return (this.localRecords || []).length
     },
     isNoRecords() {
-      // TODO should we also check waitingToUploadRecords?
-      return (this.myObs || []).length === 0
+      return (this.remoteRecords || []).length === 0 && !this.isWaitingForUpload
     },
   },
   mounted() {
-    if (this.isMyObsStale) {
+    if (this.isRemoteObsStale) {
       this.doRefresh()
     }
-    this.$store.dispatch('obs/refreshWaitingToUpload') // FIXME do we need this, it should be maintained elsewhere
   },
   methods: {
     push(obsId) {
@@ -91,7 +91,7 @@ export default {
     },
     doRefresh(done) {
       if (this.isUserLoggedIn) {
-        this.$store.dispatch('obs/getMyObs')
+        this.$store.dispatch('obs/refreshRemoteObs')
       }
       done && done()
     },
@@ -110,5 +110,9 @@ export default {
   color: #555;
   padding: 0.25em;
   font-size: 0.9em;
+}
+
+.red {
+  color: red;
 }
 </style>
