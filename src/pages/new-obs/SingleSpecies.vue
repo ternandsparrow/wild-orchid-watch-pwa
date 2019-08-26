@@ -43,7 +43,7 @@
       </div>
       <template v-if="uploadedPhotos.length">
         <v-ons-list-item>
-          <div class="photo-title">Uploaded photos</div>
+          <div class="photo-title">Existing photos</div>
         </v-ons-list-item>
         <v-ons-list-item>
           <div
@@ -264,8 +264,24 @@ export default {
         accum[curr.id] = null
         return accum
       }, {})
-    const obsFieldsPromise = this.$store.dispatch('obs/getObsFields')
+    // FIXME change to caching locally and checking if stale
+    const obsFieldsPromise = this.$store.dispatch('obs/refreshObsFields')
     if (this.isEdit) {
+      this.initForEdit(obsFieldsPromise)
+    } else {
+      this.initForNew(obsFieldsPromise)
+    }
+    this.setRecentlyUsedTaxa()
+  },
+  methods: {
+    initForNew(obsFieldsPromise) {
+      obsFieldsPromise.then(() => {
+        this.setDefaultObsFieldVisibility()
+        this.setDefaultAnswers()
+      })
+      this.$store.dispatch('obs/markUserGeolocation')
+    },
+    initForEdit(obsFieldsPromise) {
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
@@ -290,17 +306,7 @@ export default {
       // this on the server? A do-not-edit obs field just for metadata?
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
-    } else {
-      // "new" mode
-      obsFieldsPromise.then(() => {
-        this.setDefaultObsFieldVisibility()
-        this.setDefaultAnswers()
-      })
-      this.$store.dispatch('obs/markUserGeolocation')
-    }
-    this.setRecentlyUsedTaxa()
-  },
-  methods: {
+    },
     setRecentlyUsedTaxa() {
       this.speciesGuessAutocompleteItems = (
         this.$store.state.obs.recentlyUsedTaxa[speciesGuessRecentTaxaKey] || []

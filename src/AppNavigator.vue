@@ -100,11 +100,12 @@ export default {
     ...mapState('auth', ['isUpdatingApiToken']),
     ...mapGetters('ephemeral', ['newContentAvailable']),
     ...mapState('ephemeral', [
+      'globalErrorUserMsg',
       'isForceShowLoginToast',
+      'isGlobalErrorState',
       'refreshingApp',
       'showAddToHomeScreenModalForApple',
     ]),
-    ...mapState(['isGlobalErrorState', 'globalErrorUserMsg']),
     borderRadius() {
       return new URL(window.location).searchParams.get('borderradius') !== null
     },
@@ -139,7 +140,7 @@ export default {
     ]),
     onDismissGlobalError() {
       this.globalErrorDialogVisible = false
-      this.$store.commit('resetGlobalErrorState')
+      this.$store.commit('ephemeral/resetGlobalErrorState')
     },
     onUpdate() {
       this.serviceWorkerSkipWaiting()

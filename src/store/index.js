@@ -27,20 +27,6 @@ const store = new Vuex.Store({
       },
     }),
   ],
-  state: {
-    isGlobalErrorState: false,
-    globalErrorUserMsg: null,
-  },
-  mutations: {
-    _flagGlobalError: (state, userMsg) => {
-      state.isGlobalErrorState = true
-      state.globalErrorUserMsg = userMsg
-    },
-    resetGlobalErrorState: state => {
-      state.isGlobalErrorState = false
-      state.globalErrorUserMsg = null
-    },
-  },
   actions: {
     doApiGet({ dispatch }, argObj) {
       return dispatch('auth/doApiGet', argObj)
@@ -58,7 +44,7 @@ const store = new Vuex.Store({
       return dispatch('auth/doApiDelete', argObj)
     },
     flagGlobalError({ commit }, { msg, userMsg, err }) {
-      commit('_flagGlobalError', userMsg)
+      commit('ephemeral/flagGlobalError', userMsg)
       wowErrorHandler(msg, err)
     },
   },

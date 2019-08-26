@@ -125,19 +125,29 @@ const actions = {
       commit('setIsUpdatingRemoteObs', false)
     }
   },
-  async cleanSuccessfulLocalRecordsRemoteHasEchoed({ getters }) {
-    const uuidsOfRemoteRecords = getters.remoteRecords.map(e => e.uuid)
+  async cleanSuccessfulLocalRecordsRemoteHasEchoed({
+    state,
+    getters,
+    dispatch,
+  }) {
+    const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
     const successfulLocalRecordIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
       .map(e => e.id)
+    console.debug(
+      `Deleting Dexie IDs that remote ` +
+        `has echoed back=[${successfulLocalRecordIdsToDelete}]`,
+    )
     try {
       await Promise.all(
         successfulLocalRecordIdsToDelete.map(e => deleteDexieRecordById(e)),
       )
+      await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw chainedError(
         `Failed while try to delete the following successful ` +
           `IDs from Dexie=[${successfulLocalRecordIdsToDelete}]`,
+        err,
       )
     }
   },
@@ -211,7 +221,7 @@ const actions = {
       throw chainedError('Failed to get project info', err)
     }
   },
-  async getObsFields({ commit, dispatch }) {
+  async refreshObsFields({ commit, dispatch }) {
     const projectInfo = await dispatch('getProjectInfoUsingCache')
     const fields = projectInfo.project_observation_fields.map(field => {
       // we have the field definition *and* the relationship to the project
@@ -291,31 +301,33 @@ const actions = {
     { record, photoIdsToDelete, existingRecordId, obsFieldIdsToDelete },
   ) {
     try {
-      // FIXME we need the raw record from the DB, not the UI one
       const existingLocalRecord = getters.localRecords.find(
         e => e.inatId === existingRecordId,
       )
+      const existingDbRecord = await (() => {
+        if (existingLocalRecord) {
+          return db.obs.get(existingLocalRecord.id)
+        }
+        return { inatId: existingRecordId }
+      })()
       const existingRemoteRecord = state.allRemoteObs.find(
         e => e.inatId === existingRecordId,
       )
-      const newPhotos = compressPhotos(record.photos) || []
       const photos = (() => {
+        const newPhotos = compressPhotos(record.photos) || []
         const isEditingRemoteDirectly =
           !existingLocalRecord && existingRemoteRecord
         if (isEditingRemoteDirectly) {
-          return [
-            ...newPhotos,
-            ...(existingRemoteRecord.photos || []).map(p => ({
-              ...p,
-              [isRemotePhotoFieldName]: true,
-            })),
-          ]
+          return [...newPhotos, ...(existingRemoteRecord.photos || [])]
         }
-        return [...newPhotos, ...(existingLocalRecord || { photos: [] }).photos]
+        // existingLocalRecord is the UI version that has a blob URL for the
+        // photos. We need the raw photo data itself so we go to the DB record
+        // for photos.
+        const existingPhotos = existingDbRecord.photos || []
+        return [...newPhotos, ...existingPhotos]
       })()
       const nowDate = new Date()
-      const enhancedRecord = Object.assign(record, {
-        inatId: existingRecordId,
+      const enhancedRecord = Object.assign(existingDbRecord, record, {
         photos,
         updated_at: nowDate,
         uuid: (existingLocalRecord || {}).uuid || existingRemoteRecord.uuid,
@@ -330,25 +342,13 @@ const actions = {
         },
       })
       try {
-        const dexieIdOfExistingLocalEditRecord = (() => {
-          const found = state.localQueueSummary
-            .filter(
-              e => e[recordTypeFieldName] === recordType('edit'),
-              // we aren't filtering on reportProcessingOutcome because if it's
-              // waiting then we just clobber it, if there's an error then it's
-              // *meant* to be clobbered when the user fixes it and if it's
-              // success then we save the record having to be deleted. This
-              // success case could be a race condition however so we'll have
-              // to keep an eye on that
-            )
-            .find(e => e.inatId === existingRecordId)
-          return (found || {}).id
-        })()
-        if (dexieIdOfExistingLocalEditRecord) {
-          enhancedRecord.id = dexieIdOfExistingLocalEditRecord
+        const isEditOfLocalOnlyRecord = !existingRemoteRecord
+        if (isEditOfLocalOnlyRecord) {
+          // edits of local-only records *need* to result in a 'new' typed
+          // record so we process them with a POST. If we mark them as an
+          // 'edit' then the PUT won't work
+          enhancedRecord.wowMeta[recordTypeFieldName] = recordType('new')
         }
-        // FIXME do we need to do merge our local changes over the remote
-        // record? Get the createdAt date perhaps?
         await db.obs.put(enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
@@ -616,30 +616,46 @@ const actions = {
   },
   async processWaitingDbRecord({ dispatch }, dbRecord) {
     // FIXME merge in delete functionality
-    // FIXME use a strategy pattern here
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += (dbRecord.wowMeta.photoIdsToDelete || []).length
     tasksLeftTodo += (dbRecord.wowMeta.obsFieldIdsToDelete || []).length
-    const isEditMode =
-      dbRecord.wowMeta[recordTypeFieldName] === recordType('edit')
-    let inatRecordId
-    if (isEditMode) {
-      inatRecordId = await dispatch('_editObservation', {
-        obsRecord: apiRecords.observationPostBody,
-        dexieRecordId: dbRecord.id,
-        existingRecordId: dbRecord.inatId,
-      })
-    } else {
-      const linkWithProjectTask = 1
-      tasksLeftTodo + linkWithProjectTask
-      inatRecordId = await dispatch('_createObservation', {
-        obsRecord: apiRecords.observationPostBody,
-        dexieRecordId: dbRecord.id,
-      })
-      await dispatch('_linkObsWithProject', { recordId: inatRecordId })
-      tasksLeftTodo--
+    const strategies = {
+      [recordType('new')]: {
+        async start() {
+          const linkWithProjectTask = 1
+          tasksLeftTodo += linkWithProjectTask
+          const inatRecordId = await dispatch('_createObservation', {
+            obsRecord: apiRecords.observationPostBody,
+            dexieRecordId: dbRecord.id,
+          })
+          return inatRecordId
+        },
+        async end() {
+          await dispatch('_linkObsWithProject', { recordId: inatRecordId })
+          tasksLeftTodo--
+        },
+      },
+      [recordType('edit')]: {
+        async start() {
+          const inatRecordId = await dispatch('_editObservation', {
+            obsRecord: apiRecords.observationPostBody,
+            dexieRecordId: dbRecord.id,
+            inatRecordId: dbRecord.inatId,
+          })
+          return inatRecordId
+        },
+        async end() {},
+      },
     }
+    const key = dbRecord.wowMeta[recordTypeFieldName]
+    const strategy = strategies[key]
+    if (!strategy) {
+      throw new Error(
+        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+      )
+    }
+    const inatRecordId = await strategy.start()
     tasksLeftTodo--
     await Promise.all(
       dbRecord.wowMeta.photoIdsToDelete.map(id => {
@@ -677,6 +693,7 @@ const actions = {
       }),
       // FIXME trap one failure so others can still try
     )
+    await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
   },
   async _linkObsWithProject({ dispatch }, { recordId }) {
@@ -910,6 +927,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
       id: p.id,
       licenseCode: p.license_code,
       attribution: p.attribution,
+      [isRemotePhotoFieldName]: true,
     }
     verifyWowDomainPhoto(result)
     return result

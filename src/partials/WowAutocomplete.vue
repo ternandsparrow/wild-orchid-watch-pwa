@@ -49,12 +49,20 @@ export default {
     },
   },
   beforeMount() {
-    this.theValue = this.initialValue
-    if (this.theValue) {
-      this.showItemsMasterSwitch = false
-    }
+    this.onInitialValueSet(this.initialValue)
+  },
+  watch: {
+    initialValue(newVal) {
+      this.onInitialValueSet(newVal)
+    },
   },
   methods: {
+    onInitialValueSet(newVal) {
+      this.theValue = newVal
+      if (this.theValue) {
+        this.showItemsMasterSwitch = false
+      }
+    },
     async onKeyup() {
       this.$emit('change', {
         value: this.theValue,
