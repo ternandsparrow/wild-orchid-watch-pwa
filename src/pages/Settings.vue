@@ -7,7 +7,8 @@
       >
       <ons-list-item>
         <label class="center">
-          Logout from Wild Orchid Watch and iNaturalist
+          Logout from Wild Orchid Watch and iNaturalist, and delete all local
+          app data
         </label>
         <div class="right">
           <v-ons-button @click="doLogout">Logout</v-ons-button>
@@ -62,6 +63,7 @@
 <script>
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
 import { alwaysUpload, neverUpload } from '@/misc/constants'
+import { mapState } from 'vuex'
 
 export default {
   name: 'Settings',
@@ -75,6 +77,10 @@ export default {
     }
   },
   computed: {
+    ...mapState('obs', ['localQueueSummary']),
+    unsyncRecordsCount() {
+      return this.localQueueSummary.length
+    },
     whenToSync: {
       get() {
         return this.$store.state.app.whenToSync
@@ -104,10 +110,20 @@ export default {
       window.location.reload()
     },
     doLogout() {
-      // FIXME check if we have unsync'd observations and warn they'll be lost
+      const msgFragment = (() => {
+        if (this.unsyncRecordsCount) {
+          return (
+            `You have ${this.unsyncRecordsCount} records` +
+            ' that have NOT been synchronised to the server and will be lost forever!'
+          )
+        }
+        return (
+          'All your local data has been synchronised to the server, ' +
+          'no data will be lost.'
+        )
+      })()
       const msg =
-        'Are you sure? All data from this app, including any data ' +
-        'that has not been uploaded, will also be deleted.'
+        `Are you sure? All data for this app will be deleted! ` + msgFragment
       this.$ons.notification.confirm(msg).then(isConfirmed => {
         if (!isConfirmed) {
           this.$ons.notification.toast('Wipe cancelled', {

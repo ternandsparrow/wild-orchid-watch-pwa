@@ -131,22 +131,31 @@ const actions = {
     dispatch,
   }) {
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
-    const successfulLocalRecordIdsToDelete = getters.successfulLocalQueueSummary
+    const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
       .map(e => e.id)
     console.debug(
       `Deleting Db IDs that remote ` +
-        `has echoed back=[${successfulLocalRecordIdsToDelete}]`,
+        `has echoed back=[${successfulLocalRecordDbIdsToDelete}]`,
     )
-    try {
-      await Promise.all(
-        successfulLocalRecordIdsToDelete.map(e => deleteDbRecordById(e)),
+    const dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote = state.localQueueSummary
+      .filter(
+        e =>
+          getters.deletesWithErrorDbIds.includes(e.id) &&
+          !uuidsOfRemoteRecords.includes(e.inatId),
       )
+      .map(e => e.id)
+    const dbIdsToDelete = [
+      ...dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote,
+      ...successfulLocalRecordDbIdsToDelete,
+    ]
+    try {
+      await Promise.all(dbIdsToDelete.map(e => deleteDbRecordById(e)))
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw chainedError(
-        `Failed while try to delete the following successful ` +
-          `IDs from Db=[${successfulLocalRecordIdsToDelete}]`,
+        `Failed while trying to delete the following ` +
+          `IDs from Db=[${successfulLocalRecordDbIdsToDelete}]`,
         err,
       )
     }
@@ -502,7 +511,7 @@ const actions = {
       console.debug(
         `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
       )
-      dispatch('refreshRemoteObs')
+      dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       // FIXME how do we compute this?
@@ -572,6 +581,17 @@ const actions = {
     }
     return inatRecordId
   },
+  async _deleteObservation({ commit, dispatch }, { inatRecordId }) {
+    await dispatch(
+      'doApiDelete',
+      { urlSuffix: `/observations/${inatRecordId}` },
+      { root: true },
+    )
+    const allRemoteObsWithoutThisRecord = state.allRemoteObs.filter(
+      e => e.inatId !== inatRecordId,
+    )
+    commit('setAllRemoteObs', allRemoteObsWithoutThisRecord)
+  },
   async _createPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
       'doPhotoPost',
@@ -615,7 +635,6 @@ const actions = {
     )
   },
   async processWaitingDbRecord({ dispatch }, dbRecord) {
-    // FIXME merge in delete functionality
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += (dbRecord.wowMeta.photoIdsToDelete || []).length
@@ -647,8 +666,22 @@ const actions = {
         },
         async end() {},
       },
+      [recordType('delete')]: {
+        async start() {
+          await dispatch('_deleteObservation', {
+            inatRecordId: dbRecord.inatId,
+          })
+          const inatRecordId = null
+          return inatRecordId // it won't be used anyway
+        },
+        async end() {
+          // only delete after the photos have been successfully deleted
+          return deleteDbRecordById(dbRecord.id)
+        },
+      },
     }
     const key = dbRecord.wowMeta[recordTypeFieldName]
+    console.debug(`DB record with ID='${dbRecord.id}' is type='${key}'`)
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
@@ -718,47 +751,51 @@ const actions = {
       )
     }
   },
-  async deleteSelectedRecord({ state, dispatch, commit }) {
-    const recordId = state.selectedObservationId
-    // FIXME
-    //  delete local copy, if exists
-    //  queue db record with flag set to delete remote, if exists
-    //  trigger refreshLocalRecordQueue
-    if (isLocalRecord(recordId)) {
-      const dbId = localObsIdToDbId(recordId)
-      await deleteDbRecordById(dbId)
-      // FIXME handle when in process of uploading, maybe queue delete operation?
-      // FIXME might have to also delete remote copy
+  async deleteSelectedRecord({ state, getters, dispatch, commit }) {
+    // FIXME handle when in process of uploading, maybe queue delete operation?
+    const recordInatId = state.selectedObservationId
+    const existingRemoteRecord = state.allRemoteObs.find(
+      e => e.inatId === recordInatId,
+    )
+    const isLocalOnlyRecord = !existingRemoteRecord
+    if (isLocalOnlyRecord) {
+      console.debug(
+        `Record with iNat ID='${recordInatId}' is local-only so deleting right now.`,
+      )
+      const existingLocalRecord = getters.localRecords.find(
+        e => e.inatId === recordInatId,
+      )
+      await deleteDbRecordById(existingLocalRecord.id)
       await dispatch('refreshLocalRecordQueue')
-    } else {
-      // FIXME handle when offline
-      const { photos } = state.allRemoteObs.find(e => e.inatId === recordId)
-      const allRemoteObsWithoutDeleted = state.allRemoteObs.filter(
-        e => e.inatId !== recordId,
-      )
-      commit('setAllRemoteObs', allRemoteObsWithoutDeleted)
-      commit('setIsUpdatingRemoteObs', true)
-      photos.forEach(async p => {
-        await dispatch(
-          'doApiDelete',
-          { urlSuffix: `/observation_photos/${p.id}` },
-          { root: true },
-        )
-      })
-      await dispatch(
-        'doApiDelete',
-        { urlSuffix: `/observations/${recordId}` },
-        { root: true },
-      )
-      await dispatch('refreshRemoteObs')
-      dispatch('getMySpecies')
+      return
     }
+    const theyreCascadeDeletedByTheObs = []
+    const record = {
+      inatId: recordInatId,
+      uuid: existingRemoteRecord.uuid,
+      wowMeta: {
+        [recordTypeFieldName]: recordType('delete'),
+        [recordProcessingOutcomeFieldName]: recordProcessingOutcome('waiting'),
+        [hasRemoteRecordFieldName]: !!existingRemoteRecord,
+        photoIdsToDelete: theyreCascadeDeletedByTheObs,
+        obsFieldIdsToDelete: [],
+      },
+    }
+    await db.obs.put(record)
     commit('setSelectedObservationId', null)
+    return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
     const dbId = await dispatch('findDbIdForInatId', selectedInatId)
     await setRecordProcessingOutcome(dbId, 'waiting')
+    return dispatch('onLocalRecordEvent')
+  },
+  async retryFailedDeletes({ getters, dispatch }) {
+    const idsToRetry = getters.deletesWithErrorDbIds
+    await Promise.all(
+      idsToRetry.map(e => setRecordProcessingOutcome(e, 'waiting')),
+    )
     return dispatch('onLocalRecordEvent')
   },
 }
@@ -776,6 +813,25 @@ const getters = {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
     const found = allObs.find(e => e.inatId === state.selectedObservationId)
     return found
+  },
+  waitingForDeleteCount(state) {
+    return state.localQueueSummary.filter(
+      e =>
+        e[recordTypeFieldName] === recordType('delete') &&
+        !isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+    ).length
+  },
+  deletesWithErrorDbIds(state) {
+    return state.localQueueSummary
+      .filter(
+        e =>
+          e[recordTypeFieldName] === recordType('delete') &&
+          isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+      )
+      .map(e => e.id)
+  },
+  deletesWithErrorCount(state, getters) {
+    return getters.deletesWithErrorDbIds.length
   },
   localRecords(state) {
     return state._uiVisibleLocalRecords.map(currLocal => {
@@ -823,12 +879,11 @@ const getters = {
   },
 }
 
-function localObsIdToDbId(id) {
-  return Math.abs(id)
-}
-
-function isLocalRecord(id) {
-  return id < 0
+function isErrorOutcome(outcome) {
+  return [
+    recordProcessingOutcome('systemError'),
+    recordProcessingOutcome('userError'),
+  ].includes(outcome)
 }
 
 async function resolveLocalRecordIds(ids) {
@@ -1005,29 +1060,33 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   const result = {
     totalTaskCount: createObsTask,
   }
-  result.observationPostBody = {
-    ignore_photos: true,
-    observation: Object.keys(dbRecord).reduce(
-      (accum, currKey) => {
-        const isNotIgnored = !ignoredKeys.includes(currKey)
-        const value = dbRecord[currKey]
-        if (isNotIgnored && isAnswer(value)) {
-          accum[currKey] = value
-        }
-        return accum
-      },
-      {
-        species_guess: dbRecord.speciesGuess,
-        created_at: dbRecord.createdAt,
-      },
-    ),
+  const isRecordToUpload =
+    dbRecord.wowMeta[recordTypeFieldName] !== recordType('delete')
+  if (isRecordToUpload) {
+    result.observationPostBody = {
+      ignore_photos: true,
+      observation: Object.keys(dbRecord).reduce(
+        (accum, currKey) => {
+          const isNotIgnored = !ignoredKeys.includes(currKey)
+          const value = dbRecord[currKey]
+          if (isNotIgnored && isAnswer(value)) {
+            accum[currKey] = value
+          }
+          return accum
+        },
+        {
+          species_guess: dbRecord.speciesGuess,
+          created_at: dbRecord.createdAt,
+        },
+      ),
+    }
   }
-  result.obsFieldPostBodyPartials = dbRecord.obsFieldValues.map(e => ({
+  result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
     observation_field_id: e.fieldId,
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = dbRecord.photos
+  result.photoPostBodyPartials = (dbRecord.photos || [])
     .filter(e => !e[isRemotePhotoFieldName])
     .map(e => ({
       photoBlob: e.file,
