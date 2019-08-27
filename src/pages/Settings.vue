@@ -61,9 +61,9 @@
 </template>
 
 <script>
+import { mapState } from 'vuex'
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
 import { alwaysUpload, neverUpload } from '@/misc/constants'
-import { mapState } from 'vuex'
 
 export default {
   name: 'Settings',
