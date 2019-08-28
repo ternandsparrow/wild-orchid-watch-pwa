@@ -110,8 +110,10 @@ jobs:
             echo '[INFO] contents of .env.local'
             cat .env.local
       - run:
-          name: 'Build'
-          command: ./scripts/build-and-sentry-release.sh
+          name: 'Build prod'
+          command: |
+            export VUE_APP_DEPLOYED_ENV_IS_PROD=true
+            ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .
@@ -156,8 +158,10 @@ jobs:
             echo '[INFO] contents of .env.local'
             cat .env.local
       - run:
-          name: 'Build'
-          command: ./scripts/build-and-sentry-release.sh
+          name: 'Build dev'
+          command: |
+            export VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .
