@@ -11,7 +11,7 @@
     "test:unit": "vue-cli-service test:unit",
     "prettier:format-all": "prettier --write \"**/*.{vue,scss,sass,js}\"",
     "prettier:check": "prettier \"**/*.{vue,scss,sass,js}\" --list-different",
-    "firebase:deploy:ci": "firebase deploy --non-interactive --token $FIREBASE_TOKEN"
+    "firebase:deploy:ci": "firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:"
   },
   "engines": {
     "npm": ">=5.5.0",
@@ -61,6 +61,7 @@
     "eslint-plugin-import": "^2.17.3",
     "eslint-plugin-prettier": "^3.1.0",
     "eslint-plugin-vue": "^5.2.2",
+    "favicons-webpack-plugin": "^1.0.1",
     "firebase-tools": "^6.10.0",
     "sass-loader": "^7.1.0",
     "vue-template-compiler": "^2.6.10",

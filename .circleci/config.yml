@@ -70,7 +70,7 @@ jobs:
           command: echo "FIXME get working"
           # command: yarn test:e2e:headless
 
-  build:
+  build-prod:
     executor: default-executor
     steps:
       - attach_workspace:
@@ -81,30 +81,31 @@ jobs:
           command: |
             theFile=.env.local
             cat \<<EOF > $theFile
-            VUE_APP_INAT_BASE_URL=${INAT_BASE_URL:?}
-            VUE_APP_INAT_STATIC_BASE_URL=${INAT_STATIC_BASE_URL:?}
-            VUE_APP_API_BASE_URL=${API_BASE_URL:?}
-            VUE_APP_OAUTH_APP_ID=${OAUTH_APP_ID:?}
-            VUE_APP_OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:?}
-            VUE_APP_INAT_PROJECT_SLUG=${INAT_PROJECT_SLUG:?}
-            VUE_APP_DEPLOYED_ENV_IS_PROD=${WOW_IS_PROD:?}
+            VUE_APP_INAT_BASE_URL=${PROD_INAT_BASE_URL:?}
+            VUE_APP_INAT_STATIC_BASE_URL=${PROD_INAT_STATIC_BASE_URL:?}
+            VUE_APP_API_BASE_URL=${PROD_API_BASE_URL:?}
+            VUE_APP_OAUTH_APP_ID=${PROD_OAUTH_APP_ID:?}
+            VUE_APP_OAUTH_REDIRECT_URI=${PROD_OAUTH_REDIRECT_URI:?}
+            VUE_APP_INAT_PROJECT_SLUG=${PROD_INAT_PROJECT_SLUG:?}
+            VUE_APP_TARGET_TAXA_ID=${PROD_TARGET_TAXA_ID:?}
+            VUE_APP_OBS_FIELD_ID_ACCURACY=${PROD_OBS_FIELD_ID_ACCURACY:?}
+            VUE_APP_OBS_FIELD_ID_COUNT=${PROD_OBS_FIELD_ID_COUNT:?}
+            VUE_APP_OBS_FIELD_ID_ORCHID_TYPE=${PROD_OBS_FIELD_ID_ORCHID_TYPE:?}
+            VUE_APP_OBS_FIELD_ID_HOST_TREE=${PROD_OBS_FIELD_ID_HOST_TREE:?}
+            VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${PROD_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
+            VUE_APP_DEPLOYED_ENV_IS_PROD=true
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
-            VUE_APP_TARGET_TAXA_ID=${TARGET_TAXA_ID:?}
-            VUE_APP_OBS_FIELD_ID_ACCURACY=${OBS_FIELD_ID_ACCURACY:?}
-            VUE_APP_OBS_FIELD_ID_COUNT=${OBS_FIELD_ID_COUNT:?}
-            VUE_APP_OBS_FIELD_ID_ORCHID_TYPE=${OBS_FIELD_ID_ORCHID_TYPE:?}
-            VUE_APP_OBS_FIELD_ID_HOST_TREE=${OBS_FIELD_ID_HOST_TREE:?}
-            VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
             EOF
-            [ ! -z $OBS_FIELD_DEFAULT_ACCURACY ] && {
-              echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
+            # now some optional items
+            [ ! -z $PROD_OBS_FIELD_DEFAULT_ACCURACY ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$PROD_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
             }
-            [ ! -z $OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
-              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
+            [ ! -z $PROD_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$PROD_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
             }
-            [ ! -z $OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
-              echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
+            [ ! -z $PROD_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
+              echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$PROD_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
             }
             echo '[INFO] contents of .env.local'
             cat .env.local
@@ -115,24 +116,82 @@ jobs:
           root: .
           paths: .
 
-  deploy:
+  build-dev:
     executor: default-executor
     steps:
       - attach_workspace:
           at: .
       - run:
-          name: 'Firebase deploy'
+          name: 'Write env var overrides'
+          # we need to escape (\) the << otherwise CircleCI complains
+          command: |
+            theFile=.env.local
+            cat \<<EOF > $theFile
+            VUE_APP_INAT_BASE_URL=${DEV_INAT_BASE_URL:?}
+            VUE_APP_INAT_STATIC_BASE_URL=${DEV_INAT_STATIC_BASE_URL:?}
+            VUE_APP_API_BASE_URL=${DEV_API_BASE_URL:?}
+            VUE_APP_OAUTH_APP_ID=${DEV_OAUTH_APP_ID:?}
+            VUE_APP_OAUTH_REDIRECT_URI=${DEV_OAUTH_REDIRECT_URI:?}
+            VUE_APP_INAT_PROJECT_SLUG=${DEV_INAT_PROJECT_SLUG:?}
+            VUE_APP_TARGET_TAXA_ID=${DEV_TARGET_TAXA_ID:?}
+            VUE_APP_OBS_FIELD_ID_ACCURACY=${DEV_OBS_FIELD_ID_ACCURACY:?}
+            VUE_APP_OBS_FIELD_ID_COUNT=${DEV_OBS_FIELD_ID_COUNT:?}
+            VUE_APP_OBS_FIELD_ID_ORCHID_TYPE=${DEV_OBS_FIELD_ID_ORCHID_TYPE:?}
+            VUE_APP_OBS_FIELD_ID_HOST_TREE=${DEV_OBS_FIELD_ID_HOST_TREE:?}
+            VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${DEV_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
+            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
+            VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            EOF
+            # now some optional items
+            [ ! -z $DEV_OBS_FIELD_DEFAULT_ACCURACY ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$DEV_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
+            }
+            [ ! -z $DEV_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$DEV_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
+            }
+            [ ! -z $DEV_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
+              echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$DEV_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
+            }
+            echo '[INFO] contents of .env.local'
+            cat .env.local
+      - run:
+          name: 'Build'
+          command: ./scripts/build-and-sentry-release.sh
+      - persist_to_workspace: # FIXME only need dist/ right?
+          root: .
+          paths: .
+
+  deploy-prod:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Firebase deploy prod'
           command: |
             : ${FIREBASE_TOKEN:?}
-            if [[ "$CIRCLE_BRANCH" == "master" ]]; then
-              yarn firebase:deploy:ci
-            fi
+            yarn firebase:deploy:ci prod
+
+  deploy-dev:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Firebase deploy dev'
+          command: |
+            : ${FIREBASE_TOKEN:?}
+            yarn firebase:deploy:ci dev
 
 workflows:
   version: 2
-  build-and-deploy:
+  build-and-deploy-prod:
     jobs:
-      - install-dependencies
+      - install-dependencies:
+          filters:
+            branches:
+              only: master # dependent jobs are controlled by this
       - check-prettier:
           requires:
             - install-dependencies
@@ -145,12 +204,43 @@ workflows:
       - run-e2e-tests:
           requires:
             - install-dependencies
-      - build:
+      - build-prod:
           requires:
             - check-prettier
             - check-linter
             - run-unit-tests
             - run-e2e-tests
-      - deploy:
+      - deploy-prod:
           requires:
-            - build
+            - build-prod
+
+  build-everything-and-deploy-dev:
+    jobs:
+      - install-dependencies:
+          filters:
+            branches:
+              ignore: master # dependent jobs are controlled by this
+      - check-prettier:
+          requires:
+            - install-dependencies
+      - check-linter:
+          requires:
+            - install-dependencies
+      - run-unit-tests:
+          requires:
+            - install-dependencies
+      - run-e2e-tests:
+          requires:
+            - install-dependencies
+      - build-dev:
+          requires:
+            - check-prettier
+            - check-linter
+            - run-unit-tests
+            - run-e2e-tests
+          filters:
+            branches:
+              only: develop # only build and deploy this branch
+      - deploy-dev:
+          requires:
+            - build-dev

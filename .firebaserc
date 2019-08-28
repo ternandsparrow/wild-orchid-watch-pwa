@@ -1,5 +1,17 @@
 {
   "projects": {
-    "default": "wow-inspiring-australia"
+    "default": "wow-inspiring-australia-emg"
+  },
+  "targets": {
+    "wow-inspiring-australia-emg": {
+      "hosting": {
+        "dev": [
+          "wow-dev"
+        ],
+        "prod": [
+          "wow-inspiring-australia-emg"
+        ]
+      }
+    }
   }
 }

@@ -81,20 +81,30 @@ CircleCI builds will have any required vars written to the `.env.local` file
 during the build process so check the [build config](./.circleci/config.yml) if
 you need to make sure a value is configured during the build.
 
-## Deploy to Firebase
+## Config via environment variables
 
-```bash
-npm i -g npx
+Look in `src/misc/constants.js` for all the values that can be configured. See
+the [CircleCI config](.circleci/config.yml) in the build step, for how we set
+them during CI. The summary is there are a few items that aren't environment
+specific (Firebase token, Sentry DSN, etc) and the rest that are prefixed with
+an environment name like `PROD_` or `DEV_`.
 
-# Login with the account you used to create the firebase project
-npx firebase login
+For Sentry.io, we need two sets of information:
+  1. `SENTRY_{AUTH_TOKEN|ORG|PROJECT}` that will be used during deploy to
+     upload sourcemaps and mark a release. Note that fresh projects don't have
+     an auth token, you'll need to [generate
+     one](https://sentry.io/settings/account/api/auth-tokens/). The default
+     permissions work fine.
+  1. `SENTRY_DSN` that will be deployed in the app for error reporting
 
-# Build the app
-npm run build
-
-# ...and deploy
-npx firebase deploy
-```
+For Firebase, you don't need to deploy from your local machine. We have
+CircleCI to deploy for us. To achieve this, it needs a token for auth. Get a
+token with:
+  1. make sure you have the `firebase` command: `yarn global add firebase-tools`
+  1. on your local machine, run `firebase login:ci`
+  1. confirm the login in your browser
+  1. you'll get the token in your terminal, set the CircleCI env var
+     `FIREBASE_TOKEN` to this value
 
 ## Testing workflow
 
