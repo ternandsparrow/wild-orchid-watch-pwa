@@ -7,18 +7,6 @@ import { recordProcessingOutcomeFieldName } from '@/misc/constants'
 const db = new Dexie('WowDb')
 
 db.version(1).stores({
-  obsIndividual: '++id, isUploaded',
-})
-
-db.version(2).stores({
-  obs: '++id, updatedAt',
-})
-
-db.version(3).stores({
-  obs: `++id, updatedAt, successfullyProcessedAt`,
-})
-
-db.version(4).stores({
   obs: `++id, wowMeta.${recordProcessingOutcomeFieldName}`,
 })
 
