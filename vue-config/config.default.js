@@ -17,7 +17,7 @@ module.exports = {
       new DumpVueEnvVarsWebpackPlugin({ filename: 'wow-env-vars.js' }),
       new FaviconsWebpackPlugin({
         logo: './src/assets/icon-seed-white.png',
-        inject: true, // we can use them for the PWA manifest and regular browsers
+        inject: false, // it adds its own manifest.json that clobbers ours
         prefix: 'img/icons/',
         // note: we generate all the icons and inject them into index.html so
         // they can be used for non-PWA purposes
