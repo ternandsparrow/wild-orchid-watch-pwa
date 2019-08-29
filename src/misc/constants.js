@@ -45,6 +45,9 @@ export const isDeployedToProd = (() => {
 
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 
+// The tracker code for Google Analytics, e.g: UA-000000-1
+export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
+
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
 const assumedIdOfLifeTaxa = 1 // everything should have "Life" as an ancestor

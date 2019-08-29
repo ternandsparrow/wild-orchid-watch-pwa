@@ -80,6 +80,11 @@ different custom domains. So we can run dev.app... and app... versions of the
 site at the same time, from the same account and project.
 
 
+## Google Analytics
+To figure out how many people use the app and how they spend their time so we
+can streamline any hotspots in the app.
+
+
 ## Sentry
 TODO
   - free tier suits us
