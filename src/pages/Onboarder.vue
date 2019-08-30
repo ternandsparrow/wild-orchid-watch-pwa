@@ -93,16 +93,14 @@
       :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
-    <!-- FIXME update content of T and C doc so talk about WOW, not OEH -->
     <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <div style="width:80vw; height:90vh;">
+      <div style="width:90vw; height:90vh;">
         <iframe
           src="/wow-t-and-c.html"
           frameborder="0"
           class="wow-t-c-iframe"
-          height="100%"
-          width="100%"
         ></iframe>
+        <div class="close-btn" @click="onTAndCsCloseClick">Close</div>
       </div>
     </v-ons-dialog>
   </v-ons-page>
@@ -152,6 +150,9 @@ export default {
     },
     showTAndCs() {
       this.tsAndCsModalVisible = true
+    },
+    onTAndCsCloseClick() {
+      this.tsAndCsModalVisible = false
     },
   },
 }
@@ -205,7 +206,13 @@ export default {
 
 .wow-t-c-iframe {
   overflow: hidden;
-  height: 100%;
+  height: 95%;
   width: 100%;
+}
+
+.close-btn {
+  text-align: center;
+  font-weight: bold;
+  color: #333;
 }
 </style>

@@ -21,6 +21,9 @@ module.exports = class DumpVueEnvVarsWebpackPlugin {
   }
 
   apply(compiler) {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     const fileContent = Object.keys(process.env)
       .filter(k => k.startsWith('VUE_APP_'))
       .reduce((accum, currKey) => {
