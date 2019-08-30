@@ -51,6 +51,7 @@ module.exports = {
           theme_color: '#5683BA',
           background: '#000', // background of flattened icons
           appName: 'Wild Orchid Watch',
+          appShortName: 'WildOrchidWatch',
           appleStatusBarStyle: 'black',
           developerName: null,
           developerURL: null,
