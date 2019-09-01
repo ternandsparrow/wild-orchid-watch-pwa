@@ -23,7 +23,7 @@ post-build() {
     echo "$logPrefix Running in prod, no post-build work to do"
   } || {
     echo "$logPrefix Running in dev, updating post-build PWA manifest"
-    cd ../dist/
+    cd ../dist/img/icons/
     cat <<EOJS | node > manifest.json.dev
       const mf = require('./manifest.json')
       mf.name += ' Dev'

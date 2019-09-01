@@ -925,9 +925,16 @@ function mapPhotoFromDbToUi(p) {
 }
 
 function mintObjectUrl(blob) {
-  const result = URL.createObjectURL(blob)
-  photoObjectUrlsInUse.push(result)
-  return result
+  try {
+    const result = URL.createObjectURL(blob)
+    photoObjectUrlsInUse.push(result)
+    return result
+  } catch (err) {
+    throw chainedError(
+      `Failed to mint object URL for blob of type='${typeof blob}'`,
+      err,
+    )
+  }
 }
 
 function revokeExistingObjectUrls() {
