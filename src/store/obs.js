@@ -50,6 +50,12 @@ const state = {
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
+  // To both indicate that processing is happening and also ensure that only
+  // one thread of processing happens at a time, we could move this outside of
+  // Vuex (or just to the ephemeral namespace) and store a promise in it when
+  // we start. Then if we can another call to start processing and we still
+  // have a reference to a promise, just return that promise. We only trigger a
+  // new thread of processing when we don't already have a promise reference.
   isProcessingLocalQueue: false,
 }
 
