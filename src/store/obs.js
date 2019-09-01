@@ -42,7 +42,6 @@ const state = {
   isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
-  obsFields: [],
   selectedObservationId: null,
   speciesAutocompleteItems: [],
   tabIndex: 0,
@@ -76,7 +75,6 @@ const mutations = {
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
   setLat: (state, value) => (state.lat = value),
   setLng: (state, value) => (state.lng = value),
-  setObsFields: (state, value) => (state.obsFields = value),
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
@@ -206,13 +204,22 @@ const actions = {
       },
     )
   },
-  async getProjectInfoUsingCache({ state, dispatch }) {
-    // TODO add logic to periodically refresh this (once a day?)
+  async waitForProjectInfo({ state, dispatch, rootState, getters }) {
     const alreadyCachedResult = state.projectInfo
-    if (alreadyCachedResult) {
-      return alreadyCachedResult
+    const isOffline = !rootState.ephemeral.networkOnLine
+    if (alreadyCachedResult && (!getters.isProjectInfoStale || isOffline)) {
+      console.debug('Returning cached project info')
+      return
     }
-    return dispatch('getProjectInfo')
+    if (isOffline) {
+      throw new Error(
+        'We have no projectInfo and we have no internet ' +
+          'connection, cannot continue',
+      )
+    }
+    console.debug('Refreshing project info')
+    await dispatch('getProjectInfo')
+    return
   },
   async getProjectInfo({ state, commit }) {
     const url = apiUrlBase + '/projects/' + inatProjectSlug
@@ -229,26 +236,6 @@ const actions = {
     } catch (err) {
       throw chainedError('Failed to get project info', err)
     }
-  },
-  async refreshObsFields({ commit, dispatch }) {
-    const projectInfo = await dispatch('getProjectInfoUsingCache')
-    const fields = projectInfo.project_observation_fields.map(field => {
-      // we have the field definition *and* the relationship to the project
-      const obsField = field.observation_field
-      return {
-        id: obsField.id,
-        position: field.position,
-        required: field.required,
-        name: processObsFieldName(obsField.name),
-        description: obsField.description,
-        datatype: obsField.datatype,
-        allowedValues: (obsField.allowed_values || '')
-          .split(obsFieldSeparatorChar)
-          .filter(x => !!x) // remove zero length strings
-          .sort(),
-      }
-    })
-    commit('setObsFields', fields)
   },
   async doSpeciesAutocomplete({ dispatch, getters }, partialText) {
     if (!partialText) {
@@ -729,8 +716,13 @@ const actions = {
     await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
   },
-  async _linkObsWithProject({ dispatch }, { recordId }) {
-    const projectId = (await dispatch('getProjectInfoUsingCache')).id
+  async _linkObsWithProject({ state, dispatch }, { recordId }) {
+    if (!state.projectInfo) {
+      throw new Error(
+        'No projectInfo stored, cannot link observation to project without ID',
+      )
+    }
+    const projectId = state.projectInfo.id
     try {
       await dispatch(
         'doApiPost',
@@ -852,6 +844,7 @@ const getters = {
   },
   isRemoteObsStale: buildStaleCheckerFn('allRemoteObsLastUpdated', 10),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
+  isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
   isSelectedRecordEditOfRemote(state, getters) {
     const selectedId = state.selectedObservationId
     return getters.localRecords
@@ -876,6 +869,29 @@ const getters = {
         e[recordProcessingOutcomeFieldName] ===
         recordProcessingOutcome('success'),
     )
+  },
+  obsFields(state) {
+    const projectInfo = state.projectInfo
+    if (!projectInfo) {
+      return []
+    }
+    const result = projectInfo.project_observation_fields.map(fieldRel => {
+      // we have the field definition *and* the relationship to the project
+      const fieldDef = fieldRel.observation_field
+      return {
+        id: fieldDef.id,
+        position: fieldRel.position,
+        required: fieldRel.required,
+        name: processObsFieldName(fieldDef.name),
+        description: fieldDef.description,
+        datatype: fieldDef.datatype,
+        allowedValues: (fieldDef.allowed_values || '')
+          .split(obsFieldSeparatorChar)
+          .filter(x => !!x) // remove zero length strings
+          .sort(),
+      }
+    })
+    return result
   },
 }
 
@@ -956,6 +972,7 @@ export const apiTokenHooks = [
   store => {
     store.dispatch('obs/refreshRemoteObs')
     store.dispatch('obs/getMySpecies')
+    store.dispatch('obs/getProjectInfo')
   },
 ]
 

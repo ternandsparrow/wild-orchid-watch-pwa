@@ -205,8 +205,8 @@ export default {
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields', 'lat', 'lng']),
-    ...mapGetters('obs', ['observationDetail']),
+    ...mapState('obs', ['lat', 'lng']),
+    ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['networkOnLine']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
@@ -264,8 +264,7 @@ export default {
         accum[curr.id] = null
         return accum
       }, {})
-    // FIXME change to caching locally and checking if stale
-    const obsFieldsPromise = this.$store.dispatch('obs/refreshObsFields')
+    const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
     if (this.isEdit) {
       this.initForEdit(obsFieldsPromise)
     } else {
