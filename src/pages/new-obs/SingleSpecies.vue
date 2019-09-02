@@ -62,9 +62,7 @@
           </div>
         </v-ons-list-item>
       </template>
-      <v-ons-list-header class="wow-list-header"
-        >Species guess</v-ons-list-header
-      >
+      <v-ons-list-header class="wow-list-header">Field Name</v-ons-list-header>
       <v-ons-list-item>
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
