@@ -75,6 +75,7 @@
           @item-selected="onSpeciesGuessSet"
         />
         <div class="wow-obs-field-desc">
+          <span class="required">(required)</span>
           Which species is this observation of?
         </div>
       </v-ons-list-item>
