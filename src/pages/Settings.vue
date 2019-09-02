@@ -109,41 +109,53 @@ export default {
       })
       window.location.reload()
     },
-    doLogout() {
-      const msgFragment = (() => {
-        if (this.unsyncRecordsCount) {
+    async doLogout() {
+      try {
+        const msgFragment = (() => {
+          if (this.unsyncRecordsCount) {
+            return (
+              `You have ${this.unsyncRecordsCount} records` +
+              ' that have NOT been synchronised to the server and will be lost forever!'
+            )
+          }
           return (
-            `You have ${this.unsyncRecordsCount} records` +
-            ' that have NOT been synchronised to the server and will be lost forever!'
+            'All your local data has been synchronised to the server, ' +
+            'no data will be lost.'
           )
-        }
-        return (
-          'All your local data has been synchronised to the server, ' +
-          'no data will be lost.'
-        )
-      })()
-      const msg =
-        `Are you sure? All data for this app will be deleted! ` + msgFragment
-      this.$ons.notification.confirm(msg).then(isConfirmed => {
+        })()
+        const msg =
+          'Are you sure? All data for this app will be deleted! ' +
+          msgFragment +
+          ' We also need to logout of iNaturalist, which will be done by ' +
+          'opening a new window in your browser. You can safely close this ' +
+          'window once the logout has happened.'
+        const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
-          this.$ons.notification.toast('Wipe cancelled', {
+          this.$ons.notification.toast('Logout cancelled', {
             timeout: 1000,
             animation: 'ascend',
           })
           return
         }
-        this.$store.dispatch('auth/doLogout')
+        await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
         unregisterAllServiceWorkers()
-        deleteAllDatabases()
-        this.$ons.notification
-          .alert(
-            'Logged out and all data wiped, press ok to restart the app in a clean state',
-          )
-          .then(() => {
-            window.location.reload()
-          })
-      })
+        await deleteAllDatabases()
+        await this.$ons.notification.alert(
+          'Logged out and all data wiped, press ok to restart the app in a clean state',
+        )
+        window.location.reload()
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: 'Failed during logout',
+            userMsg: 'Something went wrong while trying to logout',
+            err,
+          },
+          { root: true },
+        )
+      }
     },
     doManualUpdateCheck() {
       this.$store

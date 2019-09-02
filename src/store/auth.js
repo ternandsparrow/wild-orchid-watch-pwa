@@ -249,6 +249,10 @@ export default {
             token: state.token,
           },
         })
+        // This must be opened in a new window as we can't pass CORS check to
+        // make it with XHR and we can't IFrame it in because iNat passes
+        // X-Frame-Options header
+        window.open(`${inatUrlBase}/logout`, '_blank')
       } catch (err) {
         throw chainedError('Failed to revoke iNat token while logging out', err)
       }

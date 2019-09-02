@@ -12,9 +12,10 @@ db.version(1).stores({
 
 export default db
 
-// will kill our app DB and SW cache (and anything else)
+// will kill our app DB and, depending on which browser we're in, maybe also
+// wipe SW cache and any other DBs, which is also fine.
 export async function deleteAllDatabases() {
-  const dbs = await indexedDB.databases()
+  const dbs = await Dexie.getDatabaseNames()
   for (const { name } of dbs) {
     try {
       const d = new Dexie(name)
