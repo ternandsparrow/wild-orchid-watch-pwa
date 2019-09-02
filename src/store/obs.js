@@ -50,13 +50,6 @@ const state = {
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
-  // To both indicate that processing is happening and also ensure that only
-  // one thread of processing happens at a time, we could move this outside of
-  // Vuex (or just to the ephemeral namespace) and store a promise in it when
-  // we start. Then if we can another call to start processing and we still
-  // have a reference to a promise, just return that promise. We only trigger a
-  // new thread of processing when we don't already have a promise reference.
-  isProcessingLocalQueue: false,
 }
 
 const mutations = {
@@ -84,8 +77,6 @@ const mutations = {
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
-  setIsProcessingLocalQueue: (state, value) =>
-    (state.isProcessingLocalQueue = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isValueEmpty = (value || '').trim().length === 0
     if (isValueEmpty) {
@@ -431,14 +422,10 @@ const actions = {
       throw chainedError(`Failed to save new record to local queue.`, err)
     }
   },
-  async onLocalRecordEvent({ state, dispatch }) {
-    // TODO do we need to call this refresh or can we rely on the processor to do it?
+  async onLocalRecordEvent({ dispatch }) {
+    // TODO do we need to call this refresh or can we rely on the processor to
+    // do it?
     await dispatch('refreshLocalRecordQueue')
-    if (state.isProcessingLocalQueue) {
-      return
-    }
-    // FIXME can we use Vuex.watch to trigger processLocalQueue when we have
-    // something in the local queue?
     dispatch('processLocalQueue')
   },
   async refreshLocalRecordQueue({ commit }) {
@@ -469,71 +456,108 @@ const actions = {
    * Only when there are no records left to process do we set the 'currently
    * processing' status to false.
    */
-  async processLocalQueue({ getters, commit, dispatch, rootGetters }) {
+  async processLocalQueue({
+    getters,
+    commit,
+    dispatch,
+    rootGetters,
+    rootState,
+  }) {
     const logPrefix = '[localQueue]'
-    console.debug(`${logPrefix} Starting to process local queue`)
-    // FIXME use Background Sync API with auto-retry
-    //       Background sync might just be configuring workbox to retry our
-    //       POSTs requests to the API
-    // FIXME how do we handle dev or no service worker support?
-    // FIXME how do we ensure we only have one "thread" of processing running?
-    if (!rootGetters['canUploadNow']) {
-      // FIXME with background sync, we need to create the HTTP request so do
-      // we just go ahead anyway? Need to differentiate between being offline
-      // and user setting upload policy to NEVER
-      console.debug(`${logPrefix} Processing is disallowed, giving up.`)
-      return
-    }
-    commit('setIsProcessingLocalQueue', true)
-    await dispatch('refreshLocalRecordQueue')
-    const waitingQueue = getters.waitingLocalQueueSummary
-    const isRecordToProcess = waitingQueue.length
-    if (!isRecordToProcess) {
-      console.debug(`${logPrefix} No record to process, ending processing.`)
-      commit('setIsProcessingLocalQueue', false)
-      return
-    }
-    const idToProcess = waitingQueue[0].id
-    try {
-      const dbRecord = await db.obs.get(idToProcess)
+    const existingWorker = rootState.ephemeral.queueProcessorPromise
+    if (existingWorker) {
       console.debug(
-        `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
+        `${logPrefix} Worker is already active, returning reference`,
       )
-      await dispatch('processWaitingDbRecord', dbRecord)
-      await setRecordProcessingOutcome(idToProcess, 'success')
-      console.debug(
-        `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
-      )
-      dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
-      await dispatch('refreshLocalRecordQueue')
-    } catch (err) {
-      // FIXME how do we compute this?
-      const isUserError = false
-      if (isUserError) {
-        console.debug(
-          `Failed to process Db record with ID='${idToProcess}' ` +
-            `due to a user error. Notifying the user.`,
-        )
-        // FIXME send toast (or system notification?) to notify user that they
-        // need to check obs list
-        await setRecordProcessingOutcome(idToProcess, 'userError')
-      } else {
-        // TODO should we try the next one or short-circuit? For system error, maybe halt as it might affect others?
-        // FIXME do we need to be atomic and rollback?
-        await setRecordProcessingOutcome(idToProcess, 'systemError')
-        dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed to process Db record with ID='${idToProcess}'`,
-            // FIXME use something more user friendly than the ID
-            userMsg: `Error while trying upload record with ID='${idToProcess}'`,
-            err,
-          },
-          { root: true },
-        )
+      return existingWorker
+    }
+    commit(
+      'ephemeral/setQueueProcessorPromise',
+      worker().then(() => {
+        // we chain this as part of the returned promise so any caller awaiting
+        // it won't be able to act until we've cleaned up
+        console.debug(`${logPrefix} Worker done, killing stored promise`)
+        commit('ephemeral/setQueueProcessorPromise', null, { root: true })
+      }),
+      { root: true },
+    )
+    return rootState.ephemeral.queueProcessorPromise
+    async function worker() {
+      console.debug(`${logPrefix} Starting to process local queue`)
+      // FIXME use Background Sync API with auto-retry
+      //       Background sync might just be configuring workbox to retry our
+      //       POSTs requests to the API
+      // FIXME how do we handle dev or no service worker support?
+      if (!rootGetters['canUploadNow']) {
+        // FIXME with background sync, we need to create the HTTP request so do
+        // we just go ahead anyway? Need to differentiate between being offline
+        // and user setting upload policy to NEVER
+        console.debug(`${logPrefix} Processing is disallowed, giving up.`)
+        return
       }
+      if (!rootState.ephemeral.networkOnLine) {
+        // FIXME this is an interim fix until we get the workbox background
+        // sync logic working. Remove this once we have that in place.  We also
+        // have a hook for when we're back online that will trigger queue
+        // processing again. That should probably be cleaned up too
+        console.debug(
+          `${logPrefix} No network available, refusing to generate ` +
+            `HTTP requests that are destined to fail.`,
+        )
+        return
+      }
+      await dispatch('refreshLocalRecordQueue')
+      const waitingQueue = getters.waitingLocalQueueSummary
+      const isRecordToProcess = waitingQueue.length
+      if (!isRecordToProcess) {
+        console.debug(`${logPrefix} No record to process, ending processing.`)
+        return
+      }
+      const idToProcess = waitingQueue[0].id
+      try {
+        const dbRecord = await db.obs.get(idToProcess)
+        console.debug(
+          `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
+        )
+        await dispatch('processWaitingDbRecord', dbRecord)
+        await setRecordProcessingOutcome(idToProcess, 'success')
+        console.debug(
+          `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
+        )
+        dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
+        await dispatch('refreshLocalRecordQueue')
+      } catch (err) {
+        // FIXME how do we compute this?
+        const isUserError = false
+        if (isUserError) {
+          console.debug(
+            `Failed to process Db record with ID='${idToProcess}' ` +
+              `due to a user error. Notifying the user.`,
+          )
+          // FIXME send toast (or system notification?) to notify user that they
+          // need to check obs list
+          await setRecordProcessingOutcome(idToProcess, 'userError')
+        } else {
+          // TODO should we try the next one or short-circuit? For system
+          // error, maybe halt as it might affect others?
+          // FIXME do we need to be atomic and rollback?
+          await setRecordProcessingOutcome(idToProcess, 'systemError')
+          dispatch(
+            'flagGlobalError',
+            {
+              msg: `Failed to process Db record with ID='${idToProcess}'`,
+              // FIXME use something more user friendly than the ID
+              userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+              err,
+            },
+            { root: true },
+          )
+        }
+      }
+      // call ourself so the outer promise only resolves once we have nothing
+      // left to process
+      await worker()
     }
-    dispatch('processLocalQueue')
   },
   async _createObservation({ dispatch }, { obsRecord, dbRecordId }) {
     const obsResp = await dispatch(
@@ -807,6 +831,11 @@ async function deleteDbRecordById(id) {
 }
 
 const getters = {
+  isDoingSync(state, getters, rootState) {
+    return (
+      state.isUpdatingRemoteObs || rootState.ephemeral.queueProcessorPromise
+    )
+  },
   observationDetail(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
     const found = allObs.find(e => e.inatId === state.selectedObservationId)
@@ -979,6 +1008,12 @@ export const apiTokenHooks = [
     store.dispatch('obs/refreshRemoteObs')
     store.dispatch('obs/getMySpecies')
     store.dispatch('obs/getProjectInfo')
+  },
+]
+
+export const networkHooks = [
+  store => {
+    store.dispatch('obs/processLocalQueue')
   },
 ]
 

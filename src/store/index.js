@@ -5,7 +5,10 @@ import createPersistedState from 'vuex-persistedstate'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
 import ephemeral from './ephemeral'
-import obs, { apiTokenHooks as obsApiTokenHooks } from './obs'
+import obs, {
+  apiTokenHooks as obsApiTokenHooks,
+  networkHooks as obsNetworkHooks,
+} from './obs'
 import activity from './activity'
 import missions from './missions'
 import { wowErrorHandler } from '@/misc/helpers'
@@ -84,6 +87,18 @@ store.watch(
   () => {
     console.debug('API Token and user details changed, triggering hooks')
     for (const curr of allApiTokenHooks) {
+      curr(store)
+    }
+  },
+)
+
+const allNetworkHooks = [...obsNetworkHooks]
+
+store.watch(
+  state => state.ephemeral.networkOnLine,
+  () => {
+    console.debug('Network on/off-line status changed, triggering hooks')
+    for (const curr of allNetworkHooks) {
       curr(store)
     }
   },

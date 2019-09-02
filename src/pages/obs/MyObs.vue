@@ -9,8 +9,8 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div v-if="isUpdatingRemoteObs" class="updating-msg text-center">
-        Updating
+      <div v-if="isDoingSync" class="updating-msg text-center">
+        Synchronising with server
       </div>
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
@@ -33,6 +33,9 @@
           >Waiting to upload
           <span v-if="isSyncDisabled"
             >(Sync <span class="red">disabled</span> in settings)</span
+          >
+          <span v-if="!networkOnLine"
+            >(Will retry when we're back online)</span
           ></v-ons-list-header
         >
         <obs-list
@@ -77,9 +80,10 @@ export default {
   computed: {
     ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapState('obs', ['isUpdatingRemoteObs']),
+    ...mapState('ephemeral', ['networkOnLine']),
     ...mapGetters('obs', [
       'deletesWithErrorCount',
+      'isDoingSync',
       'isRemoteObsStale',
       'localRecords',
       'remoteRecords',
