@@ -166,11 +166,8 @@ export default {
 }
 
 function clearLocalStorage() {
-  const keys = Object.keys(localStorage)
-  console.debug(`Clearing localStorage of ${keys.length} keys`)
-  for (const curr of keys) {
-    localStorage.removeItem(curr)
-  }
+  console.debug(`Clearing localStorage of ${localStorage.length} keys`)
+  localStorage.clear()
 }
 
 // thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/
