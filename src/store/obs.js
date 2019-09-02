@@ -268,13 +268,21 @@ const actions = {
     const result = (
       state.localQueueSummary.find(e => e.inatId === inatId) || {}
     ).id
-    if (!result) {
-      throw new Error(
-        `Could not resolve inatId='${inatId}' to a Db ID ` +
-          `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
-      )
+    if (result) {
+      return result
     }
-    return result
+    // For a record that failed the first POST of the observation itself to
+    // iNat, we won't have an iNat ID. The ID that is passed in will
+    // therefore already be a Dexie ID but we're confirming.
+    const possibleDexieId = inatId
+    const record = db.obs.get(possibleDexieId)
+    if (record) {
+      return possibleDexieId
+    }
+    throw new Error(
+      `Could not resolve inatId='${inatId}' to a Db ID ` +
+        `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
+    )
   },
   async deleteSelectedLocalEditOnly({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
@@ -566,14 +574,12 @@ const actions = {
       { root: true },
     )
     const newRecordId = obsResp.id
-    const isUpdated = await db.obs.update(dbRecordId, {
+    // we don't check the result of this update because there are situations
+    // where, as part of a retry, we upload the same obs data and the
+    // updated_at date is NOT changed. This would result in a 0 rows updated.
+    await db.obs.update(dbRecordId, {
       updated_at: obsResp.updated_at,
     })
-    if (!isUpdated) {
-      throw new Error(
-        `Db update operation to set updatedAt for (Db) ID='${dbRecordId}' failed`,
-      )
-    }
     return newRecordId
   },
   async _editObservation(
