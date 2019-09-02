@@ -117,4 +117,4 @@ Unit tests use Jest. You can find the doco for `expect()` at
 [https://jestjs.io/docs/en/expect]().
 
 ## Architecture
-See [./ARCHITECTURE.md]() for details on how this app is built.
+See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built.
