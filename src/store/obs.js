@@ -808,7 +808,7 @@ const actions = {
     return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedInatId = state.selectedObservationId
+    const selectedInatId = Math.abs(state.selectedObservationId)
     const dbId = await dispatch('findDbIdForInatId', selectedInatId)
     await setRecordProcessingOutcome(dbId, 'waiting')
     return dispatch('onLocalRecordEvent')
