@@ -12,7 +12,7 @@
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
           <img
-            src="@/assets/wow-splash.png"
+            src="@/assets/onboarder/wow-splash.png"
             alt="Wild Orchid Watch"
             class="wow-onboarder-logo"
           />
@@ -29,6 +29,11 @@
       </v-ons-carousel-item>
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
+          <img
+            src="@/assets/onboarder/greenhood_app.jpg"
+            alt="Using the App"
+            class="wow-onboarder-logo"
+          />
           <div class="title">
             Data Collection
           </div>
@@ -41,6 +46,11 @@
       </v-ons-carousel-item>
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
+          <img
+            src="@/assets/onboarder/shell_orchid.jpg"
+            alt="Watch for trampling"
+            class="wow-onboarder-logo"
+          />
           <div class="title">
             Safety
           </div>
@@ -52,6 +62,11 @@
       </v-ons-carousel-item>
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
+          <img
+            src="@/assets/onboarder/scaling_card.jpg"
+            alt="Scaling Card"
+            class="wow-onboarder-logo"
+          />
           <div class="title">
             Scientific use
           </div>
