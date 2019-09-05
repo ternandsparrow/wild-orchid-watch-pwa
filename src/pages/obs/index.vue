@@ -49,7 +49,7 @@ export default {
     },
   },
   mounted() {
-    this.$store.commit('app/setTopTitle', 'My observations')
+    this.$store.commit('app/setTopTitle', 'My Observations')
   },
 }
 </script>

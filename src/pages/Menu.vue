@@ -111,7 +111,7 @@ export default {
       ],
       access: [
         {
-          title: 'My observations',
+          title: 'My Observations',
           icon: 'md-home',
           component: Observations,
         },
