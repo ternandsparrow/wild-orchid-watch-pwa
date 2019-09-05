@@ -56,6 +56,22 @@
           </v-ons-select>
         </div>
       </ons-list-item>
+      <!-- ons-list-item>
+        <label class="center">
+          User Proficiency
+        </label>
+        <div class="right">
+          <v-ons-select v-model="userMode">
+            <option
+              v-for="curr in userModeOptions"
+              :key="'um-' + curr.value"
+              :value="curr.value"
+            >
+              {{ curr.label }}
+            </option>
+          </v-ons-select>
+        </div>
+      </ons-list-item-->
     </v-ons-list>
   </v-ons-page>
 </template>
@@ -63,7 +79,7 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
-import { alwaysUpload, neverUpload } from '@/misc/constants'
+import { alwaysUpload, neverUpload, beginner, expert } from '@/misc/constants'
 
 export default {
   name: 'Settings',
@@ -73,6 +89,10 @@ export default {
         // FIXME support more options: only WiFi
         { value: alwaysUpload, label: 'Always' },
         { value: neverUpload, label: 'Never' },
+      ],
+      userModeOptions: [
+        { value: beginner, label: 'Beginner' },
+        { value: expert, label: 'Expert' },
       ],
     }
   },
@@ -87,6 +107,14 @@ export default {
       },
       set(newValue) {
         this.$store.commit('app/setWhenToSync', newValue)
+      },
+    },
+    userMode: {
+      get() {
+        return this.$store.state.app.userMode
+      },
+      set(newValue) {
+        this.$store.commit('app/setUserMode', newValue)
       },
     },
   },

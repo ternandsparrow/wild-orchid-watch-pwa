@@ -12,7 +12,11 @@ import obs, {
 import activity from './activity'
 import missions from './missions'
 import { wowErrorHandler } from '@/misc/helpers'
-import { neverUpload, persistedStateLocalStorageKey } from '@/misc/constants'
+import {
+  neverUpload,
+  persistedStateLocalStorageKey,
+  beginner,
+} from '@/misc/constants'
 
 Vue.use(Vuex)
 
@@ -68,6 +72,9 @@ const store = new Vuex.Store({
     },
     isSyncDisabled(state) {
       return state.app.whenToSync === neverUpload
+    },
+    isInBeginnerMode(state) {
+      return state.app.userMode === beginner
     },
   },
   modules: {

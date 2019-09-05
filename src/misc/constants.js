@@ -116,3 +116,6 @@ export const neverUpload = 'NEVER'
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
+
+export const beginner = 'BEGINNER'
+export const expert = 'EXPERT'

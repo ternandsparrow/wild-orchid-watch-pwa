@@ -1,4 +1,4 @@
-import { alwaysUpload, appTitle } from '@/misc/constants'
+import { alwaysUpload, appTitle, beginner } from '@/misc/constants'
 
 const state = {
   appTitle: appTitle,
@@ -6,6 +6,7 @@ const state = {
   topTitle: 'Wild Orchid Watch',
   tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
+  userMode: beginner,
   addToHomeIosPromptLastDate: null,
 }
 
@@ -14,6 +15,7 @@ const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
   setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),
+  setUserMode: (state, value) => (state.userMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
 }
