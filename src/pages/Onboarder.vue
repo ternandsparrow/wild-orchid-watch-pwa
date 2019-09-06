@@ -111,7 +111,7 @@
     <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
       <div style="width:90vw; height:90vh;">
         <iframe
-          src="/wow-t-and-c.html"
+          src="/wow-t-and-c-v2.html"
           frameborder="0"
           class="wow-t-c-iframe"
         ></iframe>
