@@ -5,6 +5,7 @@ import './wow-global.css'
 
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
+import VueAnalytics from 'vue-analytics'
 import 'pwacompat'
 import * as Sentry from '@sentry/browser'
 import * as Integrations from '@sentry/integrations'
@@ -18,6 +19,7 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import {
+  googleAnalyticsTrackerCode,
   googleMapsApiKey,
   sentryDsn,
   appVersion,
@@ -30,6 +32,13 @@ Vue.config.productionTip = false
 Vue.use(VueGoogleMaps, {
   load: { key: googleMapsApiKey },
 })
+
+if (googleAnalyticsTrackerCode !== 'off') {
+  Vue.use(VueAnalytics, {
+    id: googleAnalyticsTrackerCode,
+    router,
+  })
+}
 
 if (process.env.NODE_ENV !== 'development') {
   // don't init Sentry during dev, otherwise it won't print render errors to

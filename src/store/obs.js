@@ -42,7 +42,6 @@ const state = {
   isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
-  obsFields: [],
   selectedObservationId: null,
   speciesAutocompleteItems: [],
   tabIndex: 0,
@@ -51,7 +50,6 @@ const state = {
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
-  isProcessingLocalQueue: false,
 }
 
 const mutations = {
@@ -76,12 +74,9 @@ const mutations = {
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
   setLat: (state, value) => (state.lat = value),
   setLng: (state, value) => (state.lng = value),
-  setObsFields: (state, value) => (state.obsFields = value),
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
-  setIsProcessingLocalQueue: (state, value) =>
-    (state.isProcessingLocalQueue = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isValueEmpty = (value || '').trim().length === 0
     if (isValueEmpty) {
@@ -131,22 +126,31 @@ const actions = {
     dispatch,
   }) {
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
-    const successfulLocalRecordIdsToDelete = getters.successfulLocalQueueSummary
+    const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
       .map(e => e.id)
     console.debug(
       `Deleting Db IDs that remote ` +
-        `has echoed back=[${successfulLocalRecordIdsToDelete}]`,
+        `has echoed back=[${successfulLocalRecordDbIdsToDelete}]`,
     )
-    try {
-      await Promise.all(
-        successfulLocalRecordIdsToDelete.map(e => deleteDbRecordById(e)),
+    const dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote = state.localQueueSummary
+      .filter(
+        e =>
+          getters.deletesWithErrorDbIds.includes(e.id) &&
+          !uuidsOfRemoteRecords.includes(e.inatId),
       )
+      .map(e => e.id)
+    const dbIdsToDelete = [
+      ...dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote,
+      ...successfulLocalRecordDbIdsToDelete,
+    ]
+    try {
+      await Promise.all(dbIdsToDelete.map(e => deleteDbRecordById(e)))
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw chainedError(
-        `Failed while try to delete the following successful ` +
-          `IDs from Db=[${successfulLocalRecordIdsToDelete}]`,
+        `Failed while trying to delete the following ` +
+          `IDs from Db=[${successfulLocalRecordDbIdsToDelete}]`,
         err,
       )
     }
@@ -197,13 +201,22 @@ const actions = {
       },
     )
   },
-  async getProjectInfoUsingCache({ state, dispatch }) {
-    // TODO add logic to periodically refresh this (once a day?)
+  async waitForProjectInfo({ state, dispatch, rootState, getters }) {
     const alreadyCachedResult = state.projectInfo
-    if (alreadyCachedResult) {
-      return alreadyCachedResult
+    const isOffline = !rootState.ephemeral.networkOnLine
+    if (alreadyCachedResult && (!getters.isProjectInfoStale || isOffline)) {
+      console.debug('Returning cached project info')
+      return
     }
-    return dispatch('getProjectInfo')
+    if (isOffline) {
+      throw new Error(
+        'We have no projectInfo and we have no internet ' +
+          'connection, cannot continue',
+      )
+    }
+    console.debug('Refreshing project info')
+    await dispatch('getProjectInfo')
+    return
   },
   async getProjectInfo({ state, commit }) {
     const url = apiUrlBase + '/projects/' + inatProjectSlug
@@ -220,26 +233,6 @@ const actions = {
     } catch (err) {
       throw chainedError('Failed to get project info', err)
     }
-  },
-  async refreshObsFields({ commit, dispatch }) {
-    const projectInfo = await dispatch('getProjectInfoUsingCache')
-    const fields = projectInfo.project_observation_fields.map(field => {
-      // we have the field definition *and* the relationship to the project
-      const obsField = field.observation_field
-      return {
-        id: obsField.id,
-        position: field.position,
-        required: field.required,
-        name: processObsFieldName(obsField.name),
-        description: obsField.description,
-        datatype: obsField.datatype,
-        allowedValues: (obsField.allowed_values || '')
-          .split(obsFieldSeparatorChar)
-          .filter(x => !!x) // remove zero length strings
-          .sort(),
-      }
-    })
-    commit('setObsFields', fields)
   },
   async doSpeciesAutocomplete({ dispatch, getters }, partialText) {
     if (!partialText) {
@@ -275,13 +268,21 @@ const actions = {
     const result = (
       state.localQueueSummary.find(e => e.inatId === inatId) || {}
     ).id
-    if (!result) {
-      throw new Error(
-        `Could not resolve inatId='${inatId}' to a Db ID ` +
-          `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
-      )
+    if (result) {
+      return result
     }
-    return result
+    // For a record that failed the first POST of the observation itself to
+    // iNat, we won't have an iNat ID. The ID that is passed in will
+    // therefore already be a Dexie ID but we're confirming.
+    const possibleDexieId = inatId
+    const record = db.obs.get(possibleDexieId)
+    if (record) {
+      return possibleDexieId
+    }
+    throw new Error(
+      `Could not resolve inatId='${inatId}' to a Db ID ` +
+        `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
+    )
   },
   async deleteSelectedLocalEditOnly({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
@@ -429,14 +430,10 @@ const actions = {
       throw chainedError(`Failed to save new record to local queue.`, err)
     }
   },
-  async onLocalRecordEvent({ state, dispatch }) {
-    // TODO do we need to call this refresh or can we rely on the processor to do it?
+  async onLocalRecordEvent({ dispatch }) {
+    // TODO do we need to call this refresh or can we rely on the processor to
+    // do it?
     await dispatch('refreshLocalRecordQueue')
-    if (state.isProcessingLocalQueue) {
-      return
-    }
-    // FIXME can we use Vuex.watch to trigger processLocalQueue when we have
-    // something in the local queue?
     dispatch('processLocalQueue')
   },
   async refreshLocalRecordQueue({ commit }) {
@@ -467,71 +464,108 @@ const actions = {
    * Only when there are no records left to process do we set the 'currently
    * processing' status to false.
    */
-  async processLocalQueue({ getters, commit, dispatch, rootGetters }) {
+  async processLocalQueue({
+    getters,
+    commit,
+    dispatch,
+    rootGetters,
+    rootState,
+  }) {
     const logPrefix = '[localQueue]'
-    console.debug(`${logPrefix} Starting to process local queue`)
-    // FIXME use Background Sync API with auto-retry
-    //       Background sync might just be configuring workbox to retry our
-    //       POSTs requests to the API
-    // FIXME how do we handle dev or no service worker support?
-    // FIXME how do we ensure we only have one "thread" of processing running?
-    if (!rootGetters['canUploadNow']) {
-      // FIXME with background sync, we need to create the HTTP request so do
-      // we just go ahead anyway? Need to differentiate between being offline
-      // and user setting upload policy to NEVER
-      console.debug(`${logPrefix} Processing is disallowed, giving up.`)
-      return
-    }
-    commit('setIsProcessingLocalQueue', true)
-    await dispatch('refreshLocalRecordQueue')
-    const waitingQueue = getters.waitingLocalQueueSummary
-    const isRecordToProcess = waitingQueue.length
-    if (!isRecordToProcess) {
-      console.debug(`${logPrefix} No record to process, ending processing.`)
-      commit('setIsProcessingLocalQueue', false)
-      return
-    }
-    const idToProcess = waitingQueue[0].id
-    try {
-      const dbRecord = await db.obs.get(idToProcess)
+    const existingWorker = rootState.ephemeral.queueProcessorPromise
+    if (existingWorker) {
       console.debug(
-        `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
+        `${logPrefix} Worker is already active, returning reference`,
       )
-      await dispatch('processWaitingDbRecord', dbRecord)
-      await setRecordProcessingOutcome(idToProcess, 'success')
-      console.debug(
-        `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
-      )
-      dispatch('refreshRemoteObs')
-      await dispatch('refreshLocalRecordQueue')
-    } catch (err) {
-      // FIXME how do we compute this?
-      const isUserError = false
-      if (isUserError) {
-        console.debug(
-          `Failed to process Db record with ID='${idToProcess}' ` +
-            `due to a user error. Notifying the user.`,
-        )
-        // FIXME send toast (or system notification?) to notify user that they
-        // need to check obs list
-        await setRecordProcessingOutcome(idToProcess, 'userError')
-      } else {
-        // TODO should we try the next one or short-circuit? For system error, maybe halt as it might affect others?
-        // FIXME do we need to be atomic and rollback?
-        await setRecordProcessingOutcome(idToProcess, 'systemError')
-        dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed to process Db record with ID='${idToProcess}'`,
-            // FIXME use something more user friendly than the ID
-            userMsg: `Error while trying upload record with ID='${idToProcess}'`,
-            err,
-          },
-          { root: true },
-        )
+      return existingWorker
+    }
+    commit(
+      'ephemeral/setQueueProcessorPromise',
+      worker().then(() => {
+        // we chain this as part of the returned promise so any caller awaiting
+        // it won't be able to act until we've cleaned up
+        console.debug(`${logPrefix} Worker done, killing stored promise`)
+        commit('ephemeral/setQueueProcessorPromise', null, { root: true })
+      }),
+      { root: true },
+    )
+    return rootState.ephemeral.queueProcessorPromise
+    async function worker() {
+      console.debug(`${logPrefix} Starting to process local queue`)
+      // FIXME use Background Sync API with auto-retry
+      //       Background sync might just be configuring workbox to retry our
+      //       POSTs requests to the API
+      // FIXME how do we handle dev or no service worker support?
+      if (!rootGetters['canUploadNow']) {
+        // FIXME with background sync, we need to create the HTTP request so do
+        // we just go ahead anyway? Need to differentiate between being offline
+        // and user setting upload policy to NEVER
+        console.debug(`${logPrefix} Processing is disallowed, giving up.`)
+        return
       }
+      if (!rootState.ephemeral.networkOnLine) {
+        // FIXME this is an interim fix until we get the workbox background
+        // sync logic working. Remove this once we have that in place.  We also
+        // have a hook for when we're back online that will trigger queue
+        // processing again. That should probably be cleaned up too
+        console.debug(
+          `${logPrefix} No network available, refusing to generate ` +
+            `HTTP requests that are destined to fail.`,
+        )
+        return
+      }
+      await dispatch('refreshLocalRecordQueue')
+      const waitingQueue = getters.waitingLocalQueueSummary
+      const isRecordToProcess = waitingQueue.length
+      if (!isRecordToProcess) {
+        console.debug(`${logPrefix} No record to process, ending processing.`)
+        return
+      }
+      const idToProcess = waitingQueue[0].id
+      try {
+        const dbRecord = await db.obs.get(idToProcess)
+        console.debug(
+          `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
+        )
+        await dispatch('processWaitingDbRecord', dbRecord)
+        await setRecordProcessingOutcome(idToProcess, 'success')
+        console.debug(
+          `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
+        )
+        dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
+        await dispatch('refreshLocalRecordQueue')
+      } catch (err) {
+        // FIXME how do we compute this?
+        const isUserError = false
+        if (isUserError) {
+          console.debug(
+            `Failed to process Db record with ID='${idToProcess}' ` +
+              `due to a user error. Notifying the user.`,
+          )
+          // FIXME send toast (or system notification?) to notify user that they
+          // need to check obs list
+          await setRecordProcessingOutcome(idToProcess, 'userError')
+        } else {
+          // TODO should we try the next one or short-circuit? For system
+          // error, maybe halt as it might affect others?
+          // FIXME do we need to be atomic and rollback?
+          await setRecordProcessingOutcome(idToProcess, 'systemError')
+          dispatch(
+            'flagGlobalError',
+            {
+              msg: `Failed to process Db record with ID='${idToProcess}'`,
+              // FIXME use something more user friendly than the ID
+              userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+              err,
+            },
+            { root: true },
+          )
+        }
+      }
+      // call ourself so the outer promise only resolves once we have nothing
+      // left to process
+      await worker()
     }
-    dispatch('processLocalQueue')
   },
   async _createObservation({ dispatch }, { obsRecord, dbRecordId }) {
     const obsResp = await dispatch(
@@ -540,14 +574,12 @@ const actions = {
       { root: true },
     )
     const newRecordId = obsResp.id
-    const isUpdated = await db.obs.update(dbRecordId, {
+    // we don't check the result of this update because there are situations
+    // where, as part of a retry, we upload the same obs data and the
+    // updated_at date is NOT changed. This would result in a 0 rows updated.
+    await db.obs.update(dbRecordId, {
       updated_at: obsResp.updated_at,
     })
-    if (!isUpdated) {
-      throw new Error(
-        `Db update operation to set updatedAt for (Db) ID='${dbRecordId}' failed`,
-      )
-    }
     return newRecordId
   },
   async _editObservation(
@@ -571,6 +603,17 @@ const actions = {
       )
     }
     return inatRecordId
+  },
+  async _deleteObservation({ commit, dispatch }, { inatRecordId }) {
+    await dispatch(
+      'doApiDelete',
+      { urlSuffix: `/observations/${inatRecordId}` },
+      { root: true },
+    )
+    const allRemoteObsWithoutThisRecord = state.allRemoteObs.filter(
+      e => e.inatId !== inatRecordId,
+    )
+    commit('setAllRemoteObs', allRemoteObsWithoutThisRecord)
   },
   async _createPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
@@ -615,7 +658,6 @@ const actions = {
     )
   },
   async processWaitingDbRecord({ dispatch }, dbRecord) {
-    // FIXME merge in delete functionality
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += (dbRecord.wowMeta.photoIdsToDelete || []).length
@@ -647,8 +689,22 @@ const actions = {
         },
         async end() {},
       },
+      [recordType('delete')]: {
+        async start() {
+          await dispatch('_deleteObservation', {
+            inatRecordId: dbRecord.inatId,
+          })
+          const inatRecordId = null
+          return inatRecordId // it won't be used anyway
+        },
+        async end() {
+          // only delete after the photos have been successfully deleted
+          return deleteDbRecordById(dbRecord.id)
+        },
+      },
     }
     const key = dbRecord.wowMeta[recordTypeFieldName]
+    console.debug(`DB record with ID='${dbRecord.id}' is type='${key}'`)
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
@@ -696,8 +752,13 @@ const actions = {
     await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
   },
-  async _linkObsWithProject({ dispatch }, { recordId }) {
-    const projectId = (await dispatch('getProjectInfoUsingCache')).id
+  async _linkObsWithProject({ state, dispatch }, { recordId }) {
+    if (!state.projectInfo) {
+      throw new Error(
+        'No projectInfo stored, cannot link observation to project without ID',
+      )
+    }
+    const projectId = state.projectInfo.id
     try {
       await dispatch(
         'doApiPost',
@@ -718,47 +779,51 @@ const actions = {
       )
     }
   },
-  async deleteSelectedRecord({ state, dispatch, commit }) {
-    const recordId = state.selectedObservationId
-    // FIXME
-    //  delete local copy, if exists
-    //  queue db record with flag set to delete remote, if exists
-    //  trigger refreshLocalRecordQueue
-    if (isLocalRecord(recordId)) {
-      const dbId = localObsIdToDbId(recordId)
-      await deleteDbRecordById(dbId)
-      // FIXME handle when in process of uploading, maybe queue delete operation?
-      // FIXME might have to also delete remote copy
+  async deleteSelectedRecord({ state, getters, dispatch, commit }) {
+    // FIXME handle when in process of uploading, maybe queue delete operation?
+    const recordInatId = state.selectedObservationId
+    const existingRemoteRecord = state.allRemoteObs.find(
+      e => e.inatId === recordInatId,
+    )
+    const isLocalOnlyRecord = !existingRemoteRecord
+    if (isLocalOnlyRecord) {
+      console.debug(
+        `Record with iNat ID='${recordInatId}' is local-only so deleting right now.`,
+      )
+      const existingLocalRecord = getters.localRecords.find(
+        e => e.inatId === recordInatId,
+      )
+      await deleteDbRecordById(existingLocalRecord.id)
       await dispatch('refreshLocalRecordQueue')
-    } else {
-      // FIXME handle when offline
-      const { photos } = state.allRemoteObs.find(e => e.inatId === recordId)
-      const allRemoteObsWithoutDeleted = state.allRemoteObs.filter(
-        e => e.inatId !== recordId,
-      )
-      commit('setAllRemoteObs', allRemoteObsWithoutDeleted)
-      commit('setIsUpdatingRemoteObs', true)
-      photos.forEach(async p => {
-        await dispatch(
-          'doApiDelete',
-          { urlSuffix: `/observation_photos/${p.id}` },
-          { root: true },
-        )
-      })
-      await dispatch(
-        'doApiDelete',
-        { urlSuffix: `/observations/${recordId}` },
-        { root: true },
-      )
-      await dispatch('refreshRemoteObs')
-      dispatch('getMySpecies')
+      return
     }
+    const theyreCascadeDeletedByTheObs = []
+    const record = {
+      inatId: recordInatId,
+      uuid: existingRemoteRecord.uuid,
+      wowMeta: {
+        [recordTypeFieldName]: recordType('delete'),
+        [recordProcessingOutcomeFieldName]: recordProcessingOutcome('waiting'),
+        [hasRemoteRecordFieldName]: !!existingRemoteRecord,
+        photoIdsToDelete: theyreCascadeDeletedByTheObs,
+        obsFieldIdsToDelete: [],
+      },
+    }
+    await db.obs.put(record)
     commit('setSelectedObservationId', null)
+    return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedInatId = state.selectedObservationId
+    const selectedInatId = Math.abs(state.selectedObservationId)
     const dbId = await dispatch('findDbIdForInatId', selectedInatId)
     await setRecordProcessingOutcome(dbId, 'waiting')
+    return dispatch('onLocalRecordEvent')
+  },
+  async retryFailedDeletes({ getters, dispatch }) {
+    const idsToRetry = getters.deletesWithErrorDbIds
+    await Promise.all(
+      idsToRetry.map(e => setRecordProcessingOutcome(e, 'waiting')),
+    )
     return dispatch('onLocalRecordEvent')
   },
 }
@@ -772,10 +837,34 @@ async function deleteDbRecordById(id) {
 }
 
 const getters = {
+  isDoingSync(state, getters, rootState) {
+    return (
+      state.isUpdatingRemoteObs || rootState.ephemeral.queueProcessorPromise
+    )
+  },
   observationDetail(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
     const found = allObs.find(e => e.inatId === state.selectedObservationId)
     return found
+  },
+  waitingForDeleteCount(state) {
+    return state.localQueueSummary.filter(
+      e =>
+        e[recordTypeFieldName] === recordType('delete') &&
+        !isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+    ).length
+  },
+  deletesWithErrorDbIds(state) {
+    return state.localQueueSummary
+      .filter(
+        e =>
+          e[recordTypeFieldName] === recordType('delete') &&
+          isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+      )
+      .map(e => e.id)
+  },
+  deletesWithErrorCount(state, getters) {
+    return getters.deletesWithErrorDbIds.length
   },
   localRecords(state) {
     return state._uiVisibleLocalRecords.map(currLocal => {
@@ -796,6 +885,7 @@ const getters = {
   },
   isRemoteObsStale: buildStaleCheckerFn('allRemoteObsLastUpdated', 10),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
+  isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
   isSelectedRecordEditOfRemote(state, getters) {
     const selectedId = state.selectedObservationId
     return getters.localRecords
@@ -821,14 +911,36 @@ const getters = {
         recordProcessingOutcome('success'),
     )
   },
+  obsFields(state) {
+    const projectInfo = state.projectInfo
+    if (!projectInfo) {
+      return []
+    }
+    const result = projectInfo.project_observation_fields.map(fieldRel => {
+      // we have the field definition *and* the relationship to the project
+      const fieldDef = fieldRel.observation_field
+      return {
+        id: fieldDef.id,
+        position: fieldRel.position,
+        required: fieldRel.required,
+        name: processObsFieldName(fieldDef.name),
+        description: fieldDef.description,
+        datatype: fieldDef.datatype,
+        allowedValues: (fieldDef.allowed_values || '')
+          .split(obsFieldSeparatorChar)
+          .filter(x => !!x) // remove zero length strings
+          .sort(),
+      }
+    })
+    return result
+  },
 }
 
-function localObsIdToDbId(id) {
-  return Math.abs(id)
-}
-
-function isLocalRecord(id) {
-  return id < 0
+function isErrorOutcome(outcome) {
+  return [
+    recordProcessingOutcome('systemError'),
+    recordProcessingOutcome('userError'),
+  ].includes(outcome)
 }
 
 async function resolveLocalRecordIds(ids) {
@@ -870,9 +982,16 @@ function mapPhotoFromDbToUi(p) {
 }
 
 function mintObjectUrl(blob) {
-  const result = URL.createObjectURL(blob)
-  photoObjectUrlsInUse.push(result)
-  return result
+  try {
+    const result = URL.createObjectURL(blob)
+    photoObjectUrlsInUse.push(result)
+    return result
+  } catch (err) {
+    throw chainedError(
+      `Failed to mint object URL for blob of type='${typeof blob}'`,
+      err,
+    )
+  }
 }
 
 function revokeExistingObjectUrls() {
@@ -894,6 +1013,13 @@ export const apiTokenHooks = [
   store => {
     store.dispatch('obs/refreshRemoteObs')
     store.dispatch('obs/getMySpecies')
+    store.dispatch('obs/getProjectInfo')
+  },
+]
+
+export const networkHooks = [
+  store => {
+    store.dispatch('obs/processLocalQueue')
   },
 ]
 
@@ -1005,29 +1131,33 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   const result = {
     totalTaskCount: createObsTask,
   }
-  result.observationPostBody = {
-    ignore_photos: true,
-    observation: Object.keys(dbRecord).reduce(
-      (accum, currKey) => {
-        const isNotIgnored = !ignoredKeys.includes(currKey)
-        const value = dbRecord[currKey]
-        if (isNotIgnored && isAnswer(value)) {
-          accum[currKey] = value
-        }
-        return accum
-      },
-      {
-        species_guess: dbRecord.speciesGuess,
-        created_at: dbRecord.createdAt,
-      },
-    ),
+  const isRecordToUpload =
+    dbRecord.wowMeta[recordTypeFieldName] !== recordType('delete')
+  if (isRecordToUpload) {
+    result.observationPostBody = {
+      ignore_photos: true,
+      observation: Object.keys(dbRecord).reduce(
+        (accum, currKey) => {
+          const isNotIgnored = !ignoredKeys.includes(currKey)
+          const value = dbRecord[currKey]
+          if (isNotIgnored && isAnswer(value)) {
+            accum[currKey] = value
+          }
+          return accum
+        },
+        {
+          species_guess: dbRecord.speciesGuess,
+          created_at: dbRecord.createdAt,
+        },
+      ),
+    }
   }
-  result.obsFieldPostBodyPartials = dbRecord.obsFieldValues.map(e => ({
+  result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
     observation_field_id: e.fieldId,
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = dbRecord.photos
+  result.photoPostBodyPartials = (dbRecord.photos || [])
     .filter(e => !e[isRemotePhotoFieldName])
     .map(e => ({
       photoBlob: e.file,

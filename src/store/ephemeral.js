@@ -18,6 +18,7 @@ const state = {
   isForceShowLoginToast: false,
   isGlobalErrorState: false,
   globalErrorUserMsg: null,
+  queueProcessorPromise: null,
 }
 
 const mutations = {
@@ -27,6 +28,8 @@ const mutations = {
   setShowAddToHomeScreenModalForApple: (state, value) =>
     (state.showAddToHomeScreenModalForApple = value),
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
+  setQueueProcessorPromise: (state, value) =>
+    (state.queueProcessorPromise = value),
   setServiceWorkerRegistration: (state, value) => (state.swReg = value),
   toggleSplitter(state, shouldOpen) {
     if (typeof shouldOpen === 'boolean') {

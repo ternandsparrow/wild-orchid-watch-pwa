@@ -9,15 +9,33 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div v-if="isUpdatingRemoteObs" class="updating-msg text-center">
-        Updating
+      <div v-if="isDoingSync" class="updating-msg text-center">
+        Synchronising with server
       </div>
       <no-records-msg v-if="isNoRecords" />
       <v-ons-list v-if="!isNoRecords">
+        <v-ons-list-header
+          v-if="isShowDeleteDetails"
+          class="waiting-for-delete-header"
+          >Waiting for network to delete
+          <strong>{{ waitingForDeleteCount }}</strong> records
+          <div v-if="isSyncDisabled">
+            (Sync <span class="red">disabled</span> in settings)
+          </div>
+          <div v-if="deletesWithErrorCount">
+            <span class="red">Error</span> while trying to delete
+            <strong>{{ deletesWithErrorCount }}</strong> records on server,
+            <strong class="red" @click="retryFailedDeletes">tap to retry</strong
+            >.
+          </div>
+        </v-ons-list-header>
         <v-ons-list-header v-if="isWaitingForUpload"
           >Waiting to upload
           <span v-if="isSyncDisabled"
             >(Sync <span class="red">disabled</span> in settings)</span
+          >
+          <span v-if="!networkOnLine"
+            >(Will retry when we're back online)</span
           ></v-ons-list-header
         >
         <obs-list
@@ -62,15 +80,23 @@ export default {
   computed: {
     ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
-    // FIXME need to change to getters for remoteRecords and localRecords
-    // We'll need to filter the remote records to exclude anything with local edits/deletes
-    ...mapState('obs', ['isUpdatingRemoteObs']),
-    ...mapGetters('obs', ['isRemoteObsStale', 'localRecords', 'remoteRecords']),
+    ...mapState('ephemeral', ['networkOnLine']),
+    ...mapGetters('obs', [
+      'deletesWithErrorCount',
+      'isDoingSync',
+      'isRemoteObsStale',
+      'localRecords',
+      'remoteRecords',
+      'waitingForDeleteCount',
+    ]),
     isWaitingForUpload() {
       return (this.localRecords || []).length
     },
     isNoRecords() {
       return (this.remoteRecords || []).length === 0 && !this.isWaitingForUpload
+    },
+    isShowDeleteDetails() {
+      return this.waitingForDeleteCount || this.deletesWithErrorCount
     },
   },
   mounted() {
@@ -95,6 +121,9 @@ export default {
       }
       done && done()
     },
+    retryFailedDeletes() {
+      this.$store.dispatch('obs/retryFailedDeletes')
+    },
   },
 }
 </script>
@@ -114,5 +143,9 @@ export default {
 
 .red {
   color: red;
+}
+
+.waiting-for-delete-header {
+  background-color: #ffd384;
 }
 </style>

@@ -7,7 +7,8 @@
       >
       <ons-list-item>
         <label class="center">
-          Logout from Wild Orchid Watch and iNaturalist
+          Logout from Wild Orchid Watch and iNaturalist, and delete all local
+          app data
         </label>
         <div class="right">
           <v-ons-button @click="doLogout">Logout</v-ons-button>
@@ -55,13 +56,30 @@
           </v-ons-select>
         </div>
       </ons-list-item>
+      <!-- ons-list-item>
+        <label class="center">
+          User Proficiency
+        </label>
+        <div class="right">
+          <v-ons-select v-model="userMode">
+            <option
+              v-for="curr in userModeOptions"
+              :key="'um-' + curr.value"
+              :value="curr.value"
+            >
+              {{ curr.label }}
+            </option>
+          </v-ons-select>
+        </div>
+      </ons-list-item-->
     </v-ons-list>
   </v-ons-page>
 </template>
 
 <script>
+import { mapState } from 'vuex'
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
-import { alwaysUpload, neverUpload } from '@/misc/constants'
+import { alwaysUpload, neverUpload, beginner, expert } from '@/misc/constants'
 
 export default {
   name: 'Settings',
@@ -72,15 +90,31 @@ export default {
         { value: alwaysUpload, label: 'Always' },
         { value: neverUpload, label: 'Never' },
       ],
+      userModeOptions: [
+        { value: beginner, label: 'Beginner' },
+        { value: expert, label: 'Expert' },
+      ],
     }
   },
   computed: {
+    ...mapState('obs', ['localQueueSummary']),
+    unsyncRecordsCount() {
+      return this.localQueueSummary.length
+    },
     whenToSync: {
       get() {
         return this.$store.state.app.whenToSync
       },
       set(newValue) {
         this.$store.commit('app/setWhenToSync', newValue)
+      },
+    },
+    userMode: {
+      get() {
+        return this.$store.state.app.userMode
+      },
+      set(newValue) {
+        this.$store.commit('app/setUserMode', newValue)
       },
     },
   },
@@ -103,31 +137,53 @@ export default {
       })
       window.location.reload()
     },
-    doLogout() {
-      // FIXME check if we have unsync'd observations and warn they'll be lost
-      const msg =
-        'Are you sure? All data from this app, including any data ' +
-        'that has not been uploaded, will also be deleted.'
-      this.$ons.notification.confirm(msg).then(isConfirmed => {
+    async doLogout() {
+      try {
+        const msgFragment = (() => {
+          if (this.unsyncRecordsCount) {
+            return (
+              `You have ${this.unsyncRecordsCount} records` +
+              ' that have NOT been synchronised to the server and will be lost forever!'
+            )
+          }
+          return (
+            'All your local data has been synchronised to the server, ' +
+            'no data will be lost.'
+          )
+        })()
+        const msg =
+          'Are you sure? All data for this app will be deleted! ' +
+          msgFragment +
+          ' We also need to logout of iNaturalist, which will be done by ' +
+          'opening a new window in your browser. You can safely close this ' +
+          'window once the logout has happened.'
+        const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
-          this.$ons.notification.toast('Wipe cancelled', {
+          this.$ons.notification.toast('Logout cancelled', {
             timeout: 1000,
             animation: 'ascend',
           })
           return
         }
-        this.$store.dispatch('auth/doLogout')
+        await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
         unregisterAllServiceWorkers()
-        deleteAllDatabases()
-        this.$ons.notification
-          .alert(
-            'Logged out and all data wiped, press ok to restart the app in a clean state',
-          )
-          .then(() => {
-            window.location.reload()
-          })
-      })
+        await deleteAllDatabases()
+        await this.$ons.notification.alert(
+          'Logged out and all data wiped, press ok to restart the app in a clean state',
+        )
+        window.location.reload()
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: 'Failed during logout',
+            userMsg: 'Something went wrong while trying to logout',
+            err,
+          },
+          { root: true },
+        )
+      }
     },
     doManualUpdateCheck() {
       this.$store
@@ -150,11 +206,8 @@ export default {
 }
 
 function clearLocalStorage() {
-  const keys = Object.keys(localStorage)
-  console.debug(`Clearing localStorage of ${keys.length} keys`)
-  for (const curr of keys) {
-    localStorage.removeItem(curr)
-  }
+  console.debug(`Clearing localStorage of ${localStorage.length} keys`)
+  localStorage.clear()
 }
 
 // thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/

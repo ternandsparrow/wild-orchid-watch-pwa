@@ -16,7 +16,7 @@
       <ul class="autocomplete-list">
         <li v-if="theValue" @click="onSelect(theValue)">
           Use "<em>{{ theValue }}</em
-          >" as a placeholder
+          >" as a Field Name
         </li>
         <li v-for="curr of items" :key="curr.id" @click="onSelect(curr.name)">
           {{ curr.name }}

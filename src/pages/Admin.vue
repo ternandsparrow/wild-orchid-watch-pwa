@@ -46,6 +46,14 @@
       <div class="code-style">Result = {{ meResp }}</div>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Trigger queue processing
+      </div>
+      <div>
+        <v-ons-button @click="doLQP">Trigger</v-ons-button>
+      </div>
+    </v-ons-card>
+    <v-ons-card>
       <div class="standalone-title">
         Configuration
       </div>
@@ -130,6 +138,9 @@ export default {
     this.computeConfigItems()
   },
   methods: {
+    doLQP() {
+      this.$store.dispatch('obs/processLocalQueue')
+    },
     computeConfigItems() {
       const nonSecretKeys = [
         'inatUrlBase',

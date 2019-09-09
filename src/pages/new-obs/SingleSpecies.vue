@@ -62,9 +62,7 @@
           </div>
         </v-ons-list-item>
       </template>
-      <v-ons-list-header class="wow-list-header"
-        >Species guess</v-ons-list-header
-      >
+      <v-ons-list-header class="wow-list-header">Field Name</v-ons-list-header>
       <v-ons-list-item>
         <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
@@ -75,7 +73,8 @@
           @item-selected="onSpeciesGuessSet"
         />
         <div class="wow-obs-field-desc">
-          Which species is this observation of?
+          <span class="required">(required)</span>
+          What species is this observation of?
         </div>
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
@@ -213,8 +212,8 @@ export default {
     }
   },
   computed: {
-    ...mapState('obs', ['obsFields', 'lat', 'lng']),
-    ...mapGetters('obs', ['observationDetail']),
+    ...mapState('obs', ['lat', 'lng']),
+    ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['networkOnLine']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
@@ -272,8 +271,7 @@ export default {
         accum[curr.id] = null
         return accum
       }, {})
-    // FIXME change to caching locally and checking if stale
-    const obsFieldsPromise = this.$store.dispatch('obs/refreshObsFields')
+    const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
     if (this.isEdit) {
       this.initForEdit(obsFieldsPromise)
     } else {

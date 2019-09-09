@@ -47,7 +47,7 @@ TODO
   - central state mgmt
   - data shared between components
   - persisted to localStorage
-  - root exports facades for impls in modules so we don't have cross module dependencies 
+  - root exports facades for impls in modules so we don't have cross module dependencies
 
 
 ## Dexie.js
@@ -69,8 +69,20 @@ TODO, talk about:
 
 
 ## Firebase
-TODO
-  - smart out-of-the-box object store/static website hosting with versioning
+Firebase offers a lot of features, a lot of which are only for native apps, but
+at this stage we're only using the hosting feature. Out-of-the-box it's
+configured better than what AWS S3 is plus it has a command line that makes
+deploying easy.
+
+We run two targets (configured in the `firebase.json` file) which are identical
+other than the target name. Doing this lets us associate the targets with
+different custom domains. So we can run dev.app... and app... versions of the
+site at the same time, from the same account and project.
+
+
+## Google Analytics
+To figure out how many people use the app and how they spend their time so we
+can streamline any hotspots in the app.
 
 
 ## Sentry

@@ -33,7 +33,7 @@ export function postJson(url, data = {}) {
 
 export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   // TODO consider using https://github.com/sindresorhus/ky instead of fetch()
-  return fetch(url, {
+  return doManagedFetch(url, {
     method: 'POST',
     mode: 'cors',
     headers: {
@@ -41,11 +41,11 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleJsonResp)
+  })
 }
 
 export function putJsonWithAuth(url, data = {}, authHeaderValue) {
-  return fetch(url, {
+  return doManagedFetch(url, {
     method: 'PUT',
     mode: 'cors',
     headers: {
@@ -53,7 +53,7 @@ export function putJsonWithAuth(url, data = {}, authHeaderValue) {
       Authorization: authHeaderValue,
     },
     body: JSON.stringify(data),
-  }).then(handleJsonResp)
+  })
 }
 
 export function postFormDataWithAuth(
@@ -63,7 +63,7 @@ export function postFormDataWithAuth(
 ) {
   const formData = new FormData()
   populateFormDataCallback(formData)
-  return fetch(url, {
+  return doManagedFetch(url, {
     method: 'POST',
     mode: 'cors',
     headers: {
@@ -71,7 +71,7 @@ export function postFormDataWithAuth(
       Authorization: authHeaderValue,
     },
     body: formData,
-  }).then(handleJsonResp)
+  })
 }
 
 export function getJson(url) {
@@ -80,7 +80,7 @@ export function getJson(url) {
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
-  return fetch(url, {
+  return doManagedFetch(url, {
     method: 'GET',
     mode: 'cors',
     cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
@@ -88,11 +88,11 @@ export function getJsonWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleJsonResp)
+  })
 }
 
 export function deleteWithAuth(url, authHeaderValue) {
-  return fetch(url, {
+  return doManagedFetch(url, {
     method: 'DELETE',
     mode: 'cors',
     cache: 'no-store',
@@ -100,7 +100,20 @@ export function deleteWithAuth(url, authHeaderValue) {
       ...jsonHeaders,
       Authorization: authHeaderValue,
     },
-  }).then(handleJsonResp)
+  })
+}
+
+async function doManagedFetch(url, req) {
+  try {
+    const resp = await fetch(url, req)
+    const result = await handleJsonResp(resp, req)
+    return result
+  } catch (err) {
+    let msg = `Failed while doing fetch() with\n`
+    msg += `  URL='${url}'\n`
+    msg += `  Req body='${JSON.stringify(req, null, 2)}'`
+    throw chainedError(msg, err)
+  }
 }
 
 async function handleJsonResp(resp) {
@@ -123,13 +136,14 @@ async function handleJsonResp(resp) {
     typeof body === 'string'
       ? body.substr(0, 300)
       : JSON.stringify(body).substr(0, 300)
-  let msg = `\n  Resp ok=${isRespOk},\n`
-  msg += `  Resp is JSON=${isJson}\n`
+  let msg = `\nResp details:\n`
+  msg += `  is ok=${isRespOk},\n`
+  msg += `  is JSON=${isJson}\n`
   msg += `  status=${resp.status}\n`
   msg += `  statusText='${resp.statusText}'\n`
   msg += `  headers=${JSON.stringify(resp.headers)}\n`
   msg += `  url=${resp.url}\n`
-  msg += `  body first 300 chars='${trimmedBody}'`
+  msg += `  body first 300 chars='${trimmedBody}'\n`
   throw new Error(msg)
 }
 

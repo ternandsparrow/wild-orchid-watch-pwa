@@ -130,15 +130,13 @@ const obsFields = [
   },
   {
     name: 'Count of individuals recorded',
-    description:
-      'How many individual organisms did you observe? Only required when observing more than one individual',
+    description: 'How many individual organisms did you observe?',
     datatype: 'numeric',
     allowedValues: '',
   },
   {
     name: 'Accuracy of count',
-    description:
-      'How accurate is the count of indiviudals recorded. Only required when observing more than one individual',
+    description: 'How accurate is the count of indiviudals recorded.',
     datatype: 'text',
     allowedValues: 'Exact|Estimate',
   },

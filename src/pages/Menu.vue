@@ -12,7 +12,7 @@
     </div>
     <div class="profile-pic centered-flex-row">
       <img :src="userIcon" />
-      <div>{{ userEmail }}</div>
+      <div>{{ myUsername }}</div>
     </div>
     <v-ons-list>
       <v-ons-list-item
@@ -67,6 +67,9 @@ import { mapGetters } from 'vuex'
 import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
 // import Missions from '@/pages/missions/index'
+// import Dashboard from '@/pages/dashboard/index'
+// import FAQ from '@/pages/faq/index'
+// import Orchid_Science from '@/pages/orchid-science/index'
 import Settings from '@/pages/Settings'
 import {
   appVersion,
@@ -110,9 +113,14 @@ export default {
         },
       ],
       access: [
+        // {
+        //   title: 'Dashboard',
+        //   icon: 'fa-tachometer-alt',
+        //   component: Dashboard,
+        // },
         {
-          title: 'My observations',
-          icon: 'md-home',
+          title: 'My Observations',
+          icon: 'fa-microscope',
           component: Observations,
         },
         // FIXME uncomment when they have real content
@@ -126,6 +134,16 @@ export default {
         //   icon: 'md-accounts-alt',
         //   component: Activity,
         // },
+        // {
+        //   title: 'Orchid Science',
+        //   icon: 'fa-book-open',
+        //   component: Orchid_Science,
+        // },
+        // {
+        //   title: 'FAQ',
+        //   icon: 'fa-question-circle',
+        //   component: FAQ,
+        // },
         {
           title: 'Settings',
           icon: 'md-settings',
@@ -135,7 +153,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('auth', ['userEmail', 'userIcon']),
+    ...mapGetters('auth', ['userEmail', 'myUsername', 'userIcon']),
     deployedEnvName() {
       return isDeployedToProd ? '' : '[development build]'
     },

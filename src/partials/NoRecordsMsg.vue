@@ -1,5 +1,7 @@
 <template>
-  <div class="no-records-msg">Nothing to see here</div>
+  <div class="no-records-msg">
+    You haven't submitted any Observations, so far..
+  </div>
 </template>
 
 <script>

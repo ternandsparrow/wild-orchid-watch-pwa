@@ -6,32 +6,54 @@
 // pulls config from the server rather than relying on the user updating the
 // app shell to see the new values.
 
+// The URL of the API that we prepend to all our requests. Include the version
+// path suffix, like https://api.inaturalist.com/v1
 export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
+// URL of the iNat server that we prepend to all our requests. Something like
+// https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
 export const appTitle = process.env.VUE_APP_TITLE
 
+// Where the static assets for iNat are served from. For a dev server, it's
+// probably the same at inatUrlBase. For the real inat, it's probably a CDN. To
+// find out this value, load the iNat page of your choosing, and inspect the
+// logo in the top-left and see what domain it's served from. If the logo URL
+// is https://static.inaturalist.org/sites/1-logo.svg?1507246408
+// ...then use https://static.inaturalist.org for this value
 export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
+// Get this from the details page of your OAuth app.
+// Find your app on <inat-server>/oauth/applications
 export const appId = process.env.VUE_APP_OAUTH_APP_ID
 
+// Get this on the same page as your appId. It's the URL that iNat will send
+// the user back to (us)
 export const redirectUri = process.env.VUE_APP_OAUTH_REDIRECT_URI
 
+// The slug for the project that our app is tied to. If the full URL of the
+// project is https://www.inaturalist.org/projects/wild-orchid-watch-australia
+// then use wild-orchid-watch-australia for this value
 export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
 
+// true if this deploy is *the* production app. If it's a test or dev version
+// deployed somewhere else, set this to false.
 export const isDeployedToProd = (() => {
   return process.env.VUE_APP_DEPLOYED_ENV_IS_PROD === 'true'
 })()
 
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 
+// The tracker code for Google Analytics, e.g: UA-000000-1
+export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
+
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
 const assumedIdOfLifeTaxa = 1 // everything should have "Life" as an ancestor
 // iNaturalist deals with much more taxa than what we're interested in. We only
 // want orchids so we specify an integer ID (the ID in
-// inaturalist.org/taxa/<ID>) here and we'll use it to filter species lists
+// inaturalist.org/taxa/<ID>-Orchidaceae) here and we'll use it to filter species lists
 // (like autocomplete) to only include taxa that have this node as an ancestor
 export const targetTaxaNodeId = parseInt(
   process.env.VUE_APP_TARGET_TAXA_ID || assumedIdOfLifeTaxa,
@@ -81,7 +103,7 @@ export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 
-export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder.png'
+export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder-3.png'
 
 export const onboarderComponentName = 'Onboarder'
 
@@ -94,3 +116,6 @@ export const neverUpload = 'NEVER'
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
+
+export const beginner = 'BEGINNER'
+export const expert = 'EXPERT'

@@ -94,6 +94,124 @@ describe('mutations', () => {
   })
 })
 
+describe('actions', () => {
+  describe('waitForProjectInfo', () => {
+    it('should succeed when we have projectInfo that is NOT stale', async () => {
+      const state = { projectInfo: { id: 1 } }
+      const rootState = {
+        ephemeral: {
+          networkOnLine: true,
+        },
+      }
+      const getters = {
+        isProjectInfoStale: false,
+      }
+      const dispatch = () => {
+        fail('should not call')
+      }
+      await objectUnderTest.actions.waitForProjectInfo({
+        state,
+        dispatch,
+        rootState,
+        getters,
+      })
+    })
+
+    it('should succeed when we have projectInfo that IS stale but we are offline', async () => {
+      const state = { projectInfo: { id: 1 } }
+      const rootState = {
+        ephemeral: {
+          networkOnLine: false,
+        },
+      }
+      const getters = {
+        isProjectInfoStale: true,
+      }
+      const dispatch = () => {
+        fail('should not call')
+      }
+      await objectUnderTest.actions.waitForProjectInfo({
+        state,
+        dispatch,
+        rootState,
+        getters,
+      })
+    })
+
+    it('should trigger refresh when we have projectInfo that IS stale but we are online', async () => {
+      const state = { projectInfo: { id: 1 } }
+      const rootState = {
+        ephemeral: {
+          networkOnLine: true,
+        },
+      }
+      const getters = {
+        isProjectInfoStale: true,
+      }
+      let isDispatchCalled = false
+      const dispatch = () => {
+        isDispatchCalled = true
+      }
+      await objectUnderTest.actions.waitForProjectInfo({
+        state,
+        dispatch,
+        rootState,
+        getters,
+      })
+      expect(isDispatchCalled).toBeTruthy()
+    })
+
+    it('should trigger refresh when we have NO projectInfo and are online', async () => {
+      const state = {}
+      const rootState = {
+        ephemeral: {
+          networkOnLine: true,
+        },
+      }
+      const getters = {
+        isProjectInfoStale: false,
+      }
+      let isDispatchCalled = false
+      const dispatch = () => {
+        isDispatchCalled = true
+      }
+      await objectUnderTest.actions.waitForProjectInfo({
+        state,
+        dispatch,
+        rootState,
+        getters,
+      })
+      expect(isDispatchCalled).toBeTruthy()
+    })
+
+    it('should throw when we have no projectInfo and we are offline', async () => {
+      const state = {}
+      const rootState = {
+        ephemeral: {
+          networkOnLine: false,
+        },
+      }
+      const getters = {
+        isProjectInfoStale: false,
+      }
+      const dispatch = () => {
+        fail('should not call')
+      }
+      try {
+        await objectUnderTest.actions.waitForProjectInfo({
+          state,
+          dispatch,
+          rootState,
+          getters,
+        })
+        fail('should have thrown')
+      } catch (err) {
+        // success
+      }
+    })
+  })
+})
+
 describe('mapObsFromApiIntoOurDomain', () => {
   it('should map a record with everything', () => {
     const record = getApiRecord()
