@@ -9,7 +9,7 @@ console.debug(`Using iNat static URL = ${inatStaticUrl}`)
 
 workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
 
-workbox.setConfig({ debug: false })
+workbox.setConfig({ debug: true })
 console.debug(
   `Just turned on VERBOSE WorkBox help with debugging on iOS/MobileSafari`,
 )
