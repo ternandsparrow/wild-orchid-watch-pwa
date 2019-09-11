@@ -9,6 +9,11 @@ console.debug(`Using iNat static URL = ${inatStaticUrl}`)
 
 workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
 
+workbox.setConfig({ debug: false })
+console.debug(
+  `Just turned on VERBOSE WorkBox help with debugging on iOS/MobileSafari`,
+)
+
 /**
  * The workboxSW.precacheAndRoute() method efficiently caches and responds to
  * requests for URLs in the manifest.
