@@ -7,12 +7,12 @@ console.debug(`Using iNat URL = ${inatUrl}`)
 const inatStaticUrl = VUE_APP_INAT_STATIC_BASE_URL
 console.debug(`Using iNat static URL = ${inatStaticUrl}`)
 
-workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
-
 workbox.setConfig({ debug: true })
 console.debug(
   `Just turned on VERBOSE WorkBox help with debugging on iOS/MobileSafari`,
 )
+
+workbox.core.setCacheNameDetails({ prefix: 'wildorchidwatch' })
 
 /**
  * The workboxSW.precacheAndRoute() method efficiently caches and responds to
