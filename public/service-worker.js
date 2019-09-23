@@ -54,7 +54,24 @@ workbox.routing.registerRoute(
 // When that call get's through, others can be cached as at least subsequent API calls have user_id to work (e.g. get Observations)
 workbox.routing.registerRoute(
   `${apiUrl}/users/me`,
-  new workbox.strategies.NetworkOnly(),
+  new workbox.strategies.NetworkOnly({
+    requestWillFetch: async ({ request }) => {
+      // Return `request` or a different Request
+      console.debug(`requestWillFetch: request = ` + request)
+      return request
+    },
+    fetchDidFail: async ({ originalRequest, request, error, event }) => {
+      // No return expected.
+      // NOTE: `originalRequest` is the browser's request, `request` is the
+      // request after being passed through plugins with
+      // `requestWillFetch` callbacks, and `error` is the exception that caused
+      // the underlying `fetch()` to fail.
+      console.debug(`fetchDidFail: originalRequest = ` + originalRequest)
+      console.debug(`fetchDidFail: request = ` + request)
+      console.debug(`fetchDidFail: error = ` + error)
+      console.debug(`fetchDidFail: event = ` + event)
+    },
+  }),
   'GET',
 )
 
