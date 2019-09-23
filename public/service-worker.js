@@ -53,7 +53,7 @@ workbox.routing.registerRoute(
 // Adding this to ensure iOS call isn't rejected by the Pragma: no-cache issue
 // When that call get's through, others can be cached as at least subsequent API calls have user_id to work (e.g. get Observations)
 workbox.routing.registerRoute(
-  `${inatUrl}/users/me`,
+  `${apiUrl}/users/me`,
   new workbox.strategies.NetworkOnly(),
   'GET',
 )
