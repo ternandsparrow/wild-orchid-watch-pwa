@@ -83,7 +83,6 @@ export function getJsonWithAuth(url, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'GET',
     mode: 'cors',
-    cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
@@ -95,7 +94,6 @@ export function deleteWithAuth(url, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'DELETE',
     mode: 'cors',
-    cache: 'no-store',
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
