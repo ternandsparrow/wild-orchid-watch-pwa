@@ -159,7 +159,7 @@
 <script>
 import { mapState, mapGetters } from 'vuex'
 import { isNil, trim } from 'lodash'
-import { verifyWowDomainPhoto } from '@/misc/helpers'
+import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
   accuracyOfCountObsFieldId,
@@ -428,25 +428,29 @@ export default {
           })
         }
         const record = {
-          photos: this.photoMenu.reduce((accum, curr, $index) => {
-            const currPhoto = this.photos[curr.id]
-            if (!currPhoto) {
-              return accum
-            }
-            const tempId = -1 * ($index + 1)
-            const photo = {
-              id: tempId,
-              url: '(set at render time)',
-              type: curr.id,
-              file: currPhoto.file,
-              // TODO read and use user's default settings for these:
-              licenseCode: 'default',
-              attribution: 'default',
-            }
-            verifyWowDomainPhoto(photo)
-            accum.push(photo)
-            return accum
-          }, []),
+          photos: (await Promise.all(
+            this.photoMenu.map(async (curr, $index) => {
+              const currPhoto = this.photos[curr.id]
+              if (!currPhoto) {
+                return null
+              }
+              const tempId = -1 * ($index + 1)
+              const photo = {
+                id: tempId,
+                url: '(set at render time)',
+                type: curr.id,
+                file: {
+                  data: await blobToArrayBuffer(currPhoto.file),
+                  mime: currPhoto.file.type,
+                },
+                // TODO read and use user's default settings for these:
+                licenseCode: 'default',
+                attribution: 'default',
+              }
+              verifyWowDomainPhoto(photo)
+              return photo
+            }),
+          )).filter(p => !!p),
           speciesGuess: this.speciesGuess,
           // FIXME add placeGuess
           obsFieldValues: Object.keys(this.obsFieldValues).reduce(
@@ -510,9 +514,11 @@ export default {
         }, 800)
         this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
       } catch (err) {
-        // FIXME show failure to user, any info on how to fix it
-        this.$ons.notification.alert('Something went wrong :(')
-        throw err // FIXME show alert AND throw? Can we use the global error catcher?
+        this.$store.dispatch('flagGlobalError', {
+          msg: 'Failed to save new observation to local store',
+          userMsg: 'Error while trying to save observation',
+          err,
+        })
       }
     },
     getObsFieldInstance(fieldId) {

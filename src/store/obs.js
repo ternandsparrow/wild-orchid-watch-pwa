@@ -9,6 +9,7 @@ import {
   targetTaxaNodeId,
 } from '@/misc/constants'
 import {
+  arrayBufferToBlob,
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
@@ -620,7 +621,7 @@ const actions = {
       'doPhotoPost',
       {
         obsId: relatedObsId,
-        ...photoRecord,
+        photoRecord,
       },
       { root: true },
     )
@@ -981,14 +982,27 @@ function mapPhotoFromDbToUi(p) {
   return result
 }
 
-function mintObjectUrl(blob) {
+function mintObjectUrl(blobAsArrayBuffer) {
+  if (!blobAsArrayBuffer) {
+    throw new Error(
+      'Supplied blob is falsey/nullish, refusing to even try to use it',
+    )
+  }
   try {
-    const result = URL.createObjectURL(blob)
+    const blob = arrayBufferToBlob(
+      blobAsArrayBuffer.data,
+      blobAsArrayBuffer.mime,
+    )
+    const result = (window.webkitURL || window.URL || {}).createObjectURL(blob)
     photoObjectUrlsInUse.push(result)
     return result
   } catch (err) {
     throw chainedError(
-      `Failed to mint object URL for blob of type='${typeof blob}'`,
+      // Don't get distracted, the MIME has no impact. If it fails, it's due to
+      // something else, the MIME will just help you debug (hopefully)
+      `Failed to mint object URL for blob with MIME='${
+        blobAsArrayBuffer.mime
+      }'`,
       err,
     )
   }
@@ -1157,11 +1171,9 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = (dbRecord.photos || [])
-    .filter(e => !e[isRemotePhotoFieldName])
-    .map(e => ({
-      photoBlob: e.file,
-    }))
+  result.photoPostBodyPartials = (dbRecord.photos || []).filter(
+    e => !e[isRemotePhotoFieldName],
+  )
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }

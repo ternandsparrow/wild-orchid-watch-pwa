@@ -11,6 +11,7 @@ import {
   redirectUri,
 } from '@/misc/constants'
 import {
+  arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
@@ -202,13 +203,17 @@ export default {
         )
       }
     },
-    async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
+    async doPhotoPost({ state, dispatch }, { obsId, photoRecord }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await postFormDataWithAuth(
           `${apiUrlBase}/observation_photos`,
           formData => {
             formData.append('observation_photo[observation_id]', obsId)
+            const photoBlob = arrayBufferToBlob(
+              photoRecord.file.data,
+              photoRecord.file.mime,
+            )
             formData.append('file', photoBlob)
           },
           `${state.apiToken}`,
