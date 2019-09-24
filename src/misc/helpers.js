@@ -143,7 +143,9 @@ async function handleJsonResp(resp) {
   msg += `  headers=${JSON.stringify(resp.headers)}\n`
   msg += `  url=${resp.url}\n`
   msg += `  body first 300 chars='${trimmedBody}'\n`
-  throw new Error(msg)
+  const err = new Error(msg)
+  err.httpStatus = resp.status
+  throw err
 }
 
 /**
