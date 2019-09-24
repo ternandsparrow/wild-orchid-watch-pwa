@@ -83,6 +83,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'GET',
     mode: 'cors',
+    cache: 'no-cache',
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
