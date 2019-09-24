@@ -75,7 +75,7 @@ export default {
     },
     userIcon(state) {
       const result = state.userDetails.icon
-      return result ? inatUrlBase + result : noProfilePicPlaceholderUrl
+      return result ? result : noProfilePicPlaceholderUrl
     },
     myUserId(state) {
       return state.userDetails.id
