@@ -94,7 +94,7 @@ jobs:
             VUE_APP_OBS_FIELD_ID_HOST_TREE=${PROD_OBS_FIELD_ID_HOST_TREE:?}
             VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${PROD_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
             VUE_APP_GA_CODE=${PROD_GA_CODE:?}
-            VUE_APP_DEPLOYED_ENV_IS_PROD=true
+            VUE_APP_DEPLOYED_ENV_NAME=production
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
             EOF
@@ -113,7 +113,7 @@ jobs:
       - run:
           name: 'Build prod'
           command: |
-            export VUE_APP_DEPLOYED_ENV_IS_PROD=true
+            export VUE_APP_DEPLOYED_ENV_NAME=production
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
@@ -143,7 +143,7 @@ jobs:
             VUE_APP_OBS_FIELD_ID_HOST_TREE=${BETA_OBS_FIELD_ID_HOST_TREE:?}
             VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${BETA_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
             VUE_APP_GA_CODE=${BETA_GA_CODE:?}
-            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            VUE_APP_DEPLOYED_ENV_NAME=beta
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
             EOF
@@ -162,7 +162,7 @@ jobs:
       - run:
           name: 'Build beta'
           command: |
-            export VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            export VUE_APP_DEPLOYED_ENV_NAME=beta
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
@@ -192,7 +192,7 @@ jobs:
             VUE_APP_OBS_FIELD_ID_HOST_TREE=${DEV_OBS_FIELD_ID_HOST_TREE:?}
             VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${DEV_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
             VUE_APP_GA_CODE=${DEV_GA_CODE:?}
-            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            VUE_APP_DEPLOYED_ENV_NAME=development
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
             EOF
@@ -211,7 +211,7 @@ jobs:
       - run:
           name: 'Build dev'
           command: |
-            export VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            export VUE_APP_DEPLOYED_ENV_NAME=development
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
