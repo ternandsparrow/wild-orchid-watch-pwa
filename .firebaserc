@@ -8,6 +8,9 @@
         "dev": [
           "wow-dev"
         ],
+        "beta": [
+          "wow-beta"
+        ],
         "prod": [
           "wow-inspiring-australia-emg"
         ]

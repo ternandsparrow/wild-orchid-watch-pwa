@@ -19,11 +19,11 @@ import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import {
+  appVersion,
+  deployedEnvName,
   googleAnalyticsTrackerCode,
   googleMapsApiKey,
   sentryDsn,
-  appVersion,
-  isDeployedToProd,
 } from '@/misc/constants'
 
 Vue.use(VueOnsen)
@@ -49,9 +49,7 @@ if (process.env.NODE_ENV !== 'development') {
     release: appVersion,
   })
   Sentry.configureScope(scope => {
-    // TODO might be better to have more granularity; config that defines the env name
-    const envName = isDeployedToProd ? 'production' : 'development'
-    scope.setTag('environment', envName)
+    scope.setTag('environment', deployedEnvName)
   })
 }
 

@@ -73,7 +73,7 @@ import Observations from '@/pages/obs/index'
 import Settings from '@/pages/Settings'
 import {
   appVersion,
-  isDeployedToProd,
+  deployedEnvName,
   inatUrlBase,
   inatProjectSlug,
 } from '@/misc/constants'
@@ -155,7 +155,10 @@ export default {
   computed: {
     ...mapGetters('auth', ['userEmail', 'myUsername', 'userIcon']),
     deployedEnvName() {
-      return isDeployedToProd ? '' : '[development build]'
+      if (deployedEnvName === 'production') {
+        return ''
+      }
+      return `[${deployedEnvName} build]`
     },
   },
   methods: {

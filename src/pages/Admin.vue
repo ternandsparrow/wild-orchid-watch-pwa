@@ -143,13 +143,13 @@ export default {
     },
     computeConfigItems() {
       const nonSecretKeys = [
-        'inatUrlBase',
-        'inatStaticUrlBase',
-        'redirectUri',
-        'inatProjectSlug',
-        'isDeployedToProd',
-        'obsFieldSeparatorChar',
         'appVersion',
+        'deployedEnvName',
+        'inatProjectSlug',
+        'inatStaticUrlBase',
+        'inatUrlBase',
+        'obsFieldSeparatorChar',
+        'redirectUri',
       ]
       const partialResult = nonSecretKeys.map(e => ({
         label: e,

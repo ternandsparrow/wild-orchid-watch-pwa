@@ -119,6 +119,55 @@ jobs:
           root: .
           paths: .
 
+  build-beta:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Write env var overrides'
+          # we need to escape (\) the << otherwise CircleCI complains
+          command: |
+            theFile=.env.local
+            cat \<<EOF > $theFile
+            VUE_APP_INAT_BASE_URL=${BETA_INAT_BASE_URL:?}
+            VUE_APP_INAT_STATIC_BASE_URL=${BETA_INAT_STATIC_BASE_URL:?}
+            VUE_APP_API_BASE_URL=${BETA_API_BASE_URL:?}
+            VUE_APP_OAUTH_APP_ID=${BETA_OAUTH_APP_ID:?}
+            VUE_APP_OAUTH_REDIRECT_URI=${BETA_OAUTH_REDIRECT_URI:?}
+            VUE_APP_INAT_PROJECT_SLUG=${BETA_INAT_PROJECT_SLUG:?}
+            VUE_APP_TARGET_TAXA_ID=${BETA_TARGET_TAXA_ID:?}
+            VUE_APP_OBS_FIELD_ID_ACCURACY=${BETA_OBS_FIELD_ID_ACCURACY:?}
+            VUE_APP_OBS_FIELD_ID_COUNT=${BETA_OBS_FIELD_ID_COUNT:?}
+            VUE_APP_OBS_FIELD_ID_ORCHID_TYPE=${BETA_OBS_FIELD_ID_ORCHID_TYPE:?}
+            VUE_APP_OBS_FIELD_ID_HOST_TREE=${BETA_OBS_FIELD_ID_HOST_TREE:?}
+            VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT=${BETA_OBS_FIELD_ID_EPIPHYTE_HEIGHT:?}
+            VUE_APP_GA_CODE=${BETA_GA_CODE:?}
+            VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
+            VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            EOF
+            # now some optional items
+            [ ! -z $BETA_OBS_FIELD_DEFAULT_ACCURACY ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$BETA_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
+            }
+            [ ! -z $BETA_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
+              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$BETA_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
+            }
+            [ ! -z $BETA_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
+              echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$BETA_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
+            }
+            echo '[INFO] contents of .env.local'
+            cat .env.local
+      - run:
+          name: 'Build beta'
+          command: |
+            export VUE_APP_DEPLOYED_ENV_IS_PROD=false
+            ./scripts/build-and-sentry-release.sh
+      - persist_to_workspace: # FIXME only need dist/ right?
+          root: .
+          paths: .
+
   build-dev:
     executor: default-executor
     steps:
@@ -179,6 +228,17 @@ jobs:
             : ${FIREBASE_TOKEN:?}
             yarn firebase:deploy:ci prod
 
+  deploy-beta:
+    executor: default-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: 'Firebase deploy beta'
+          command: |
+            : ${FIREBASE_TOKEN:?}
+            yarn firebase:deploy:ci beta
+
   deploy-dev:
     executor: default-executor
     steps:
@@ -220,12 +280,42 @@ workflows:
           requires:
             - build-prod
 
+  build-and-deploy-beta:
+    jobs:
+      - install-dependencies:
+          filters:
+            branches:
+              only: beta # dependent jobs are controlled by this
+      - check-prettier:
+          requires:
+            - install-dependencies
+      - check-linter:
+          requires:
+            - install-dependencies
+      - run-unit-tests:
+          requires:
+            - install-dependencies
+      - run-e2e-tests:
+          requires:
+            - install-dependencies
+      - build-beta:
+          requires:
+            - check-prettier
+            - check-linter
+            - run-unit-tests
+            - run-e2e-tests
+      - deploy-beta:
+          requires:
+            - build-beta
+
   build-everything-and-deploy-dev:
     jobs:
       - install-dependencies:
           filters:
             branches:
-              ignore: master # dependent jobs are controlled by this
+              ignore: # dependent jobs are controlled by this
+                - beta
+                - master
       - check-prettier:
           requires:
             - install-dependencies
