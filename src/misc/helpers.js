@@ -80,10 +80,15 @@ export function getJson(url) {
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
-  return doManagedFetch(url, {
+  // supplying cache: 'no-store' to fetch() works perfectly expect for iOS
+  // Safari which explodes, so we have to fall back to this dirty way of cache
+  // busting
+  const isQueryStringPresent = url.includes('?')
+  const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
+  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${Date.now()}`
+  return doManagedFetch(urlWithCacheBust, {
     method: 'GET',
     mode: 'cors',
-    cache: 'no-cache',
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
