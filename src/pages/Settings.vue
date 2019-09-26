@@ -212,6 +212,9 @@ function clearLocalStorage() {
 
 // thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/
 function unregisterAllServiceWorkers() {
+  if (!navigator.serviceWorker) {
+    return
+  }
   navigator.serviceWorker.getRegistrations().then(regs => {
     console.debug(`Unregistering ${regs.length} service workers`)
     for (const curr of regs) {
