@@ -293,15 +293,8 @@ export default {
           commit('setIsUpdatingApiToken', false)
           const status = err.httpStatus
           if (status === 401 || status === 400) {
-            // FIXME make sure you keep the user's data that hasn't been uploaded
-            // but make them login via iNat OAuth again. Easiest way is
-            // probably to clear the iNat token from our store so existing code
-            // will fire the toast
-            // How do we make sure we show the toast, stop (or await) the call
-            // in progress and not throw any kind of error?
-            throw new Error(
-              `iNat token is not valid (response status=${status}), user must login again`,
-            )
+            commit('_setToken', null) // triggers the toast to login again
+            return
           }
           throw chainedError('Failed to get API token using iNat token', err)
         } finally {
