@@ -98,6 +98,7 @@ export default {
   },
   computed: {
     ...mapState('obs', ['localQueueSummary']),
+    ...mapState('auth', ['token']),
     unsyncRecordsCount() {
       return this.localQueueSummary.length
     },
@@ -139,7 +140,7 @@ export default {
     },
     async doLogout() {
       try {
-        const msgFragment = (() => {
+        const msgFragmentLocalData = (() => {
           if (this.unsyncRecordsCount) {
             return (
               `You have ${this.unsyncRecordsCount} records` +
@@ -151,12 +152,15 @@ export default {
             'no data will be lost.'
           )
         })()
+        const msgFragmentInatLogout = this.token
+          ? ' We also need to logout of iNaturalist, which will be done by ' +
+            'opening a new window in your browser. You can safely close this ' +
+            'window once the logout has happened.'
+          : ''
         const msg =
           'Are you sure? All data for this app will be deleted! ' +
-          msgFragment +
-          ' We also need to logout of iNaturalist, which will be done by ' +
-          'opening a new window in your browser. You can safely close this ' +
-          'window once the logout has happened.'
+          msgFragmentLocalData +
+          msgFragmentInatLogout
         const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
           this.$ons.notification.toast('Logout cancelled', {

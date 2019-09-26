@@ -247,6 +247,10 @@ export default {
       )
     },
     async doLogout({ state, dispatch }) {
+      if (!state.token) {
+        console.debug('No stored iNat token so no need to perform iNat logout')
+        return
+      }
       try {
         await dispatch('doInatPost', {
           urlSuffix: '/oauth/revoke',
@@ -293,6 +297,8 @@ export default {
             // but make them login via iNat OAuth again. Easiest way is
             // probably to clear the iNat token from our store so existing code
             // will fire the toast
+            // How do we make sure we show the toast, stop (or await) the call
+            // in progress and not throw any kind of error?
             throw new Error(
               `iNat token is not valid (response status=${status}), user must login again`,
             )
