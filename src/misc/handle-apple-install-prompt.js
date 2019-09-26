@@ -2,11 +2,14 @@ import { isNil } from 'lodash'
 import store from '@/store'
 
 export default function() {
-  const isIosOnBrowser =
-    ['iPhone', 'iPad', 'iPod'].includes(navigator.platform) &&
-    !window.navigator.standalone
+  const ua = window.navigator.userAgent
+  const iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i)
+  const webkit = !!ua.match(/WebKit/i)
+  const iOSSafari = iOS && webkit && !ua.match(/CriOS/i)
 
-  if (isIosOnBrowser) {
+  // We only do this for Mobile Safari - Chrome currently doesn't support the Add-to_home function
+  // https://stackoverflow.com/questions/50319831/can-i-use-add-to-home-screen-in-chrome-on-an-ios-device
+  if (iOSSafari) {
     const now = Date.now()
     let limitDate = null
     const addToHomeIosPromptLastDate =
