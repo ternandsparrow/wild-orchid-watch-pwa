@@ -35,7 +35,7 @@ post-build() {
 EOJS
     mv manifest.json manifest.json.disabled-for-dev
     mv manifest.json.dev manifest.json
-  } || [ "$deployedEnvName" = "beta" ] && {
+  } || ([ "$deployedEnvName" = "beta" ] && {
     echo "$logPrefix Running in beta, updating post-build PWA manifest"
     cd ../dist/img/icons/
     cat <<EOJS | node > manifest.json.beta
@@ -46,7 +46,7 @@ EOJS
 EOJS
     mv manifest.json manifest.json.disabled-for-beta
     mv manifest.json.beta manifest.json
-  } || {
+  }) || {
     echo "$logPrefix Running in prod, no post-build work to do"
   }
 }

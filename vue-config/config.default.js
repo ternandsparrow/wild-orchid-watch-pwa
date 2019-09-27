@@ -55,6 +55,8 @@ module.exports = {
           background: '#000', // background of flattened icons
           appName: 'Wild Orchid Watch',
           appShortName: 'WildOrchidWatch',
+          appDescription:
+            'Wild Orchid Watch Australian citizen science field data collection app',
           appleStatusBarStyle: 'default',
           developerName: null,
           developerURL: null,
