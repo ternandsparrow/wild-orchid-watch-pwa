@@ -546,7 +546,7 @@ const actions = {
         )
         await dispatch('refreshLocalRecordQueue')
         const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
-        await new Promise((resolve, reject) => {
+        await new Promise(resolve => {
           setTimeout(() => {
             dispatch('refreshRemoteObs').then(() => {
               resolve()
