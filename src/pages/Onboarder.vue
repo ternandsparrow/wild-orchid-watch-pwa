@@ -16,6 +16,7 @@
             alt="Wild Orchid Watch"
             class="wow-onboarder-logo"
           />
+          <p class="version-number text-center">Version: {{ appVersion }}</p>
           <div class="title text-center mt-1">
             Welcome!
           </div>
@@ -122,7 +123,7 @@
 </template>
 
 <script>
-import { onboarderComponentName } from '@/misc/constants'
+import { onboarderComponentName, appVersion } from '@/misc/constants'
 // FIXME can't use this local import method until we get a fix for
 // https://github.com/OnsenUI/OnsenUI/issues/2662. Using global
 // components in main.js in the interim.
@@ -132,6 +133,7 @@ export default {
   name: onboarderComponentName,
   data() {
     return {
+      appVersion,
       carouselIndex: 0,
       cardCount: 4, // needs to match how many cards we have, TODO make dynamic
       extraDotsStyle: {
@@ -229,5 +231,11 @@ export default {
   text-align: center;
   font-weight: bold;
   color: #333;
+}
+
+.version-number {
+  color: #747474;
+  font-size: 0.8em;
+  margin: 0;
 }
 </style>
