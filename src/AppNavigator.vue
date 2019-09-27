@@ -117,11 +117,12 @@ export default {
     },
     notLoggedInToastVisible() {
       return (
-        (!this.isUserLoggedIn &&
+        !this.newContentAvailable &&
+        ((!this.isUserLoggedIn &&
           !this.isOnboarderVisible &&
           !this.isOauthCallbackVisible &&
           !this.isUpdatingApiToken) ||
-        this.isForceShowLoginToast
+          this.isForceShowLoginToast)
       )
     },
   },
