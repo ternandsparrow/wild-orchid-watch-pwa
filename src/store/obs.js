@@ -435,7 +435,17 @@ const actions = {
     // TODO do we need to call this refresh or can we rely on the processor to
     // do it?
     await dispatch('refreshLocalRecordQueue')
-    dispatch('processLocalQueue')
+    dispatch('processLocalQueue').catch(err => {
+      dispatch(
+        'flagGlobalError',
+        {
+          msg: `Failed while processing local queue triggered by a local record event`,
+          userMsg: `Error encountered while trying to synchronise data with the server`,
+          err,
+        },
+        { root: true },
+      )
+    })
   },
   async refreshLocalRecordQueue({ commit }) {
     try {
@@ -484,7 +494,8 @@ const actions = {
       'ephemeral/setQueueProcessorPromise',
       worker().then(() => {
         // we chain this as part of the returned promise so any caller awaiting
-        // it won't be able to act until we've cleaned up
+        // it won't be able to act until we've cleaned up as they're awaiting
+        // this then() block
         console.debug(`${logPrefix} Worker done, killing stored promise`)
         commit('ephemeral/setQueueProcessorPromise', null, { root: true })
       }),
@@ -1024,16 +1035,16 @@ export default {
 }
 
 export const apiTokenHooks = [
-  store => {
-    store.dispatch('obs/refreshRemoteObs')
-    store.dispatch('obs/getMySpecies')
-    store.dispatch('obs/getProjectInfo')
+  async store => {
+    await store.dispatch('obs/refreshRemoteObs')
+    await store.dispatch('obs/getMySpecies')
+    await store.dispatch('obs/getProjectInfo')
   },
 ]
 
 export const networkHooks = [
-  store => {
-    store.dispatch('obs/processLocalQueue')
+  async store => {
+    await store.dispatch('obs/processLocalQueue')
   },
 ]
 

@@ -87,6 +87,7 @@ const store = new Vuex.Store({
   },
 })
 
+// make sure all your hooks are async or return promises
 const allApiTokenHooks = [...obsApiTokenHooks]
 
 store.watch(
@@ -94,11 +95,22 @@ store.watch(
   () => {
     console.debug('API Token and user details changed, triggering hooks')
     for (const curr of allApiTokenHooks) {
-      curr(store)
+      curr(store).catch(err => {
+        store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed while executing an API Token hook`,
+            userMsg: `Error encountered while synchronising data with the server`,
+            err,
+          },
+          { root: true },
+        )
+      })
     }
   },
 )
 
+// make sure all your hooks are async or return promises
 const allNetworkHooks = [...obsNetworkHooks]
 
 store.watch(
@@ -106,7 +118,17 @@ store.watch(
   () => {
     console.debug('Network on/off-line status changed, triggering hooks')
     for (const curr of allNetworkHooks) {
-      curr(store)
+      curr(store).catch(err => {
+        store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed while executing a network on/off-line hook`,
+            userMsg: `Error encountered while reconnecting to the server`,
+            err,
+          },
+          { root: true },
+        )
+      })
     }
   },
 )
