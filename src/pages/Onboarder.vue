@@ -156,6 +156,13 @@ export default {
       },
     },
   },
+  mounted() {
+    const shouldUserSeeOnboarder = this.$store.state.app.isFirstRun
+    if (shouldUserSeeOnboarder) {
+      return
+    }
+    this.$router.replace({ name: 'Home' })
+  },
   // components: { CarouselDots },
   methods: {
     handleDoneClick() {
