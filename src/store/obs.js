@@ -544,8 +544,15 @@ const actions = {
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
-        dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
         await dispatch('refreshLocalRecordQueue')
+        const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            dispatch('refreshRemoteObs').then(() => {
+              resolve()
+            })
+          }, antiRaceConditionDelayToLetServerIndexNewRecord)
+        })
       } catch (err) {
         // FIXME how do we compute this?
         const isUserError = false
