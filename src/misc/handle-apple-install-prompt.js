@@ -9,7 +9,7 @@ export default function() {
 
   // Detects if device is in standalone mode
   // https://stackoverflow.com/questions/50543163/can-i-detect-if-my-pwa-is-launched-as-an-app-or-visited-as-a-website
-  const isInStandaloneMode = () =>
+  const isInStandaloneMode =
     'standalone' in window.navigator && window.navigator.standalone
 
   // We only do this for Mobile Safari - Chrome currently doesn't support the Add-to_home function
