@@ -13,12 +13,12 @@ pre-build() {
     cd ../src/assets/
     mv icon-seed-white.png icon-seed-white.png.disabled-for-dev
     mv icon-seed-white-dev.png icon-seed-white.png
-  } || [ "$deployedEnvName" = "beta" ] && {
+  } || ([ "$deployedEnvName" = "beta" ] && {
     echo "$logPrefix Running in beta, updating pre-build PWA icons"
     cd ../src/assets/
     mv icon-seed-white.png icon-seed-white.png.disabled-for-beta
     mv icon-seed-white-beta.png icon-seed-white.png
-  } || {
+  }) || {
     echo "$logPrefix Running in prod, no pre-build work to do"
   }
 }
