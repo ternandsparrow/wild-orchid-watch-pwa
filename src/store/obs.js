@@ -9,6 +9,7 @@ import {
   targetTaxaNodeId,
 } from '@/misc/constants'
 import {
+  arrayBufferToBlob,
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
@@ -434,7 +435,17 @@ const actions = {
     // TODO do we need to call this refresh or can we rely on the processor to
     // do it?
     await dispatch('refreshLocalRecordQueue')
-    dispatch('processLocalQueue')
+    dispatch('processLocalQueue').catch(err => {
+      dispatch(
+        'flagGlobalError',
+        {
+          msg: `Failed while processing local queue triggered by a local record event`,
+          userMsg: `Error encountered while trying to synchronise data with the server`,
+          err,
+        },
+        { root: true },
+      )
+    })
   },
   async refreshLocalRecordQueue({ commit }) {
     try {
@@ -483,7 +494,8 @@ const actions = {
       'ephemeral/setQueueProcessorPromise',
       worker().then(() => {
         // we chain this as part of the returned promise so any caller awaiting
-        // it won't be able to act until we've cleaned up
+        // it won't be able to act until we've cleaned up as they're awaiting
+        // this then() block
         console.debug(`${logPrefix} Worker done, killing stored promise`)
         commit('ephemeral/setQueueProcessorPromise', null, { root: true })
       }),
@@ -532,8 +544,15 @@ const actions = {
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
-        dispatch('refreshRemoteObs') // FIXME can we defer until the end and only do it once?
         await dispatch('refreshLocalRecordQueue')
+        const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
+        await new Promise(resolve => {
+          setTimeout(() => {
+            dispatch('refreshRemoteObs').then(() => {
+              resolve()
+            })
+          }, antiRaceConditionDelayToLetServerIndexNewRecord)
+        })
       } catch (err) {
         // FIXME how do we compute this?
         const isUserError = false
@@ -620,7 +639,7 @@ const actions = {
       'doPhotoPost',
       {
         obsId: relatedObsId,
-        ...photoRecord,
+        photoRecord,
       },
       { root: true },
     )
@@ -981,14 +1000,27 @@ function mapPhotoFromDbToUi(p) {
   return result
 }
 
-function mintObjectUrl(blob) {
+function mintObjectUrl(blobAsArrayBuffer) {
+  if (!blobAsArrayBuffer) {
+    throw new Error(
+      'Supplied blob is falsey/nullish, refusing to even try to use it',
+    )
+  }
   try {
-    const result = URL.createObjectURL(blob)
+    const blob = arrayBufferToBlob(
+      blobAsArrayBuffer.data,
+      blobAsArrayBuffer.mime,
+    )
+    const result = (window.webkitURL || window.URL || {}).createObjectURL(blob)
     photoObjectUrlsInUse.push(result)
     return result
   } catch (err) {
     throw chainedError(
-      `Failed to mint object URL for blob of type='${typeof blob}'`,
+      // Don't get distracted, the MIME has no impact. If it fails, it's due to
+      // something else, the MIME will just help you debug (hopefully)
+      `Failed to mint object URL for blob with MIME='${
+        blobAsArrayBuffer.mime
+      }'`,
       err,
     )
   }
@@ -1010,16 +1042,16 @@ export default {
 }
 
 export const apiTokenHooks = [
-  store => {
-    store.dispatch('obs/refreshRemoteObs')
-    store.dispatch('obs/getMySpecies')
-    store.dispatch('obs/getProjectInfo')
+  async store => {
+    await store.dispatch('obs/refreshRemoteObs')
+    await store.dispatch('obs/getMySpecies')
+    await store.dispatch('obs/getProjectInfo')
   },
 ]
 
 export const networkHooks = [
-  store => {
-    store.dispatch('obs/processLocalQueue')
+  async store => {
+    await store.dispatch('obs/processLocalQueue')
   },
 ]
 
@@ -1157,11 +1189,9 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = (dbRecord.photos || [])
-    .filter(e => !e[isRemotePhotoFieldName])
-    .map(e => ({
-      photoBlob: e.file,
-    }))
+  result.photoPostBodyPartials = (dbRecord.photos || []).filter(
+    e => !e[isRemotePhotoFieldName],
+  )
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }

@@ -67,7 +67,7 @@ export default {
         tokenCreatedAt,
       })
       this.$store.commit('auth/setIsUpdatingApiToken', true)
-      this.$router.push({ name: 'Home' })
+      this.$router.replace({ name: 'Home' })
     },
   },
 }

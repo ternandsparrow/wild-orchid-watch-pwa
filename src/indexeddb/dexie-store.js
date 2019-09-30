@@ -16,14 +16,14 @@ export default db
 // wipe SW cache and any other DBs, which is also fine.
 export async function deleteAllDatabases() {
   const dbs = await Dexie.getDatabaseNames()
-  for (const { name } of dbs) {
+  for (const currDbName of dbs) {
     try {
-      const d = new Dexie(name)
+      const d = new Dexie(currDbName)
       d.close()
       d.delete()
-      console.debug(`Successfully deleted the '${name}' database`)
+      console.debug(`Successfully deleted the '${currDbName}' database`)
     } catch (err) {
-      const msg = `Failed to delete the '${name}' database`
+      const msg = `Failed to delete the '${currDbName}' database`
       wowWarnHandler(msg, err)
     }
   }

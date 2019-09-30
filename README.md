@@ -24,7 +24,13 @@ Requirements:
       VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
       # you can comment with a hashed line too
       ```
-  1. run the dev server: `yarn serve`
+  1. run the dev server:
+      ```
+      yarn serve
+      # Or, if you want to listen on your external IP
+      yarn serve --host=11.22.33.44
+      # note that this will only work when running in development mode as there's no service worker, which would require HTTPS and a valid cert, which you almost certainly don't have on your local machine.
+      ```
   1. open the app URL (probably `http://localhost:8080`) in your browser
   1. this is a PWA (web page that feels like a native app) so it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device) as a Pixel 2 or iPhone 8.
 

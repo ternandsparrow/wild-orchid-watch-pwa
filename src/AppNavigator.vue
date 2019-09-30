@@ -36,14 +36,17 @@
     <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
       <div class="warn-text">WARNING</div>
       <p>
-        You are not logged in, you <em>must</em> login to continue using the
-        app.
+        You are not logged in.
       </p>
-      <div>
+      <p>
+        If you were previously logged in then your session has expired. You
+        <em>must</em> login to continue using the app.
+      </p>
+      <p>
         If you're in the middle of creating an observation, you can save it
         before logging in. Note that some functions may not work correctly until
         you login.
-      </div>
+      </p>
       <button @click="doLogin">Login</button>
     </v-ons-toast>
     <v-ons-alert-dialog
@@ -114,11 +117,12 @@ export default {
     },
     notLoggedInToastVisible() {
       return (
-        (!this.isUserLoggedIn &&
+        !this.newContentAvailable &&
+        ((!this.isUserLoggedIn &&
           !this.isOnboarderVisible &&
           !this.isOauthCallbackVisible &&
           !this.isUpdatingApiToken) ||
-        this.isForceShowLoginToast
+          this.isForceShowLoginToast)
       )
     },
   },

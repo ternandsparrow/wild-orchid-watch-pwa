@@ -37,11 +37,8 @@ export const redirectUri = process.env.VUE_APP_OAUTH_REDIRECT_URI
 // then use wild-orchid-watch-australia for this value
 export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
 
-// true if this deploy is *the* production app. If it's a test or dev version
-// deployed somewhere else, set this to false.
-export const isDeployedToProd = (() => {
-  return process.env.VUE_APP_DEPLOYED_ENV_IS_PROD === 'true'
-})()
+// set to 'production', 'beta' or 'development' so we can adapt to where we're deployed
+export const deployedEnvName = process.env.VUE_APP_DEPLOYED_ENV_NAME
 
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 

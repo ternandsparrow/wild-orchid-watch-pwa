@@ -1,6 +1,6 @@
 const path = require('path')
-const DumpVueEnvVarsWebpackPlugin = require('./DumpVueEnvVarsWebpackPlugin.js')
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
+const DumpVueEnvVarsWebpackPlugin = require('./DumpVueEnvVarsWebpackPlugin.js')
 
 /**
  * This is a bit of a mess but it works. Vue-cli has PWA support, which offers
@@ -37,6 +37,9 @@ module.exports = {
     workboxPluginMode: 'InjectManifest',
     workboxOptions: {
       swSrc: path.join('public', 'service-worker.js'),
+      // We may still need this - TDB
+      /* https://github.com/GoogleChrome/workbox/issues/1744 */
+      // skipWaiting: true,
     },
   },
   configureWebpack: {
@@ -52,7 +55,9 @@ module.exports = {
           background: '#000', // background of flattened icons
           appName: 'Wild Orchid Watch',
           appShortName: 'WildOrchidWatch',
-          appleStatusBarStyle: 'black',
+          appDescription:
+            'Wild Orchid Watch Australian citizen science field data collection app',
+          appleStatusBarStyle: 'default',
           developerName: null,
           developerURL: null,
           start_url: '/index.html',

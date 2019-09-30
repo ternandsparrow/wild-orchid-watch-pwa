@@ -80,10 +80,15 @@ export function getJson(url) {
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
-  return doManagedFetch(url, {
+  // supplying cache: 'no-store' to fetch() works perfectly expect for iOS
+  // Safari which explodes, so we have to fall back to this dirty way of cache
+  // busting
+  const isQueryStringPresent = url.includes('?')
+  const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
+  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${Date.now()}`
+  return doManagedFetch(urlWithCacheBust, {
     method: 'GET',
     mode: 'cors',
-    cache: 'no-store', // TODO is this correct? Can we assume that SW will cache for us so if we're making a request, we want it fresh?
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
@@ -95,7 +100,6 @@ export function deleteWithAuth(url, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'DELETE',
     mode: 'cors',
-    cache: 'no-store',
     headers: {
       ...jsonHeaders,
       Authorization: authHeaderValue,
@@ -144,7 +148,9 @@ async function handleJsonResp(resp) {
   msg += `  headers=${JSON.stringify(resp.headers)}\n`
   msg += `  url=${resp.url}\n`
   msg += `  body first 300 chars='${trimmedBody}'\n`
-  throw new Error(msg)
+  const err = new Error(msg)
+  err.httpStatus = resp.status
+  throw err
 }
 
 /**
@@ -248,6 +254,27 @@ export function makeEnumValidator(array) {
     }
     return enumItem
   }
+}
+
+// Thanks for these two functions:
+// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
+//
+// Safari on iOS cannot store Blobs, which are what we get from the file input
+// UI control, so we have to convert them to ArrayBuffers, which do have
+// support.
+export function arrayBufferToBlob(buffer, type) {
+  return new Blob([buffer], { type: type })
+}
+
+export function blobToArrayBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('loadend', () => {
+      resolve(reader.result)
+    })
+    reader.addEventListener('error', reject)
+    reader.readAsArrayBuffer(blob)
+  })
 }
 
 export const _testonly = {

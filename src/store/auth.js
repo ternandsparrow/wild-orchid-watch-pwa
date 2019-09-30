@@ -11,6 +11,7 @@ import {
   redirectUri,
 } from '@/misc/constants'
 import {
+  arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
@@ -74,7 +75,7 @@ export default {
     },
     userIcon(state) {
       const result = state.userDetails.icon
-      return result ? inatUrlBase + result : noProfilePicPlaceholderUrl
+      return result ? result : noProfilePicPlaceholderUrl
     },
     myUserId(state) {
       return state.userDetails.id
@@ -202,13 +203,17 @@ export default {
         )
       }
     },
-    async doPhotoPost({ state, dispatch }, { obsId, photoBlob }) {
+    async doPhotoPost({ state, dispatch }, { obsId, photoRecord }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await postFormDataWithAuth(
           `${apiUrlBase}/observation_photos`,
           formData => {
             formData.append('observation_photo[observation_id]', obsId)
+            const photoBlob = arrayBufferToBlob(
+              photoRecord.file.data,
+              photoRecord.file.mime,
+            )
             formData.append('file', photoBlob)
           },
           `${state.apiToken}`,
@@ -242,6 +247,10 @@ export default {
       )
     },
     async doLogout({ state, dispatch }) {
+      if (!state.token) {
+        console.debug('No stored iNat token so no need to perform iNat logout')
+        return
+      }
       try {
         await dispatch('doInatPost', {
           urlSuffix: '/oauth/revoke',
@@ -282,13 +291,10 @@ export default {
           })
         } catch (err) {
           commit('setIsUpdatingApiToken', false)
-          const status = err.status
+          const status = err.httpStatus
           if (status === 401 || status === 400) {
-            // FIXME make sure you keep the user's data that hasn't been uploaded
-            // but make them login via iNat OAuth again
-            throw new Error(
-              `iNat token is not valid (response status=${status}), user must login again`,
-            )
+            commit('_setToken', null) // triggers the toast to login again
+            return
           }
           throw chainedError('Failed to get API token using iNat token', err)
         } finally {
