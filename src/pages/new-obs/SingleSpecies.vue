@@ -157,6 +157,8 @@
 </template>
 
 <script>
+import EXIF from 'exif-js'
+import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
 import { isNil, trim } from 'lodash'
 import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
@@ -547,17 +549,68 @@ export default {
       }
       return result
     },
-    onPhotoAdded(photoDefObj) {
+    async onPhotoAdded(photoDefObj) {
       const type = photoDefObj.id
       const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
       if (!file) {
         this.photos[type] = null
         return
       }
-      this.photos[type] = {
-        file,
-        url: URL.createObjectURL(file),
+      console.log(`original image size ${file.size / 1024 / 1024} MB`)
+      EXIF.getData(file, function() {
+        const allMetaData = EXIF.getAllTags(this)
+        console.debug(`allMetaData = ` + JSON.stringify(allMetaData))
+      })
+      const options = {
+        maxSizeMB: 2,
+        useWebWorker: true,
+        maxIteration: 5,
       }
+      try {
+        const compressedFile = await imageCompression(file, options)
+        console.log(
+          `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+        ) // smaller than maxSizeMB
+
+        // FIXME - this is busted, it seems.
+        EXIF.getData(compressedFile, function() {
+          const allMetaData = EXIF.getAllTags(this)
+          console.debug(
+            `compressedFile allMetaData = ` + JSON.stringify(allMetaData),
+          )
+        })
+        this.photos[type] = {
+          file,
+          url: URL.createObjectURL(file),
+        }
+      } catch (error) {
+        console.log(error)
+      }
+
+      /*
+      imageCompression(file, options)
+        .then(function(compressedFile) {
+          console.log(
+            `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+          ) // smaller than maxSizeMB
+
+          // FIXME - this is busted, it seems.
+          EXIF.getData(compressedFile, function() {
+            const allMetaData = EXIF.getAllTags(this)
+            console.debug(
+              `compressedFile allMetaData = ` + JSON.stringify(allMetaData),
+            )
+          })
+
+          this.photos[type] = {
+            file,
+            url: URL.createObjectURL(file),
+          }
+        })
+        .catch(function(error) {
+          console.log(error.message)
+        })
+        */
     },
     async onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
