@@ -68,8 +68,8 @@ import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
 // import Missions from '@/pages/missions/index'
 // import Dashboard from '@/pages/dashboard/index'
-// import FAQ from '@/pages/faq/index'
-// import Orchid_Science from '@/pages/orchid-science/index'
+import FAQ from '@/pages/faq/index'
+import Orchid_Science from '@/pages/orchid-science/index'
 import Settings from '@/pages/Settings'
 import {
   appVersion,
@@ -134,16 +134,16 @@ export default {
         //   icon: 'md-accounts-alt',
         //   component: Activity,
         // },
-        // {
-        //   title: 'Orchid Science',
-        //   icon: 'fa-book-open',
-        //   component: Orchid_Science,
-        // },
-        // {
-        //   title: 'FAQ',
-        //   icon: 'fa-question-circle',
-        //   component: FAQ,
-        // },
+        {
+          title: 'Orchid Science',
+          icon: 'fa-book-open',
+          component: Orchid_Science,
+        },
+        {
+          title: 'FAQ',
+          icon: 'fa-question-circle',
+          component: FAQ,
+        },
         {
           title: 'Settings',
           icon: 'md-settings',
