@@ -23,7 +23,8 @@
         <p v-if="isLocSuccess" class="success-msg">
           Location: lat=<span class="mono">{{ lat }}</span
           >, lng=<span class="mono">{{ lng }}</span
-          >, alt=<span class="mono">{{ alt }}</span>
+          >, alt=<span class="mono">{{ alt }}</span
+          >, acc=<span class="mono">{{ acc }}</span>
         </p>
         <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
         <v-ons-button @click="getLocation">Get location</v-ons-button>
@@ -209,6 +210,7 @@ export default {
           this.lat = loc.coords.latitude
           this.lng = loc.coords.longitude
           this.alt = loc.coords.altitude
+          this.acc = loc.coords.accuracy
         },
         () => {
           this.locErrorMsg = 'Location access is blocked'
