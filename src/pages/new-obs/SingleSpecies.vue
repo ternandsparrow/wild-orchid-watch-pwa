@@ -64,10 +64,9 @@
       </template>
       <v-ons-list-header class="wow-list-header">Field Name</v-ons-list-header>
       <v-ons-list-item>
-        <!-- FIXME suggest recently used species or nearby ones -->
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
-          :initial-value="speciesGuess"
+          :initial-value="speciesGuessInitialValue"
           placeholder-text="e.g. snail orchid"
           @change="onSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
@@ -79,13 +78,11 @@
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
         <v-ons-list-header
-          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-list'"
           class="wow-list-header"
           >{{ currField.name }}</v-ons-list-header
         >
         <v-ons-list-item
-          v-show="obsFieldVisibility[currField.id]"
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
         >
@@ -108,13 +105,12 @@
               </option>
             </v-ons-select>
             <v-ons-input
-              v-else-if="currField.wowDatatype === 'numeric'"
+              v-else-if="currField.wowDatatype === numericFieldType"
               v-model="obsFieldValues[currField.id]"
               float
               placeholder="Input value"
               type="number"
             >
-              <!-- FIXME validate non-negative and non-zero if applicable -->
             </v-ons-input>
             <textarea
               v-else-if="currField.wowDatatype === 'text'"
@@ -126,7 +122,7 @@
             <wow-autocomplete
               v-else-if="currField.wowDatatype === taxonFieldType"
               :items="taxonQuestionAutocompleteItems[currField.id]"
-              :initial-value="obsFieldValues[currField.id]"
+              :initial-value="obsFieldInitialValues[currField.id]"
               placeholder-text="e.g. snail orchid"
               :extra-callback-data="currField.id"
               @change="onTaxonQuestionInput"
@@ -153,12 +149,27 @@
       </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
+    <v-ons-alert-dialog
+      modifier="rowfooter"
+      :visible.sync="formErrorDialogVisible"
+    >
+      <div slot="title">Invalid value(s) entered</div>
+      <p>Please correct the invalid values and try again.</p>
+      <ul class="error-msg-list">
+        <li v-for="curr of formErrorMsgs" :key="curr">{{ curr }}</li>
+      </ul>
+      <template slot="footer">
+        <v-ons-alert-dialog-button @click="onDismissFormError"
+          >Ok</v-ons-alert-dialog-button
+        >
+      </template>
+    </v-ons-alert-dialog>
   </v-ons-page>
 </template>
 
 <script>
 import { mapState, mapGetters } from 'vuex'
-import { isNil, trim } from 'lodash'
+import { isNil, trim, isEmpty } from 'lodash'
 import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
@@ -174,6 +185,7 @@ import {
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
 const taxonFieldType = 'taxon'
+const numericFieldType = 'numeric'
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
@@ -190,7 +202,9 @@ export default {
         { id: 'pol', name: 'Visiting pollinators' },
         { id: 'hab', name: 'Habitat' },
       ],
-      speciesGuess: null,
+      speciesGuessInitialValue: null,
+      speciesGuessSelectedItem: null,
+      speciesGuessValue: null,
       photos: {},
       uploadedPhotos: [],
       obsFieldValues: {},
@@ -201,6 +215,9 @@ export default {
       speciesGuessAutocompleteItems: [],
       taxonQuestionAutocompleteItems: {},
       taxonFieldType,
+      numericFieldType,
+      formErrorDialogVisible: false,
+      formErrorMsgs: [],
     }
   },
   computed: {
@@ -210,10 +227,18 @@ export default {
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
+        if (!this.obsFieldVisibility[curr.id]) {
+          return accum
+        }
         const hasAllowedValues = (curr.allowedValues || []).length
         const wowDatatype = hasAllowedValues ? 'select' : curr.datatype
+        const isEpiphyteDependentField = [
+          hostTreeSpeciesObsFieldId,
+          epiphyteHeightObsFieldId,
+        ].includes(curr.id)
         accum.push({
           ...curr,
+          required: isEpiphyteDependentField ? true : curr.required,
           wowDatatype,
         })
         return accum
@@ -256,8 +281,9 @@ export default {
       accum[curr.id] = null
       return accum
     }, {})
-    this.taxonQuestionAutocompleteItems = this.displayableObsFields
-      .filter(f => f.wowDatatype === taxonFieldType)
+    // we cannot use this.taxonQuestionIds here as it's not bound at this stage
+    this.taxonQuestionAutocompleteItems = this.obsFields
+      .filter(f => f.datatype === taxonFieldType)
       .reduce((accum, curr) => {
         // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
         accum[curr.id] = null
@@ -294,7 +320,9 @@ export default {
         this.obsFieldInitialValues = Object.assign({}, this.obsFieldValues)
       })
       if (this.observationDetail.speciesGuess) {
-        this.speciesGuess = this.observationDetail.speciesGuess
+        const val = this.observationDetail.speciesGuess
+        this.speciesGuessInitialValue = val
+        this.speciesGuessValue = val
       }
       if (this.observationDetail.notes) {
         this.notes = this.observationDetail.notes
@@ -306,29 +334,27 @@ export default {
       // FIXME support changing, or at least showing, geolocation
     },
     setRecentlyUsedTaxa() {
-      this.speciesGuessAutocompleteItems = (
+      this.speciesGuessAutocompleteItems =
         this.$store.state.obs.recentlyUsedTaxa[speciesGuessRecentTaxaKey] || []
-      ).map(mapToAutocompleteItem)
       for (const currId of this.taxonQuestionIds) {
-        this.taxonQuestionAutocompleteItems[currId] = (
+        this.taxonQuestionAutocompleteItems[currId] =
           this.$store.state.obs.recentlyUsedTaxa[currId] || []
-        ).map(mapToAutocompleteItem)
-      }
-      function mapToAutocompleteItem(simpleValue) {
-        return { id: simpleValue, name: simpleValue }
       }
     },
     setDefaultObsFieldVisibility() {
-      this.obsFieldVisibility = this.displayableObsFields.reduce(
-        (accum, curr) => {
-          accum[curr.id] = true
-          return accum
-        },
-        {},
-      )
+      this.obsFieldVisibility = this.obsFields.reduce((accum, curr) => {
+        accum[curr.id] = true
+        return accum
+      }, {})
     },
     onSpeciesGuessSet(data) {
-      this.speciesGuess = data.value
+      // We need to store both directly, as opposed to computing one from the
+      // other, because we need to be able to set the text value directly when in
+      // edit mode. And we need the full object to store for recently used taxa.
+      this.speciesGuessSelectedItem = data.value
+      this.speciesGuessValue = (
+        this.speciesGuessSelectedItem || {}
+      ).preferredCommonName
     },
     onTaxonQuestionSet(data) {
       const fieldId = data.extra
@@ -405,26 +431,68 @@ export default {
         const availableIds = this.displayableObsFields.map(f => f.id).sort()
         throw new Error(
           `Failed to find obs field definition with ` +
-            `ID='${fieldId}' (type=${typeof fieldId}) from available ` +
+            `ID='${fieldId}' (typeof ID param=${typeof fieldId}) from available ` +
             `IDs=[${availableIds}]`,
         )
       }
       return result
     },
+    validateInputs() {
+      // TODO highlight the fields with error
+      // TODO validate as the user inputs values
+      this.formErrorMsgs = []
+      if (!this.speciesGuessValue) {
+        this.formErrorMsgs.push(
+          'You must identify this observation with a species name',
+        )
+      }
+      const visibleRequiredObsFields = this.displayableObsFields.filter(
+        f => f.required,
+      )
+      for (const curr of visibleRequiredObsFields) {
+        const val = this.obsFieldValues[curr.id]
+        if (!isEmpty(trim(val))) {
+          continue
+        }
+        this.formErrorMsgs.push(
+          `The "${curr.name}" field is required but has no value`,
+        )
+      }
+      const visibleNumericObsFields = this.displayableObsFields.filter(
+        f => f.datatype === numericFieldType,
+      )
+      for (const curr of visibleNumericObsFields) {
+        const val = this.obsFieldValues[curr.id]
+        if (isNil(val) || val > 0) {
+          continue
+        }
+        this.formErrorMsgs.push(
+          `The "${curr.name}" field cannot be zero or negative`,
+        )
+      }
+      if (this.formErrorMsgs.length) {
+        this.formErrorDialogVisible = true
+        return false
+      }
+      return true
+    },
     async onSave() {
-      // TODO assert that all required fields are filled. Currently they have
-      // to be because there's always a valid default that can't be unselected.
-      // If we change that so all fields require conscious filling, then we need
-      // to validate.
       try {
+        if (!this.validateInputs()) {
+          return
+        }
         this.$store.commit('obs/addRecentlyUsedTaxa', {
           type: speciesGuessRecentTaxaKey,
-          value: this.speciesGuess,
+          value: this.speciesGuessSelectedItem,
         })
         for (const currId of this.taxonQuestionIds) {
+          const val = this.obsFieldValues[currId]
+          // if we're in edit mode and the user doesn't touch this question,
+          // it'll just be the string value not the selected item
+          const paramToPass = typeof val === 'object' ? val : null
           this.$store.commit('obs/addRecentlyUsedTaxa', {
             type: currId,
-            value: this.obsFieldValues[currId],
+            value: paramToPass,
           })
         }
         const record = {
@@ -451,29 +519,32 @@ export default {
               return photo
             }),
           )).filter(p => !!p),
-          speciesGuess: this.speciesGuess,
+          speciesGuess: this.speciesGuessValue,
           // FIXME add placeGuess
-          obsFieldValues: Object.keys(this.obsFieldValues).reduce(
-            (accum, currKey) => {
-              const isVisible = this.obsFieldVisibility[currKey]
-              if (!isVisible) {
-                return accum
-              }
-              const obsFieldDef = this.getObsFieldDef(currKey)
-              const value = this.obsFieldValues[currKey]
+          obsFieldValues: this.displayableObsFields
+            .map(e => e.id)
+            .reduce((accum, currFieldId) => {
+              const obsFieldDef = this.getObsFieldDef(currFieldId)
+              let value = this.obsFieldValues[currFieldId]
               if (isDeletedObsFieldValue(value)) {
                 return accum
               }
+              if (
+                obsFieldDef.datatype === taxonFieldType &&
+                // in edit mode when the user doesn't change the value, we'll
+                // only have the string value, not the full selected item
+                typeof value === 'object'
+              ) {
+                value = value.preferredCommonName
+              }
               accum.push({
-                fieldId: parseInt(currKey),
+                fieldId: parseInt(currFieldId),
                 name: obsFieldDef.name,
                 value: value,
                 datatype: obsFieldDef.datatype,
               })
               return accum
-            },
-            [],
-          ),
+            }, []),
           description: this.notes,
         }
         // FIXME change to strategy pattern
@@ -493,7 +564,6 @@ export default {
             },
             [],
           )
-          // FIXME check if anything has changed before continuing
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
             existingRecordId: this.$store.state.obs.selectedObservationId,
@@ -581,6 +651,9 @@ export default {
     },
     photoRef(e) {
       return 'photo-' + e.id
+    },
+    onDismissFormError() {
+      this.formErrorDialogVisible = false
     },
   },
 }
@@ -692,5 +765,9 @@ function isDeletedObsFieldValue(value) {
 
 .footer-whitespace {
   height: 50vh;
+}
+
+.error-msg-list {
+  text-align: left;
 }
 </style>

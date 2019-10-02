@@ -1,4 +1,4 @@
-import { isNil } from 'lodash'
+import { isNil, isEqual, omitBy } from 'lodash'
 import * as uuid from 'uuid/v1'
 import {
   apiUrlBase,
@@ -78,13 +78,18 @@ const mutations = {
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
+  setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
-    const isValueEmpty = (value || '').trim().length === 0
-    if (isValueEmpty) {
+    const isNothingSelected = !value
+    if (isNothingSelected) {
       return
     }
     const stack = state.recentlyUsedTaxa[type] || []
-    const existingIndex = stack.indexOf(value)
+    const existingIndex = stack.findIndex(e => {
+      // objects from the store don't keep nil-ish props
+      const valueWithoutNilishProps = omitBy(value, isNil)
+      return isEqual(e, valueWithoutNilishProps)
+    })
     const isValueAlreadyInStack = existingIndex >= 0
     if (isValueAlreadyInStack) {
       stack.splice(existingIndex, 1)
@@ -251,9 +256,9 @@ const actions = {
       const records = resp.results
         .filter(d => d.ancestor_ids.find(e => e === targetTaxaNodeId))
         .map(d => ({
-          id: d.id,
           name: d.name,
           preferredCommonName: d.preferred_common_name,
+          photoUrl: (d.default_photo || {}).square_url,
         }))
       // FIXME we might want bigger pages or perform paging to get enough
       // results to fill the UI
@@ -1214,6 +1219,21 @@ function compressPhotos(photos) {
 
 function isAnswer(val) {
   return !['undefined', 'null'].includes(typeof val)
+}
+
+export function migrate(store) {
+  migrateRecentlyUsedTaxa(store)
+}
+
+function migrateRecentlyUsedTaxa(store) {
+  const recentlyUsedTaxa = store.state.obs.recentlyUsedTaxa || {}
+  const cleaned = {}
+  for (const currKey of Object.keys(recentlyUsedTaxa)) {
+    cleaned[currKey] = recentlyUsedTaxa[currKey].filter(
+      e => typeof e === 'object',
+    )
+  }
+  store.commit('obs/setRecentlyUsedTaxa', cleaned)
 }
 
 export const _testonly = {

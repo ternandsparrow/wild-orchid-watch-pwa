@@ -14,7 +14,7 @@ import * as VueGoogleMaps from 'vue2-google-maps'
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
 import initAppleInstallPrompt from '@/misc/handle-apple-install-prompt'
-import store from '@/store'
+import store, { migrateOldStores } from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
@@ -25,6 +25,7 @@ import {
   googleMapsApiKey,
   sentryDsn,
 } from '@/misc/constants'
+import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
@@ -56,26 +57,35 @@ if (process.env.NODE_ENV !== 'development') {
 new Vue({
   el: '#app',
   beforeCreate() {
-    // Shortcut for Material Design
-    Vue.prototype.md = this.$ons.platform.isAndroid()
+    try {
+      migrateOldStores(this.$store)
 
-    // Set iPhoneX flag based on URL
-    if (window.location.search.match(/iphonex/i)) {
-      document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
-      document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
-    }
+      // Shortcut for Material Design
+      Vue.prototype.md = this.$ons.platform.isAndroid()
 
-    window.addEventListener('focus', () => {
-      if (!this.$store.state.ephemeral.networkOnLine) {
-        return
+      // Set iPhoneX flag based on URL
+      if (window.location.search.match(/iphonex/i)) {
+        document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
+        document.documentElement.setAttribute('onsflag-iphonex-landscape', '')
       }
-      this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
-    })
 
-    // TODO should we delay this so it doesn't show over the onboarder?
-    initAppleInstallPrompt()
+      window.addEventListener('focus', () => {
+        if (!this.$store.state.ephemeral.networkOnLine) {
+          return
+        }
+        this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
+      })
 
-    this.$store.dispatch('obs/refreshLocalRecordQueue')
+      // TODO should we delay this so it doesn't show over the onboarder?
+      initAppleInstallPrompt()
+
+      this.$store.dispatch('obs/refreshLocalRecordQueue')
+    } catch (err) {
+      wowErrorHandler('Failed to run beforeCreate for root element', err)
+      alert(
+        'Failed to start app, sorry. Try restarting the app to fix the problem.',
+      )
+    }
   },
   render: h => h(AppNavigator),
   router,
