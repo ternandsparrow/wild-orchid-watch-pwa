@@ -1236,6 +1236,27 @@ function migrateRecentlyUsedTaxa(store) {
   store.commit('obs/setRecentlyUsedTaxa', cleaned)
 }
 
+export function extractGeolocationText(record) {
+  const coordString = (() => {
+    const apiRecordCoords = (record.geojson || {}).coordinates
+    if (apiRecordCoords) {
+      return formatCoords(apiRecordCoords[1], apiRecordCoords[0])
+    }
+    if (record.longitude && record.latitude) {
+      return formatCoords(record.longitude, record.latitude)
+    }
+    return null
+  })()
+  return record.placeGuess || coordString || '(No place guess)'
+  function formatCoords(lng, lat) {
+    return `${trimDecimalPlaces(lng)},${trimDecimalPlaces(lat)}`
+  }
+}
+
+function trimDecimalPlaces(val) {
+  return parseFloat(val).toFixed(6)
+}
+
 export const _testonly = {
   mapObsFromApiIntoOurDomain,
 }
