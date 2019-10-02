@@ -8,10 +8,12 @@ describe('mutations', () => {
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
         type: 'speciesGuess',
-        value: 'species one',
+        value: { name: 'not important', preferredCommonName: 'species one' },
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(1)
-      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('species one')
+      expect(
+        state.recentlyUsedTaxa.speciesGuess[0].preferredCommonName,
+      ).toEqual('species one')
     })
 
     it('should add to the top of the stack when it already exists', () => {
@@ -22,38 +24,52 @@ describe('mutations', () => {
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
         type: 'speciesGuess',
-        value: 'species new',
+        value: { name: 'not important', preferredCommonName: 'species new' },
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(2)
-      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('species new')
+      expect(
+        state.recentlyUsedTaxa.speciesGuess[0].preferredCommonName,
+      ).toEqual('species new')
     })
 
     it('should move an entry to the top of the stack when it already exists', () => {
       const state = {
         recentlyUsedTaxa: {
-          speciesGuess: ['aaa', 'bbb', 'ccc'],
+          speciesGuess: [
+            { name: 'not important', preferredCommonName: 'aaa' },
+            { name: 'not important', preferredCommonName: 'bbb' },
+            { name: 'not important', preferredCommonName: 'ccc' },
+          ],
         },
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
         type: 'speciesGuess',
-        value: 'ccc',
+        value: { name: 'not important', preferredCommonName: 'ccc' },
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
-      expect(state.recentlyUsedTaxa.speciesGuess).toEqual(['ccc', 'aaa', 'bbb'])
+      expect(
+        state.recentlyUsedTaxa.speciesGuess.map(e => e.preferredCommonName),
+      ).toEqual(['ccc', 'aaa', 'bbb'])
     })
 
     it('should ignore an empty value', () => {
       const state = {
         recentlyUsedTaxa: {
-          speciesGuess: ['aaa', 'bbb', 'ccc'],
+          speciesGuess: [
+            { name: 'not important', preferredCommonName: 'aaa' },
+            { name: 'not important', preferredCommonName: 'bbb' },
+            { name: 'not important', preferredCommonName: 'ccc' },
+          ],
         },
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
         type: 'speciesGuess',
-        value: '',
+        value: null,
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
-      expect(state.recentlyUsedTaxa.speciesGuess).toEqual(['aaa', 'bbb', 'ccc'])
+      expect(
+        state.recentlyUsedTaxa.speciesGuess.map(e => e.preferredCommonName),
+      ).toEqual(['aaa', 'bbb', 'ccc'])
     })
 
     it('should maintain a stack of a maximum size', () => {
@@ -80,16 +96,18 @@ describe('mutations', () => {
             '18',
             '19',
             '20',
-          ],
+          ].map(e => ({ name: e, preferredCommonName: e })),
         },
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
         type: 'speciesGuess',
-        value: 'bump',
+        value: { name: 'not important', preferredCommonName: 'bump' },
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(20)
-      expect(state.recentlyUsedTaxa.speciesGuess[0]).toEqual('bump')
-      expect(state.recentlyUsedTaxa.speciesGuess[19]).toEqual('19')
+      expect(
+        state.recentlyUsedTaxa.speciesGuess[0].preferredCommonName,
+      ).toEqual('bump')
+      expect(state.recentlyUsedTaxa.speciesGuess[19].name).toEqual('19')
     })
   })
 })
