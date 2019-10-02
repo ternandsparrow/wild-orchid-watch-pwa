@@ -154,6 +154,7 @@ export default {
         color: '#5d5d5d',
       },
       selectedTab: 0,
+      currentPosition: { lat: -34.9786554, lng: 138.6487938 },
       tabs: [
         { icon: 'fa-info' },
         { icon: 'fa-map-marked-alt' },
@@ -317,6 +318,20 @@ export default {
     onEdit() {
       const obsId = this.nullSafeObs.inatId // FIXME need to also check .id for local-only records
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
+    },
+    doGeolocation() {
+      console.log('Doing geolocation call')
+      navigator.geolocation.getCurrentPosition(
+        this.handleLocation,
+        this.onGeolocationError,
+      )
+    },
+    handleLocation(position) {
+      this.currentPosition = position
+    },
+    onGeolocationError(error) {
+      // FIXME handle the error
+      this.$ons.notification.alert('FIXME handle the error:' + error)
     },
   },
 }
