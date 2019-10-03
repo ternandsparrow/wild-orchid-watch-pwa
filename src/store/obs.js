@@ -305,21 +305,35 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { state, dispatch, getters },
-    { record, photoIdsToDelete, existingRecordId, obsFieldIdsToDelete },
+    { record, photoIdsToDelete, existingRecord, obsFieldIdsToDelete },
   ) {
+    if (!existingRecord) {
+      throw new Error(
+        'No existing record is passed, cannot continue ' +
+          'as we do not know what we are editing',
+      )
+    }
+    const existingRecordId = existingRecord.id
+    const existingRecordUuid = existingRecord.uuid
     try {
       const existingLocalRecord = getters.localRecords.find(
-        e => e.inatId === existingRecordId,
+        e => e.uuid === existingRecordUuid,
+      )
+      const existingRemoteRecord = state.allRemoteObs.find(
+        e => e.uuid === existingRecordUuid,
       )
       const existingDbRecord = await (() => {
         if (existingLocalRecord) {
           return db.obs.get(existingLocalRecord.id)
         }
-        return { inatId: existingRecordId }
+        return { inatId: existingRemoteRecord.inatId }
       })()
-      const existingRemoteRecord = state.allRemoteObs.find(
-        e => e.inatId === existingRecordId,
-      )
+      if (!existingLocalRecord && !existingRemoteRecord) {
+        throw new Error(
+          'Data problem: Cannot find existing local or remote record,' +
+            'cannot continue without at least one',
+        )
+      }
       const photos = (() => {
         const newPhotos = compressPhotos(record.photos) || []
         const isEditingRemoteDirectly =
@@ -337,7 +351,7 @@ const actions = {
       const enhancedRecord = Object.assign(existingDbRecord, record, {
         photos,
         updated_at: nowDate,
-        uuid: (existingLocalRecord || {}).uuid || existingRemoteRecord.uuid,
+        uuid: (existingLocalRecord || existingRemoteRecord).uuid,
         wowMeta: {
           [recordTypeFieldName]: recordType('edit'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -374,8 +388,8 @@ const actions = {
       await dispatch('onLocalRecordEvent')
     } catch (err) {
       throw chainedError(
-        `Failed to save edited record with ` +
-          `ID='${existingRecordId}' to local queue.`,
+        `Failed to save edited record with ID='${existingRecordId}'` +
+          ` and UUID='${existingRecordUuid}' to local queue.`,
         err,
       )
     }
@@ -610,6 +624,12 @@ const actions = {
     { dispatch },
     { obsRecord, dbRecordId, inatRecordId },
   ) {
+    if (!inatRecordId) {
+      throw new Error(
+        `Programmer problem: no iNat record ID ` +
+          `passed='${inatRecordId}', cannot continue`,
+      )
+    }
     const obsResp = await dispatch(
       'doApiPut',
       {

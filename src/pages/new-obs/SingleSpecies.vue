@@ -221,6 +221,7 @@ export default {
       numericFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
+      existingRecordSnapshot: null,
     }
   },
   computed: {
@@ -296,6 +297,7 @@ export default {
     const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
     if (this.isEdit) {
       this.initForEdit(obsFieldsPromise)
+      this.snapshotExistingRecord()
     } else {
       this.initForNew(obsFieldsPromise)
     }
@@ -570,7 +572,7 @@ export default {
           )
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
-            existingRecordId: this.$store.state.obs.selectedObservationId,
+            existingRecord: this.existingRecordSnapshot,
             photoIdsToDelete: this.photoIdsToDelete,
             obsFieldIdsToDelete,
           })
@@ -589,7 +591,7 @@ export default {
         this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
-          msg: 'Failed to save new observation to local store',
+          msg: 'Failed to save observation to local store',
           userMsg: 'Error while trying to save observation',
           err,
         })
@@ -723,6 +725,15 @@ export default {
     onGeolocationError(error) {
       // FIXME handle the error
       this.$ons.notification.alert('FIXME handle the error:' + error)
+    },
+    snapshotExistingRecord() {
+      // if the user edits a local record but the record is uploaded (and
+      // cleaned up) before the user hits save, we're in trouble. We can recover
+      // as long as we have this snapshot though.
+      this.existingRecordSnapshot = Object.assign(
+        {},
+        this.$store.getters['obs/observationDetail'],
+      )
     },
   },
 }
