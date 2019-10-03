@@ -88,11 +88,36 @@
         </label>
       </p>
 
-      <p></p>
       <p>
         <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
       </p>
       <div class="code-style">{{ vuexDump }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Manually trigger an error
+      </div>
+      <p>
+        <v-ons-input
+          v-model="manualErrorMsg"
+          placeholder="Error message here..."
+        >
+        </v-ons-input>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isManualErrorCaught"
+          input-id="is-manual-error-caught"
+        >
+        </v-ons-checkbox>
+        <label for="is-manual-error-caught">
+          Catch and handle error (or let bubble to the top)
+        </label>
+      </p>
+
+      <p>
+        <v-ons-button @click="doManualError">Trigger error</v-ons-button>
+      </p>
     </v-ons-card>
     <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
@@ -123,6 +148,8 @@ export default {
       vuexDump: '(nothing yet)',
       isIncludeObs: false,
       configItems: [],
+      manualErrorMsg: null,
+      isManualErrorCaught: true,
     }
   },
   computed: {
@@ -232,6 +259,22 @@ export default {
     },
     doCommunityWorkflow() {
       mainStack.push(CommunityComponent) // FIXME change to using router
+    },
+    doManualError() {
+      const err = new Error(
+        '[Manually triggered error from /admin] ' + this.manualErrorMsg,
+      )
+      if (!this.isManualErrorCaught) {
+        throw err
+      }
+      this.$store.dispatch(
+        'flagGlobalError',
+        {
+          msg: `Handling manually thrown error with our code`,
+          err,
+        },
+        { root: true },
+      )
     },
   },
 }
