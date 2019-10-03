@@ -15,7 +15,12 @@ const jsonHeaders = {
 export function wowErrorHandler(msg, err) {
   console.error(msg, err || '(no error object passed')
   const processedError = chainedError(msg, err)
-  Sentry.captureException(processedError)
+  Sentry.withScope(function(scope) {
+    if (err.httpStatus) {
+      scope.setTag('http-status', err.httpStatus)
+    }
+    Sentry.captureException(processedError)
+  })
 }
 
 export function wowWarnHandler(msg, err) {

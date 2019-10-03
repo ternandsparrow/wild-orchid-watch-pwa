@@ -264,6 +264,7 @@ export default {
       const err = new Error(
         '[Manually triggered error from /admin] ' + this.manualErrorMsg,
       )
+      err.httpStatus = 418
       if (!this.isManualErrorCaught) {
         throw err
       }
