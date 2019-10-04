@@ -409,10 +409,9 @@ const actions = {
         geoprivacy: 'obscured',
         // FIXME uploaded records fail the "Date specified" check
         // are we sending the date in the correct format? ISO string or ms number
-        observed_on: nowDate,
+        observed_on_string: nowDate,
         positional_accuracy: state.locAccuracy,
         photos: compressPhotos(record.photos),
-        time_observed_at: nowDate,
         updated_at: nowDate,
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
@@ -427,7 +426,6 @@ const actions = {
         // FIXME get these from UI
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
         // FIXME what do we do with these?
-        // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
         // owners_identification_from_vision: false,
       })
       try {
