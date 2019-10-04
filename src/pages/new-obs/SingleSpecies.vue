@@ -264,9 +264,7 @@ export default {
         .map(e => e.id)
     },
     isEdit() {
-      // TODO should be able to wire directly into the props:{isEdit: Boolean}
-      // of this component but suspect Onsen gets in the way.
-      return this.$route.matched[0].props.default.isEdit
+      return this.$route.matched.some(record => record.meta.isEdit)
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'

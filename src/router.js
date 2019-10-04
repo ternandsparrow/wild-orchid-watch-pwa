@@ -37,7 +37,7 @@ const router = new VueRouter({
       name: 'ObsEdit',
       component: SingleSpecies,
       beforeEnter: resolveObsByIdOrNotFound,
-      props: {
+      meta: {
         isEdit: true,
       },
     },
@@ -45,7 +45,7 @@ const router = new VueRouter({
       path: '/obs/new',
       name: 'ObsNewSingleSpecies',
       component: SingleSpecies,
-      props: {
+      meta: {
         isEdit: false,
       },
     },
