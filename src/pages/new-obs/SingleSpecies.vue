@@ -68,7 +68,7 @@
           :items="speciesGuessAutocompleteItems"
           :initial-value="speciesGuessInitialValue"
           placeholder-text="e.g. snail orchid"
-          @change="onSpeciesGuessInput"
+          @change="debouncedOnSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
         />
         <div class="wow-obs-field-desc">
@@ -125,7 +125,7 @@
               :initial-value="obsFieldInitialValues[currField.id]"
               placeholder-text="e.g. snail orchid"
               :extra-callback-data="currField.id"
-              @change="onTaxonQuestionInput"
+              @change="debouncedOnTaxonQuestionInput"
               @item-selected="onTaxonQuestionSet"
             />
             <div v-else style="color: red;">
@@ -171,7 +171,7 @@
 import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
-import { isNil, trim, isEmpty } from 'lodash'
+import { isNil, trim, isEmpty, debounce } from 'lodash'
 import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
@@ -300,6 +300,13 @@ export default {
       this.initForNew(obsFieldsPromise)
     }
     this.setRecentlyUsedTaxa()
+  },
+  created() {
+    this.debouncedOnSpeciesGuessInput = debounce(this._onSpeciesGuessInput, 300)
+    this.debouncedOnTaxonQuestionInput = debounce(
+      this._onTaxonQuestionInput,
+      300,
+    )
   },
   methods: {
     initForNew(obsFieldsPromise) {
@@ -672,11 +679,11 @@ export default {
         })
         */
     },
-    async onSpeciesGuessInput(data) {
+    async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
       this.speciesGuessAutocompleteItems = result
     },
-    async onTaxonQuestionInput(data) {
+    async _onTaxonQuestionInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
       const fieldId = data.extra
       this.taxonQuestionAutocompleteItems[fieldId] = result
