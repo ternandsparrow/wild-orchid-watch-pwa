@@ -54,7 +54,9 @@ stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
       ```bash
       ./start_tunnel.sh 8080 blah.example.com
       ```
-
+  1. generate a new oauth app on the target inat server, e.g. at https://dev.inat.techotom.com/oauth/applications and fill in the appropriate redirect URL
+  1. update your .env.local
+   
 Now you have a publicly accessible host, with an SSL cert from a trusted CA,
 that also has HotModuleReload. Hack away!
 
