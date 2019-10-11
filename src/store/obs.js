@@ -347,10 +347,8 @@ const actions = {
         const existingPhotos = existingDbRecord.photos || []
         return [...newPhotos, ...existingPhotos]
       })()
-      const nowDate = new Date()
       const enhancedRecord = Object.assign(existingDbRecord, record, {
         photos,
-        updated_at: nowDate,
         uuid: (existingLocalRecord || existingRemoteRecord).uuid,
         wowMeta: {
           [recordTypeFieldName]: recordType('edit'),
@@ -403,16 +401,12 @@ const actions = {
       //   - let the rest of the values be assigned on upload
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
-        created_at: nowDate,
         latitude: state.lat,
         longitude: state.lng,
         geoprivacy: 'obscured',
-        // FIXME uploaded records fail the "Date specified" check
-        // are we sending the date in the correct format? ISO string or ms number
-        observed_on_string: nowDate,
+        observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
         photos: compressPhotos(record.photos),
-        updated_at: nowDate,
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -425,8 +419,6 @@ const actions = {
         uuid: uuid(),
         // FIXME get these from UI
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
-        // FIXME what do we do with these?
-        // owners_identification_from_vision: false,
       })
       try {
         await db.obs.put(enhancedRecord)
@@ -603,32 +595,23 @@ const actions = {
       await worker()
     }
   },
-  async _createObservation({ dispatch }, { obsRecord, dbRecordId }) {
+  async _createObservation({ dispatch }, { obsRecord }) {
     const obsResp = await dispatch(
       'doApiPost',
       { urlSuffix: '/observations', data: obsRecord },
       { root: true },
     )
     const newRecordId = obsResp.id
-    // we don't check the result of this update because there are situations
-    // where, as part of a retry, we upload the same obs data and the
-    // updated_at date is NOT changed. This would result in a 0 rows updated.
-    await db.obs.update(dbRecordId, {
-      updated_at: obsResp.updated_at,
-    })
     return newRecordId
   },
-  async _editObservation(
-    { dispatch },
-    { obsRecord, dbRecordId, inatRecordId },
-  ) {
+  async _editObservation({ dispatch }, { obsRecord, inatRecordId }) {
     if (!inatRecordId) {
       throw new Error(
         `Programmer problem: no iNat record ID ` +
           `passed='${inatRecordId}', cannot continue`,
       )
     }
-    const obsResp = await dispatch(
+    await dispatch(
       'doApiPut',
       {
         urlSuffix: `/observations/${inatRecordId}`,
@@ -636,14 +619,6 @@ const actions = {
       },
       { root: true },
     )
-    const isUpdated = await db.obs.update(dbRecordId, {
-      updated_at: obsResp.updated_at,
-    })
-    if (!isUpdated) {
-      throw new Error(
-        `Db update operation to set updatedAt for (Db) ID='${dbRecordId}' failed`,
-      )
-    }
     return inatRecordId
   },
   async _deleteObservation({ commit, dispatch }, { inatRecordId }) {
@@ -711,7 +686,6 @@ const actions = {
           tasksLeftTodo += linkWithProjectTask
           const inatRecordId = await dispatch('_createObservation', {
             obsRecord: apiRecords.observationPostBody,
-            dbRecordId: dbRecord.id,
           })
           return inatRecordId
         },
@@ -724,7 +698,6 @@ const actions = {
         async start() {
           const inatRecordId = await dispatch('_editObservation', {
             obsRecord: apiRecords.observationPostBody,
-            dbRecordId: dbRecord.id,
             inatRecordId: dbRecord.inatId,
           })
           return inatRecordId
@@ -1113,7 +1086,14 @@ function commonApiToOurDomainObsMapping(result, obsFromApi) {
   result.geolocationAccuracy = obsFromApi.positional_accuracy
 }
 
+/**
+ * Maps an API record into our app domain.
+ */
 function mapObsFromApiIntoOurDomain(obsFromApi) {
+  // BEWARE: these records will be serialised into localStorage so things like
+  // Dates will be flattened into something more primitive. For this reason,
+  // it's best to keep everything simple. Alternatively, you can fix it by
+  // hooking vuex-persistedstate to deserialse objects correctly.
   const directMappingKeys = ['uuid', 'geojson', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
@@ -1135,8 +1115,8 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     verifyWowDomainPhoto(result)
     return result
   })
-  result.createdAt = new Date(obsFromApi.created_at)
-  result.updatedAt = new Date(obsFromApi.updated_at)
+  result.updatedAt = obsFromApi.updated_at
+  result.observedAt = obsFromApi.observed_on_string
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -1177,6 +1157,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   const ignoredKeys = [
     'id',
     'obsFieldValues',
+    'observedAt',
     'photos',
     'placeGuess',
     'speciesGuess',
@@ -1202,7 +1183,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
         },
         {
           species_guess: dbRecord.speciesGuess,
-          created_at: dbRecord.createdAt,
+          observed_on_string: dbRecord.observedAt,
         },
       ),
     }

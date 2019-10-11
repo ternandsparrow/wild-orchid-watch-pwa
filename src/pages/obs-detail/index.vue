@@ -59,7 +59,11 @@
       ></carousel-dots>
       <!-- FIXME add link to species record -->
       <!-- FIXME show correct name based on prefers community ID or not -->
-      <div class="title">{{ nullSafeObs.speciesGuess }}</div>
+      <div class="title">{{ speciesNameText }}</div>
+      <p class="wow-subtitle">
+        Observed:<br />
+        {{ observedDateInfoText }}
+      </p>
     </v-ons-card>
     <relative-tabbar
       :tab-index="selectedTab"
@@ -69,10 +73,8 @@
     <div class="tab-container">
       <div v-if="selectedTab === 0">
         <!-- FIXME show quality grade, quality metrics -->
-        <!-- FIXME show date observed: relative and absolute -->
-        <!-- FIXME show date updated: relative and absolute -->
         <!-- TODO show faves, flags, spam? -->
-        <h3>Observation values</h3>
+        <h3>Observation data</h3>
         <v-ons-list>
           <template v-for="curr of nullSafeObs.obsFieldValues">
             <v-ons-list-header
@@ -88,20 +90,20 @@
               {{ curr.value }}
             </v-ons-list-item>
           </template>
+          <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
+          <v-ons-list-item>
+            <div v-show="nullSafeObs.notes">
+              {{ nullSafeObs.notes }}
+            </div>
+            <div v-show="!nullSafeObs.notes" class="no-notes">
+              (no notes)
+            </div>
+          </v-ons-list-item>
         </v-ons-list>
-        <div>
-          <h3>Notes</h3>
-          <v-ons-list>
-            <v-ons-list-item>
-              <div v-show="nullSafeObs.notes">
-                {{ nullSafeObs.notes }}
-              </div>
-              <div v-show="!nullSafeObs.notes" class="no-notes">
-                (no notes)
-              </div>
-            </v-ons-list-item>
-          </v-ons-list>
-        </div>
+        <p class="wow-subtitle">
+          Record last updated on server:<br />
+          {{ updatedDateInfoText }}
+        </p>
       </div>
       <div v-if="selectedTab === 1">
         <h3>Geolocation</h3>
@@ -141,7 +143,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
-import { formatMetricDistance } from '@/misc/helpers'
+import { formatMetricDistance, humanDateString } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
 
 export default {
@@ -199,6 +201,16 @@ export default {
         lat: this.nullSafeObs.lat,
         lng: this.nullSafeObs.lng,
       }
+    },
+    speciesNameText() {
+      return this.nullSafeObs.speciesGuess || '(No species name)'
+    },
+    observedDateInfoText() {
+      return humanDateString(this.nullSafeObs.observedAt)
+    },
+    updatedDateInfoText() {
+      // local records won't have an updatedAt field yet, that comes from iNat
+      return humanDateString(this.nullSafeObs.updatedAt)
     },
   },
   watch: {
@@ -415,5 +427,9 @@ table.geolocation-detail {
 .error-card {
   background-color: #ffe4e8;
   color: red;
+}
+
+.wow-subtitle {
+  color: #666;
 }
 </style>

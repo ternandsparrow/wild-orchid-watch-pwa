@@ -12,6 +12,7 @@
       <div class="center">
         <span class="list-item__title">{{ speciesGuess(curr) }}</span
         ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
+        <span class="list-item__subtitle">{{ dateInfo(curr) }}</span>
         <span
           v-show="isSystemError(curr)"
           class="list-item__subtitle error-indicator"
@@ -25,6 +26,7 @@
 <script>
 import { noImagePlaceholderUrl } from '@/misc/constants'
 import { isObsSystemError, extractGeolocationText } from '@/store/obs'
+import { humanDateString } from '@/misc/helpers'
 
 export default {
   name: 'ObsList',
@@ -53,6 +55,9 @@ export default {
     },
     isSystemError(record) {
       return isObsSystemError(record)
+    },
+    dateInfo(r) {
+      return humanDateString(r.observedAt)
     },
   },
 }

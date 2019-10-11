@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
+import * as moment from 'moment'
 import { isNil } from 'lodash'
 
 const commonHeaders = {
@@ -280,6 +281,14 @@ export function blobToArrayBuffer(blob) {
     reader.addEventListener('error', reject)
     reader.readAsArrayBuffer(blob)
   })
+}
+
+export function humanDateString(dateStr) {
+  if (!dateStr) {
+    return '(no date recorded)'
+  }
+  const d = moment(dateStr)
+  return `${d.fromNow()}  (${d.format('DD-MMM-YYYY HH:mm')})`
 }
 
 export const _testonly = {
