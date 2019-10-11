@@ -1,4 +1,4 @@
-import objectUnderTest, { _testonly } from '@/store/obs'
+import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 
 describe('mutations', () => {
   describe('addRecentlyUsedTaxa', () => {
@@ -227,6 +227,37 @@ describe('actions', () => {
         // success
       }
     })
+  })
+})
+
+describe('extractGeolocationText', () => {
+  it('should get coords from an API record', () => {
+    const apiRecord = getApiRecord()
+    const result = extractGeolocationText(apiRecord)
+    expect(result).toEqual('-34.974925,138.629120')
+  })
+
+  it('should get coords from a local record', () => {
+    const localRecord = {
+      latitude: 44.12345678,
+      longitude: 33.12345678,
+    }
+    const result = extractGeolocationText(localRecord)
+    expect(result).toEqual('33.123457,44.123457')
+  })
+
+  it('should get a place guess', () => {
+    const record = {
+      placeGuess: 'some place',
+    }
+    const result = extractGeolocationText(record)
+    expect(result).toEqual('some place')
+  })
+
+  it('should fallback to a placeholder if nothing is found', () => {
+    const record = { geojson: null }
+    const result = extractGeolocationText(record)
+    expect(result).toEqual('(No place guess)')
   })
 })
 

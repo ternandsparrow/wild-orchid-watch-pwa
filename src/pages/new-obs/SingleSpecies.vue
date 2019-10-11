@@ -68,7 +68,7 @@
           :items="speciesGuessAutocompleteItems"
           :initial-value="speciesGuessInitialValue"
           placeholder-text="e.g. snail orchid"
-          @change="onSpeciesGuessInput"
+          @change="debouncedOnSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
         />
         <div class="wow-obs-field-desc">
@@ -125,7 +125,7 @@
               :initial-value="obsFieldInitialValues[currField.id]"
               placeholder-text="e.g. snail orchid"
               :extra-callback-data="currField.id"
-              @change="onTaxonQuestionInput"
+              @change="debouncedOnTaxonQuestionInput"
               @item-selected="onTaxonQuestionSet"
             />
             <div v-else style="color: red;">
@@ -171,7 +171,7 @@
 import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
-import { isNil, trim, isEmpty } from 'lodash'
+import { isNil, trim, isEmpty, debounce } from 'lodash'
 import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
@@ -221,6 +221,7 @@ export default {
       numericFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
+      existingRecordSnapshot: null,
     }
   },
   computed: {
@@ -263,9 +264,7 @@ export default {
         .map(e => e.id)
     },
     isEdit() {
-      // TODO should be able to wire directly into the props:{isEdit: Boolean}
-      // of this component but suspect Onsen gets in the way.
-      return this.$route.matched[0].props.default.isEdit
+      return this.$route.matched.some(record => record.meta.isEdit)
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
@@ -296,10 +295,18 @@ export default {
     const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
     if (this.isEdit) {
       this.initForEdit(obsFieldsPromise)
+      this.snapshotExistingRecord()
     } else {
       this.initForNew(obsFieldsPromise)
     }
     this.setRecentlyUsedTaxa()
+  },
+  created() {
+    this.debouncedOnSpeciesGuessInput = debounce(this._onSpeciesGuessInput, 300)
+    this.debouncedOnTaxonQuestionInput = debounce(
+      this._onTaxonQuestionInput,
+      300,
+    )
   },
   methods: {
     initForNew(obsFieldsPromise) {
@@ -570,7 +577,7 @@ export default {
           )
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
-            existingRecordId: this.$store.state.obs.selectedObservationId,
+            existingRecord: this.existingRecordSnapshot,
             photoIdsToDelete: this.photoIdsToDelete,
             obsFieldIdsToDelete,
           })
@@ -589,7 +596,7 @@ export default {
         this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
-          msg: 'Failed to save new observation to local store',
+          msg: 'Failed to save observation to local store',
           userMsg: 'Error while trying to save observation',
           err,
         })
@@ -672,11 +679,11 @@ export default {
         })
         */
     },
-    async onSpeciesGuessInput(data) {
+    async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
       this.speciesGuessAutocompleteItems = result
     },
-    async onTaxonQuestionInput(data) {
+    async _onTaxonQuestionInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
       const fieldId = data.extra
       this.taxonQuestionAutocompleteItems[fieldId] = result
@@ -723,6 +730,15 @@ export default {
     onGeolocationError(error) {
       // FIXME handle the error
       this.$ons.notification.alert('FIXME handle the error:' + error)
+    },
+    snapshotExistingRecord() {
+      // if the user edits a local record but the record is uploaded (and
+      // cleaned up) before the user hits save, we're in trouble. We can recover
+      // as long as we have this snapshot though.
+      this.existingRecordSnapshot = Object.assign(
+        {},
+        this.$store.getters['obs/observationDetail'],
+      )
     },
   },
 }

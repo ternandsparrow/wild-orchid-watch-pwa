@@ -24,7 +24,7 @@
 
 <script>
 import { noImagePlaceholderUrl } from '@/misc/constants'
-import { isObsSystemError } from '@/store/obs'
+import { isObsSystemError, extractGeolocationText } from '@/store/obs'
 
 export default {
   name: 'ObsList',
@@ -49,12 +49,7 @@ export default {
       return record.speciesGuess || '(No species name)'
     },
     placeGuess(record) {
-      const coords =
-        record.geojson &&
-        record.geojson.coordinates &&
-        record.geojson.coordinates
-      const coordString = coords && coords[1] + ',' + coords[0]
-      return record.placeGuess || coordString || '(No place guess)'
+      return extractGeolocationText(record)
     },
     isSystemError(record) {
       return isObsSystemError(record)

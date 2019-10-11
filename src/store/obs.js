@@ -305,21 +305,35 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { state, dispatch, getters },
-    { record, photoIdsToDelete, existingRecordId, obsFieldIdsToDelete },
+    { record, photoIdsToDelete, existingRecord, obsFieldIdsToDelete },
   ) {
+    if (!existingRecord) {
+      throw new Error(
+        'No existing record is passed, cannot continue ' +
+          'as we do not know what we are editing',
+      )
+    }
+    const existingRecordId = existingRecord.id
+    const existingRecordUuid = existingRecord.uuid
     try {
       const existingLocalRecord = getters.localRecords.find(
-        e => e.inatId === existingRecordId,
+        e => e.uuid === existingRecordUuid,
+      )
+      const existingRemoteRecord = state.allRemoteObs.find(
+        e => e.uuid === existingRecordUuid,
       )
       const existingDbRecord = await (() => {
         if (existingLocalRecord) {
           return db.obs.get(existingLocalRecord.id)
         }
-        return { inatId: existingRecordId }
+        return { inatId: existingRemoteRecord.inatId }
       })()
-      const existingRemoteRecord = state.allRemoteObs.find(
-        e => e.inatId === existingRecordId,
-      )
+      if (!existingLocalRecord && !existingRemoteRecord) {
+        throw new Error(
+          'Data problem: Cannot find existing local or remote record,' +
+            'cannot continue without at least one',
+        )
+      }
       const photos = (() => {
         const newPhotos = compressPhotos(record.photos) || []
         const isEditingRemoteDirectly =
@@ -337,7 +351,7 @@ const actions = {
       const enhancedRecord = Object.assign(existingDbRecord, record, {
         photos,
         updated_at: nowDate,
-        uuid: (existingLocalRecord || {}).uuid || existingRemoteRecord.uuid,
+        uuid: (existingLocalRecord || existingRemoteRecord).uuid,
         wowMeta: {
           [recordTypeFieldName]: recordType('edit'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -374,8 +388,8 @@ const actions = {
       await dispatch('onLocalRecordEvent')
     } catch (err) {
       throw chainedError(
-        `Failed to save edited record with ` +
-          `ID='${existingRecordId}' to local queue.`,
+        `Failed to save edited record with ID='${existingRecordId}'` +
+          ` and UUID='${existingRecordUuid}' to local queue.`,
         err,
       )
     }
@@ -395,10 +409,9 @@ const actions = {
         geoprivacy: 'obscured',
         // FIXME uploaded records fail the "Date specified" check
         // are we sending the date in the correct format? ISO string or ms number
-        observed_on: nowDate,
+        observed_on_string: nowDate,
         positional_accuracy: state.locAccuracy,
         photos: compressPhotos(record.photos),
-        time_observed_at: nowDate,
         updated_at: nowDate,
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
@@ -413,7 +426,6 @@ const actions = {
         // FIXME get these from UI
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
         // FIXME what do we do with these?
-        // observed_on_string: '2019-07-17 3:42:32 PM GMT+09:30',
         // owners_identification_from_vision: false,
       })
       try {
@@ -610,6 +622,12 @@ const actions = {
     { dispatch },
     { obsRecord, dbRecordId, inatRecordId },
   ) {
+    if (!inatRecordId) {
+      throw new Error(
+        `Programmer problem: no iNat record ID ` +
+          `passed='${inatRecordId}', cannot continue`,
+      )
+    }
     const obsResp = await dispatch(
       'doApiPut',
       {
@@ -1234,6 +1252,27 @@ function migrateRecentlyUsedTaxa(store) {
     )
   }
   store.commit('obs/setRecentlyUsedTaxa', cleaned)
+}
+
+export function extractGeolocationText(record) {
+  const coordString = (() => {
+    const apiRecordCoords = (record.geojson || {}).coordinates
+    if (apiRecordCoords) {
+      return formatCoords(apiRecordCoords[1], apiRecordCoords[0])
+    }
+    if (record.longitude && record.latitude) {
+      return formatCoords(record.longitude, record.latitude)
+    }
+    return null
+  })()
+  return record.placeGuess || coordString || '(No place guess)'
+  function formatCoords(lng, lat) {
+    return `${trimDecimalPlaces(lng)},${trimDecimalPlaces(lat)}`
+  }
+}
+
+function trimDecimalPlaces(val) {
+  return parseFloat(val).toFixed(6)
 }
 
 export const _testonly = {
