@@ -231,16 +231,10 @@ describe('actions', () => {
 })
 
 describe('extractGeolocationText', () => {
-  it('should get coords from an API record', () => {
-    const apiRecord = getApiRecord()
-    const result = extractGeolocationText(apiRecord)
-    expect(result).toEqual('-34.974925,138.629120')
-  })
-
-  it('should get coords from a local record', () => {
+  it('should get coords from a record in our domain', () => {
     const localRecord = {
-      latitude: 44.12345678,
-      longitude: 33.12345678,
+      lat: 44.12345678,
+      lng: 33.12345678,
     }
     const result = extractGeolocationText(localRecord)
     expect(result).toEqual('33.123457,44.123457')
