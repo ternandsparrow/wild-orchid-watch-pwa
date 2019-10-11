@@ -401,8 +401,8 @@ const actions = {
       //   - let the rest of the values be assigned on upload
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
-        latitude: state.lat,
-        longitude: state.lng,
+        lat: state.lat,
+        lng: state.lng,
         geoprivacy: 'obscured',
         observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
@@ -971,8 +971,6 @@ async function resolveLocalRecordIds(ids) {
     const photos = e.photos.map(mapPhotoFromDbToUi)
     const result = {
       ...e,
-      lat: e.latitude,
-      lng: e.longitude,
       photos,
     }
     commonApiToOurDomainObsMapping(result, e)
@@ -1094,7 +1092,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   // Dates will be flattened into something more primitive. For this reason,
   // it's best to keep everything simple. Alternatively, you can fix it by
   // hooking vuex-persistedstate to deserialse objects correctly.
-  const directMappingKeys = ['uuid', 'geojson', 'geoprivacy']
+  const directMappingKeys = ['uuid', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
     if (!isNil(value)) {
@@ -1156,6 +1154,8 @@ function processObsFieldName(fieldName) {
 function mapObsFromOurDomainOntoApi(dbRecord) {
   const ignoredKeys = [
     'id',
+    'lat',
+    'lng',
     'obsFieldValues',
     'observedAt',
     'photos',
@@ -1182,8 +1182,10 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
           return accum
         },
         {
-          species_guess: dbRecord.speciesGuess,
+          latitude: dbRecord.lat,
+          longitude: dbRecord.lng,
           observed_on_string: dbRecord.observedAt,
+          species_guess: dbRecord.speciesGuess,
         },
       ),
     }
@@ -1237,12 +1239,9 @@ function migrateRecentlyUsedTaxa(store) {
 
 export function extractGeolocationText(record) {
   const coordString = (() => {
-    const apiRecordCoords = (record.geojson || {}).coordinates
-    if (apiRecordCoords) {
-      return formatCoords(apiRecordCoords[1], apiRecordCoords[0])
-    }
-    if (record.longitude && record.latitude) {
-      return formatCoords(record.longitude, record.latitude)
+    const isCoords = record.lng && record.lat
+    if (isCoords) {
+      return formatCoords(record.lng, record.lat)
     }
     return null
   })()

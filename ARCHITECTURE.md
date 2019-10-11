@@ -59,6 +59,12 @@ ObjectURL in vuex.
 
 
 ## iNaturalist
+**created_at, updated_at timestamps**: iNat doesn't use the values that we
+supply for these fields so we don't bother storing them locally. Brief tests
+also showed that the `updated_at` field doesn't change when we PUT the
+observation record. So when a user edits a record, we can't even show them a
+meaningful "last updated at" date. We only have the observation date to use.
+
 TODO, talk about:
   - strong community
   - mature platform

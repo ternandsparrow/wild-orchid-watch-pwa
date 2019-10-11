@@ -10,7 +10,6 @@
         ></v-ons-toolbar-button>
       </template>
     </custom-toolbar>
-    <!-- FIXME add user and timestamp -->
 
     <v-ons-card v-show="isSystemError" class="error-card">
       <div class="title">Error uploading record</div>
@@ -100,10 +99,6 @@
             </div>
           </v-ons-list-item>
         </v-ons-list>
-        <p class="wow-subtitle">
-          Record last updated on server:<br />
-          {{ updatedDateInfoText }}
-        </p>
       </div>
       <div v-if="selectedTab === 1">
         <h3>Geolocation</h3>
@@ -156,7 +151,6 @@ export default {
         color: '#5d5d5d',
       },
       selectedTab: 0,
-      currentPosition: { lat: -34.9786554, lng: 138.6487938 },
       tabs: [
         { icon: 'fa-info' },
         { icon: 'fa-map-marked-alt' },
@@ -170,7 +164,6 @@ export default {
       return isObsSystemError(this.nullSafeObs)
     },
     nullSafeObs() {
-      // FIXME is this a code smell?
       return this.observationDetail || {}
     },
     isPhotos() {
@@ -197,20 +190,20 @@ export default {
       }))
     },
     obsCoords() {
-      return {
+      const result = {
         lat: this.nullSafeObs.lat,
         lng: this.nullSafeObs.lng,
       }
+      if (result.lat && result.lng) {
+        return result
+      }
+      return null
     },
     speciesNameText() {
       return this.nullSafeObs.speciesGuess || '(No species name)'
     },
     observedDateInfoText() {
       return humanDateString(this.nullSafeObs.observedAt)
-    },
-    updatedDateInfoText() {
-      // local records won't have an updatedAt field yet, that comes from iNat
-      return humanDateString(this.nullSafeObs.updatedAt)
     },
   },
   watch: {
@@ -328,22 +321,8 @@ export default {
       )
     },
     onEdit() {
-      const obsId = this.nullSafeObs.inatId // FIXME need to also check .id for local-only records
+      const obsId = this.nullSafeObs.inatId
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
-    },
-    doGeolocation() {
-      console.log('Doing geolocation call')
-      navigator.geolocation.getCurrentPosition(
-        this.handleLocation,
-        this.onGeolocationError,
-      )
-    },
-    handleLocation(position) {
-      this.currentPosition = position
-    },
-    onGeolocationError(error) {
-      // FIXME handle the error
-      this.$ons.notification.alert('FIXME handle the error:' + error)
     },
   },
 }
