@@ -81,13 +81,25 @@
         Dump vuex from localStorage
       </div>
       <p>
-        <v-ons-checkbox v-model="isIncludeObs" input-id="include-obs">
+        <v-ons-checkbox
+          v-model="isIncludeLocalObs"
+          input-id="include-local-obs"
+        >
         </v-ons-checkbox>
-        <label for="include-obs">
-          Include observations
+        <label for="include-local-obs">
+          Include local observations
         </label>
       </p>
-
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeRemoteObs"
+          input-id="include-remote-obs"
+        >
+        </v-ons-checkbox>
+        <label for="include-remote-obs">
+          Include remote observations
+        </label>
+      </p>
       <p>
         <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
       </p>
@@ -146,7 +158,8 @@ export default {
       storageUsedPercent: 0,
       meResp: '(nothing yet)',
       vuexDump: '(nothing yet)',
-      isIncludeObs: false,
+      isIncludeLocalObs: false,
+      isIncludeRemoteObs: false,
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
@@ -212,8 +225,15 @@ export default {
         constants.persistedStateLocalStorageKey,
       )
       const parsed = JSON.parse(rawDump)
-      if (!this.isIncludeObs) {
-        parsed.obs.myObs = `(excluded, ${parsed.obs.myObs.length} item array)`
+      if (!this.isIncludeLocalObs) {
+        parsed.obs._uiVisibleLocalRecords = `(excluded, ${
+          parsed.obs._uiVisibleLocalRecords.length
+        } item array)`
+      }
+      if (!this.isIncludeRemoteObs) {
+        parsed.obs.allRemoteObs = `(excluded, ${
+          parsed.obs.allRemoteObs.length
+        } item array)`
       }
       this.vuexDump = JSON.stringify(parsed, null, 2)
     },
