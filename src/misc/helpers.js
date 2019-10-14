@@ -209,7 +209,7 @@ export function formatMetricDistance(metres) {
   if (!metres) {
     return metres
   } else if (metres < 1000) {
-    return `${metres}m`
+    return `${metres.toFixed(0)}m`
   }
   const kmVal = (metres / 1000).toFixed(1)
   return `${kmVal}km`

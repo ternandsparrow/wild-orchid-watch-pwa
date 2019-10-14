@@ -44,6 +44,11 @@ describe('formatMetricDistance', () => {
     expect(result).toEqual('123m')
   })
 
+  it('should handle fractions of a meter', () => {
+    const result = _testonly.formatMetricDistance(123.456789)
+    expect(result).toEqual('123m')
+  })
+
   it('should handle greater than 1 km', () => {
     const result = _testonly.formatMetricDistance(8323)
     expect(result).toEqual('8.3km')
