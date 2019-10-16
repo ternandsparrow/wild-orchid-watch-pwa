@@ -500,7 +500,8 @@ export default {
           const val = this.obsFieldValues[currId]
           // if we're in edit mode and the user doesn't touch this question,
           // it'll just be the string value not the selected item
-          const paramToPass = typeof val === 'object' ? val : null
+          const hasUserEditedAnswer = typeof val === 'object'
+          const paramToPass = hasUserEditedAnswer ? val : null
           this.$store.commit('obs/addRecentlyUsedTaxa', {
             type: currId,
             value: paramToPass,
@@ -569,7 +570,10 @@ export default {
               const isEmpty = isDeletedObsFieldValue(value)
               if (isEmpty && hadValueBeforeEditing) {
                 const obsFieldInstance = this.getObsFieldInstance(currKey)
-                accum.push(obsFieldInstance.relationshipId)
+                const isObsFieldStoredOnRemote = obsFieldInstance.relationshipId
+                if (isObsFieldStoredOnRemote) {
+                  accum.push(obsFieldInstance.relationshipId)
+                }
               }
               return accum
             },

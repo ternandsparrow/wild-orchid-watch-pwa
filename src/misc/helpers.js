@@ -291,10 +291,29 @@ export function humanDateString(dateStr) {
   return `${d.fromNow()}  (${d.format('DD-MMM-YYYY HH:mm')})`
 }
 
+export function formatStorageSize(byteCount) {
+  const oneMb = 1000 * 1000
+  const tenMb = 10 * oneMb
+  const oneGb = 1000 * oneMb
+  const isZero = byteCount === 0
+  if (isZero) {
+    return 'nothing'
+  }
+  const isLessThan1mb = byteCount < oneMb
+  if (isLessThan1mb) {
+    return 'less than 1MB'
+  }
+  const isBetween1and10mb = byteCount > oneMb && byteCount < tenMb
+  if (isBetween1and10mb) {
+    return (byteCount / oneMb).toFixed(1) + 'MB'
+  }
+  const isGreaterThan10mb = byteCount > tenMb && byteCount < oneGb
+  if (isGreaterThan10mb) {
+    return (byteCount / oneMb).toFixed(0) + 'MB'
+  }
+  return (byteCount / oneGb).toFixed(1) + 'GB'
+}
+
 export const _testonly = {
-  buildUrlSuffix,
-  formatMetricDistance,
   isRespJson,
-  makeEnumValidator,
-  verifyWowDomainPhoto,
 }

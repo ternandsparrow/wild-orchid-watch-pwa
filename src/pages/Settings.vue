@@ -1,23 +1,61 @@
 <template>
   <v-ons-page>
     <v-ons-list>
-      <v-ons-list-header
-        >You can customise the WoW Field Data Collection App's settings
-        here</v-ons-list-header
-      >
       <ons-list-item>
-        <label class="center">
-          Logout from Wild Orchid Watch and iNaturalist, and delete all local
-          app data
-        </label>
+        <div class="center">
+          <span class="list-item__title">When to sync with server</span
+          ><span class="list-item__subtitle">Control your data usage</span>
+          <div class="wow-options-container">
+            <v-ons-select v-model="whenToSync">
+              <option
+                v-for="curr in whenToSyncOptions"
+                :key="'wtu-' + curr.value"
+                :value="curr.value"
+              >
+                {{ curr.label }}
+              </option>
+            </v-ons-select>
+          </div>
+        </div>
+      </ons-list-item>
+      <v-ons-list-header>Info</v-ons-list-header>
+      <ons-list-item>
+        <div class="left wow-flexcol">
+          <div>Storage usage:</div>
+          <div v-show="!isStorageReadable" class="error-msg">
+            Cannot compute used storage
+          </div>
+          <div v-show="isStorageReadable">{{ storageMsg }}</div>
+        </div>
+        <div class="right">
+          <v-ons-progress-circular
+            v-show="isStorageReadable"
+            :value="storageUsedPercent"
+            secondary-value="100"
+          ></v-ons-progress-circular>
+        </div>
+      </ons-list-item>
+      <v-ons-list-header>Actions</v-ons-list-header>
+      <ons-list-item>
+        <div class="center">
+          <span class="list-item__title"
+            >Logout from Wild Orchid Watch and iNaturalist</span
+          ><span class="list-item__subtitle"
+            >Will delete all local app data</span
+          >
+        </div>
         <div class="right">
           <v-ons-button @click="doLogout">Logout</v-ons-button>
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center">
-          View onboarder again
-        </label>
+        <div class="center">
+          <span class="list-item__title">View onboarder again</span
+          ><span class="list-item__subtitle"
+            >The series of information you saw when you first used this
+            app</span
+          >
+        </div>
         <div class="right">
           <v-ons-button @click="handleResetOnboarderClick"
             >Show now</v-ons-button
@@ -25,35 +63,25 @@
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center">
-          Refresh iNaturalist profile
-        </label>
+        <div class="center">
+          <span class="list-item__title">Refresh iNaturalist profile</span
+          ><span class="list-item__subtitle"
+            >Refreshed daily but this will trigger a refresh now</span
+          >
+        </div>
         <div class="right">
           <v-ons-button @click="doInatProfileRefresh">Refresh</v-ons-button>
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center">
-          Check for app update now
-        </label>
+        <div class="center">
+          <span class="list-item__title">Check for app update now</span
+          ><span class="list-item__subtitle"
+            >If an update is available, you will be prompted to install it</span
+          >
+        </div>
         <div class="right">
           <v-ons-button @click="doManualUpdateCheck">Check</v-ons-button>
-        </div>
-      </ons-list-item>
-      <ons-list-item>
-        <label class="center">
-          When to sync with server
-        </label>
-        <div class="right">
-          <v-ons-select v-model="whenToSync">
-            <option
-              v-for="curr in whenToSyncOptions"
-              :key="'wtu-' + curr.value"
-              :value="curr.value"
-            >
-              {{ curr.label }}
-            </option>
-          </v-ons-select>
         </div>
       </ons-list-item>
       <!-- ons-list-item>
@@ -80,6 +108,7 @@
 import { mapState } from 'vuex'
 import { deleteAllDatabases } from '@/indexeddb/dexie-store'
 import { alwaysUpload, neverUpload, beginner, expert } from '@/misc/constants'
+import { formatStorageSize } from '@/misc/helpers'
 
 export default {
   name: 'Settings',
@@ -87,13 +116,17 @@ export default {
     return {
       whenToSyncOptions: [
         // FIXME support more options: only WiFi
-        { value: alwaysUpload, label: 'Always' },
+        { value: alwaysUpload, label: 'Always (WiFi, mobile data)' },
         { value: neverUpload, label: 'Never' },
       ],
       userModeOptions: [
         { value: beginner, label: 'Beginner' },
         { value: expert, label: 'Expert' },
       ],
+      storageQuota: 0,
+      storageUsage: 0,
+      storageUsedPercent: 0,
+      isStorageReadable: true,
     }
   },
   computed: {
@@ -118,9 +151,17 @@ export default {
         this.$store.commit('app/setUserMode', newValue)
       },
     },
+    storageMsg() {
+      const quota = formatStorageSize(this.storageQuota)
+      const usage = formatStorageSize(this.storageUsage)
+      return `Used ${usage} of ${quota} (${this.storageUsedPercent}%)`
+    },
   },
   mounted() {
     this.$store.commit('app/setTopTitle', 'Settings')
+  },
+  created() {
+    this.updateStorageStats()
   },
   methods: {
     async doInatProfileRefresh() {
@@ -206,6 +247,18 @@ export default {
           })
         })
     },
+    async updateStorageStats() {
+      const estimate = await navigator.storage.estimate()
+      this.storageQuota = estimate.quota
+      this.storageUsage = estimate.usage
+      const usedPercentRaw = (this.storageUsage / this.storageQuota) * 100
+      if (isNaN(usedPercentRaw)) {
+        this.isStorageReadable = false
+        this.storageUsedPercent = 0
+      } else {
+        this.storageUsedPercent = twoDecimalPlaces(usedPercentRaw)
+      }
+    },
   },
 }
 
@@ -226,4 +279,25 @@ function unregisterAllServiceWorkers() {
     }
   })
 }
+
+function twoDecimalPlaces(v) {
+  return +v.toFixed(2)
+}
 </script>
+
+<style lang="scss" scoped>
+.error-msg {
+  color: red;
+}
+
+.wow-flexcol {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.wow-options-container {
+  order: 1;
+  text-align: center;
+  flex-basis: 100%;
+}
+</style>
