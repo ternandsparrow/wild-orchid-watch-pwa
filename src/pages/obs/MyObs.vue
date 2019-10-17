@@ -116,7 +116,12 @@ export default {
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
     doRefresh(done) {
-      if (this.isUserLoggedIn) {
+      if (!this.networkOnLine) {
+        this.$ons.notification.toast('Cannot refresh while offline', {
+          timeout: 3000,
+          animation: 'fall',
+        })
+      } else if (this.isUserLoggedIn) {
         this.$store.dispatch('obs/refreshRemoteObs')
       }
       done && done()
