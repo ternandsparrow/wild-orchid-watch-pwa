@@ -22,7 +22,7 @@ workbox.routing.registerNavigationRoute('/index.html', {})
 
 workbox.routing.registerRoute(
   /^https:\/\/fonts/,
-  new workbox.strategies.StaleWhileRevalidate({
+  new workbox.strategies.CacheFirst({
     cacheName: 'fonts.googleapis',
     plugins: [],
   }),
@@ -47,7 +47,7 @@ workbox.routing.registerRoute(
 
 workbox.routing.registerRoute(
   new RegExp(`^${inatUrl}/.*`),
-  new workbox.strategies.StaleWhileRevalidate({
+  new workbox.strategies.CacheFirst({
     // TODO is this relevant? If so, do we want it?
     // plugins: [
     //   new workbox.expiration.Plugin({
@@ -63,7 +63,7 @@ const isStaticServerDifferent = inatUrl !== inatStaticUrl
 if (isStaticServerDifferent) {
   workbox.routing.registerRoute(
     new RegExp(`^${inatStaticUrl}/.*`),
-    new workbox.strategies.StaleWhileRevalidate(),
+    new workbox.strategies.CacheFirst(),
     'GET',
   )
 }
