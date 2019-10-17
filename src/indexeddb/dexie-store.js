@@ -12,6 +12,10 @@ db.version(1).stores({
 
 export default db
 
+export function isDbOpen() {
+  return db.isOpen()
+}
+
 // will kill our app DB and, depending on which browser we're in, maybe also
 // wipe SW cache and any other DBs, which is also fine.
 export async function deleteAllDatabases() {

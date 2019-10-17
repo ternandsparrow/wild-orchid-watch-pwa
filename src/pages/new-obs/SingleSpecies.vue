@@ -171,7 +171,7 @@
 import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
-import { isNil, trim, isEmpty, debounce } from 'lodash'
+import { isNil, trim, isEmpty, debounce, cloneDeep } from 'lodash'
 import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
@@ -328,7 +328,7 @@ export default {
           },
           this.obsFieldValues,
         )
-        this.obsFieldInitialValues = Object.assign({}, this.obsFieldValues)
+        this.obsFieldInitialValues = cloneDeep(this.obsFieldValues)
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -739,8 +739,7 @@ export default {
       // if the user edits a local record but the record is uploaded (and
       // cleaned up) before the user hits save, we're in trouble. We can recover
       // as long as we have this snapshot though.
-      this.existingRecordSnapshot = Object.assign(
-        {},
+      this.existingRecordSnapshot = cloneDeep(
         this.$store.getters['obs/observationDetail'],
       )
     },

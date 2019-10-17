@@ -3,20 +3,6 @@
     <custom-toolbar back-label="Cancel" title="Admin"></custom-toolbar>
     <v-ons-card>
       <div class="title">
-        Storage stats
-      </div>
-      <p>
-        <v-ons-progress-bar
-          :value="storageUsedPercent"
-          :secondary-value="100"
-        ></v-ons-progress-bar>
-      </p>
-      <div>
-        {{ storageMsg }}
-      </div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Location test
       </div>
       <div class="text-center">
@@ -29,6 +15,18 @@
         <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
         <v-ons-button @click="getLocation">Get location</v-ons-button>
       </div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Is Dexie DB open?
+      </div>
+      <p class="mono">
+        <strong>Result = {{ isDbOpen }}</strong>
+      </p>
+      <p>
+        Note: we lazy open the DB on first use so if you navigate directly to
+        this page, it might have not opened yet. Don't panic!
+      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -81,6 +79,13 @@
         Dump vuex from localStorage
       </div>
       <p>
+        <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
+        </v-ons-checkbox>
+        <label for="include-project">
+          Include project details
+        </label>
+      </p>
+      <p>
         <v-ons-checkbox
           v-model="isIncludeLocalObs"
           input-id="include-local-obs"
@@ -98,6 +103,16 @@
         </v-ons-checkbox>
         <label for="include-remote-obs">
           Include remote observations
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeSpeciesList"
+          input-id="include-species-list"
+        >
+        </v-ons-checkbox>
+        <label for="include-species-list">
+          Include species list
         </label>
       </p>
       <p>
@@ -136,15 +151,18 @@
         >Community workflow</v-ons-button
       >
     </v-ons-card>
+    <div class="footer-whitespace"></div>
   </v-ons-page>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
+import _ from 'lodash'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
+import { isDbOpen } from '@/indexeddb/dexie-store'
 
 export default {
   data() {
@@ -153,16 +171,16 @@ export default {
       lng: null,
       alt: null,
       locErrorMsg: null,
-      storageQuota: 0,
-      storageUsage: 0,
-      storageUsedPercent: 0,
       meResp: '(nothing yet)',
       vuexDump: '(nothing yet)',
       isIncludeLocalObs: false,
       isIncludeRemoteObs: false,
+      isIncludeSpeciesList: false,
+      isIncludeProject: false,
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
+      isDbOpen: '(not checked yet)',
     }
   },
   computed: {
@@ -170,15 +188,10 @@ export default {
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
-    storageMsg() {
-      const quotaMb = twoDecimalPlaces(this.storageQuota / 1000 / 1000)
-      const usageMb = twoDecimalPlaces(this.storageUsage / 1000 / 1000)
-      return `Used ${usageMb}MB of ${quotaMb}MB (${this.storageUsedPercent}%)`
-    },
   },
   created() {
-    this.updateStorageStats()
     this.computeConfigItems()
+    this.isDbOpen = isDbOpen()
   },
   methods: {
     doLQP() {
@@ -221,10 +234,7 @@ export default {
       this.configItems = result
     },
     doVuexDump() {
-      const rawDump = localStorage.getItem(
-        constants.persistedStateLocalStorageKey,
-      )
-      const parsed = JSON.parse(rawDump)
+      const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
         parsed.obs._uiVisibleLocalRecords = `(excluded, ${
           parsed.obs._uiVisibleLocalRecords.length
@@ -235,16 +245,15 @@ export default {
           parsed.obs.allRemoteObs.length
         } item array)`
       }
+      if (!this.isIncludeProject) {
+        parsed.obs.projectInfo = '(excluded)'
+      }
+      if (!this.isIncludeSpeciesList) {
+        parsed.obs.mySpecies = `(excluded, ${
+          parsed.obs.mySpecies.length
+        } item array)`
+      }
       this.vuexDump = JSON.stringify(parsed, null, 2)
-    },
-    async updateStorageStats() {
-      const estimate = await navigator.storage.estimate()
-      this.storageQuota = estimate.quota
-      this.storageUsage = estimate.usage
-      const usedPercentRaw = (this.storageUsage / this.storageQuota) * 100
-      this.storageUsedPercent = twoDecimalPlaces(
-        isNaN(usedPercentRaw) ? 0 : usedPercentRaw,
-      )
     },
     getLocation() {
       this.locErrorMsg = null
@@ -299,10 +308,6 @@ export default {
     },
   },
 }
-
-function twoDecimalPlaces(v) {
-  return +v.toFixed(2)
-}
 </script>
 
 <style lang="scss" scoped>
@@ -330,5 +335,9 @@ function twoDecimalPlaces(v) {
 .config-item-value {
   font-family: monospace;
   overflow: auto;
+}
+
+.footer-whitespace {
+  height: 100vh;
 }
 </style>
