@@ -34,7 +34,7 @@
           <span v-if="isSyncDisabled"
             >(Sync <span class="red">disabled</span> in settings)</span
           >
-          <span v-if="!networkOnLine"
+          <span v-if="!networkOnLine && !isSyncDisabled"
             >(Will retry when we're back online)</span
           ></v-ons-list-header
         >
