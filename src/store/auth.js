@@ -2,14 +2,13 @@ import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
 import jwt from 'jsonwebtoken'
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
-import { wowWarnHandler } from '@/misc/helpers'
-import { persistedStateLocalStorageKey } from '@/misc/constants'
 
 import {
   apiUrlBase,
   appId,
   inatUrlBase,
   noProfilePicPlaceholderUrl,
+  persistedStateLocalStorageKey,
   redirectUri,
 } from '@/misc/constants'
 import {
@@ -21,6 +20,7 @@ import {
   postFormDataWithAuth,
   postJsonWithAuth,
   putJsonWithAuth,
+  wowWarnHandler,
 } from '@/misc/helpers'
 
 let updateApiTokenPromise = null
