@@ -2,6 +2,8 @@ import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
 import jwt from 'jsonwebtoken'
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
+import { wowWarnHandler } from '@/misc/helpers'
+import { persistedStateLocalStorageKey } from '@/misc/constants'
 
 import {
   apiUrlBase,
@@ -237,6 +239,7 @@ export default {
     async doLogin({ state, dispatch }) {
       await dispatch('_generatePkcePair')
       const challenge = state.code_challenge
+      await dispatch('_assertReadyForOauthCallback')
       location.assign(
         `${inatUrlBase}/oauth/authorize?
         client_id=${appId}&
@@ -245,6 +248,32 @@ export default {
         code_challenge_method=S256&
         response_type=code`.replace(/\s/g, ''),
       )
+    },
+    _assertReadyForOauthCallback({ state }) {
+      const cc = state.code_challenge
+      const cv = state.code_verifier
+      const isPkceValsGenerated = cc && cv
+      if (!isPkceValsGenerated) {
+        const msg =
+          'Some, or all, PKCE values are missing from vuex: ' +
+          `code_challenge='${cc}', code_verifier=${cv}`
+        wowWarnHandler(msg)
+        return
+      }
+      const persistedStore = JSON.parse(
+        localStorage.getItem(persistedStateLocalStorageKey) || '{}',
+      )
+      const persistedCc = persistedStore.auth.code_challenge
+      const persistedCv = persistedStore.auth.code_verifier
+      const isPkceValsMirroredInLocalStorage = persistedCc && persistedCv
+      if (!isPkceValsMirroredInLocalStorage) {
+        const msg =
+          'Some, or all, PKCE values are missing from localStorage mirror: ' +
+          `code_challenge='${persistedCc}', code_verifier=${persistedCv}`
+        wowWarnHandler(msg)
+        return
+      }
+      console.debug('PKCE values all look good to go!')
     },
     async doLogout({ state, dispatch }) {
       if (!state.token) {
