@@ -45,16 +45,15 @@ workbox.routing.registerRoute(
   'GET',
 )
 
+// TODO if we can't cache images, do we even want caching?
 workbox.routing.registerRoute(
   new RegExp(`^${inatUrl}/.*`),
   new workbox.strategies.CacheFirst({
-    // TODO is this relevant? If so, do we want it?
-    // plugins: [
-    //   new workbox.expiration.Plugin({
-    //     maxEntries: 100, // TODO is this enough?
-    //     maxAgeSeconds: 60 * 60, // 1 hour
-    //   }),
-    // ],
+    plugins: [
+      new workbox.expiration.Plugin({
+        maxAgeSeconds: 1 * 60 * 60, // 1 hour
+      }),
+    ],
   }),
   'GET',
 )
