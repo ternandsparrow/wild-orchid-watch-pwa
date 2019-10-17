@@ -76,8 +76,19 @@ const actions = {
     return true
   },
 }
+
+const ACTIVE = 'active'
+
 const getters = {
   newContentAvailable: state => !isNil(state.SWRegistrationForNewContent),
+  swStatus: state => {
+    const nullSafeSwReg = state.swReg || {}
+    return [ACTIVE, 'installing', 'waiting'].reduce((accum, curr) => {
+      accum[curr] = !!nullSafeSwReg[curr]
+      return accum
+    }, {})
+  },
+  isSwActive: (state, getters) => getters.swStatus[ACTIVE],
 }
 
 export default {

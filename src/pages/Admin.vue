@@ -30,6 +30,24 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Service Worker statuses
+      </div>
+      <p class="mono">
+        <span v-if="isSwActive" class="success-msg">All ready to go!</span>
+        <span v-if="!isSwActive" class="error-msg"
+          >SW is either not ready or not supported :(</span
+        >
+      </p>
+      <p class="mono">
+        <strong>Active = {{ swStatus.active }}</strong
+        ><br />
+        <strong>Installing = {{ swStatus.installing }}</strong
+        ><br />
+        <strong>Waiting = {{ swStatus.waiting }}</strong>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Login test
       </div>
       <div>Logged in = {{ isUserLoggedIn }}</div>
@@ -185,6 +203,7 @@ export default {
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
+    ...mapGetters('ephemeral', ['swStatus', 'isSwActive']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
