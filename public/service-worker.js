@@ -22,7 +22,7 @@ workbox.routing.registerNavigationRoute('/index.html', {})
 
 workbox.routing.registerRoute(
   /^https:\/\/fonts/,
-  workbox.strategies.staleWhileRevalidate({
+  new workbox.strategies.StaleWhileRevalidate({
     cacheName: 'fonts.googleapis',
     plugins: [],
   }),
