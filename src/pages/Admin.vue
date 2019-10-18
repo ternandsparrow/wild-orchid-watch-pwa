@@ -313,6 +313,7 @@ export default {
         '[Manually triggered error from /admin] ' + this.manualErrorMsg,
       )
       err.httpStatus = 418
+      err.name = 'ManuallyTriggeredError'
       if (!this.isManualErrorCaught) {
         throw err
       }

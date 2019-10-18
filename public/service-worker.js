@@ -1,4 +1,24 @@
 importScripts('./wow-env-vars.js') // written by DumpVueEnvVarsWebpackPlugin
+
+// vue-analtyics is responsible for inserting the <script> tag into our header.
+// It does NOT include the crossorigin="anonymous" attribute, but it turns out
+// that's correct because the server doesn't provide CORS headers. The workbox
+// GA init call below adds a cache mapping for the script but it's opaque so it
+// hurts our storage usage. Options are to take the quota hit (do nothing) or
+// to override the cache settings so we don't cache the script and hope
+// everything still works (browser disk cache should have a hit). We're using
+// the latter approach here and we need to be *before* the init so we take
+// precedence.
+workbox.routing.registerRoute(
+  /^https:\/\/www.google-analytics.com\/analytics.js/,
+  new workbox.strategies.NetworkOnly({}),
+  'GET',
+)
+
+// thanks https://developers.google.com/web/tools/workbox/guides/enable-offline-analytics
+// note: we don't have to importScripts() because webpack handles that for us
+workbox.googleAnalytics.initialize()
+
 // vars come from script imported above
 const apiUrl = VUE_APP_API_BASE_URL
 console.debug(`Using API URL = ${apiUrl}`)
@@ -28,6 +48,19 @@ workbox.routing.registerRoute(
     plugins: [],
   }),
   'GET',
+)
+
+workbox.routing.registerRoute(
+  /^https:\/\/sentry.io\/api/,
+  new workbox.strategies.NetworkOnly({
+    cacheName: 'sentry-reports',
+    plugins: [
+      new workbox.backgroundSync.Plugin('sentryReportsQueue', {
+        // not specifying 'maxRetentionTime' so we get all reports, eventually
+      }),
+    ],
+  }),
+  'POST',
 )
 
 // never cache requests for API auth tokens.

@@ -90,6 +90,9 @@ site at the same time, from the same account and project.
 To figure out how many people use the app and how they spend their time so we
 can streamline any hotspots in the app.
 
+We include GA using `vue-analytics`, which gives us some automatic tracking
+using vue-router.
+
 
 ## Sentry
 TODO
