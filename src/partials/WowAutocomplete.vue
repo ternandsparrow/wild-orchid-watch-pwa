@@ -1,6 +1,6 @@
 <template>
   <div class="main-container">
-    <div class="search-wrapper">
+    <div ref="inputWrapper" class="search-wrapper">
       <v-ons-search-input
         v-model="theValue"
         class="the-input"
@@ -8,7 +8,7 @@
         :placeholder="placeholderText"
         type="text"
         @keyup="onKeyup"
-        @focus="onFocus"
+        @focus="scrollSoAutocompleteItemsAreVisible"
       >
       </v-ons-search-input>
       <div class="input-status">
@@ -157,11 +157,11 @@ export default {
         preferredCommonName: this.theValue,
       })
     },
-    onFocus() {
-      // FIXME scroll input to top-ish of page, something like
-      // const pc = document.getElementsByClassName('page__content')[0] // a ref would be better
-      // const theInput = ... (needs a ref or something)
-      // pc.scrollTo(0, theInput.getBoundingClientRect().top - pc.getBoundingClientRect().top)
+    scrollSoAutocompleteItemsAreVisible() {
+      const delayForOnscreenKeyboardToAppear = 400
+      setTimeout(() => {
+        this.$refs.inputWrapper.scrollIntoView({ behavior: 'smooth' })
+      }, delayForOnscreenKeyboardToAppear)
     },
   },
 }
@@ -205,6 +205,7 @@ export default {
   display: flex;
   align-items: center;
   flex-direction: row;
+  padding-top: 0.5em;
 
   .input-status {
     margin-left: 0.5em;

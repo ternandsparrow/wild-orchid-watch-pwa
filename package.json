@@ -33,6 +33,7 @@
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",
     "sass": "^1.21.0",
+    "smoothscroll-polyfill": "^0.4.4",
     "uuid": "^3.3.3",
     "vue": "^2.6.10",
     "vue-analytics": "^5.17.2",

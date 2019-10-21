@@ -10,6 +10,7 @@ import 'pwacompat'
 import * as Sentry from '@sentry/browser'
 import * as Integrations from '@sentry/integrations'
 import * as VueGoogleMaps from 'vue2-google-maps'
+import smoothscroll from 'smoothscroll-polyfill'
 
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
@@ -33,6 +34,8 @@ Vue.config.productionTip = false
 Vue.use(VueGoogleMaps, {
   load: { key: googleMapsApiKey },
 })
+
+smoothscroll.polyfill()
 
 if (googleAnalyticsTrackerCode !== 'off') {
   Vue.use(VueAnalytics, {

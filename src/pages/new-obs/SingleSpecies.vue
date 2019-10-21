@@ -172,7 +172,7 @@ import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
 import { isNil, trim, isEmpty, debounce, cloneDeep } from 'lodash'
-import { verifyWowDomainPhoto, blobToArrayBuffer } from '@/misc/helpers'
+import { blobToArrayBuffer, verifyWowDomainPhoto } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
   accuracyOfCountObsFieldId,
