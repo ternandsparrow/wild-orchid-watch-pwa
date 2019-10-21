@@ -84,13 +84,13 @@
               </label>
               <label class="center" for="accepted">
                 I have read and accepted the WoW Field Data Collection App's
-                Terms and Conditions
+                Terms and Conditions; and I acknowledge that I will only use the
+                app in locations where I have permission to do so.
               </label>
             </v-ons-list-item>
             <ons-list-item>
               <div>
                 <!-- FIXME tell user they'll be logging in with iNat? -->
-                <!-- FIXME check if we're already logged in and shortcut if so -->
                 <v-ons-button v-if="!tsAndCsAccepted" @click="showTAndCs"
                   >View Terms and Conditions</v-ons-button
                 >
