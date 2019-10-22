@@ -23,7 +23,8 @@
         <div class="left wow-flexcol">
           <div>Storage usage:</div>
           <div v-show="!isStorageReadable" class="error-msg">
-            Cannot compute used storage
+            😞 Cannot compute used storage. Your device doesn't report storage
+            statistics.
           </div>
           <div v-show="isStorageReadable">{{ storageMsg }}</div>
         </div>
@@ -248,6 +249,11 @@ export default {
         })
     },
     async updateStorageStats() {
+      const isStorageApiSupported = !!(navigator.storage || {}).estimate
+      if (!isStorageApiSupported) {
+        this.isStorageReadable = false
+        return
+      }
       const estimate = await navigator.storage.estimate()
       this.storageQuota = estimate.quota
       this.storageUsage = estimate.usage
@@ -287,7 +293,7 @@ function twoDecimalPlaces(v) {
 
 <style lang="scss" scoped>
 .error-msg {
-  color: red;
+  color: #777;
 }
 
 .wow-flexcol {
