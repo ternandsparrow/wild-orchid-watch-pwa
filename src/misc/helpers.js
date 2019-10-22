@@ -242,6 +242,11 @@ export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
   }
 }
 
+export function approxAreaSearchValueToTitle(v) {
+  const sqrt = Math.sqrt(v)
+  return isNaN(v) ? v : `${sqrt}x${sqrt} (${v}m²)`
+}
+
 /**
  * Takes an array of valid values and returns a validator function. The
  * validator function takes a single param and returns it as-is if valid,

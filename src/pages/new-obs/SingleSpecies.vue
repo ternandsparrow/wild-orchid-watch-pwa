@@ -89,7 +89,7 @@
           <!-- FIXME turn yes/no questions into switches -->
           <div class="wow-obs-field-input-container">
             <v-ons-select
-              v-if="currField.wowDatatype === 'select'"
+              v-if="currField.wowDatatype === selectFieldType"
               v-model="obsFieldValues[currField.id]"
               style="width: 80%"
             >
@@ -97,11 +97,11 @@
                 (No value)
               </option>
               <option
-                v-for="(currValue, $index) in currField.allowedValues"
+                v-for="(currOption, $index) in currField.allowedValues"
                 :key="currField.id + '-' + $index"
-                :value="currValue"
+                :value="currOption.value"
               >
-                {{ currValue }}
+                {{ currOption.title }}
               </option>
             </v-ons-select>
             <v-ons-input
@@ -172,22 +172,28 @@ import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
 import { isNil, trim, isEmpty, debounce, cloneDeep } from 'lodash'
-import { blobToArrayBuffer, verifyWowDomainPhoto } from '@/misc/helpers'
+import {
+  blobToArrayBuffer,
+  verifyWowDomainPhoto,
+  approxAreaSearchValueToTitle,
+} from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
   accuracyOfCountObsFieldId,
+  approxAreaSearchedObsFieldId,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   hostTreeSpeciesObsFieldId,
+  orchidTypeEpiphyte,
   orchidTypeObsFieldDefault,
   orchidTypeObsFieldId,
-  orchidTypeEpiphyte,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
 const taxonFieldType = 'taxon'
 const numericFieldType = 'numeric'
+const selectFieldType = 'select'
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
@@ -219,6 +225,7 @@ export default {
       taxonQuestionAutocompleteItems: {},
       taxonFieldType,
       numericFieldType,
+      selectFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
       existingRecordSnapshot: null,
@@ -235,27 +242,23 @@ export default {
           return accum
         }
         const hasAllowedValues = (curr.allowedValues || []).length
-        const wowDatatype = hasAllowedValues ? 'select' : curr.datatype
+        const wowDatatype = hasAllowedValues ? selectFieldType : curr.datatype
         const isEpiphyteDependentField = [
           hostTreeSpeciesObsFieldId,
           epiphyteHeightObsFieldId,
         ].includes(curr.id)
-        accum.push({
+        const field = {
           ...curr,
           required: isEpiphyteDependentField ? true : curr.required,
           wowDatatype,
-        })
+        }
+        if (hasAllowedValues) {
+          const strategy = getAllowedValsStrategy(curr.id)
+          field.allowedValues = strategy(curr.allowedValues)
+        }
+        accum.push(field)
         return accum
       }, [])
-      result.sort((a, b) => {
-        if (a.position < b.position) {
-          return -1
-        }
-        if (a.position > b.position) {
-          return 1
-        }
-        return 0
-      })
       return result
     },
     taxonQuestionIds() {
@@ -389,7 +392,7 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            accum[curr.id] = curr.required ? curr.allowedValues[0] : null
+            accum[curr.id] = curr.required ? curr.allowedValues[0].value : null
             return accum
           },
           {},
@@ -420,16 +423,17 @@ export default {
     },
     setDefaultIfSupplied(fieldId, defaultValue) {
       const fieldDef = this.getObsFieldDef(fieldId)
+      const allowedValues = fieldDef.allowedValues.map(v => v.value)
       const isValidValue =
-        fieldDef.wowDatatype !== 'select' ||
-        fieldDef.allowedValues.includes(defaultValue)
+        fieldDef.wowDatatype !== selectFieldType ||
+        allowedValues.includes(defaultValue)
       if (!isValidValue) {
         throw new Error(
           `Cannot set field ID='${fieldId}' ` +
             `(name='${
               fieldDef.name
             }') to value='${defaultValue}' as it's not ` +
-            `in the allowedValues=[${fieldDef.allowedValues}]`,
+            `in the allowedValues=[${allowedValues}]`,
         )
       }
       this.obsFieldValues[fieldId] = defaultValue
@@ -748,6 +752,18 @@ export default {
 
 function isDeletedObsFieldValue(value) {
   return isNil(value) || (typeof value === 'string' && trim(value).length === 0)
+}
+
+function getAllowedValsStrategy(fieldId) {
+  const strats = {
+    [approxAreaSearchedObsFieldId]: vals =>
+      vals.map(v => {
+        return { value: v, title: approxAreaSearchValueToTitle(v) }
+      }),
+  }
+  const result = strats[fieldId]
+  const defaultStrat = vals => vals.map(v => ({ value: v, title: v }))
+  return result || defaultStrat
 }
 </script>
 

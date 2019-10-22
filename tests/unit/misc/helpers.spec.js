@@ -255,6 +255,28 @@ describe('formatStorageSize', () => {
   })
 })
 
+describe('approxAreaSearchValueToTitle', () => {
+  it('should handle 1', () => {
+    const result = objectUnderTest.approxAreaSearchValueToTitle(1)
+    expect(result).toEqual('1x1 (1m²)')
+  })
+
+  it('should handle a number, that is a sqaure, that is larger than 1', () => {
+    const result = objectUnderTest.approxAreaSearchValueToTitle(25)
+    expect(result).toEqual('5x5 (25m²)')
+  })
+
+  it('should handle a stringy number', () => {
+    const result = objectUnderTest.approxAreaSearchValueToTitle('36')
+    expect(result).toEqual('6x6 (36m²)')
+  })
+
+  it('should handle a non-number input', () => {
+    const result = objectUnderTest.approxAreaSearchValueToTitle('>100')
+    expect(result).toEqual('>100')
+  })
+})
+
 function mockResp(mimeStr) {
   return {
     headers: {

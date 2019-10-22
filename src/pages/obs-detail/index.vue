@@ -86,7 +86,7 @@
               modifier="nodivider"
               class="wow-list-item"
             >
-              {{ curr.value }}
+              {{ curr.title }}
             </v-ons-list-item>
           </template>
           <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
@@ -137,8 +137,16 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { noImagePlaceholderUrl } from '@/misc/constants'
-import { formatMetricDistance, humanDateString } from '@/misc/helpers'
+import _ from 'lodash'
+import {
+  approxAreaSearchedObsFieldId,
+  noImagePlaceholderUrl,
+} from '@/misc/constants'
+import {
+  approxAreaSearchValueToTitle,
+  formatMetricDistance,
+  humanDateString,
+} from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
 
 export default {
@@ -164,7 +172,22 @@ export default {
       return isObsSystemError(this.nullSafeObs)
     },
     nullSafeObs() {
-      return this.observationDetail || {}
+      const valueMappers = {
+        [approxAreaSearchedObsFieldId]: approxAreaSearchValueToTitle,
+      }
+      const result = _.cloneDeep(this.observationDetail || {})
+      if (result.obsFieldValues) {
+        result.obsFieldValues = result.obsFieldValues.map(e => {
+          const val = e.value
+          const defaultStrat = v => v
+          const strategy = valueMappers[e.fieldId] || defaultStrat
+          return {
+            ...e,
+            title: strategy(val),
+          }
+        })
+      }
+      return result
     },
     isPhotos() {
       return (this.nullSafeObs.photos || []).length

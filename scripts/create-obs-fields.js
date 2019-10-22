@@ -141,11 +141,11 @@ const obsFields = [
     allowedValues: 'Exact|Estimate',
   },
   {
-    name: 'Approx area searched m2',
+    name: 'Approx area searched (m²)',
     description:
       'How large is the area you searched while counting individuals? Only required when observing more than one individual',
     datatype: 'text',
-    allowedValues: '1|10|50|100|>101',
+    allowedValues: '1|4|9|16|25|36|49|64|81|100|>100',
   },
 ]
 

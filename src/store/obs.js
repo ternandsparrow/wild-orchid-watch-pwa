@@ -943,8 +943,7 @@ const getters = {
         datatype: fieldDef.datatype,
         allowedValues: (fieldDef.allowed_values || '')
           .split(obsFieldSeparatorChar)
-          .filter(x => !!x) // remove zero length strings
-          .sort(),
+          .filter(x => !!x), // remove zero length strings
       }
     })
     return result

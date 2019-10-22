@@ -90,6 +90,10 @@ export const epiphyteHeightObsFieldId = parseInt(
   process.env.VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT,
 )
 
+export const approxAreaSearchedObsFieldId = parseInt(
+  process.env.VUE_APP_OBS_FIELD_AREA_SEARCHED,
+)
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
