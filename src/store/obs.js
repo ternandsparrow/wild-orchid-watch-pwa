@@ -621,7 +621,7 @@ const actions = {
     )
     return inatRecordId
   },
-  async _deleteObservation({ commit, dispatch }, { inatRecordId }) {
+  async _deleteObservation({ dispatch }, { inatRecordId }) {
     await dispatch(
       'doApiDelete',
       { urlSuffix: `/observations/${inatRecordId}` },
