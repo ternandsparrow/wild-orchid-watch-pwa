@@ -17,8 +17,8 @@
         <v-ons-list-header
           v-if="isShowDeleteDetails"
           class="waiting-for-delete-header"
-          >Waiting for network to delete
-          <strong>{{ waitingForDeleteCount }}</strong> records
+          >Waiting for network to perform delete on
+          <strong>{{ waitingForDeleteCount }}</strong> record(s)
           <div v-if="isSyncDisabled">
             (Sync <span class="red">disabled</span> in settings)
           </div>

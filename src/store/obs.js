@@ -627,10 +627,6 @@ const actions = {
       { urlSuffix: `/observations/${inatRecordId}` },
       { root: true },
     )
-    const allRemoteObsWithoutThisRecord = state.allRemoteObs.filter(
-      e => e.inatId !== inatRecordId,
-    )
-    commit('setAllRemoteObs', allRemoteObsWithoutThisRecord)
   },
   async _createPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
