@@ -1,7 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
-import _ from 'lodash'
 
 import auth from './auth'
 import app, { callback as appCallback } from './app'
@@ -28,11 +27,10 @@ const store = new Vuex.Store({
     createPersistedState({
       key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
-        const cleanedState = _.cloneDeep(state)
         // don't save anything in the ephemeral module, we assume nothing in
         // here will serialise or should be saved.
-        delete cleanedState.ephemeral
-        return storage.setItem(key, JSON.stringify(cleanedState))
+        const whitelistKeys = Object.keys(state).filter(k => k !== 'ephemeral')
+        return storage.setItem(key, JSON.stringify(state, whitelistKeys))
       },
     }),
   ],
