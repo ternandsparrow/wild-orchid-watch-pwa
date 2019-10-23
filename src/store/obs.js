@@ -1,4 +1,4 @@
-import { isNil, isEqual, omitBy } from 'lodash'
+import _ from 'lodash'
 import * as uuid from 'uuid/v1'
 import {
   apiUrlBase,
@@ -33,6 +33,7 @@ const recordProcessingOutcome = makeEnumValidator([
 ])
 
 let photoObjectUrlsInUse = []
+let photoObjectUrlsNoLongerInUse = []
 
 const state = {
   lat: null,
@@ -87,8 +88,8 @@ const mutations = {
     const stack = state.recentlyUsedTaxa[type] || []
     const existingIndex = stack.findIndex(e => {
       // objects from the store don't keep nil-ish props
-      const valueWithoutNilishProps = omitBy(value, isNil)
-      return isEqual(e, valueWithoutNilishProps)
+      const valueWithoutNilishProps = _.omitBy(value, _.isNil)
+      return _.isEqual(e, valueWithoutNilishProps)
     })
     const isValueAlreadyInStack = existingIndex >= 0
     if (isValueAlreadyInStack) {
@@ -395,10 +396,6 @@ const actions = {
   async saveNewAndScheduleUpload({ dispatch, state }, record) {
     try {
       const nowDate = new Date()
-      // TODO change to be our internal format
-      //   - use camel case names
-      //   - only assign values we care about
-      //   - let the rest of the values be assigned on upload
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
         lat: state.lat,
@@ -458,22 +455,21 @@ const actions = {
   },
   async refreshLocalRecordQueue({ commit }) {
     try {
-      const localQueueSummary = await db.obs.toArray(records => {
-        return records.map(r => ({
-          id: r.id,
-          inatId: r.inatId,
-          [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
-          [recordProcessingOutcomeFieldName]:
-            r.wowMeta[recordProcessingOutcomeFieldName],
-          uuid: r.uuid,
-        }))
-      })
+      const localQueueSummary = await mapOverDexieCollection(db.obs, r => ({
+        id: r.id,
+        inatId: r.inatId,
+        [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
+        [recordProcessingOutcomeFieldName]:
+          r.wowMeta[recordProcessingOutcomeFieldName],
+        uuid: r.uuid,
+      }))
       commit('setLocalQueueSummary', localQueueSummary)
       const uiVisibleLocalIds = localQueueSummary
         .filter(e => e[recordTypeFieldName] !== recordType('delete'))
         .map(e => e.id)
       const records = await resolveLocalRecordIds(uiVisibleLocalIds)
       commit('setUiVisibleLocalRecords', records)
+      revokeOldObjectUrls()
     } catch (err) {
       throw chainedError('Failed to refresh localRecordQueue', err)
     }
@@ -953,24 +949,40 @@ function isErrorOutcome(outcome) {
   ].includes(outcome)
 }
 
-async function resolveLocalRecordIds(ids) {
-  const rawRecords = await db.obs
-    .where('id')
-    .anyOf(ids)
-    .toArray()
-  // FIXME sometimes triggers a 404 because we revoke the in-use URLs
-  // before we've set the new ones. Possible solution: set the new values,
-  // then revoke the old. Doesn't affect users as-is though.
-  revokeExistingObjectUrls()
-  return rawRecords.map(e => {
+/**
+ * Map over a Dexie collection
+ *
+ * We can't just call Collection.toArray() because once the result is large
+ * enough, we'll get "Maximum IPC message size exceeded" error. This is a
+ * memory-friendly implementation.
+ */
+function mapOverDexieCollection(collection, mapperFn) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const result = []
+      await collection.each(r => {
+        result.push(mapperFn(r))
+      })
+      return resolve(result)
+    } catch (err) {
+      return reject(err)
+    }
+  })
+}
+
+function resolveLocalRecordIds(ids) {
+  photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
+  photoObjectUrlsInUse = []
+  return mapOverDexieCollection(db.obs.where('id').anyOf(ids), e => {
     const photos = e.photos.map(mapPhotoFromDbToUi)
     const result = {
       ...e,
       photos,
     }
     commonApiToOurDomainObsMapping(result, e)
-    if (!result.inatId) {
-      // new records won't have it set, edit and delete will
+    // new records won't have inatId set, edit and delete will
+    const isNewRecord = !result.inatId
+    if (isNewRecord) {
       result.inatId = -1 * e.id
     }
     return result
@@ -978,7 +990,8 @@ async function resolveLocalRecordIds(ids) {
 }
 
 function mapPhotoFromDbToUi(p) {
-  if (p[isRemotePhotoFieldName]) {
+  const isRemotePhoto = p[isRemotePhotoFieldName]
+  if (isRemotePhoto) {
     return p
   }
   const objectUrl = mintObjectUrl(p.file)
@@ -1015,11 +1028,11 @@ function mintObjectUrl(blobAsArrayBuffer) {
   }
 }
 
-function revokeExistingObjectUrls() {
-  for (const curr of photoObjectUrlsInUse) {
+function revokeOldObjectUrls() {
+  while (photoObjectUrlsNoLongerInUse.length) {
+    const curr = photoObjectUrlsNoLongerInUse.shift()
     URL.revokeObjectURL(curr)
   }
-  photoObjectUrlsInUse = []
 }
 
 export default {
@@ -1090,7 +1103,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   const directMappingKeys = ['uuid', 'geoprivacy']
   const result = directMappingKeys.reduce((accum, currKey) => {
     const value = obsFromApi[currKey]
-    if (!isNil(value)) {
+    if (!_.isNil(value)) {
       accum[currKey] = value
     }
     return accum

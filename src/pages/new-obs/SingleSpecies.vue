@@ -164,6 +164,18 @@
         >
       </template>
     </v-ons-alert-dialog>
+    <v-ons-modal :visible="isSaveModalVisible">
+      <p class="text-center">
+        Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
+      </p>
+      <p v-show="isShowModelForceClose" class="text-center">
+        Hmmm, this is taking a while. It's best to wait for saving to finish,
+        but if you're sure something has gone wrong, you can
+        <v-ons-button @click="isSaveModalVisible = false"
+          >force close this notification</v-ons-button
+        >
+      </p>
+    </v-ons-modal>
   </v-ons-page>
 </template>
 
@@ -229,6 +241,8 @@ export default {
       formErrorDialogVisible: false,
       formErrorMsgs: [],
       existingRecordSnapshot: null,
+      isSaveModalVisible: false,
+      isShowModelForceClose: false,
     }
   },
   computed: {
@@ -492,10 +506,15 @@ export default {
       return true
     },
     async onSave() {
+      const timeoutId = setTimeout(() => {
+        this.isShowModelForceClose = true
+      }, 30 * 1000)
       try {
         if (!this.validateInputs()) {
           return
         }
+        this.isSaveModalVisible = true
+        this.isShowModelForceClose = false
         this.$store.commit('obs/addRecentlyUsedTaxa', {
           type: speciesGuessRecentTaxaKey,
           value: this.speciesGuessSelectedItem,
@@ -608,6 +627,9 @@ export default {
           userMsg: 'Error while trying to save observation',
           err,
         })
+      } finally {
+        this.isSaveModalVisible = false
+        clearTimeout(timeoutId)
       }
     },
     getObsFieldInstance(fieldId) {
