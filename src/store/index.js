@@ -27,10 +27,11 @@ const store = new Vuex.Store({
     createPersistedState({
       key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
+        const cleanedState = Object.assign({}, state)
         // don't save anything in the ephemeral module, we assume nothing in
         // here will serialise or should be saved.
-        const whitelistKeys = Object.keys(state).filter(k => k !== 'ephemeral')
-        return storage.setItem(key, JSON.stringify(state, whitelistKeys))
+        delete cleanedState.ephemeral
+        return storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),
   ],
