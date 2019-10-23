@@ -38,9 +38,6 @@ workbox.core.setCacheNameDetails({ prefix: cachePrefix })
 self.__precacheManifest = [].concat(self.__precacheManifest || [])
 workbox.precaching.precacheAndRoute(self.__precacheManifest, {})
 
-// Redirect to index.html if sw cannot find matching route
-workbox.routing.registerNavigationRoute('/index.html', {})
-
 workbox.routing.registerRoute(
   /^https:\/\/fonts/,
   new workbox.strategies.CacheFirst({
