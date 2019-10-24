@@ -87,7 +87,8 @@ const obsFields = [
     name: 'Soil texture',
     description: '',
     datatype: 'text',
-    allowedValues: 'Sand|Loam|Clay|Sandy-loam|Loamy-clay|Gravel|Rocky',
+    allowedValues:
+      'Not collected|Sand|Loam|Clay|Sandy-loam|Loamy-clay|Gravel|Rocky',
   },
   {
     name: 'Vegetation community notes',
@@ -100,33 +101,33 @@ const obsFields = [
     description: '',
     datatype: 'text',
     allowedValues:
-      'Clearing (vegetation clearance)|Clearing – mowing/slashing|Chemical spray (incl. spray drift)|Cultivation (incl. pasture/ag activities)|Soil erosion (incl. run-off)|Firewood/coarse woody debris removal|Grazing (stock species, presence of sheep/cattle scats)|Grazing (native species, presence of roo/possum scats)|Fire|Storm damage|Weed invasion|Foot trampling (human)|Other human disturbance (e.g. car parking)|Not Applicable',
+      'Not collected|Clearing (vegetation clearance)|Clearing – mowing/slashing|Chemical spray (incl. spray drift)|Cultivation (incl. pasture/ag activities)|Soil erosion (incl. run-off)|Firewood/coarse woody debris removal|Grazing (stock species, presence of sheep/cattle scats)|Grazing (native species, presence of roo/possum scats)|Fire|Storm damage|Weed invasion|Foot trampling (human)|Other human disturbance (e.g. car parking)|Not Applicable',
   },
   {
     name: 'Phenology',
     description: '',
     datatype: 'text',
     allowedValues:
-      'Vegetative|Bud|Flower|Senescent flower|Developing fruit|Senescent fruit',
+      'Not collected|Vegetative|Bud|Flower|Senescent flower|Developing fruit|Senescent fruit',
   },
   {
     name: 'Floral visitors observed',
     description: '',
     datatype: 'text',
     allowedValues:
-      'Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+      'Not collected|Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
   },
   {
     name: 'Damaged flowers',
     description: '',
     datatype: 'text',
-    allowedValues: 'Yes|No',
+    allowedValues: 'Not collected|Yes|No',
   },
   {
     name: 'Deheaded flowers',
     description: '',
     datatype: 'text',
-    allowedValues: 'Yes|No',
+    allowedValues: 'Not collected|Yes|No',
   },
   {
     name: 'Count of individuals recorded',
@@ -145,7 +146,7 @@ const obsFields = [
     description:
       'How large is the area you searched while counting individuals? Only required when observing more than one individual',
     datatype: 'text',
-    allowedValues: '1|4|9|16|25|36|49|64|81|100|>100',
+    allowedValues: 'Not collected|1|4|9|16|25|36|49|64|81|100|>100',
   },
 ]
 

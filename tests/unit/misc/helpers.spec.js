@@ -277,6 +277,62 @@ describe('approxAreaSearchValueToTitle', () => {
   })
 })
 
+describe('buildStaleCheckerFn', () => {
+  it('should consider no timestamp as stale', () => {
+    const state = { blahLastUpdated: null }
+    const fnUnderTest = objectUnderTest.buildStaleCheckerFn(
+      'blahLastUpdated',
+      10,
+    )
+    const isStale = fnUnderTest(state)
+    expect(isStale).toEqual(true)
+  })
+
+  it('should consider being before the threshold as NOT stale', () => {
+    const staleMinutes = 10
+    const state = { blahLastUpdated: 100000 }
+    const fnUnderTest = objectUnderTest.buildStaleCheckerFn(
+      'blahLastUpdated',
+      staleMinutes,
+      () => timeEarlierThanThreshold,
+    )
+    const halfStaleMinutes = staleMinutes / 2
+    const timeEarlierThanThreshold =
+      state.blahLastUpdated + halfStaleMinutes * 60 * 1000
+    const isStale = fnUnderTest(state)
+    expect(isStale).toEqual(false)
+  })
+
+  it('should consider being equal to the threshold as NOT stale', () => {
+    const staleMinutes = 10
+    const state = { blahLastUpdated: 100000 }
+    const fnUnderTest = objectUnderTest.buildStaleCheckerFn(
+      'blahLastUpdated',
+      staleMinutes,
+      () => timeLaterThanThreshold,
+    )
+    const timeLaterThanThreshold =
+      state.blahLastUpdated + staleMinutes * 60 * 1000
+    const isStale = fnUnderTest(state)
+    expect(isStale).toEqual(false)
+  })
+
+  it('should consider being after the threshold as stale', () => {
+    const staleMinutes = 10
+    const state = { blahLastUpdated: 100000 }
+    const fnUnderTest = objectUnderTest.buildStaleCheckerFn(
+      'blahLastUpdated',
+      staleMinutes,
+      () => timeLaterThanThreshold,
+    )
+    const doubleStaleMinutes = staleMinutes * 2
+    const timeLaterThanThreshold =
+      state.blahLastUpdated + doubleStaleMinutes * 2 * 60 * 1000
+    const isStale = fnUnderTest(state)
+    expect(isStale).toEqual(true)
+  })
+})
+
 function mockResp(mimeStr) {
   return {
     headers: {

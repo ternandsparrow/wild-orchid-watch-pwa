@@ -86,15 +86,14 @@
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
         >
-          <!-- FIXME turn yes/no questions into switches -->
-          <div class="wow-obs-field-input-container">
+          <div class="wow-obs-field-input-container input-status-wrapper">
             <v-ons-select
               v-if="currField.wowDatatype === selectFieldType"
               v-model="obsFieldValues[currField.id]"
-              style="width: 80%"
+              class="wow-select"
             >
-              <option v-if="!currField.required" :value="null">
-                (No value)
+              <option v-if="currField.required" :value="null" disabled>
+                please select
               </option>
               <option
                 v-for="(currOption, $index) in currField.allowedValues"
@@ -131,6 +130,11 @@
             <div v-else style="color: red;">
               FIXME - support '{{ currField.wowDatatype }}' field type
             </div>
+            <wow-input-status
+              v-if="isShowInputStatus(currField)"
+              :is-ok="!!obsFieldValues[currField.id]"
+              class="the-input-status"
+            ></wow-input-status>
           </div>
           <div class="wow-obs-field-desc">
             <span v-if="currField.required" class="required">(required)</span>
@@ -140,12 +144,12 @@
       </template>
       <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
       <v-ons-list-item>
-        <v-ons-input
+        <textarea
           v-model="notes"
-          class="width100"
-          type="text"
           placeholder="anything else noteworthy"
-        ></v-ons-input>
+          class="wow-textarea"
+        >
+        </textarea>
       </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
@@ -183,7 +187,7 @@
 import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
-import { isNil, trim, isEmpty, debounce, cloneDeep } from 'lodash'
+import _ from 'lodash'
 import {
   blobToArrayBuffer,
   verifyWowDomainPhoto,
@@ -198,7 +202,6 @@ import {
   epiphyteHeightObsFieldId,
   hostTreeSpeciesObsFieldId,
   orchidTypeEpiphyte,
-  orchidTypeObsFieldDefault,
   orchidTypeObsFieldId,
 } from '@/misc/constants'
 
@@ -319,8 +322,11 @@ export default {
     this.setRecentlyUsedTaxa()
   },
   created() {
-    this.debouncedOnSpeciesGuessInput = debounce(this._onSpeciesGuessInput, 300)
-    this.debouncedOnTaxonQuestionInput = debounce(
+    this.debouncedOnSpeciesGuessInput = _.debounce(
+      this._onSpeciesGuessInput,
+      300,
+    )
+    this.debouncedOnTaxonQuestionInput = _.debounce(
       this._onTaxonQuestionInput,
       300,
     )
@@ -345,7 +351,7 @@ export default {
           },
           this.obsFieldValues,
         )
-        this.obsFieldInitialValues = cloneDeep(this.obsFieldValues)
+        this.obsFieldInitialValues = _.cloneDeep(this.obsFieldValues)
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -360,6 +366,9 @@ export default {
       // this on the server? A do-not-edit obs field just for metadata?
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
+    },
+    isShowInputStatus(field) {
+      return field.required && field.wowDatatype !== taxonFieldType
     },
     setRecentlyUsedTaxa() {
       this.speciesGuessAutocompleteItems =
@@ -406,7 +415,7 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            accum[curr.id] = curr.required ? curr.allowedValues[0].value : null
+            accum[curr.id] = curr.required ? null : curr.allowedValues[0].value
             return accum
           },
           {},
@@ -418,10 +427,6 @@ export default {
         this.setDefaultIfSupplied(
           countOfIndividualsObsFieldId,
           countOfIndividualsObsFieldDefault,
-        )
-        this.setDefaultIfSupplied(
-          orchidTypeObsFieldId,
-          orchidTypeObsFieldDefault,
         )
       } catch (err) {
         // FIXME the UI doesn't reflect this error, is it because we're in mounted()?
@@ -480,7 +485,7 @@ export default {
       )
       for (const curr of visibleRequiredObsFields) {
         const val = this.obsFieldValues[curr.id]
-        if (!isEmpty(trim(val))) {
+        if (!_.isEmpty(_.trim(val))) {
           continue
         }
         this.formErrorMsgs.push(
@@ -492,7 +497,7 @@ export default {
       )
       for (const curr of visibleNumericObsFields) {
         const val = this.obsFieldValues[curr.id]
-        if (isNil(val) || val > 0) {
+        if (_.isNil(val) || val > 0) {
           continue
         }
         this.formErrorMsgs.push(
@@ -587,7 +592,7 @@ export default {
           const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
               const value = this.obsFieldValues[currKey]
-              const hadValueBeforeEditing = !isNil(
+              const hadValueBeforeEditing = !_.isNil(
                 this.obsFieldInitialValues[currKey],
               )
               const isEmpty = isDeletedObsFieldValue(value)
@@ -765,7 +770,7 @@ export default {
       // if the user edits a local record but the record is uploaded (and
       // cleaned up) before the user hits save, we're in trouble. We can recover
       // as long as we have this snapshot though.
-      this.existingRecordSnapshot = cloneDeep(
+      this.existingRecordSnapshot = _.cloneDeep(
         this.$store.getters['obs/observationDetail'],
       )
     },
@@ -773,7 +778,9 @@ export default {
 }
 
 function isDeletedObsFieldValue(value) {
-  return isNil(value) || (typeof value === 'string' && trim(value).length === 0)
+  return (
+    _.isNil(value) || (typeof value === 'string' && _.trim(value).length === 0)
+  )
 }
 
 function getAllowedValsStrategy(fieldId) {
@@ -855,10 +862,6 @@ function getAllowedValsStrategy(fieldId) {
   width: 90vw;
 }
 
-.width100 {
-  width: 100%;
-}
-
 .wow-obs-field-desc {
   color: #888;
   font-size: 0.7em;
@@ -904,5 +907,13 @@ function getAllowedValsStrategy(fieldId) {
 
 .error-msg-list {
   text-align: left;
+}
+
+.wow-select {
+  width: 80%;
+}
+
+.the-input-status {
+  margin-left: 1em;
 }
 </style>

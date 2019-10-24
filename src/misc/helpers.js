@@ -91,7 +91,7 @@ export function getJsonWithAuth(url, authHeaderValue) {
   // busting
   const isQueryStringPresent = url.includes('?')
   const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
-  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${Date.now()}`
+  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${now()}`
   return doManagedFetch(urlWithCacheBust, {
     method: 'GET',
     mode: 'cors',
@@ -202,7 +202,7 @@ export function chainedError(msg, err) {
 }
 
 export function now() {
-  return new Date().getTime()
+  return Date.now()
 }
 
 export function formatMetricDistance(metres) {
@@ -232,13 +232,19 @@ export function buildUrlSuffix(path, params = {}) {
  * specified timestamp field has expired, so the corresponding field is
  * considered stale.
  */
-export function buildStaleCheckerFn(stateKey, staleThresholdMinutes) {
+export function buildStaleCheckerFn(
+  stateKey,
+  staleThresholdMinutes,
+  /*for testing*/ timeProviderFn,
+) {
   return function(state) {
+    const nowMs = (timeProviderFn && timeProviderFn()) || now()
     const lastUpdatedMs = state[stateKey]
-    return (
-      !lastUpdatedMs ||
-      lastUpdatedMs < now() - staleThresholdMinutes * 60 * 1000
-    )
+    const isNoTimestamp = !lastUpdatedMs
+    const isNowLaterThanStaleThreshold =
+      lastUpdatedMs + staleThresholdMinutes * 60 * 1000 < nowMs
+    const isStale = isNoTimestamp || isNowLaterThanStaleThreshold
+    return isStale
   }
 }
 

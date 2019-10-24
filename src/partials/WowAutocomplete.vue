@@ -1,6 +1,6 @@
 <template>
   <div class="main-container">
-    <div ref="inputWrapper" class="search-wrapper">
+    <div ref="inputWrapper" class="input-status-wrapper">
       <v-ons-search-input
         v-model="theValue"
         class="the-input"
@@ -8,27 +8,20 @@
         :placeholder="placeholderText"
         type="text"
         @keyup="onKeyup"
+        @keyup.enter="onSelectPlaceholder"
         @focus="scrollSoAutocompleteItemsAreVisible"
       >
       </v-ons-search-input>
-      <div class="input-status">
-        <v-ons-icon
-          v-if="isItemSelected"
-          class="success"
-          icon="fa-check-circle"
-        ></v-ons-icon>
-        <v-ons-icon
-          v-if="!isItemSelected"
-          class="warning"
-          icon="fa-exclamation-circle"
-        ></v-ons-icon>
-      </div>
+      <wow-input-status
+        :is-ok="isItemSelected"
+        class="the-input-status"
+      ></wow-input-status>
     </div>
     <div v-show="isShowSuggestions">
       <div class="autocomplete-title">{{ titleMsg }}:</div>
       <div class="autocomplete-list">
         <v-ons-list>
-          <v-ons-list-item v-if="theValue" @click="onSelectPlaceholder()">
+          <v-ons-list-item v-if="theValue" @click="onSelectPlaceholder">
             <div class="left">
               <div class="list-item__thumbnail placeholder-image-wrapper">
                 <v-ons-icon icon="fa-search"></v-ons-icon>
@@ -201,22 +194,7 @@ export default {
   flex-direction: column;
 }
 
-.search-wrapper {
-  display: flex;
-  align-items: center;
-  flex-direction: row;
-  padding-top: 0.5em;
-
-  .input-status {
-    margin-left: 0.5em;
-  }
-}
-
-.success {
-  color: green;
-}
-
-.warning {
-  color: red;
+.the-input-status {
+  margin-left: 0.5em;
 }
 </style>

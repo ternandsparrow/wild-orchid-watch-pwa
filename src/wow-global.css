@@ -43,3 +43,10 @@ body {
 .mt-2 {
   margin-top: 2em;
 }
+
+.input-status-wrapper {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  padding-top: 0.5em;
+}

@@ -216,6 +216,7 @@ const actions = {
       return
     }
     if (isOffline) {
+      // FIXME show nicer message to user
       throw new Error(
         'We have no projectInfo and we have no internet ' +
           'connection, cannot continue',

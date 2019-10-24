@@ -74,10 +74,6 @@ export const orchidTypeObsFieldId = parseInt(
   process.env.VUE_APP_OBS_FIELD_ID_ORCHID_TYPE,
 )
 
-// Needs to match the value that the obs field accepts
-export const orchidTypeObsFieldDefault =
-  process.env.VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE || 'Terrestrial'
-
 // The value that indicates we need to show/hide other fields conditional on this
 export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || 'Epiphyte'

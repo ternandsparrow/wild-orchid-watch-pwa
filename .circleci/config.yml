@@ -103,9 +103,6 @@ jobs:
             [ ! -z $PROD_OBS_FIELD_DEFAULT_ACCURACY ] && {
               echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$PROD_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
             }
-            [ ! -z $PROD_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
-              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$PROD_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
-            }
             [ ! -z $PROD_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
               echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$PROD_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
             }
@@ -153,9 +150,6 @@ jobs:
             [ ! -z $BETA_OBS_FIELD_DEFAULT_ACCURACY ] && {
               echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$BETA_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
             }
-            [ ! -z $BETA_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
-              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$BETA_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
-            }
             [ ! -z $BETA_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
               echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$BETA_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
             }
@@ -202,9 +196,6 @@ jobs:
             # now some optional items
             [ ! -z $DEV_OBS_FIELD_DEFAULT_ACCURACY ] && {
               echo "VUE_APP_OBS_FIELD_DEFAULT_ACCURACY=$DEV_OBS_FIELD_DEFAULT_ACCURACY" >> $theFile
-            }
-            [ ! -z $DEV_OBS_FIELD_DEFAULT_ORCHID_TYPE ] && {
-              echo "VUE_APP_OBS_FIELD_DEFAULT_ORCHID_TYPE=$DEV_OBS_FIELD_DEFAULT_ORCHID_TYPE" >> $theFile
             }
             [ ! -z $DEV_OBS_FIELD_ORCHID_TYPE_EPIPHYTE ] && {
               echo "VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE=$DEV_OBS_FIELD_ORCHID_TYPE_EPIPHYTE" >> $theFile
