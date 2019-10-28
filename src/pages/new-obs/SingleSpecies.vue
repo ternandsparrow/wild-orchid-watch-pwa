@@ -13,16 +13,16 @@
           :key="curr.name"
           class="photo-item"
         >
-          <input
-            :id="'photo' + $index"
-            :ref="photoRef(curr)"
-            type="file"
-            :name="'photo' + $index"
-            accept="image/png, image/jpeg"
-            class="photo-button"
-            @change="onPhotoAdded(curr)"
-          />
           <label :for="'photo' + $index">
+            <input
+              :id="'photo' + $index"
+              :ref="photoRef(curr)"
+              type="file"
+              :name="'photo' + $index"
+              accept="image/png, image/jpeg"
+              class="photo-button"
+              @change="onPhotoAdded(curr)"
+            />
             <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
             <div class="thumb-container">
               <v-ons-icon
@@ -809,6 +809,10 @@ function getAllowedValsStrategy(fieldId) {
   flex-grow: 1;
   /* TODO add media queries for larger res and more items per row */
   width: 30%;
+
+  label {
+    display: block;
+  }
 }
 
 .photo-button {
@@ -827,7 +831,6 @@ function getAllowedValsStrategy(fieldId) {
 }
 
 .photo-label-text {
-  font-size: 0.5em;
   color: #111;
   font-weight: normal;
 }
