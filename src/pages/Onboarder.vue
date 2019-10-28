@@ -76,6 +76,10 @@
             researching how native Australian orchids can act as indicators of
             ecosystem and biodiversity change.
           </div>
+        </v-ons-card>
+      </v-ons-carousel-item>
+      <v-ons-carousel-item>
+        <v-ons-card class="wow-card">
           <v-ons-list>
             <v-ons-list-item tappable>
               <label class="left">
@@ -135,7 +139,7 @@ export default {
     return {
       appVersion,
       carouselIndex: 0,
-      cardCount: 4, // needs to match how many cards we have, TODO make dynamic
+      cardCount: 5, // needs to match how many cards we have, TODO make dynamic
       extraDotsStyle: {
         position: 'absolute',
         bottom: 0,
