@@ -13,7 +13,7 @@
           :key="curr.name"
           class="photo-item"
         >
-          <label :for="'photo' + $index">
+          <div class="text-left">
             <input
               :id="'photo' + $index"
               :ref="photoRef(curr)"
@@ -23,6 +23,8 @@
               class="photo-button"
               @change="onPhotoAdded(curr)"
             />
+          </div>
+          <label :for="'photo' + $index">
             <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
             <div class="thumb-container">
               <v-ons-icon
@@ -816,12 +818,14 @@ function getAllowedValsStrategy(fieldId) {
 }
 
 .photo-button {
-  width: 0.1px;
-  height: 0.1px;
+  /* This isn't pretty but some versions of Safari don't trigger the input when
+  the label is tapped, so we need to make the input also cover the same area as
+  the label */
+  width: 33%;
+  height: 7em;
   opacity: 0;
   overflow: hidden;
   position: absolute;
-  z-index: -1;
 }
 
 .the-icon {

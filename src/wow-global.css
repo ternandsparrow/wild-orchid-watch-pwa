@@ -14,6 +14,10 @@ body {
   text-align: right;
 }
 
+.text-left {
+  text-align: left;
+}
+
 .small-text {
   font-style: oblique;
   font-size: 0.675em;
