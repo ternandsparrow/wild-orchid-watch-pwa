@@ -123,6 +123,7 @@ export default {
         })
       } else if (this.isUserLoggedIn) {
         this.$store.dispatch('obs/refreshRemoteObs')
+        this.$store.dispatch('obs/processLocalQueue')
       }
       done && done()
     },
