@@ -30,6 +30,14 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Is currently processing queue?
+      </div>
+      <p class="mono">
+        <strong>Result = {{ isProcessingQueue }}</strong>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Service Worker statuses
       </div>
       <p class="mono">
@@ -94,7 +102,7 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Dump vuex from localStorage
+        Dump vuex
       </div>
       <p>
         <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
@@ -206,6 +214,9 @@ export default {
     ...mapGetters('ephemeral', ['swStatus', 'isSwActive']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
+    },
+    isProcessingQueue() {
+      return !!this.$store.state.ephemeral.queueProcessorPromise
     },
   },
   created() {
