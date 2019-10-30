@@ -86,11 +86,17 @@ workbox.routing.registerRoute(
 )
 
 // At the time of writing this, iNat (the Rails app) and the production CDN do
-// NOT return CORS headers on images, so we can't cache them. This code is here
-// in the hope that we get those headers at some stage, but in the interim, the
-// browser disk cache seems to do a passable job. Actually we can cache opaque
-// responses but it's a terrible idea, see
-// https://cloudfour.com/thinks/when-7-kb-equals-7-mb/ for more details.
+// NOT return CORS headers on images, so we can't (shouldn't) cache them. This
+// code is here in the hope that we get those headers at some stage. The code
+// will "just work" if we start receiving CORS headers in the response but in
+// the interim, the CacheFirst strategy will NOT cache opaque responses. We
+// still have the browser disk cache, which seems to do a passable job.
+// Actually we can cache opaque responses but it's a terrible idea, see
+// https://cloudfour.com/thinks/when-7-kb-equals-7-mb/ for why it's bad.
+//
+// Note: the NetworkFirst and StaleWhileRevalidate strategies WILL cache opaque
+// responses, see
+// https://developers.google.com/web/tools/workbox/guides/handle-third-party-requests#workbox_caches_opaque_response_sometimes.
 workbox.routing.registerRoute(
   new RegExp(`^${inatStaticUrl}/.*`),
   new workbox.strategies.CacheFirst({
