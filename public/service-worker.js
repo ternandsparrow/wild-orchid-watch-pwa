@@ -53,7 +53,7 @@ workbox.routing.registerRoute(
     cacheName: 'sentry-reports',
     plugins: [
       new workbox.backgroundSync.Plugin('sentryReportsQueue', {
-        // not specifying 'maxRetentionTime' so we get all reports, eventually
+        maxRetentionTime: 60 * 24 * 30 * 2, // two months in minutes
       }),
     ],
   }),
