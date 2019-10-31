@@ -114,12 +114,10 @@
       @dot-click="onDotClick"
     ></carousel-dots>
     <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <div style="width:90vw; height:90vh;">
-        <iframe
-          src="/wow-t-and-c-v3.html"
-          frameborder="0"
-          class="wow-t-c-iframe"
-        ></iframe>
+      <div class="wow-t-c-container">
+        <div class="make-safari-scroll-container">
+          <iframe src="/wow-t-and-c-v3.html" frameborder="0"></iframe>
+        </div>
         <div class="close-btn" @click="onTAndCsCloseClick">Close</div>
       </div>
     </v-ons-dialog>
@@ -186,7 +184,7 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .wow-onboarder-logo {
   display: block;
   margin-left: auto;
@@ -232,16 +230,30 @@ export default {
   color: #444;
 }
 
-.wow-t-c-iframe {
-  overflow: hidden;
-  height: 95%;
-  width: 100%;
+.wow-t-c-container {
+  width: 90vw;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+
+  .make-safari-scroll-container {
+    /* thanks https://davidwalsh.name/scroll-iframes-ios */
+    -webkit-overflow-scrolling: touch;
+    overflow-y: scroll;
+    flex-grow: 1;
+
+    iframe {
+      width: 100%;
+      height: 100%;
+    }
+  }
 }
 
 .close-btn {
   text-align: center;
   font-weight: bold;
   color: #333;
+  line-height: 2em;
 }
 
 .version-number {
