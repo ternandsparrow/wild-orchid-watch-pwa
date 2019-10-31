@@ -10,6 +10,7 @@ import {
 } from '@/misc/constants'
 import {
   arrayBufferToBlob,
+  blobToArrayBuffer,
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
@@ -336,8 +337,8 @@ const actions = {
             'cannot continue without at least one',
         )
       }
+      const newPhotos = (await compressPhotos(record.photos)) || []
       const photos = (() => {
-        const newPhotos = compressPhotos(record.photos) || []
         const isEditingRemoteDirectly =
           !existingLocalRecord && existingRemoteRecord
         if (isEditingRemoteDirectly) {
@@ -404,7 +405,7 @@ const actions = {
         geoprivacy: 'obscured',
         observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
-        photos: compressPhotos(record.photos),
+        photos: await compressPhotos(record.photos),
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -1222,9 +1223,28 @@ function setRecordProcessingOutcome(dbId, outcome) {
     })
 }
 
-function compressPhotos(photos) {
-  // FIXME implement compression here
-  return photos
+async function compressPhotos(photos) {
+  return Promise.all(
+    photos.map(async (curr, $index) => {
+      const tempId = -1 * ($index + 1)
+      // FIXME implement compression here
+      const photoData = await blobToArrayBuffer(curr.file)
+      const photo = {
+        id: tempId,
+        url: '(set at render time)',
+        type: curr.type,
+        file: {
+          data: photoData,
+          mime: curr.file.type,
+        },
+        // TODO read and use user's default settings for these:
+        licenseCode: 'default',
+        attribution: 'default',
+      }
+      verifyWowDomainPhoto(photo)
+      return photo
+    }),
+  )
 }
 
 function isAnswer(val) {

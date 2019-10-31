@@ -190,11 +190,7 @@ import EXIF from 'exif-js'
 import imageCompression from 'browser-image-compression'
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
-import {
-  blobToArrayBuffer,
-  verifyWowDomainPhoto,
-  approxAreaSearchValueToTitle,
-} from '@/misc/helpers'
+import { approxAreaSearchValueToTitle } from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
   accuracyOfCountObsFieldId,
@@ -538,29 +534,18 @@ export default {
           })
         }
         const record = {
-          photos: (await Promise.all(
-            this.photoMenu.map(async (curr, $index) => {
+          photos: this.photoMenu
+            .map(curr => {
               const currPhoto = this.photos[curr.id]
               if (!currPhoto) {
                 return null
               }
-              const tempId = -1 * ($index + 1)
-              const photo = {
-                id: tempId,
-                url: '(set at render time)',
+              return {
                 type: curr.id,
-                file: {
-                  data: await blobToArrayBuffer(currPhoto.file),
-                  mime: currPhoto.file.type,
-                },
-                // TODO read and use user's default settings for these:
-                licenseCode: 'default',
-                attribution: 'default',
+                file: currPhoto.file,
               }
-              verifyWowDomainPhoto(photo)
-              return photo
-            }),
-          )).filter(p => !!p),
+            })
+            .filter(p => !!p /*remove those nulls*/),
           speciesGuess: this.speciesGuessValue,
           // FIXME add placeGuess
           obsFieldValues: this.displayableObsFields
@@ -660,61 +645,93 @@ export default {
         this.photos[type] = null
         return
       }
-      console.log(`original image size ${file.size / 1024 / 1024} MB`)
-      EXIF.getData(file, function() {
-        const allMetaData = EXIF.getAllTags(this)
-        console.debug(`allMetaData = ` + JSON.stringify(allMetaData))
-      })
-      const options = {
-        maxSizeMB: 2,
-        useWebWorker: true,
-        maxIteration: 5,
-      }
-      try {
-        const compressedFile = await imageCompression(file, options)
-        console.log(
-          `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
-        ) // smaller than maxSizeMB
-
-        // FIXME - this is busted, it seems.
-        EXIF.getData(compressedFile, function() {
-          const allMetaData = EXIF.getAllTags(this)
-          console.debug(
-            `compressedFile allMetaData = ` + JSON.stringify(allMetaData),
-          )
+      const originalImageSizeMb = file.size / 1024 / 1024
+      const originalMetadata = await new Promise((resolve, reject) => {
+        EXIF.getData(file, function() {
+          try {
+            return resolve(EXIF.getAllTags(this))
+          } catch (err) {
+            return reject(err)
+          }
         })
+      })
+      console.debug(
+        `Pre-compression GPS related metadata = ` +
+          JSON.stringify(
+            originalMetadata,
+            onlyGpsFieldsFrom(originalMetadata),
+            2,
+          ),
+      )
+      const useOriginalPhoto = () => {
         this.photos[type] = {
           file,
           url: URL.createObjectURL(file),
         }
-      } catch (error) {
-        console.log(error)
       }
-
-      /*
-      imageCompression(file, options)
-        .then(function(compressedFile) {
-          console.log(
-            `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
-          ) // smaller than maxSizeMB
-
-          // FIXME - this is busted, it seems.
-          EXIF.getData(compressedFile, function() {
-            const allMetaData = EXIF.getAllTags(this)
-            console.debug(
-              `compressedFile allMetaData = ` + JSON.stringify(allMetaData),
-            )
-          })
-
-          this.photos[type] = {
-            file,
-            url: URL.createObjectURL(file),
-          }
+      const maxSizeMB = 1
+      const maxWidthOrHeight = 1920
+      const dimensionX = originalMetadata.PixelXDimension
+      const dimensionY = originalMetadata.PixelYDimension
+      const hasDimensionsInExif = dimensionX && dimensionY
+      const isFileAlreadySmallEnoughDimensions =
+        hasDimensionsInExif &&
+        dimensionX < maxWidthOrHeight &&
+        dimensionY < maxWidthOrHeight
+      const isFileAlreadySmallEnoughStorage = originalImageSizeMb <= maxSizeMB
+      if (
+        isFileAlreadySmallEnoughDimensions ||
+        isFileAlreadySmallEnoughStorage
+      ) {
+        // the image compression lib will try to "compress" an image that's
+        // already under the threshold, and end up making it bigger. So we'll
+        // do the check outselves.
+        console.debug(
+          `No compresion needed for X=${dimensionX}, Y=${dimensionY},` +
+            ` ${originalImageSizeMb.toFixed(3)} MB image`,
+        )
+        useOriginalPhoto()
+        return
+      }
+      try {
+        const compressedFile = await imageCompression(file, {
+          maxSizeMB,
+          maxWidthOrHeight,
+          useWebWorker: true,
+          maxIteration: 5,
         })
-        .catch(function(error) {
-          console.log(error.message)
+        const compressedFileSizeMb = compressedFile.size / 1024 / 1024
+        console.debug(
+          `Compressed ${originalImageSizeMb.toFixed(3)}MB file ` +
+            `to ${compressedFileSizeMb.toFixed(3)}MB (` +
+            ((compressedFileSizeMb / originalImageSizeMb) * 100).toFixed(1) +
+            `% of original)`,
+        )
+        // FIXME compressed images seem to not have any EXIF
+        // may be able to use https://github.com/hMatoba/piexifjs to insert EXIF
+        EXIF.getData(compressedFile, function() {
+          const allMetaData = EXIF.getAllTags(this)
+          console.debug(
+            `Post-compression GPS related metaData = ` +
+              JSON.stringify(allMetaData, onlyGpsFieldsFrom(allMetaData), 2),
+          )
         })
-        */
+        this.photos[type] = {
+          file: compressedFile,
+          url: URL.createObjectURL(compressedFile),
+        }
+      } catch (error) {
+        // FIXME send Sentry report but don't annoy user, just use full size
+        // image
+        console.log(error)
+        // fallback to using the fullsize image
+        useOriginalPhoto()
+      }
+      function onlyGpsFieldsFrom(exifData) {
+        return Object.keys(exifData).filter(e =>
+          e.toLowerCase().includes('gps'),
+        )
+      }
     },
     async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
