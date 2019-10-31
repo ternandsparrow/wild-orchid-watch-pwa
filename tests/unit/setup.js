@@ -21,3 +21,7 @@ class LocalStorageMock {
 }
 
 global.localStorage = new LocalStorageMock()
+
+// stubs so browser-image-compression doesn't complain
+global.Worker = function() {}
+global.URL = { createObjectURL: () => {} }
