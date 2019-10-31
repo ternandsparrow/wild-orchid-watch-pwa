@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
 import * as moment from 'moment'
 import { isNil } from 'lodash'
+import EXIF from 'exif-js'
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -323,6 +324,18 @@ export function formatStorageSize(byteCount) {
     return (byteCount / oneMb).toFixed(0) + 'MB'
   }
   return (byteCount / oneGb).toFixed(1) + 'GB'
+}
+
+export function getExifFromBlob(blobish) {
+  return new Promise((resolve, reject) => {
+    EXIF.getData(blobish, function() {
+      try {
+        return resolve(EXIF.getAllTags(this))
+      } catch (err) {
+        return reject(err)
+      }
+    })
+  })
 }
 
 export const _testonly = {

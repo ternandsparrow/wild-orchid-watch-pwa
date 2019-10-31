@@ -1,5 +1,6 @@
 import _ from 'lodash'
 import * as uuid from 'uuid/v1'
+import imageCompression from 'browser-image-compression'
 import {
   apiUrlBase,
   inatProjectSlug,
@@ -14,9 +15,11 @@ import {
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
+  getExifFromBlob,
   makeEnumValidator,
   now,
   verifyWowDomainPhoto,
+  wowErrorHandler,
 } from '@/misc/helpers'
 import db from '@/indexeddb/dexie-store'
 
@@ -337,7 +340,7 @@ const actions = {
             'cannot continue without at least one',
         )
       }
-      const newPhotos = (await compressPhotos(record.photos)) || []
+      const newPhotos = (await processPhotos(record.photos)) || []
       const photos = (() => {
         const isEditingRemoteDirectly =
           !existingLocalRecord && existingRemoteRecord
@@ -405,7 +408,7 @@ const actions = {
         geoprivacy: 'obscured',
         observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
-        photos: await compressPhotos(record.photos),
+        photos: await processPhotos(record.photos),
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
           [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -1223,12 +1226,11 @@ function setRecordProcessingOutcome(dbId, outcome) {
     })
 }
 
-async function compressPhotos(photos) {
+async function processPhotos(photos) {
   return Promise.all(
     photos.map(async (curr, $index) => {
       const tempId = -1 * ($index + 1)
-      // FIXME implement compression here
-      const photoData = await blobToArrayBuffer(curr.file)
+      const photoData = await compressPhotoIfRequired(curr.file)
       const photo = {
         id: tempId,
         url: '(set at render time)',
@@ -1245,6 +1247,63 @@ async function compressPhotos(photos) {
       return photo
     }),
   )
+}
+
+async function compressPhotoIfRequired(blobish) {
+  const originalImageSizeMb = blobish.size / 1024 / 1024
+  const originalMetadata = await getExifFromBlob(blobish)
+  const maxSizeMB = 1
+  const maxWidthOrHeight = 1920
+  const dimensionX = originalMetadata.PixelXDimension
+  const dimensionY = originalMetadata.PixelYDimension
+  const hasDimensionsInExif = dimensionX && dimensionY
+  const isPhotoAlreadySmallEnoughDimensions =
+    hasDimensionsInExif &&
+    dimensionX < maxWidthOrHeight &&
+    dimensionY < maxWidthOrHeight
+  const isPhotoAlreadySmallEnoughStorage = originalImageSizeMb <= maxSizeMB
+  if (isPhotoAlreadySmallEnoughDimensions || isPhotoAlreadySmallEnoughStorage) {
+    // the image compression lib will try to "compress" an image that's
+    // already under the threshold, and end up making it bigger. So we'll
+    // do the check outselves.
+    const dimMsg = hasDimensionsInExif
+      ? `X=${dimensionX}, Y=${dimensionY}`
+      : '(No EXIF dimensions)'
+    console.debug(
+      `No compresion needed for ${dimMsg},` +
+        ` ${originalImageSizeMb.toFixed(3)} MB image`,
+    )
+    return magicalReserialisation(blobish)
+  }
+  try {
+    const compressedBlobish = await imageCompression(blobish, {
+      maxSizeMB,
+      maxWidthOrHeight,
+      useWebWorker: true,
+      maxIteration: 5,
+    })
+    const compressedBlobishSizeMb = compressedBlobish.size / 1024 / 1024
+    console.debug(
+      `Compressed ${originalImageSizeMb.toFixed(3)}MB file ` +
+        `to ${compressedBlobishSizeMb.toFixed(3)}MB (` +
+        ((compressedBlobishSizeMb / originalImageSizeMb) * 100).toFixed(1) +
+        `% of original)`,
+    )
+    // FIXME compressed images seem to not have any EXIF may be able to use
+    // https://github.com/hMatoba/piexifjs to insert EXIF again
+    return magicalReserialisation(compressedBlobish)
+  } catch (err) {
+    wowErrorHandler(
+      `Failed to compress a photo with MIME=${blobish.type}, ` +
+        `size=${blobish.size} and EXIF=${JSON.stringify(originalMetadata)}`,
+      err,
+    )
+    // fallback to using the fullsize image
+    return magicalReserialisation(blobish)
+  }
+  function magicalReserialisation(b) {
+    return blobToArrayBuffer(b)
+  }
 }
 
 function isAnswer(val) {
