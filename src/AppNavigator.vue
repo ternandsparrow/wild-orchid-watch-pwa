@@ -168,9 +168,9 @@ export default {
         name: this.$route.matched[pathIndex].name,
       })
     },
-    doLogin() {
+    async doLogin() {
       this.$store.commit('app/setIsFirstRun', false)
-      this.$store.dispatch('auth/doLogin')
+      await this.$store.dispatch('auth/doLogin')
     },
     onHeaderClick() {
       const tapCountThreshold = 7

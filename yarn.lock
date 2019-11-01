@@ -2544,11 +2544,6 @@ base64-js@^1.0.2:
   resolved "https://registry.yarnpkg.com/base64-js/-/base64-js-1.3.1.tgz#58ece8cb75dd07e71ed08c736abc5fac4dbf8df1"
   integrity sha512-mLQ4i2QO1ytvGWFWmcngKO//JXAQueZvwEKtjgQFM4jIK0kU+ytMfplL8j+n5mspOfjHwoAg+9yhb7BwAHm36g==
 
-base64url@^3.0.1:
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/base64url/-/base64url-3.0.1.tgz#6399d572e2bc3f90a9a8b22d5dbb0a32d33f788d"
-  integrity sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==
-
 base@^0.11.1:
   version "0.11.2"
   resolved "https://registry.yarnpkg.com/base/-/base-0.11.2.tgz#7bde5ced145b6d551a90db87f83c558b4eb48a8f"
@@ -9888,13 +9883,10 @@ pixelmatch@^4.0.0, pixelmatch@^4.0.2:
   dependencies:
     pngjs "^3.0.0"
 
-pkce-challenge@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/pkce-challenge/-/pkce-challenge-1.0.3.tgz#2af570f0ae6bd7e16d45b68b171f423b90de9ea2"
-  integrity sha512-efDgxXNGpUfvD7JIajonHXBmMqCIa0CMifrZsDQ/2/R036iZ+MGl7wZYxSaKA/2hm7s2xzg0/cbfoGOxHP00aw==
-  dependencies:
-    base64url "^3.0.1"
-    randomatic "^3.1.1"
+pkce-challenge@^2:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/pkce-challenge/-/pkce-challenge-2.0.0.tgz#941ea9684eb40c43cc2e274a711696ba76b56d49"
+  integrity sha512-nRVr+vZPBWtYLhNxnBSHRW6S7rJfmtOVuH8ay3WBRulf/sWMg6WcONe7ooC12Eit1Pk+xEVBr8mKJ0DhvHcAMA==
 
 pkg-dir@^1.0.0:
   version "1.0.0"
@@ -10617,7 +10609,7 @@ ramda@0.24.1:
   resolved "https://registry.yarnpkg.com/ramda/-/ramda-0.24.1.tgz#c3b7755197f35b8dc3502228262c4c91ddb6b857"
   integrity sha1-w7d1UZfzW43DUCIoJixMkd22uFc=
 
-randomatic@^3.0.0, randomatic@^3.1.1:
+randomatic@^3.0.0:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/randomatic/-/randomatic-3.1.1.tgz#b776efc59375984e36c537b2f51a1f0aff0da1ed"
   integrity sha512-TuDE5KxZ0J461RVjrJZCJc+J+zCkTb1MbH9AQUq68sMhOMcy9jLcb3BrZKgp9q9Ncltdg4QVqWrH02W2EFFVYw==

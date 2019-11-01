@@ -29,7 +29,7 @@
     "lodash": "^4.17.11",
     "moment": "^2.24.0",
     "onsenui": "^2.10.9",
-    "pkce-challenge": "^1.0.3",
+    "pkce-challenge": "^2",
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",
     "sass": "^1.21.0",
