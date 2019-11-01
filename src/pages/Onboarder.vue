@@ -115,7 +115,7 @@
     ></carousel-dots>
     <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
       <div class="wow-t-c-container">
-        <div class="make-safari-scroll-container">
+        <div class="iframe-wrapper" :class="{ 'make-safari-scroll': isIos }">
           <iframe src="/wow-t-and-c-v3.html" frameborder="0"></iframe>
         </div>
         <div class="close-btn" @click="onTAndCsCloseClick">Close</div>
@@ -156,6 +156,9 @@ export default {
       set(newVal) {
         this.$store.commit('app/setTsAndCsAccepted', newVal)
       },
+    },
+    isIos() {
+      return navigator.userAgent.match(/(iPod|iPhone|iPad)/)
     },
   },
   mounted() {
@@ -236,17 +239,23 @@ export default {
   display: flex;
   flex-direction: column;
 
-  .make-safari-scroll-container {
-    /* thanks https://davidwalsh.name/scroll-iframes-ios */
-    -webkit-overflow-scrolling: touch;
-    overflow-y: scroll;
+  .iframe-wrapper {
+    /* thanks https://stackoverflow.com/a/33272824/1410035 */
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 
     iframe {
       width: 100%;
-      height: 100%;
+      flex-grow: 1;
     }
   }
+}
+
+.make-safari-scroll {
+  /* thanks https://davidwalsh.name/scroll-iframes-ios */
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
 }
 
 .close-btn {
