@@ -34,7 +34,7 @@
       </div>
     </v-ons-toast>
     <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
-      <div class="warn-text">WARNING</div>
+      <div class="warn-text" @click="onHeaderClick">WARNING</div>
       <p>
         You are not logged in.
       </p>
@@ -85,6 +85,9 @@ export default {
       mainStack,
       isOnboarderVisible: isOnboarderVisibleFn(),
       isOauthCallbackVisible: isOauthCallbackVisibleFn(),
+      warningClickCount: 0,
+      warningClickEasterEggTimeout: null,
+      godModeForceLoginToastDismiss: false,
     }
     result.navOptions = {
       callback: () => {
@@ -116,13 +119,17 @@ export default {
       return !this.updateReadyToastVisible && this.refreshingApp
     },
     notLoggedInToastVisible() {
+      if (this.godModeForceLoginToastDismiss) {
+        return false
+      }
+      const isUserNotLoggedInAndSafeToShowToast =
+        !this.isUserLoggedIn &&
+        !this.isOnboarderVisible &&
+        !this.isOauthCallbackVisible &&
+        !this.isUpdatingApiToken
       return (
         !this.newContentAvailable &&
-        ((!this.isUserLoggedIn &&
-          !this.isOnboarderVisible &&
-          !this.isOauthCallbackVisible &&
-          !this.isUpdatingApiToken) ||
-          this.isForceShowLoginToast)
+        (isUserNotLoggedInAndSafeToShowToast || this.isForceShowLoginToast)
       )
     },
   },
@@ -164,6 +171,25 @@ export default {
     doLogin() {
       this.$store.commit('app/setIsFirstRun', false)
       this.$store.dispatch('auth/doLogin')
+    },
+    onHeaderClick() {
+      const tapCountThreshold = 7
+      if (this.warningClickEasterEggTimeout) {
+        clearTimeout(this.warningClickEasterEggTimeout)
+      }
+      this.warningClickEasterEggTimeout = setTimeout(() => {
+        this.warningClickCount = 0
+        this.warningClickEasterEggTimeout = null
+      }, 1000)
+      this.warningClickCount += 1
+      if (this.warningClickCount < tapCountThreshold) {
+        return
+      }
+      this.godModeForceLoginToastDismiss = true
+      setTimeout(() => {
+        // nag again in the near future
+        this.godModeForceLoginToastDismiss = false
+      }, 30000)
     },
   },
 }
