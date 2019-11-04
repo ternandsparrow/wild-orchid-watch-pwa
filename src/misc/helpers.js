@@ -198,8 +198,11 @@ export function chainedError(msg, err) {
       `${msg}\nWARNING: chainedError` + ` was called without an error to chain`,
     )
   }
-  err.message = `${msg}\nCaused by: ${err.message}`
-  return err
+  if (typeof err === 'object') {
+    err.message = `${msg}\nCaused by: ${err.message}`
+    return err
+  }
+  return new Error(`${msg}\nCaused by: ${err}`)
 }
 
 export function now() {

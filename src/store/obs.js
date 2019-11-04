@@ -3,7 +3,10 @@ import * as uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
 import {
   apiUrlBase,
+  blocked,
+  failed,
   inatProjectSlug,
+  notSupported,
   obsFieldPrefix,
   obsFieldSeparatorChar,
   recordProcessingOutcomeFieldName,
@@ -42,6 +45,7 @@ let photoObjectUrlsNoLongerInUse = []
 const state = {
   lat: null,
   lng: null,
+  isGeolocationAccessible: true,
   locAccuracy: null,
   allRemoteObs: [],
   allRemoteObsLastUpdated: 0,
@@ -81,6 +85,8 @@ const mutations = {
   setLat: (state, value) => (state.lat = value),
   setLng: (state, value) => (state.lng = value),
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
+  setIsGeolocationAccessible: (state, value) =>
+    (state.isGeolocationAccessible = value),
   setSpeciesAutocompleteItems: (state, value) =>
     (state.speciesAutocompleteItems = value),
   setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
@@ -192,25 +198,43 @@ const actions = {
     }
   },
   markUserGeolocation({ commit }) {
+    commit('setIsGeolocationAccessible', true)
     if (!navigator.geolocation) {
-      console.warn('Geolocation is not supported')
-      // FIXME notify user that we won't have accurate location
-      // FIXME store flag in Vuex so the rest of the app knows we won't have accurate location
-      return
+      console.debug('Geolocation is not supported by user agent')
+      commit('setIsGeolocationAccessible', false)
+      return Promise.reject(notSupported)
     }
-    navigator.geolocation.getCurrentPosition(
-      loc => {
-        commit('setLat', loc.coords.latitude)
-        commit('setLng', loc.coords.longitude)
-        commit('setLocAccuracy', loc.coords.accuracy)
-        // TODO should we get altitude, altitudeAccuracy and heading values?
-      },
-      () => {
-        console.warn('Location access is blocked')
-        // FIXME notify user that we *need* geolocation
-        // FIXME store flag in Vuex so the rest of the app knows we won't have accurate location
-      },
-    )
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        loc => {
+          commit('setLat', loc.coords.latitude)
+          commit('setLng', loc.coords.longitude)
+          commit('setLocAccuracy', loc.coords.accuracy)
+          // TODO should we get altitude, altitudeAccuracy and heading values?
+          return resolve()
+        },
+        err => {
+          commit('setIsGeolocationAccessible', false)
+          // enum from https://developer.mozilla.org/en-US/docs/Web/API/PositionError
+          const permissionDenied = 1
+          const positionUnavailable = 2
+          const timeout = 3
+          switch (err.code) {
+            case permissionDenied:
+              console.debug('Geolocation is blocked')
+              return reject(blocked)
+            case positionUnavailable:
+            case timeout:
+              console.debug(
+                'Geolocation is supported but not avaible or timed out',
+              )
+              return reject(failed)
+            default:
+              return reject(err)
+          }
+        },
+      )
+    })
   },
   async waitForProjectInfo({ state, dispatch, rootState, getters }) {
     const alreadyCachedResult = state.projectInfo

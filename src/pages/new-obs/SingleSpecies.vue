@@ -6,6 +6,18 @@
       </template>
     </custom-toolbar>
     <v-ons-list>
+      <v-ons-list-item v-show="geolocationErrorMsg" modifier="nodivider">
+        <div class="geoloc-error">
+          <p>
+            <v-ons-icon
+              class="warning"
+              icon="fa-exclamation-circle"
+            ></v-ons-icon>
+            {{ geolocationErrorMsg }}. This observation will
+            <strong>NOT</strong> have any location information.
+          </p>
+        </div>
+      </v-ons-list-item>
       <v-ons-list-header class="wow-list-header">Photos</v-ons-list-header>
       <div class="photo-container">
         <div
@@ -65,7 +77,7 @@
         </v-ons-list-item>
       </template>
       <v-ons-list-header class="wow-list-header">Field Name</v-ons-list-header>
-      <v-ons-list-item>
+      <v-ons-list-item modifier="nodivider">
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
           :initial-value="speciesGuessInitialValue"
@@ -188,15 +200,22 @@
 <script>
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
-import { approxAreaSearchValueToTitle, getExifFromBlob } from '@/misc/helpers'
+import {
+  approxAreaSearchValueToTitle,
+  getExifFromBlob,
+  wowErrorHandler,
+} from '@/misc/helpers'
 import {
   accuracyOfCountObsFieldDefault,
   accuracyOfCountObsFieldId,
   approxAreaSearchedObsFieldId,
+  blocked,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
+  failed,
   hostTreeSpeciesObsFieldId,
+  notSupported,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
 } from '@/misc/constants'
@@ -225,7 +244,6 @@ export default {
       speciesGuessSelectedItem: null,
       speciesGuessValue: null,
       photos: {},
-      currentPosition: null,
       uploadedPhotos: [],
       obsFieldValues: {},
       obsFieldInitialValues: {}, // for comparing after edit
@@ -242,6 +260,7 @@ export default {
       existingRecordSnapshot: null,
       isSaveModalVisible: false,
       isShowModelForceClose: false,
+      geolocationErrorMsg: null,
     }
   },
   computed: {
@@ -294,7 +313,6 @@ export default {
     },
   },
   beforeMount() {
-    this.doGeolocation()
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
@@ -333,7 +351,37 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
       })
-      this.$store.dispatch('obs/markUserGeolocation')
+      this.geolocationErrorMsg = null
+      // FIXME show message to prime users about accepting geolocation before
+      // this next call. Once we have support for pulling location from EXIF,
+      // we could survive without geolocation access.
+      this.$store.dispatch('obs/markUserGeolocation').catch(err => {
+        console.debug('No geolocation access for us.', err)
+        // FIXME notify user that we *need* geolocation
+        this.geolocationErrorMsg = (function() {
+          if (err === notSupported) {
+            return 'Geolocation is not supported by your device'
+          }
+          if (err === blocked) {
+            // TODO add links for how to un-block location access
+            return 'You have blocked access to geolocation'
+          }
+          if (err === failed) {
+            return (
+              `Geolocation seems to be supported and not blocked but ` +
+              'something went wrong while accessing your position'
+            )
+            // TODO add message about retrying? Maybe add a button to retry?
+          }
+          wowErrorHandler(
+            'ProgrammerError: geolocation access failed but in a' +
+              ' way that we did not plan for, we should handle this. ' +
+              `err.code=${err.code}.`,
+            err,
+          )
+          return 'Something went wrong while trying to access your geolocation'
+        })()
+      })
     },
     initForEdit(obsFieldsPromise) {
       obsFieldsPromise.then(() => {
@@ -700,20 +748,6 @@ export default {
     onDismissFormError() {
       this.formErrorDialogVisible = false
     },
-    doGeolocation() {
-      console.debug('Doing geolocation call')
-      navigator.geolocation.getCurrentPosition(
-        this.handleLocation,
-        this.onGeolocationError,
-      )
-    },
-    handleLocation(position) {
-      this.currentPosition = position
-    },
-    onGeolocationError(error) {
-      // FIXME handle the error
-      this.$ons.notification.alert('FIXME handle the error:' + error)
-    },
     snapshotExistingRecord() {
       // if the user edits a local record but the record is uploaded (and
       // cleaned up) before the user hits save, we're in trouble. We can recover
@@ -868,5 +902,19 @@ function getAllowedValsStrategy(fieldId) {
 
 .the-input-status {
   margin-left: 1em;
+}
+
+.warning {
+  color: #ff9900;
+  margin-right: 0.25em;
+}
+
+.geoloc-error {
+  border: 1px solid #ff9900;
+  border-radius: 5px;
+  background: #ffe7a2;
+  padding-left: 1em;
+  padding-right: 1em;
+  margin: 0 auto;
 }
 </style>
