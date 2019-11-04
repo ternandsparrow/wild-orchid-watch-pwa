@@ -164,6 +164,7 @@ export default {
         { icon: 'fa-map-marked-alt' },
         // { icon: 'fa-comments' }, FIXME uncomment when we get the content
       ],
+      obsFieldSorterFn: null,
     }
   },
   computed: {
@@ -186,6 +187,11 @@ export default {
             title: strategy(val),
           }
         })
+        const targetField = 'fieldId'
+        if (this.obsFieldSorterFn) {
+          // no error on initial run, the real sorter will be used though
+          this.obsFieldSorterFn(result.obsFieldValues, targetField)
+        }
       }
       return result
     },
@@ -234,6 +240,11 @@ export default {
       // should be able to use beforeRouteUpdate() instead, but couldn't get it to work
       this.$store.commit('obs/setSelectedObservationId', val)
     },
+  },
+  async created() {
+    this.obsFieldSorterFn = await this.$store.dispatch(
+      'obs/buildObsFieldSorter',
+    )
   },
   methods: {
     resetProcessingOutcome() {

@@ -236,11 +236,44 @@ const actions = {
       )
     })
   },
+  async buildObsFieldSorter({ dispatch }) {
+    await dispatch('waitForProjectInfo')
+    return dispatch('_buildObsFieldSorterWorkhorse')
+  },
+  /**
+   * Split the core logic into an easily testable function
+   */
+  _buildObsFieldSorterWorkhorse({ getters }) {
+    return function(obsFieldsToSort, targetField) {
+      if (!targetField) {
+        throw new Error('Required string param "targetField" is missing')
+      }
+      if (!obsFieldsToSort || obsFieldsToSort.constructor !== Array) {
+        throw new Error('Required array param "obsFieldsToSort" is missing')
+      }
+      if (!obsFieldsToSort.every(f => !!f[targetField])) {
+        throw new Error(
+          `All obsFieldsToSort MUST have the "${targetField}" field. ` +
+            `First item as sample: ${JSON.stringify(obsFieldsToSort[0])}`,
+        )
+      }
+      const positionMapping = getters.obsFieldPositions
+      return obsFieldsToSort.sort((a, b) => {
+        const aId = a[targetField]
+        const bId = b[targetField]
+        const aPos = positionMapping[aId]
+        const bPos = positionMapping[bId]
+        if (aPos < bPos) return -1
+        if (aPos > bPos) return 1
+        return 0
+      })
+    }
+  },
   async waitForProjectInfo({ state, dispatch, rootState, getters }) {
     const alreadyCachedResult = state.projectInfo
     const isOffline = !rootState.ephemeral.networkOnLine
     if (alreadyCachedResult && (!getters.isProjectInfoStale || isOffline)) {
-      console.debug('Returning cached project info')
+      console.debug('Using cached project info')
       return
     }
     if (isOffline) {
@@ -968,6 +1001,12 @@ const getters = {
       }
     })
     return result
+  },
+  obsFieldPositions(state, getters) {
+    return getters.obsFields.reduce((accum, curr) => {
+      accum[curr.fieldId] = curr.position
+      return accum
+    })
   },
 }
 

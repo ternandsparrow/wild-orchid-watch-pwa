@@ -228,6 +228,100 @@ describe('actions', () => {
       }
     })
   })
+
+  describe('buildObsFieldSorter', () => {
+    it('should handle an empty list of fields', async () => {
+      const obsFieldsToSort = []
+      const getters = {
+        obsFieldPositions: {},
+      }
+      const sorterFn = objectUnderTest.actions._buildObsFieldSorterWorkhorse({
+        getters,
+      })
+      const result = sorterFn(obsFieldsToSort, 'id')
+      expect(result).toHaveLength(0)
+    })
+
+    it('should throw when we do not provide a target field', async () => {
+      const obsFieldsToSort = []
+      const getters = {
+        obsFieldPositions: {},
+      }
+      const sorterFn = objectUnderTest.actions._buildObsFieldSorterWorkhorse({
+        getters,
+      })
+      try {
+        sorterFn(obsFieldsToSort /* no targetField */)
+        fail('Should throw due to no targetField')
+      } catch (err) {
+        // success
+      }
+    })
+
+    it('should throw when we do not provide an array of fields to sort', async () => {
+      const getters = {
+        obsFieldPositions: {},
+      }
+      const sorterFn = objectUnderTest.actions._buildObsFieldSorterWorkhorse({
+        getters,
+      })
+      try {
+        sorterFn(/* no obsFieldsToSort */ 'id')
+        fail('Should throw due to no obsFieldsToSort')
+      } catch (err) {
+        // success
+      }
+    })
+
+    it('should sort an array objects with a field named "id"', async () => {
+      const obsFieldsToSort = [
+        { id: 333, name: 'prancer' },
+        { id: 111, name: 'dasher' },
+        { id: 555, name: 'blitzen' },
+        { id: 999, name: 'comet' },
+      ]
+      const getters = {
+        obsFieldPositions: {
+          111: 0,
+          333: 1,
+          555: 2,
+          999: 3,
+        },
+      }
+      const sorterFn = objectUnderTest.actions._buildObsFieldSorterWorkhorse({
+        getters,
+      })
+      const result = sorterFn(obsFieldsToSort, 'id')
+      // a hacky "ordered array matcher"
+      expect(JSON.stringify(result.map(e => e.name))).toEqual(
+        JSON.stringify(['dasher', 'prancer', 'blitzen', 'comet']),
+      )
+    })
+
+    it('should throw when not all fields have the targetField', async () => {
+      const obsFieldsToSort = [
+        { fieldId: 333, name: 'prancer' },
+        { fieldId: 111, name: 'dasher' },
+        { /* missing fieldId*/ name: 'blitzen' },
+      ]
+      const getters = {
+        obsFieldPositions: {
+          111: 0,
+          333: 1,
+          555: 2,
+        },
+      }
+      const sorterFn = objectUnderTest.actions._buildObsFieldSorterWorkhorse({
+        getters,
+      })
+      try {
+        sorterFn(obsFieldsToSort, 'fieldId')
+        fail('should throw due to invalid obs field')
+      } catch (err) {
+        // success
+      }
+    })
+  })
 })
 
 describe('extractGeolocationText', () => {

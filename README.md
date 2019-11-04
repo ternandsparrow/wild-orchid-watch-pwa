@@ -124,5 +124,11 @@ If you want the unit tests to run every time you save a file (watch mode), use:
 Unit tests use Jest. You can find the doco for `expect()` at
 [https://jestjs.io/docs/en/expect]().
 
+
+If you want to debug your tests, use `yarn test:unit:debug` and then connect
+your debugger. The key is [passing the `--runInBand`
+param](https://jestjs.io/docs/en/troubleshooting#tests-are-failing-and-you-dont-know-why)
+to Jest.
+
 ## Architecture
 See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built.

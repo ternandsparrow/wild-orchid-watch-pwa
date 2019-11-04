@@ -9,6 +9,7 @@
     "test:e2e": "vue-cli-service test:e2e",
     "test:e2e:headless": "vue-cli-service test:e2e --headless",
     "test:unit": "vue-cli-service test:unit",
+    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/vue-cli-service test:unit --runInBand",
     "prettier:format-all": "prettier --write \"**/*.{vue,scss,sass,js}\"",
     "prettier:check": "prettier \"**/*.{vue,scss,sass,js}\" --list-different",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit"

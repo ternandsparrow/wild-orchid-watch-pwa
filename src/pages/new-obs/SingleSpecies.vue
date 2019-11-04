@@ -261,6 +261,7 @@ export default {
       isSaveModalVisible: false,
       isShowModelForceClose: false,
       geolocationErrorMsg: null,
+      obsFieldSorterFn: null,
     }
   },
   computed: {
@@ -291,6 +292,11 @@ export default {
         accum.push(field)
         return accum
       }, [])
+      const targetField = 'id'
+      if (this.obsFieldSorterFn) {
+        // no error on initial run, the real sorter will be used though
+        this.obsFieldSorterFn(result, targetField)
+      }
       return result
     },
     taxonQuestionIds() {
@@ -335,7 +341,7 @@ export default {
     }
     this.setRecentlyUsedTaxa()
   },
-  created() {
+  async created() {
     this.debouncedOnSpeciesGuessInput = _.debounce(
       this._onSpeciesGuessInput,
       300,
@@ -343,6 +349,9 @@ export default {
     this.debouncedOnTaxonQuestionInput = _.debounce(
       this._onTaxonQuestionInput,
       300,
+    )
+    this.obsFieldSorterFn = await this.$store.dispatch(
+      'obs/buildObsFieldSorter',
     )
   },
   methods: {
