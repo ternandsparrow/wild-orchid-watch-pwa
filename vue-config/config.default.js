@@ -56,7 +56,7 @@ module.exports = {
           appName: 'Wild Orchid Watch',
           appShortName: 'WildOrchidWatch',
           appDescription:
-            'Wild Orchid Watch Australian citizen science field data collection app',
+            'Wild Orchid Watch; an app for Australian citizen scientists to use for field data collection',
           appleStatusBarStyle: 'default',
           developerName: null,
           developerURL: null,
