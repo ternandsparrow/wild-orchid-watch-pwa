@@ -281,7 +281,7 @@ export function makeEnumValidator(validValues) {
 // https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
 //
 // Safari on iOS cannot store Blobs, which are what we get from the file input
-// UI control, so we have to convert them to ArrayBuffers, which do have
+// UI control. So we have to convert them to ArrayBuffers, which do have
 // support.
 export function arrayBufferToBlob(buffer, type) {
   return new Blob([buffer], { type: type })
