@@ -107,7 +107,7 @@
 
 <script>
 import { mapState } from 'vuex'
-import { deleteAllDatabases } from '@/indexeddb/dexie-store'
+import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import { alwaysUpload, neverUpload, beginner, expert } from '@/misc/constants'
 import { formatStorageSize } from '@/misc/helpers'
 
@@ -214,7 +214,7 @@ export default {
         await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
         unregisterAllServiceWorkers()
-        await deleteAllDatabases()
+        await deleteKnownStorageInstances()
         await this.$ons.notification.alert(
           'Logged out and all data wiped, press ok to restart the app in a clean state',
         )

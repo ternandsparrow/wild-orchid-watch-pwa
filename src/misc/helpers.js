@@ -341,6 +341,10 @@ export function getExifFromBlob(blobish) {
   })
 }
 
+export function wowIdOf(record) {
+  return record.inatId || record.uuid
+}
+
 export const _testonly = {
   isRespJson,
 }

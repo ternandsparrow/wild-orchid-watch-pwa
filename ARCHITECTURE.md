@@ -50,12 +50,12 @@ TODO
   - root exports facades for impls in modules so we don't have cross module dependencies
 
 
-## Dexie.js
-[dexie](https://dexie.org) is a wrapper for IndexedDB. We use IndexedDB to
-store records that haven't yet been uploaded to iNaturalist. Most of this
-information is duplicated in vuex (and therefore localStore too) but the main
-thing is photos. The binary data is stored in IndexedDB and we only store an
-ObjectURL in vuex.
+## localForage
+A simple key-val store that we use to store observations that haven't yet been
+uploaded. We did use Dexie first off but it turns out we don't need all the
+extra DB-like functionality and localForage help with compatibility as it will
+run on various underlying storage APIs and handles (de)serialising Blobs when
+running on webkit.
 
 
 ## iNaturalist

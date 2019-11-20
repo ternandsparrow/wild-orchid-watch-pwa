@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import * as uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
+import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import {
   apiUrlBase,
   blocked,
@@ -23,9 +24,10 @@ import {
   now,
   verifyWowDomainPhoto,
   wowErrorHandler,
+  wowIdOf,
 } from '@/misc/helpers'
-import db from '@/indexeddb/dexie-store'
 
+const obsStore = getOrCreateInstance('wow-obs')
 const hasRemoteRecordFieldName = 'hasRemoteRecord'
 const isRemotePhotoFieldName = 'isRemote'
 
@@ -145,7 +147,7 @@ const actions = {
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
     const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
-      .map(e => e.id)
+      .map(e => e.uuid)
     console.debug(
       `Deleting Db IDs that remote ` +
         `has echoed back=[${successfulLocalRecordDbIdsToDelete}]`,
@@ -153,10 +155,10 @@ const actions = {
     const dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote = state.localQueueSummary
       .filter(
         e =>
-          getters.deletesWithErrorDbIds.includes(e.id) &&
-          !uuidsOfRemoteRecords.includes(e.inatId),
+          getters.deletesWithErrorDbIds.includes(e.uuid) &&
+          !uuidsOfRemoteRecords.includes(e.uuid),
       )
-      .map(e => e.id)
+      .map(e => e.uuid)
     const dbIdsToDelete = [
       ...dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote,
       ...successfulLocalRecordDbIdsToDelete,
@@ -333,31 +335,31 @@ const actions = {
       )
     }
   },
-  findDbIdForInatId({ state }, inatId) {
+  async findDbIdForInatId({ state }, inatId) {
     const result = (
       state.localQueueSummary.find(e => e.inatId === inatId) || {}
-    ).id
+    ).uuid
     if (result) {
       return result
     }
     // For a record that failed the first POST of the observation itself to
     // iNat, we won't have an iNat ID. The ID that is passed in will
-    // therefore already be a Dexie ID but we're confirming.
-    const possibleDexieId = inatId
-    const record = db.obs.get(possibleDexieId)
+    // therefore already be a DB ID but we're confirming.
+    const possibleDbId = inatId
+    const record = await obsStore.getItem(possibleDbId)
     if (record) {
-      return possibleDexieId
+      return possibleDbId
     }
     throw new Error(
       `Could not resolve inatId='${inatId}' to a Db ID ` +
-        `using localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
+        `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
   },
   async deleteSelectedLocalEditOnly({ state, dispatch }) {
     const selectedInatId = state.selectedObservationId
     try {
       const dbId = await dispatch('findDbIdForInatId', selectedInatId)
-      await db.obs.delete(dbId)
+      await obsStore.removeItem(dbId)
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw new chainedError(
@@ -376,7 +378,6 @@ const actions = {
           'as we do not know what we are editing',
       )
     }
-    const existingRecordId = existingRecord.id
     const existingRecordUuid = existingRecord.uuid
     try {
       const existingLocalRecord = getters.localRecords.find(
@@ -387,7 +388,7 @@ const actions = {
       )
       const existingDbRecord = await (() => {
         if (existingLocalRecord) {
-          return db.obs.get(existingLocalRecord.id)
+          return obsStore.getItem(existingRecordUuid)
         }
         return { inatId: existingRemoteRecord.inatId }
       })()
@@ -431,7 +432,8 @@ const actions = {
           // 'edit' then the PUT won't work
           enhancedRecord.wowMeta[recordTypeFieldName] = recordType('new')
         }
-        await db.obs.put(enhancedRecord)
+        const key = enhancedRecord.uuid
+        await obsStore.setItem(key, enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
           photos: enhancedRecord.photos.map(p => ({
@@ -441,7 +443,7 @@ const actions = {
         })
         throw chainedError(
           `Failed to write record to Db with ` +
-            `ID='${existingRecordId}'.\n` +
+            `UUID='${existingRecordUuid}'.\n` +
             `record=${JSON.stringify(loggingSafeRecord)}`,
           err,
         )
@@ -449,8 +451,8 @@ const actions = {
       await dispatch('onLocalRecordEvent')
     } catch (err) {
       throw chainedError(
-        `Failed to save edited record with ID='${existingRecordId}'` +
-          ` and UUID='${existingRecordUuid}' to local queue.`,
+        `Failed to save edited record with UUID='${existingRecordUuid}'` +
+          ` to local queue.`,
         err,
       )
     }
@@ -480,7 +482,8 @@ const actions = {
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
       })
       try {
-        await db.obs.put(enhancedRecord)
+        const key = enhancedRecord.uuid
+        await obsStore.setItem(key, enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
           photos: enhancedRecord.photos.map(p => ({
@@ -517,8 +520,8 @@ const actions = {
   },
   async refreshLocalRecordQueue({ commit }) {
     try {
-      const localQueueSummary = await mapOverDexieCollection(db.obs, r => ({
-        id: r.id,
+      // FIXME WOW-135 consider using a web worker for this task
+      const localQueueSummary = await mapOverObsStore(r => ({
         inatId: r.inatId,
         [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
         [recordProcessingOutcomeFieldName]:
@@ -526,10 +529,10 @@ const actions = {
         uuid: r.uuid,
       }))
       commit('setLocalQueueSummary', localQueueSummary)
-      const uiVisibleLocalIds = localQueueSummary
+      const uiVisibleLocalUuids = localQueueSummary
         .filter(e => e[recordTypeFieldName] !== recordType('delete'))
-        .map(e => e.id)
-      const records = await resolveLocalRecordIds(uiVisibleLocalIds)
+        .map(e => e.uuid)
+      const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
       commit('setUiVisibleLocalRecords', records)
       revokeOldObjectUrls()
     } catch (err) {
@@ -600,9 +603,9 @@ const actions = {
         console.debug(`${logPrefix} No record to process, ending processing.`)
         return
       }
-      const idToProcess = waitingQueue[0].id
+      const idToProcess = waitingQueue[0].uuid
       try {
-        const dbRecord = await db.obs.get(idToProcess)
+        const dbRecord = await obsStore.getItem(idToProcess)
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
@@ -768,12 +771,12 @@ const actions = {
         },
         async end() {
           // only delete after the photos have been successfully deleted
-          return deleteDbRecordById(dbRecord.id)
+          return deleteDbRecordById(dbRecord.uuid)
         },
       },
     }
     const key = dbRecord.wowMeta[recordTypeFieldName]
-    console.debug(`DB record with ID='${dbRecord.id}' is type='${key}'`)
+    console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
@@ -862,7 +865,7 @@ const actions = {
       const existingLocalRecord = getters.localRecords.find(
         e => e.inatId === recordInatId,
       )
-      await deleteDbRecordById(existingLocalRecord.id)
+      await deleteDbRecordById(existingLocalRecord.uuid)
       await dispatch('refreshLocalRecordQueue')
       return
     }
@@ -878,7 +881,8 @@ const actions = {
         obsFieldIdsToDelete: [],
       },
     }
-    await db.obs.put(record)
+    const key = record.uuid
+    await obsStore.setItem(key, record)
     commit('setSelectedObservationId', null)
     return dispatch('onLocalRecordEvent')
   },
@@ -899,7 +903,7 @@ const actions = {
 
 async function deleteDbRecordById(id) {
   try {
-    return db.obs.delete(id)
+    return obsStore.removeItem(id)
   } catch (err) {
     throw chainedError(`Failed to delete db record with ID='${id}'`, err)
   }
@@ -913,7 +917,7 @@ const getters = {
   },
   observationDetail(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
-    const found = allObs.find(e => e.inatId === state.selectedObservationId)
+    const found = allObs.find(e => wowIdOf(e) === state.selectedObservationId)
     return found
   },
   waitingForDeleteCount(state) {
@@ -930,7 +934,7 @@ const getters = {
           e[recordTypeFieldName] === recordType('delete') &&
           isErrorOutcome(e[recordProcessingOutcomeFieldName]),
       )
-      .map(e => e.id)
+      .map(e => e.uuid)
   },
   deletesWithErrorCount(state, getters) {
     return getters.deletesWithErrorDbIds.length
@@ -1017,18 +1021,11 @@ function isErrorOutcome(outcome) {
   ].includes(outcome)
 }
 
-/**
- * Map over a Dexie collection
- *
- * We can't just call Collection.toArray() because once the result is large
- * enough, we'll get "Maximum IPC message size exceeded" error. This is a
- * memory-friendly implementation.
- */
-function mapOverDexieCollection(collection, mapperFn) {
+function mapOverObsStore(mapperFn) {
   return new Promise(async (resolve, reject) => {
     try {
       const result = []
-      await collection.each(r => {
+      await obsStore.iterate(r => {
         result.push(mapperFn(r))
       })
       return resolve(result)
@@ -1038,23 +1035,26 @@ function mapOverDexieCollection(collection, mapperFn) {
   })
 }
 
-function resolveLocalRecordIds(ids) {
+function resolveLocalRecordUuids(ids) {
   photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
   photoObjectUrlsInUse = []
-  return mapOverDexieCollection(db.obs.where('id').anyOf(ids), e => {
-    const photos = e.photos.map(mapPhotoFromDbToUi)
-    const result = {
-      ...e,
-      photos,
-    }
-    commonApiToOurDomainObsMapping(result, e)
-    // new records won't have inatId set, edit and delete will
-    const isNewRecord = !result.inatId
-    if (isNewRecord) {
-      result.inatId = -1 * e.id
-    }
-    return result
-  })
+  return Promise.all(
+    ids.map(async currId => {
+      const currRecord = await obsStore.getItem(currId)
+      const photos = currRecord.photos.map(mapPhotoFromDbToUi)
+      const result = {
+        ...currRecord,
+        photos,
+      }
+      commonApiToOurDomainObsMapping(result, currRecord)
+      // new records won't have inatId set, edit and delete will
+      const isNewRecord = !result.inatId
+      if (isNewRecord) {
+        result.inatId = -1 * currRecord.id
+      }
+      return result
+    }),
+  )
 }
 
 function mapPhotoFromDbToUi(p) {
@@ -1278,15 +1278,12 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   return result
 }
 
-function setRecordProcessingOutcome(dbId, outcome) {
-  return db.obs
-    .where('id')
-    .equals(dbId)
-    .modify({
-      [`wowMeta.${recordProcessingOutcomeFieldName}`]: recordProcessingOutcome(
-        outcome,
-      ),
-    })
+async function setRecordProcessingOutcome(dbId, outcome) {
+  const record = await obsStore.getItem(dbId)
+  record.wowMeta[recordProcessingOutcomeFieldName] = recordProcessingOutcome(
+    outcome,
+  )
+  return obsStore.setItem(dbId, record)
 }
 
 async function processPhotos(photos) {
@@ -1365,6 +1362,7 @@ async function compressPhotoIfRequired(blobish) {
     return magicalReserialisation(blobish)
   }
   function magicalReserialisation(b) {
+    // FIXME I don't think we need this now we're using LocalForage
     return blobToArrayBuffer(b)
   }
 }

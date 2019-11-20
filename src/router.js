@@ -11,6 +11,9 @@ import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Onboarder from '@/pages/Onboarder'
 import { mainStackReplace } from '@/misc/nav-stacks'
 
+const uuidRegex =
+  '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+
 Vue.use(VueRouter)
 
 const router = new VueRouter({
@@ -27,7 +30,7 @@ const router = new VueRouter({
       component: OauthCallback,
     },
     {
-      path: '/obs/:id(-?\\d+)',
+      path: `/obs/:id(\\d+|${uuidRegex})`,
       name: 'ObsDetail',
       component: ObsDetail,
       beforeEnter: resolveObsByIdOrNotFound,
@@ -81,7 +84,8 @@ router.beforeEach((to, from, next) => {
 })
 
 function resolveObsByIdOrNotFound(to, from, next) {
-  const obsId = parseInt(to.params.id)
+  const parsed = parseInt(to.params.id)
+  const obsId = isNaN(parsed) ? to.params.id : parsed
   store.commit('obs/setSelectedObservationId', obsId)
   if (!store.getters['obs/observationDetail']) {
     return next({ name: 'NotFound', replace: true })

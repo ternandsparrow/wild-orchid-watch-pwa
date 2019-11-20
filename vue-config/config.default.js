@@ -32,16 +32,6 @@ class KillVueCliManifestPlugin {
 }
 
 module.exports = {
-  /* See https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-pwa for more details */
-  pwa: {
-    workboxPluginMode: 'InjectManifest',
-    workboxOptions: {
-      swSrc: path.join('public', 'service-worker.js'),
-      // We may still need this - TDB
-      /* https://github.com/GoogleChrome/workbox/issues/1744 */
-      // skipWaiting: true,
-    },
-  },
   configureWebpack: {
     plugins: [
       new DumpVueEnvVarsWebpackPlugin({ filename: 'wow-env-vars.js' }),

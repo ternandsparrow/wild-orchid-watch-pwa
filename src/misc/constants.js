@@ -120,3 +120,13 @@ export const expert = 'EXPERT'
 export const notSupported = 'NOT_SUPPORTED'
 export const blocked = 'BLOCKED'
 export const failed = 'FAILED'
+
+export const obsFieldName = 'obs'
+export const photosFieldName = 'photos'
+export const obsFieldsFieldName = 'obsFields'
+export const projectIdFieldName = 'projectId'
+
+export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
+export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
+export const refreshObsMsg = 'REFRESH_OBS'
+export const failedToUploadObsMsg = 'OBS_FAIL'

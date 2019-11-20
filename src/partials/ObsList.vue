@@ -2,9 +2,9 @@
   <div>
     <v-ons-list-item
       v-for="curr in records"
-      :key="keyPrefix + curr.inatId"
+      :key="keyPrefix + getId(curr)"
       modifier="chevron"
-      @click="onClick(curr.inatId)"
+      @click="onClick(curr)"
     >
       <div class="left">
         <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
@@ -26,7 +26,7 @@
 <script>
 import { noImagePlaceholderUrl } from '@/misc/constants'
 import { isObsSystemError, extractGeolocationText } from '@/store/obs'
-import { humanDateString } from '@/misc/helpers'
+import { humanDateString, wowIdOf } from '@/misc/helpers'
 
 export default {
   name: 'ObsList',
@@ -38,8 +38,12 @@ export default {
     },
   },
   methods: {
-    onClick(clickedId) {
+    onClick(clickedRecord) {
+      const clickedId = wowIdOf(clickedRecord)
       this.$emit('item-click', clickedId)
+    },
+    getId(record) {
+      return wowIdOf(record)
     },
     firstPhoto(record) {
       if (!record || !record.photos || !record.photos.length) {

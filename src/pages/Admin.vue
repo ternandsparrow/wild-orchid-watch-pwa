@@ -18,18 +18,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Is Dexie DB open?
-      </div>
-      <p class="mono">
-        <strong>Result = {{ isDbOpen }}</strong>
-      </p>
-      <p>
-        Note: we lazy open the DB on first use so if you navigate directly to
-        this page, it might have not opened yet. Don't panic!
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Is currently processing queue?
       </div>
       <p class="mono">
@@ -188,7 +176,6 @@ import _ from 'lodash'
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
-import { isDbOpen } from '@/indexeddb/dexie-store'
 
 export default {
   data() {
@@ -206,7 +193,6 @@ export default {
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
-      isDbOpen: '(not checked yet)',
     }
   },
   computed: {
@@ -221,7 +207,6 @@ export default {
   },
   created() {
     this.computeConfigItems()
-    this.isDbOpen = isDbOpen()
   },
   methods: {
     doLQP() {
