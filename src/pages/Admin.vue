@@ -29,8 +29,10 @@
         Service Worker statuses
       </div>
       <p class="mono">
-        <span v-if="isSwActive" class="success-msg">All ready to go!</span>
-        <span v-if="!isSwActive" class="error-msg"
+        <span v-if="isSwStatusActive" class="success-msg"
+          >All ready to go!</span
+        >
+        <span v-if="!isSwStatusActive" class="error-msg"
           >SW is either not ready or not supported :(</span
         >
       </p>
@@ -41,6 +43,7 @@
         ><br />
         <strong>Waiting = {{ swStatus.waiting }}</strong>
       </p>
+      <p><button @click="fireCheckSwCall">Fire check to SW</button></p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -176,6 +179,7 @@ import _ from 'lodash'
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
+import { isSwActive } from '@/misc/helpers'
 
 export default {
   data() {
@@ -197,7 +201,7 @@ export default {
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapGetters('ephemeral', ['swStatus', 'isSwActive']),
+    ...mapGetters('ephemeral', ['swStatus', 'isSwStatusActive']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
@@ -321,6 +325,11 @@ export default {
         },
         { root: true },
       )
+    },
+    fireCheckSwCall() {
+      isSwActive().then(result => {
+        console.log('Is SW alive? ' + result)
+      })
     },
   },
 }

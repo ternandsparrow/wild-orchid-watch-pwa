@@ -99,3 +99,28 @@ TODO
   - free tier suits us
   - lowest paid tier is most reasonable out of all competing services
   - seems to do a good job
+
+## Workbox
+This eases the work related with managing a service worker. We still have to do
+some of the heavy lifting because our background sync requirements are a bit
+more complicated than the simple case. Workbox can replay single requests
+out-of-the-box but we need to wait for the observation req to succeed (or not),
+then grab the ID for that new obs and generate all the requests for the photos,
+obs fields, etc. Workbox gives us the freedom to do this and we can even use
+their Queue class to make our life easier.
+
+## Rollup
+Yes, we already have webpack to do the build of our main app but 1) we need to
+build our service worker, and 2) we cannot use webpack to build the service
+worker. The reason we can't use webpack to build our service worker is it can't
+output in a format that can be run as a service worker (IIFE or a regular
+script). Rollup does allow us to do this so we've got this hybrid build chain
+where we keep the webpack integrated with vue-cli, because it's easy to do so,
+and we bring in Rollup to just handle the service worker.
+
+On a side note, the reason we need to build the service worker is we want to
+use external modules like localForage. Service workers don't yet support
+importing modules so we solve that by building the service worker so it
+contains all the dependencies it needs. Previously we used the hosted version
+of Workbox (via an `importScripts()` call) but seeing as we're building the sw,
+we might as well include the workbox deps in it for extra reliability.

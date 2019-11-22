@@ -123,10 +123,20 @@ export const failed = 'FAILED'
 
 export const obsFieldName = 'obs'
 export const photosFieldName = 'photos'
+export const photoIdsToDeleteFieldName = 'photos-delete'
 export const obsFieldsFieldName = 'obsFields'
+export const obsFieldIdsToDeleteFieldName = 'obsFields-delete'
 export const projectIdFieldName = 'projectId'
 
 export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
 export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
 export const failedToUploadObsMsg = 'OBS_FAIL'
+
+const serviceWorkerMagicUrlPrefix = 'http://local.service-worker'
+export const serviceWorkerBundleMagicUrl =
+  serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
+export const serviceWorkerIsAliveMagicUrl =
+  serviceWorkerMagicUrlPrefix + '/are-you-alive'
+export const serviceWorkerUpdateAuthHeaderUrl =
+  serviceWorkerMagicUrlPrefix + '/update-auth-header'

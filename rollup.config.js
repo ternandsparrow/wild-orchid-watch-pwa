@@ -13,6 +13,6 @@ export default {
   plugins: [
     nodeResolve(), // lets us find dependencies in node_modules
     commonjs(),
-    injectProcess(['NODE_ENV']),
+    injectProcess(['NODE_ENV', /VUE_APP_.*/]),
   ],
 }

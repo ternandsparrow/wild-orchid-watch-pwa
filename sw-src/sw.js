@@ -3,21 +3,20 @@ import { Queue } from 'workbox-background-sync/Queue.mjs'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
 import { registerRoute } from 'workbox-routing/registerRoute.mjs'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
-import localForage from 'localforage' // could use idb-keyval instead if we trust all indexeddb implementations will work properly
+import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import * as constants from '../src/misc/constants.js'
 
+const obsStore = getOrCreateInstance('wow-sw')
 const createTag = 'create:'
 const updateTag = 'update:'
 const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'
 
-console.log('SW Startup!')
+let authHeaderValue = null
 
-// FIXME to get the full offline experience, we need to also show records that
-// are queued but haven't been processed. This is so the UI can delete/update
-// records that haven't been processed to create some real havoc.
+// FIXME why is the page not refreshing when we accept the update prompt?
 
 const depsQueue = new Queue('obs-dependant-queue', {
-  maxRetentionTime: 365 * 24 * 60, // if it doesn't succeed after year, let it die
+  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
@@ -111,7 +110,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
 //  1. if we have a SW, we're using the synthetic bundle endpoint
 //  2. fetch calls made *from* the SW don't hit the routes we configure
 const obsQueue = new Queue('obs-queue', {
-  maxRetentionTime: 365 * 24 * 60, // if it doesn't succeed after year, let it die
+  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
@@ -163,7 +162,7 @@ const obsQueue = new Queue('obs-queue', {
             })
             // FIXME what if we have pending PUTs or DELETEs?
             break
-            await localForage.removeItem(createTag + uniqueId)
+            await obsStore.removeItem(createTag + uniqueId)
             break
           case 'DELETE':
             // I guess it's already been deleted
@@ -202,7 +201,9 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         )
         continue
       }
-      resp = await fetch(entry.request.clone())
+      const req = entry.request.clone()
+      req.headers.set('Authorization', authHeaderValue)
+      resp = await fetch(req)
       console.log(
         `Request for '${entry.request.url}' ` +
           `has been replayed in queue '${this._name}'`,
@@ -281,7 +282,7 @@ async function onObsPostSuccess(obsResp) {
   // blobs. If it does, you need to reserialise them to ArrayBuffers to avoid
   // heartache.
   // https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-  const depsRecord = await localForage.getItem(createTag + obsUniqueId)
+  const depsRecord = await obsStore.getItem(createTag + obsUniqueId)
   if (!depsRecord) {
     // FIXME this is probably an error. We *always* have deps!
     console.warn(`No deps found for obsUniqueId=${obsUniqueId}`)
@@ -360,11 +361,11 @@ async function onObsPostSuccess(obsResp) {
     'Cleaning up after ourselves. All requests have been generated and ' +
       `queued up for uniqueId=${obsUniqueId}, so we do not need this data anymore`,
   )
-  await localForage.removeItem(createTag + obsUniqueId)
+  await obsStore.removeItem(createTag + obsUniqueId)
 }
 
 registerRoute(
-  'http://local.service-worker/queue/obs-bundle',
+  constants.serviceWorkerBundleMagicUrl,
   async ({ url, event, params }) => {
     console.debug('Service worker processing POSTed bundle')
     const formData = await event.request.formData()
@@ -374,7 +375,7 @@ registerRoute(
       .getAll(constants.obsFieldsFieldName)
       .map(e => JSON.parse(e))
     const projectId = formData.get(constants.projectIdFieldName)
-    await localForage.setItem(createTag + obs.uniqueId, {
+    await obsStore.setItem(createTag + obs.uniqueId, {
       uniqueId: obs.uniqueId,
       photos,
       obsFields,
@@ -396,7 +397,7 @@ registerRoute(
         }),
       })
       // TODO the real sync doesn't seem to check before running so you can get
-      // two threads of processing running at once, messy. If the queue has seen
+      // two threads of processing running at once; messy. If the queue has seen
       // an error, it won't start processing when we push a new request so that's
       // when this would be good.
       // if (!obsQueue._syncInProgress) {
@@ -422,7 +423,7 @@ registerRoute(
 )
 
 registerRoute(
-  'http://local.service-worker/queue/obs-bundle',
+  constants.serviceWorkerBundleMagicUrl,
   async ({ url, event, params }) => {
     console.debug('Service worker processing PUTed bundle')
     const formData = await event.request.formData()
@@ -431,7 +432,7 @@ registerRoute(
     // POST. We could queue all the deps because we have the obsId but it's
     // easier to keep them in localForage so it's easy to clean up if anything
     // goes wrong
-    await localForage.setItem(updateTag + obs.uniqueId, {
+    await obsStore.setItem(updateTag + obs.uniqueId, {
       uniqueId: obs.uniqueId,
       newPhotos: [],
       newObsFields: [],
@@ -483,7 +484,6 @@ registerRoute(
       sendMessageToAllClients({ id: constants.refreshObsMsg })
       return new Response(JSON.stringify({ result: 'deleted' }))
     }
-    // FIXME if we're not connected, we need to queue this req up
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,
@@ -499,14 +499,38 @@ registerRoute(
   'DELETE',
 )
 
-// Install Service Worker
+registerRoute(
+  constants.serviceWorkerIsAliveMagicUrl,
+  async ({ url, event, params }) => {
+    return new Response(
+      JSON.stringify({
+        result: 'yep',
+      }),
+    )
+  },
+  'GET',
+)
+
+registerRoute(
+  constants.serviceWorkerUpdateAuthHeaderUrl,
+  async ({ url, event, params }) => {
+    authHeaderValue = event.request.headers.get('Authorization')
+    return new Response(
+      JSON.stringify({
+        result: 'thanks',
+        suppliedAuthHeader: authHeaderValue,
+      }),
+    )
+  },
+  'POST',
+)
+
 self.addEventListener('install', function(event) {
-  console.log('installed!')
+  console.debug('SW installed!')
 })
 
-// Service Worker Active
 self.addEventListener('activate', function(event) {
-  console.log('activated!')
+  console.debug('SW activated!')
 })
 
 self.addEventListener('message', function(event) {
@@ -532,10 +556,6 @@ self.addEventListener('message', function(event) {
       obsQueue._onSync().catch(err => {
         console.warn('Manually triggered obsQueue sync has failed', err)
       })
-      return
-    default:
-      console.log('SW received message: ' + event.data)
-      event.ports[0].postMessage('SW says "Hello back!"')
       return
   }
 })

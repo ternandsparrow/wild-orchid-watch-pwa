@@ -2,24 +2,13 @@ import _ from 'lodash'
 import * as uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
+import * as constants from '@/misc/constants'
 import {
-  apiUrlBase,
-  blocked,
-  failed,
-  inatProjectSlug,
-  notSupported,
-  obsFieldPrefix,
-  obsFieldSeparatorChar,
-  recordProcessingOutcomeFieldName,
-  targetTaxaNodeId,
-} from '@/misc/constants'
-import {
-  arrayBufferToBlob,
-  blobToArrayBuffer,
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
   getExifFromBlob,
+  isNoSwActive,
   makeEnumValidator,
   now,
   verifyWowDomainPhoto,
@@ -118,7 +107,9 @@ const actions = {
     commit('setIsUpdatingRemoteObs', true)
     const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
-    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${inatProjectSlug}`
+    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${
+      constants.inatProjectSlug
+    }`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
@@ -176,7 +167,9 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${inatProjectSlug}`
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${
+      constants.inatProjectSlug
+    }`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
@@ -204,7 +197,7 @@ const actions = {
     if (!navigator.geolocation) {
       console.debug('Geolocation is not supported by user agent')
       commit('setIsGeolocationAccessible', false)
-      return Promise.reject(notSupported)
+      return Promise.reject(constants.notSupported)
     }
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -224,13 +217,13 @@ const actions = {
           switch (err.code) {
             case permissionDenied:
               console.debug('Geolocation is blocked')
-              return reject(blocked)
+              return reject(constants.blocked)
             case positionUnavailable:
             case timeout:
               console.debug(
                 'Geolocation is supported but not avaible or timed out',
               )
-              return reject(failed)
+              return reject(constants.failed)
             default:
               return reject(err)
           }
@@ -290,7 +283,7 @@ const actions = {
     return
   },
   async getProjectInfo({ state, commit }) {
-    const url = apiUrlBase + '/projects/' + inatProjectSlug
+    const url = constants.apiUrlBase + '/projects/' + constants.inatProjectSlug
     try {
       const projectInfo = await fetchSingleRecord(url)
       if (!projectInfo) {
@@ -319,7 +312,7 @@ const actions = {
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results
-        .filter(d => d.ancestor_ids.find(e => e === targetTaxaNodeId))
+        .filter(d => d.ancestor_ids.find(e => e === constants.targetTaxaNodeId))
         .map(d => ({
           name: d.name,
           preferredCommonName: d.preferred_common_name,
@@ -416,7 +409,7 @@ const actions = {
         uuid: (existingLocalRecord || existingRemoteRecord).uuid,
         wowMeta: {
           [recordTypeFieldName]: recordType('edit'),
-          [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
+          [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
             'waiting',
           ),
           [hasRemoteRecordFieldName]: !!existingRemoteRecord,
@@ -470,7 +463,7 @@ const actions = {
         photos: await processPhotos(record.photos),
         wowMeta: {
           [recordTypeFieldName]: recordType('new'),
-          [recordProcessingOutcomeFieldName]: recordProcessingOutcome(
+          [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
             'waiting',
           ),
           [hasRemoteRecordFieldName]: false,
@@ -524,8 +517,8 @@ const actions = {
       const localQueueSummary = await mapOverObsStore(r => ({
         inatId: r.inatId,
         [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
-        [recordProcessingOutcomeFieldName]:
-          r.wowMeta[recordProcessingOutcomeFieldName],
+        [constants.recordProcessingOutcomeFieldName]:
+          r.wowMeta[constants.recordProcessingOutcomeFieldName],
         uuid: r.uuid,
       }))
       commit('setLocalQueueSummary', localQueueSummary)
@@ -539,6 +532,8 @@ const actions = {
       throw chainedError('Failed to refresh localRecordQueue', err)
     }
   },
+  // FIXME add ability to send messages to the SW so we can manually trigger a
+  // refresh
   /**
    * Process actions (new/edit/delete) in the local queue.
    * If there are records to process, we process one then call ourselves again.
@@ -574,25 +569,15 @@ const actions = {
     return rootState.ephemeral.queueProcessorPromise
     async function worker() {
       console.debug(`${logPrefix} Starting to process local queue`)
-      // FIXME use Background Sync API with auto-retry
-      //       Background sync might just be configuring workbox to retry our
-      //       POSTs requests to the API
-      // FIXME how do we handle dev or no service worker support?
-      if (!rootGetters['canUploadNow']) {
-        // FIXME with background sync, we need to create the HTTP request so do
-        // we just go ahead anyway? Need to differentiate between being offline
-        // and user setting upload policy to NEVER
+      if (rootGetters['isSyncDisabled']) {
         console.debug(`${logPrefix} Processing is disallowed, giving up.`)
         return
       }
-      if (!rootState.ephemeral.networkOnLine) {
-        // FIXME this is an interim fix until we get the workbox background
-        // sync logic working. Remove this once we have that in place.  We also
-        // have a hook for when we're back online that will trigger queue
-        // processing again. That should probably be cleaned up too
+      const isNoServiceWorkerAvailable = await isNoSwActive()
+      if (isNoServiceWorkerAvailable && !rootState.ephemeral.networkOnLine) {
         console.debug(
-          `${logPrefix} No network available, refusing to generate ` +
-            `HTTP requests that are destined to fail.`,
+          `${logPrefix} No network (and no SW) available, refusing to ` +
+            `generate HTTP requests that are destined to fail.`,
         )
         return
       }
@@ -609,20 +594,15 @@ const actions = {
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
-        await dispatch('processWaitingDbRecord', dbRecord)
+        const strategy = isNoServiceWorkerAvailable
+          ? 'processWaitingDbRecordNoSw'
+          : 'processWaitingDbRecordWithSw'
+        await dispatch(strategy, { dbRecord, idToProcess })
+        // FIXME move this inside each of the strats
         await setRecordProcessingOutcome(idToProcess, 'success')
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
-        await dispatch('refreshLocalRecordQueue')
-        const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
-        await new Promise(resolve => {
-          setTimeout(() => {
-            dispatch('refreshRemoteObs').then(() => {
-              resolve()
-            })
-          }, antiRaceConditionDelayToLetServerIndexNewRecord)
-        })
       } catch (err) {
         // FIXME how do we compute this?
         const isUserError = false
@@ -731,7 +711,7 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecord({ dispatch }, dbRecord) {
+  async processWaitingDbRecordNoSw({ dispatch }, { dbRecord, idToProcess }) {
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += (dbRecord.wowMeta.photoIdsToDelete || []).length
@@ -823,6 +803,76 @@ const actions = {
     )
     await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
+    await setRecordProcessingOutcome(idToProcess, 'success')
+    const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
+    await new Promise(resolve => {
+      setTimeout(() => {
+        dispatch('refreshRemoteObs').then(() => {
+          resolve()
+        })
+      }, antiRaceConditionDelayToLetServerIndexNewRecord)
+    })
+  },
+  async processWaitingDbRecordWithSw({ state, dispatch }, { dbRecord }) {
+    const strategies = {
+      [recordType('new')]: formData => {
+        return fetch(constants.serviceWorkerBundleMagicUrl, {
+          method: 'POST',
+          body: formData,
+          retries: 0,
+        })
+      },
+      [recordType('edit')]: formData => {
+        return fetch(constants.serviceWorkerBundleMagicUrl, {
+          method: 'PUT',
+          body: formData,
+          retries: 0,
+        })
+      },
+      [recordType('delete')]: () => {
+        // sw will intercept this
+        // FIXME need to implement a callback from the SW for when the delete
+        // has completed, so we remove the record from our DB
+        return dispatch('_deleteObservation', {
+          inatRecordId: dbRecord.inatId,
+        })
+      },
+    }
+    const key = dbRecord.wowMeta[recordTypeFieldName]
+    console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
+    const strategy = strategies[key]
+    if (!strategy) {
+      throw new Error(
+        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+      )
+    }
+    const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
+    const fd = new FormData()
+    fd.append(
+      constants.obsFieldName,
+      JSON.stringify(apiRecords.observationPostBody),
+    )
+    for (const curr of dbRecord.wowMeta.photoIdsToDelete) {
+      fd.append(constants.photoIdsToDeleteFieldName, curr)
+    }
+    for (const curr of dbRecord.wowMeta.obsFieldIdsToDelete) {
+      fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
+    }
+    for (const curr of apiRecords.photoPostBodyPartials) {
+      fd.append(constants.photosFieldName, curr.file)
+    }
+    for (const curr of apiRecords.obsFieldPostBodyPartials) {
+      fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
+    }
+    if (!(state.projectInfo || {}).id) {
+      throw new Error(
+        'No projectInfo stored, cannot link observation to project without ID',
+      )
+    }
+    const projectId = state.projectInfo.id
+    fd.append(constants.projectIdFieldName, projectId)
+    await strategy(fd)
+    await dispatch('refreshLocalRecordQueue')
   },
   async _linkObsWithProject({ state, dispatch }, { recordId }) {
     if (!state.projectInfo) {
@@ -875,7 +925,9 @@ const actions = {
       uuid: existingRemoteRecord.uuid,
       wowMeta: {
         [recordTypeFieldName]: recordType('delete'),
-        [recordProcessingOutcomeFieldName]: recordProcessingOutcome('waiting'),
+        [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
+          'waiting',
+        ),
         [hasRemoteRecordFieldName]: !!existingRemoteRecord,
         photoIdsToDelete: theyreCascadeDeletedByTheObs,
         obsFieldIdsToDelete: [],
@@ -887,7 +939,7 @@ const actions = {
     return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedInatId = Math.abs(state.selectedObservationId)
+    const selectedInatId = state.selectedObservationId
     const dbId = await dispatch('findDbIdForInatId', selectedInatId)
     await setRecordProcessingOutcome(dbId, 'waiting')
     return dispatch('onLocalRecordEvent')
@@ -924,7 +976,7 @@ const getters = {
     return state.localQueueSummary.filter(
       e =>
         e[recordTypeFieldName] === recordType('delete') &&
-        !isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+        !isErrorOutcome(e[constants.recordProcessingOutcomeFieldName]),
     ).length
   },
   deletesWithErrorDbIds(state) {
@@ -932,7 +984,7 @@ const getters = {
       .filter(
         e =>
           e[recordTypeFieldName] === recordType('delete') &&
-          isErrorOutcome(e[recordProcessingOutcomeFieldName]),
+          isErrorOutcome(e[constants.recordProcessingOutcomeFieldName]),
       )
       .map(e => e.uuid)
   },
@@ -973,14 +1025,14 @@ const getters = {
   waitingLocalQueueSummary(state) {
     return state.localQueueSummary.filter(
       e =>
-        e[recordProcessingOutcomeFieldName] ===
+        e[constants.recordProcessingOutcomeFieldName] ===
         recordProcessingOutcome('waiting'),
     )
   },
   successfulLocalQueueSummary(state) {
     return state.localQueueSummary.filter(
       e =>
-        e[recordProcessingOutcomeFieldName] ===
+        e[constants.recordProcessingOutcomeFieldName] ===
         recordProcessingOutcome('success'),
     )
   },
@@ -1000,7 +1052,7 @@ const getters = {
         description: fieldDef.description,
         datatype: fieldDef.datatype,
         allowedValues: (fieldDef.allowed_values || '')
-          .split(obsFieldSeparatorChar)
+          .split(constants.obsFieldSeparatorChar)
           .filter(x => !!x), // remove zero length strings
       }
     })
@@ -1070,17 +1122,13 @@ function mapPhotoFromDbToUi(p) {
   return result
 }
 
-function mintObjectUrl(blobAsArrayBuffer) {
-  if (!blobAsArrayBuffer) {
+function mintObjectUrl(blob) {
+  if (!blob) {
     throw new Error(
       'Supplied blob is falsey/nullish, refusing to even try to use it',
     )
   }
   try {
-    const blob = arrayBufferToBlob(
-      blobAsArrayBuffer.data,
-      blobAsArrayBuffer.mime,
-    )
     const result = (window.webkitURL || window.URL || {}).createObjectURL(blob)
     photoObjectUrlsInUse.push(result)
     return result
@@ -1088,9 +1136,7 @@ function mintObjectUrl(blobAsArrayBuffer) {
     throw chainedError(
       // Don't get distracted, the MIME has no impact. If it fails, it's due to
       // something else, the MIME will just help you debug (hopefully)
-      `Failed to mint object URL for blob with MIME='${
-        blobAsArrayBuffer.mime
-      }'`,
+      `Failed to mint object URL for blob with MIME='${blob.type}'`,
       err,
     )
   }
@@ -1127,7 +1173,7 @@ export const networkHooks = [
 
 export function isObsSystemError(record) {
   return (
-    (record.wowMeta || {})[recordProcessingOutcomeFieldName] ===
+    (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
     recordProcessingOutcome('systemError')
   )
 }
@@ -1224,7 +1270,7 @@ function mapGeojsonToLatLng(geojson) {
 }
 
 function processObsFieldName(fieldName) {
-  return (fieldName || '').replace(obsFieldPrefix, '')
+  return (fieldName || '').replace(constants.obsFieldPrefix, '')
 }
 
 function mapObsFromOurDomainOntoApi(dbRecord) {
@@ -1280,9 +1326,9 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
 
 async function setRecordProcessingOutcome(dbId, outcome) {
   const record = await obsStore.getItem(dbId)
-  record.wowMeta[recordProcessingOutcomeFieldName] = recordProcessingOutcome(
-    outcome,
-  )
+  record.wowMeta[
+    constants.recordProcessingOutcomeFieldName
+  ] = recordProcessingOutcome(outcome)
   return obsStore.setItem(dbId, record)
 }
 
@@ -1295,10 +1341,7 @@ async function processPhotos(photos) {
         id: tempId,
         url: '(set at render time)',
         type: curr.type,
-        file: {
-          data: photoData,
-          mime: curr.file.type,
-        },
+        file: photoData,
         // TODO read and use user's default settings for these:
         licenseCode: 'default',
         attribution: 'default',
@@ -1333,7 +1376,7 @@ async function compressPhotoIfRequired(blobish) {
       `No compresion needed for ${dimMsg},` +
         ` ${originalImageSizeMb.toFixed(3)} MB image`,
     )
-    return magicalReserialisation(blobish)
+    return blobish
   }
   try {
     const compressedBlobish = await imageCompression(blobish, {
@@ -1349,9 +1392,9 @@ async function compressPhotoIfRequired(blobish) {
         ((compressedBlobishSizeMb / originalImageSizeMb) * 100).toFixed(1) +
         `% of original)`,
     )
-    // FIXME compressed images seem to not have any EXIF may be able to use
+    // FIXME compressed images seem to not have any EXIF, may be able to use
     // https://github.com/hMatoba/piexifjs to insert EXIF again
-    return magicalReserialisation(compressedBlobish)
+    return compressedBlobish
   } catch (err) {
     wowErrorHandler(
       `Failed to compress a photo with MIME=${blobish.type}, ` +
@@ -1359,11 +1402,7 @@ async function compressPhotoIfRequired(blobish) {
       err,
     )
     // fallback to using the fullsize image
-    return magicalReserialisation(blobish)
-  }
-  function magicalReserialisation(b) {
-    // FIXME I don't think we need this now we're using LocalForage
-    return blobToArrayBuffer(b)
+    return blobish
   }
 }
 

@@ -66,11 +66,6 @@ const store = new Vuex.Store({
     myPlaceId(state, getters) {
       return getters['auth/myPlaceId']
     },
-    canUploadNow(state, getters) {
-      // TODO when we support "only on WiFi", we'll need to check the current
-      // connection type
-      return !getters['isSyncDisabled']
-    },
     isSyncDisabled(state) {
       return state.app.whenToSync === neverUpload
     },

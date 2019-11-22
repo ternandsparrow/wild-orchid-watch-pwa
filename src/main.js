@@ -19,27 +19,21 @@ import store, { migrateOldStores } from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator'
 import '@/global-components'
-import {
-  appVersion,
-  deployedEnvName,
-  googleAnalyticsTrackerCode,
-  googleMapsApiKey,
-  sentryDsn,
-} from '@/misc/constants'
+import * as constants from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
 Vue.use(VueGoogleMaps, {
-  load: { key: googleMapsApiKey },
+  load: { key: constants.googleMapsApiKey },
 })
 
 smoothscroll.polyfill()
 
-if (googleAnalyticsTrackerCode !== 'off') {
+if (constants.googleAnalyticsTrackerCode !== 'off') {
   Vue.use(VueAnalytics, {
-    id: googleAnalyticsTrackerCode,
+    id: constants.googleAnalyticsTrackerCode,
     router,
   })
 }
@@ -48,12 +42,12 @@ if (process.env.NODE_ENV !== 'development') {
   // don't init Sentry during dev, otherwise it won't print render errors to
   // the console, see https://github.com/vuejs/vue/issues/8433
   Sentry.init({
-    dsn: sentryDsn,
+    dsn: constants.sentryDsn,
     integrations: [new Integrations.Vue({ Vue, attachProps: true })],
-    release: appVersion,
+    release: constants.appVersion,
   })
   Sentry.configureScope(scope => {
-    scope.setTag('environment', deployedEnvName)
+    scope.setTag('environment', constants.deployedEnvName)
   })
 }
 
@@ -79,7 +73,8 @@ new Vue({
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 
-      // TODO should we delay this so it doesn't show over the onboarder?
+      // TODO WOW-136 should we delay this so it doesn't show over the
+      // onboarder?
       initAppleInstallPrompt()
 
       this.$store.dispatch('obs/refreshLocalRecordQueue')
@@ -89,6 +84,34 @@ new Vue({
         'Failed to start app, sorry. Try restarting the app to fix the problem.',
       )
     }
+  },
+  mounted() {
+    this.registerForSwMessages()
+  },
+  methods: {
+    registerForSwMessages() {
+      if (!('serviceWorker' in navigator)) {
+        console.warn('no service worker, cannot register for messages')
+        return
+      }
+      navigator.serviceWorker.addEventListener('message', event => {
+        switch (event.data.id) {
+          case constants.refreshObsMsg:
+            // FIXME implement this
+            alert('FIXME handle refreshing obs')
+            break
+          case constants.failedToUploadObsMsg:
+            // FIXME show a nice message to the user, probably trigger global
+            // error handler too
+            // FIXME set the status of that record (get the ID) to the
+            // appropriate status
+            alert(event.data.msg)
+            break
+          default:
+            console.debug('Client received message from SW: ' + event.data)
+        }
+      })
+    },
   },
   render: h => h(AppNavigator),
   router,

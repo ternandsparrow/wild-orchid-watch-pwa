@@ -1,18 +1,38 @@
 // Removes process.env.* references that explode browsers
 // thanks https://github.com/rollup/rollup/issues/487#issuecomment-486229172
-// TODO extract this to its own npm package
 import MagicString from 'magic-string'
+import * as wowEnvVars from './dist/wow-env-vars.js'
 
 export default function injectProcessPlugin(envVarWhitelist) {
-  // The virtual id for our shared "process" mock. We prefix it with \0 so that other plugins ignore it
+  // The virtual id for our shared "process" mock. We prefix it with \0 so that
+  // other plugins ignore it
   const INJECT_PROCESS_MODULE_ID = '\0inject-process'
 
+  for (const currKey of Object.keys(wowEnvVars)) {
+    process.env[currKey] = wowEnvVars[currKey]
+  }
+
   // only expose the env vars that we whitelist
-  const env = envVarWhitelist.reduce((accum, curr) => {
+  const whitelistStrings = envVarWhitelist.filter(e => typeof e === 'string')
+  const whitelistRegexps = envVarWhitelist.filter(e => e.constructor === RegExp)
+  const env = whitelistStrings.reduce((accum, curr) => {
     const val = process.env[curr]
     accum[curr] = val
     return accum
   }, {})
+  whitelistRegexps.forEach(re => {
+    const matchingAndNotIncludedYetKeys = Object.keys(process.env).filter(
+      k => !Object.keys(env).includes(k) && re.test(k),
+    )
+    for (const currKey of matchingAndNotIncludedYetKeys) {
+      env[currKey] = process.env[currKey]
+    }
+  })
+  console.log(
+    `[InjectProcessPlugin] including the following keys from process.env=${JSON.stringify(
+      Object.keys(env),
+    )}`,
+  )
 
   return {
     name: 'inject-process',

@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/browser' // piggybacks on the config done in sr
 import * as moment from 'moment'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
+import * as constants from '@/misc/constants'
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -87,7 +88,7 @@ export function getJson(url) {
 }
 
 export function getJsonWithAuth(url, authHeaderValue) {
-  // supplying cache: 'no-store' to fetch() works perfectly expect for iOS
+  // supplying cache: 'no-store' to fetch() works perfectly except for iOS
   // Safari which explodes, so we have to fall back to this dirty way of cache
   // busting
   const isQueryStringPresent = url.includes('?')
@@ -101,6 +102,23 @@ export function getJsonWithAuth(url, authHeaderValue) {
       Authorization: authHeaderValue,
     },
   })
+}
+
+export async function isNoSwActive() {
+  const result = !(await isSwActive())
+  return result
+}
+
+export async function isSwActive() {
+  try {
+    const resp = await fetch(constants.serviceWorkerIsAliveMagicUrl, {
+      method: 'GET',
+      retries: 0,
+    })
+    return resp.ok // if we get a response, it should be ok
+  } catch (err) {
+    return false
+  }
 }
 
 export function deleteWithAuth(url, authHeaderValue) {
@@ -275,27 +293,6 @@ export function makeEnumValidator(validValues) {
     }
     return enumItem
   }
-}
-
-// Thanks for these two functions:
-// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-//
-// Safari on iOS cannot store Blobs, which are what we get from the file input
-// UI control. So we have to convert them to ArrayBuffers, which do have
-// support.
-export function arrayBufferToBlob(buffer, type) {
-  return new Blob([buffer], { type: type })
-}
-
-export function blobToArrayBuffer(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('loadend', () => {
-      resolve(reader.result)
-    })
-    reader.addEventListener('error', reject)
-    reader.readAsArrayBuffer(blob)
-  })
 }
 
 export function humanDateString(dateStr) {

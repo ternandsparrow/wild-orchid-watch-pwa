@@ -88,7 +88,7 @@ const getters = {
       return accum
     }, {})
   },
-  isSwActive: (state, getters) => getters.swStatus[ACTIVE],
+  isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
 }
 
 export default {

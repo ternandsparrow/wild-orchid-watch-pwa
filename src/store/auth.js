@@ -3,19 +3,12 @@ import PkceGenerator from 'pkce-challenge'
 import jwt from 'jsonwebtoken'
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
 
+import * as constants from '@/misc/constants'
 import {
-  apiUrlBase,
-  appId,
-  inatUrlBase,
-  noProfilePicPlaceholderUrl,
-  persistedStateLocalStorageKey,
-  redirectUri,
-} from '@/misc/constants'
-import {
-  arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
+  isSwActive,
   now,
   postFormDataWithAuth,
   postJsonWithAuth,
@@ -77,7 +70,7 @@ export default {
     },
     userIcon(state) {
       const result = state.userDetails.icon
-      return result ? result : noProfilePicPlaceholderUrl
+      return result ? result : constants.noProfilePicPlaceholderUrl
     },
     myUserId(state) {
       return state.userDetails.id
@@ -97,7 +90,7 @@ export default {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await getJsonWithAuth(
-          `${apiUrlBase}${urlSuffix}`,
+          `${constants.apiUrlBase}${urlSuffix}`,
           `${state.apiToken}`,
         )
         return resp
@@ -113,7 +106,7 @@ export default {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await deleteWithAuth(
-          `${apiUrlBase}${urlSuffix}`,
+          `${constants.apiUrlBase}${urlSuffix}`,
           `${state.apiToken}`,
         )
         return resp
@@ -141,7 +134,7 @@ export default {
       try {
         dispatch('assertInatTokenValid')
         const resp = await getJsonWithAuth(
-          `${inatUrlBase}${urlSuffix}`,
+          `${constants.inatUrlBase}${urlSuffix}`,
           `${state.tokenType} ${state.token}`,
         )
         return resp
@@ -156,7 +149,7 @@ export default {
       try {
         dispatch('assertInatTokenValid')
         const resp = await postJsonWithAuth(
-          `${inatUrlBase}${urlSuffix}`,
+          `${constants.inatUrlBase}${urlSuffix}`,
           data,
           `${state.tokenType} ${state.token}`,
         )
@@ -173,7 +166,7 @@ export default {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await postJsonWithAuth(
-          `${apiUrlBase}${urlSuffix}`,
+          `${constants.apiUrlBase}${urlSuffix}`,
           data,
           `${state.apiToken}`,
         )
@@ -191,7 +184,7 @@ export default {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await putJsonWithAuth(
-          `${apiUrlBase}${urlSuffix}`,
+          `${constants.apiUrlBase}${urlSuffix}`,
           data,
           `${state.apiToken}`,
         )
@@ -209,14 +202,10 @@ export default {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await postFormDataWithAuth(
-          `${apiUrlBase}/observation_photos`,
+          `${constants.apiUrlBase}/observation_photos`,
           formData => {
             formData.append('observation_photo[observation_id]', obsId)
-            const photoBlob = arrayBufferToBlob(
-              photoRecord.file.data,
-              photoRecord.file.mime,
-            )
-            formData.append('file', photoBlob)
+            formData.append('file', photoRecord.file)
           },
           `${state.apiToken}`,
         )
@@ -241,9 +230,9 @@ export default {
       const challenge = state.code_challenge
       await dispatch('_assertReadyForOauthCallback')
       location.assign(
-        `${inatUrlBase}/oauth/authorize?
-        client_id=${appId}&
-        redirect_uri=${redirectUri}&
+        `${constants.inatUrlBase}/oauth/authorize?
+        client_id=${constants.appId}&
+        redirect_uri=${constants.redirectUri}&
         code_challenge=${challenge}&
         code_challenge_method=S256&
         response_type=code`.replace(/\s/g, ''),
@@ -261,7 +250,7 @@ export default {
         return
       }
       const persistedStore = JSON.parse(
-        localStorage.getItem(persistedStateLocalStorageKey) || '{}',
+        localStorage.getItem(constants.persistedStateLocalStorageKey) || '{}',
       )
       const persistedCc = persistedStore.auth.code_challenge
       const persistedCv = persistedStore.auth.code_verifier
@@ -290,7 +279,7 @@ export default {
         // This must be opened in a new window as we can't pass CORS check to
         // make it with XHR and we can't IFrame it in because iNat passes
         // X-Frame-Options header
-        window.open(`${inatUrlBase}/logout`, '_blank')
+        window.open(`${constants.inatUrlBase}/logout`, '_blank')
       } catch (err) {
         throw chainedError('Failed to revoke iNat token while logging out', err)
       }
@@ -318,6 +307,15 @@ export default {
             commit('markApiTokenAndUserLastUpdated')
             commit('setIsUpdatingApiToken', false)
           })
+          if (await isSwActive()) {
+            await fetch(constants.serviceWorkerUpdateAuthHeaderUrl, {
+              method: 'POST',
+              headers: {
+                Authorization: apiToken,
+              },
+              retries: 0,
+            })
+          }
         } catch (err) {
           commit('setIsUpdatingApiToken', false)
           const status = err.httpStatus
