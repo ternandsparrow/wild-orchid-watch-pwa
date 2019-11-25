@@ -36,7 +36,7 @@ const router = new VueRouter({
       beforeEnter: resolveObsByIdOrNotFound,
     },
     {
-      path: '/obs/:id(-?\\d+)/edit',
+      path: `/obs/:id(\\d+|${uuidRegex})/edit`, // FIXME does this work?
       name: 'ObsEdit',
       component: SingleSpecies,
       beforeEnter: resolveObsByIdOrNotFound,

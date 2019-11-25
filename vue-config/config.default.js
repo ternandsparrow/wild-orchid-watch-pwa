@@ -28,4 +28,17 @@ module.exports = {
       }),
     ],
   },
+  ...getWebpackChain(),
+}
+
+function getWebpackChain() {
+  const isDisableMinify = !!process.env.DISABLE_MINIFY
+  if (isDisableMinify) {
+    console.log('Disabling minification')
+    return {
+      // thanks https://github.com/vuejs/vue-cli/issues/4328#issuecomment-514250189
+      chainWebpack: config => config.optimization.minimize(false),
+    }
+  }
+  return {}
 }

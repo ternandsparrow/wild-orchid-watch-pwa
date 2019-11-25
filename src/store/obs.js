@@ -328,35 +328,35 @@ const actions = {
       )
     }
   },
-  async findDbIdForInatId({ state }, inatId) {
+  async findDbIdForWowId({ state }, wowId) {
     const result = (
-      state.localQueueSummary.find(e => e.inatId === inatId) || {}
+      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
     ).uuid
     if (result) {
       return result
     }
-    // For a record that failed the first POST of the observation itself to
-    // iNat, we won't have an iNat ID. The ID that is passed in will
-    // therefore already be a DB ID but we're confirming.
-    const possibleDbId = inatId
+    // For a record that hasn't yet been uploaded to iNat, we rely on the UUID
+    // and use that as the DB ID. The ID that is passed in will therefore
+    // already be a DB ID but we're confirming.
+    const possibleDbId = wowId
     const record = await obsStore.getItem(possibleDbId)
     if (record) {
       return possibleDbId
     }
     throw new Error(
-      `Could not resolve inatId='${inatId}' to a Db ID ` +
+      `Could not resolve wowId='${wowId}' to a Db ID ` +
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
   },
   async deleteSelectedLocalEditOnly({ state, dispatch }) {
-    const selectedInatId = state.selectedObservationId
+    const selectedId = state.selectedObservationId
     try {
-      const dbId = await dispatch('findDbIdForInatId', selectedInatId)
+      const dbId = await dispatch('findDbIdForWowId', selectedId)
       await obsStore.removeItem(dbId)
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw new chainedError(
-        `Failed to delete local edit for ID='${selectedInatId}'`,
+        `Failed to delete local edit for ID='${selectedId}'`,
         err,
       )
     }
@@ -515,7 +515,6 @@ const actions = {
     try {
       // FIXME WOW-135 consider using a web worker for this task
       const localQueueSummary = await mapOverObsStore(r => ({
-        inatId: r.inatId,
         [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
         [constants.recordProcessingOutcomeFieldName]:
           r.wowMeta[constants.recordProcessingOutcomeFieldName],
@@ -598,8 +597,6 @@ const actions = {
           ? 'processWaitingDbRecordNoSw'
           : 'processWaitingDbRecordWithSw'
         await dispatch(strategy, { dbRecord, idToProcess })
-        // FIXME move this inside each of the strats
-        await setRecordProcessingOutcome(idToProcess, 'success')
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
@@ -613,12 +610,18 @@ const actions = {
           )
           // FIXME send toast (or system notification?) to notify user that they
           // need to check obs list
-          await setRecordProcessingOutcome(idToProcess, 'userError')
+          await dispatch('setRecordProcessingOutcome', {
+            dbId: idToProcess,
+            outcome: 'userError',
+          })
         } else {
           // TODO should we try the next one or short-circuit? For system
           // error, maybe halt as it might affect others?
           // FIXME do we need to be atomic and rollback?
-          await setRecordProcessingOutcome(idToProcess, 'systemError')
+          await dispatch('setRecordProcessingOutcome', {
+            dbId: idToProcess,
+            outcome: 'systemError',
+          })
           dispatch(
             'flagGlobalError',
             {
@@ -635,6 +638,16 @@ const actions = {
       // left to process
       await worker()
     }
+  },
+  async setRecordProcessingOutcome({ dbId, outcome }) {
+    const record = await obsStore.getItem(dbId)
+    if (!record) {
+      throw new Error('Could not find record for ID=' + dbId)
+    }
+    record.wowMeta[
+      constants.recordProcessingOutcomeFieldName
+    ] = recordProcessingOutcome(outcome)
+    return obsStore.setItem(dbId, record)
   },
   async _createObservation({ dispatch }, { obsRecord }) {
     const obsResp = await dispatch(
@@ -803,7 +816,10 @@ const actions = {
     )
     await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
-    await setRecordProcessingOutcome(idToProcess, 'success')
+    await dispatch('setRecordProcessingOutcome', {
+      dbId: idToProcess,
+      outcome: 'success',
+    })
     const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
     await new Promise(resolve => {
       setTimeout(() => {
@@ -813,21 +829,36 @@ const actions = {
       }, antiRaceConditionDelayToLetServerIndexNewRecord)
     })
   },
-  async processWaitingDbRecordWithSw({ state, dispatch }, { dbRecord }) {
+  async processWaitingDbRecordWithSw(
+    { state, dispatch },
+    { dbRecord, idToProcess },
+  ) {
     const strategies = {
-      [recordType('new')]: formData => {
-        return fetch(constants.serviceWorkerBundleMagicUrl, {
+      [recordType('new')]: async formData => {
+        const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
           method: 'POST',
           body: formData,
           retries: 0,
         })
+        if (!resp.ok) {
+          throw new Error(
+            `POST to bundle endpoint worked at an HTTP level,` +
+              ` but the status code indicates an error. Status=${resp.status}`,
+          )
+        }
       },
-      [recordType('edit')]: formData => {
-        return fetch(constants.serviceWorkerBundleMagicUrl, {
+      [recordType('edit')]: async formData => {
+        const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
           method: 'PUT',
           body: formData,
           retries: 0,
         })
+        if (!resp.ok) {
+          throw new Error(
+            `POST to bundle endpoint worked at an HTTP level,` +
+              ` but the status code indicates an error. Status=${resp.status}`,
+          )
+        }
       },
       [recordType('delete')]: () => {
         // sw will intercept this
@@ -872,6 +903,10 @@ const actions = {
     const projectId = state.projectInfo.id
     fd.append(constants.projectIdFieldName, projectId)
     await strategy(fd)
+    await dispatch('setRecordProcessingOutcome', {
+      dbId: idToProcess,
+      outcome: 'success',
+    })
     await dispatch('refreshLocalRecordQueue')
   },
   async _linkObsWithProject({ state, dispatch }, { recordId }) {
@@ -903,17 +938,17 @@ const actions = {
   },
   async deleteSelectedRecord({ state, getters, dispatch, commit }) {
     // FIXME handle when in process of uploading, maybe queue delete operation?
-    const recordInatId = state.selectedObservationId
+    const wowId = state.selectedObservationId
     const existingRemoteRecord = state.allRemoteObs.find(
-      e => e.inatId === recordInatId,
+      e => wowIdOf(e) === wowId,
     )
     const isLocalOnlyRecord = !existingRemoteRecord
     if (isLocalOnlyRecord) {
       console.debug(
-        `Record with iNat ID='${recordInatId}' is local-only so deleting right now.`,
+        `Record with WOW ID='${wowId}' is local-only so deleting right now.`,
       )
       const existingLocalRecord = getters.localRecords.find(
-        e => e.inatId === recordInatId,
+        e => wowIdOf(e) === wowId,
       )
       await deleteDbRecordById(existingLocalRecord.uuid)
       await dispatch('refreshLocalRecordQueue')
@@ -921,7 +956,7 @@ const actions = {
     }
     const theyreCascadeDeletedByTheObs = []
     const record = {
-      inatId: recordInatId,
+      inatId: existingRemoteRecord.inatId,
       uuid: existingRemoteRecord.uuid,
       wowMeta: {
         [recordTypeFieldName]: recordType('delete'),
@@ -939,15 +974,20 @@ const actions = {
     return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedInatId = state.selectedObservationId
-    const dbId = await dispatch('findDbIdForInatId', selectedInatId)
-    await setRecordProcessingOutcome(dbId, 'waiting')
+    const selectedId = state.selectedObservationId
+    const dbId = await dispatch('findDbIdForWowId', selectedId)
+    await dispatch('setRecordProcessingOutcome', {
+      dbId,
+      outcome: 'waiting',
+    })
     return dispatch('onLocalRecordEvent')
   },
   async retryFailedDeletes({ getters, dispatch }) {
     const idsToRetry = getters.deletesWithErrorDbIds
     await Promise.all(
-      idsToRetry.map(e => setRecordProcessingOutcome(e, 'waiting')),
+      idsToRetry.map(e =>
+        dispatch('setRecordProcessingOutcome', { dbId: e, outcome: 'waiting' }),
+      ),
     )
     return dispatch('onLocalRecordEvent')
   },
@@ -995,16 +1035,16 @@ const getters = {
     return state._uiVisibleLocalRecords.map(currLocal => {
       const existingValues =
         state.allRemoteObs.find(
-          currRemote => currRemote.inatId === currLocal.inatId,
+          currRemote => currRemote.uuid === currLocal.uuid,
         ) || {}
       const dontModifyTheOtherObjects = {}
       return Object.assign(dontModifyTheOtherObjects, existingValues, currLocal)
     })
   },
   remoteRecords(state) {
-    const localRecordIds = state.localQueueSummary.map(e => e.inatId)
+    const localRecordIds = state.localQueueSummary.map(e => e.uuid)
     return state.allRemoteObs.filter(e => {
-      const recordHasLocalActionPending = localRecordIds.includes(e.inatId)
+      const recordHasLocalActionPending = localRecordIds.includes(e.uuid)
       return !recordHasLocalActionPending
     })
   },
@@ -1019,7 +1059,7 @@ const getters = {
           e.wowMeta[recordTypeFieldName] === recordType('edit') &&
           e.wowMeta[hasRemoteRecordFieldName],
       )
-      .map(e => e.inatId)
+      .map(e => e.uuid)
       .includes(selectedId)
   },
   waitingLocalQueueSummary(state) {
@@ -1099,11 +1139,6 @@ function resolveLocalRecordUuids(ids) {
         photos,
       }
       commonApiToOurDomainObsMapping(result, currRecord)
-      // new records won't have inatId set, edit and delete will
-      const isNewRecord = !result.inatId
-      if (isNewRecord) {
-        result.inatId = -1 * currRecord.id
-      }
       return result
     }),
   )
@@ -1322,14 +1357,6 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   )
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
-}
-
-async function setRecordProcessingOutcome(dbId, outcome) {
-  const record = await obsStore.getItem(dbId)
-  record.wowMeta[
-    constants.recordProcessingOutcomeFieldName
-  ] = recordProcessingOutcome(outcome)
-  return obsStore.setItem(dbId, record)
 }
 
 async function processPhotos(photos) {

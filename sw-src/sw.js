@@ -50,7 +50,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
         }
       },
       async (entry, resp) => {
-        const uniqueId = entry.metadata.obsUniqueId
+        const obsUuid = entry.metadata.obsUuid
         const obsId = entry.metadata.obsId
         // at this point we have a choice: press on and accept that we'll be
         // missing some of the data on the remote, or rollback everything on
@@ -59,15 +59,17 @@ const depsQueue = new Queue('obs-dependant-queue', {
           case 'POST':
             sendMessageToAllClients({
               id: constants.failedToUploadObsMsg,
+              obsId,
+              obsUuid,
               msg:
                 `Failed to completely create observation with ` +
-                `obsId=${obsId},uniqueId=${uniqueId}`,
+                `inatId=${obsId},uuid=${obsUuid}`,
             })
             console.debug('Handling POST client error by rolling back obs')
             await obsQueue.unshiftRequest({
               metadata: {
                 obsId: obsId,
-                obsUniqueId: uniqueId,
+                obsUuid: obsUuid,
               },
               request: new Request(
                 `${constants.apiUrlBase}/observations/${obsId}`,
@@ -81,9 +83,11 @@ const depsQueue = new Queue('obs-dependant-queue', {
           case 'PUT': // we don't really update deps, we just delete+create
             sendMessageToAllClients({
               id: constants.failedToUploadObsMsg,
+              obsId,
+              obsUuid,
               msg:
                 `Failed to completely update observation with ` +
-                `obsId=${obsId},uniqueId=${uniqueId}`,
+                `inatId=${obsId},uuid=${obsUuid}`,
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'DELETE':
@@ -155,14 +159,17 @@ const obsQueue = new Queue('obs-queue', {
       async (entry, resp) => {
         switch (entry.request.method) {
           case 'POST':
-            const uniqueId = entry.metadata.obsUniqueId
+            const obsUuid = entry.metadata.obsUuid
+            const obsId = entry.metadata.obsId
             sendMessageToAllClients({
               id: constants.failedToUploadObsMsg,
-              msg: `Failed to completely create observation with uniqueId=${uniqueId}`,
+              obsId,
+              obsUuid,
+              msg: `Failed to completely create observation with obsUuid=${obsUuid}`,
             })
             // FIXME what if we have pending PUTs or DELETEs?
             break
-            await obsStore.removeItem(createTag + uniqueId)
+            await obsStore.removeItem(createTag + obsUuid)
             break
           case 'DELETE':
             // I guess it's already been deleted
@@ -272,20 +279,20 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
 async function onObsPostSuccess(obsResp) {
   // it would be nice to print a warning if there are still items in the queue.
   // For this demo, things can get crazy when this is the case.
-  const obsUniqueId = obsResp.uniqueId
+  const obsUuid = obsResp.uuid
   const obsId = obsResp.id
   console.debug(
-    `Running post-success block for obs unique ID=${obsUniqueId}, ` +
+    `Running post-success block for obs UUID=${obsUuid}, ` +
       `which has ID=${obsId}`,
   )
   // We're using localForage in the hope that webkit won't silently eat our
   // blobs. If it does, you need to reserialise them to ArrayBuffers to avoid
   // heartache.
   // https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-  const depsRecord = await obsStore.getItem(createTag + obsUniqueId)
+  const depsRecord = await obsStore.getItem(createTag + obsUuid)
   if (!depsRecord) {
     // FIXME this is probably an error. We *always* have deps!
-    console.warn(`No deps found for obsUniqueId=${obsUniqueId}`)
+    console.warn(`No deps found for obsUuid=${obsUuid}`)
     return
   }
   try {
@@ -298,7 +305,7 @@ async function onObsPostSuccess(obsResp) {
         metadata: {
           // details used when things go wrong so we can clean up
           obsId: obsId,
-          obsUniqueId: obsUniqueId,
+          obsUuid: obsUuid,
         },
         request: new Request(constants.apiUrlBase + '/photos', {
           method: 'POST',
@@ -313,8 +320,9 @@ async function onObsPostSuccess(obsResp) {
         metadata: {
           // details used when things go wrong so we can clean up
           obsId: obsId,
-          obsUniqueId: obsUniqueId,
+          obsUuid: obsUuid,
         },
+        // FIXME update URL
         request: new Request(constants.apiUrlBase + '/obs-fields', {
           method: 'POST',
           mode: 'cors',
@@ -333,7 +341,7 @@ async function onObsPostSuccess(obsResp) {
       metadata: {
         // details used when things go wrong so we can clean up
         obsId: obsId,
-        obsUniqueId: obsUniqueId,
+        obsUuid: obsUuid,
       },
       request: new Request(constants.apiUrlBase + '/project_observations', {
         method: 'POST',
@@ -359,9 +367,9 @@ async function onObsPostSuccess(obsResp) {
   }
   console.debug(
     'Cleaning up after ourselves. All requests have been generated and ' +
-      `queued up for uniqueId=${obsUniqueId}, so we do not need this data anymore`,
+      `queued up for UUID=${obsUuid}, so we do not need this data anymore`,
   )
-  await obsStore.removeItem(createTag + obsUniqueId)
+  await obsStore.removeItem(createTag + obsUuid)
 }
 
 registerRoute(
@@ -369,14 +377,15 @@ registerRoute(
   async ({ url, event, params }) => {
     console.debug('Service worker processing POSTed bundle')
     const formData = await event.request.formData()
-    const obs = JSON.parse(formData.get(constants.obsFieldName))
+    const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
+    const obsUuid = obsRecord.observation.uuid
     const photos = formData.getAll(constants.photosFieldName)
     const obsFields = formData
       .getAll(constants.obsFieldsFieldName)
       .map(e => JSON.parse(e))
     const projectId = formData.get(constants.projectIdFieldName)
-    await obsStore.setItem(createTag + obs.uniqueId, {
-      uniqueId: obs.uniqueId,
+    await obsStore.setItem(createTag + obsUuid, {
+      obsUuid: obsUuid,
       photos,
       obsFields,
       projectId,
@@ -385,7 +394,7 @@ registerRoute(
       await obsQueue.pushRequest({
         metadata: {
           // details used when things go wrong so we can clean up
-          obsUniqueId: obs.uniqueId,
+          obsUuid: obsUuid,
         },
         request: new Request(constants.apiUrlBase + '/observations', {
           method: 'POST',
@@ -393,7 +402,7 @@ registerRoute(
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(obs),
+          body: JSON.stringify(obsRecord),
         }),
       })
       // TODO the real sync doesn't seem to check before running so you can get
@@ -405,10 +414,13 @@ registerRoute(
       //   obsQueue._onSync() // FIXME do we need to catch errors here?
       // }
     } catch (err) {
-      // FIXME not sure what to do here? We should probably re-throw so the
-      // client knows we failed. Is it important for the client to distinguish
-      // between "no SW" and "there is a SW but it failed"?
-      console.error('Failed to push obs req onto queue', err)
+      return new Response(
+        JSON.stringify({
+          result: 'failed',
+          msg: err.toString(),
+        }),
+        { status: 500 },
+      )
     }
     return new Response(
       JSON.stringify({
@@ -428,12 +440,12 @@ registerRoute(
     console.debug('Service worker processing PUTed bundle')
     const formData = await event.request.formData()
     const obs = JSON.parse(formData.get(constants.obsFieldName))
-    // in a real system, we'd break apart the bundle in the same way as the
-    // POST. We could queue all the deps because we have the obsId but it's
-    // easier to keep them in localForage so it's easy to clean up if anything
-    // goes wrong
-    await obsStore.setItem(updateTag + obs.uniqueId, {
-      uniqueId: obs.uniqueId,
+    // FIXME pull all the parts out of the bundle for storage
+    const obsUuid = obs.uuid
+    // We could queue all the deps because we have the obsId but it's easier to
+    // keep them in localForage so it's easy to clean up if anything goes wrong
+    await obsStore.setItem(updateTag + obsUuid, {
+      obsUuid: obsUuid,
       newPhotos: [],
       newObsFields: [],
       removedPhotos: [],
@@ -445,24 +457,33 @@ registerRoute(
     // response from the POST, we need to generate the obs PUT request. Maybe
     // if the obsId is some placeholder token then we know to wait for the
     // POST resp?
-    await obsQueue.pushRequest({
-      metadata: {
-        // details used when things go wrong so we can clean up
-        obsUniqueId: obs.uniqueId,
-        obsId: obs.obsId,
-      },
-      request: new Request(
-        `${constants.apiUrlBase}/observations/${obs.obsId}`,
-        {
-          method: 'PUT',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+    try {
+      await obsQueue.pushRequest({
+        metadata: {
+          // details used when things go wrong so we can clean up
+          obsUuid: obs.obsUuid,
+          obsId: obs.obsId,
         },
-      ),
-    })
-    // no try-catch so if anything goes wrong, the client can deal with it
+        request: new Request(
+          `${constants.apiUrlBase}/observations/${obs.obsId}`,
+          {
+            method: 'PUT',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      })
+    } catch (err) {
+      return new Response(
+        JSON.stringify({
+          result: 'failed',
+          msg: err.toString(),
+        }),
+        { status: 500 },
+      )
+    }
     return new Response(
       JSON.stringify({
         result: 'queued',
@@ -487,7 +508,7 @@ registerRoute(
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,
-        // obsUniqueId: FIXME find this
+        // obsUuid: FIXME find this
       },
       request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
         method: 'DELETE',
@@ -511,6 +532,10 @@ registerRoute(
   'GET',
 )
 
+// We have a separate endpoint to update the auth for the case when an obs is
+// queued for upload but the auth token that would've been supplied expires
+// before we get a chance to upload it. This way, we'll always have the most
+// up-to-date auth to use for all items in the queue.
 registerRoute(
   constants.serviceWorkerUpdateAuthHeaderUrl,
   async ({ url, event, params }) => {

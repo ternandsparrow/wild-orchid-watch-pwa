@@ -20,8 +20,10 @@ export async function deleteKnownStorageInstances() {
   // https://github.com/dfahlander/Dexie.js/blob/fb735811fd72829a44c86f82b332bf6d03c21636/src/helpers/database-enumerator.ts#L18.
   // This will work on Chrome and WebKit but Firefox doesn't allow enumerating
   // DBs (yet).
-  const promises = Object.keys(knownInstances).map(e => {
-    return e.dropInstance()
+  const promises = Object.keys(knownInstances).map(k => {
+    const instance = knownInstances[k]
+    console.debug(`Dropping store '${k}'`)
+    return instance.dropInstance()
   })
   return Promise.all(promises)
 }

@@ -289,6 +289,18 @@ export default {
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
+    async sendSwUpdatedAuthToken({ state }) {
+      if (!(await isSwActive())) {
+        return
+      }
+      return fetch(constants.serviceWorkerUpdateAuthHeaderUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: state.apiToken,
+        },
+        retries: 0,
+      })
+    },
     async _updateApiToken({ commit, dispatch }) {
       if (updateApiTokenPromise) {
         // ensure we only make one refresh call
@@ -307,15 +319,7 @@ export default {
             commit('markApiTokenAndUserLastUpdated')
             commit('setIsUpdatingApiToken', false)
           })
-          if (await isSwActive()) {
-            await fetch(constants.serviceWorkerUpdateAuthHeaderUrl, {
-              method: 'POST',
-              headers: {
-                Authorization: apiToken,
-              },
-              retries: 0,
-            })
-          }
+          dispatch('sendSwUpdatedAuthToken')
         } catch (err) {
           commit('setIsUpdatingApiToken', false)
           const status = err.httpStatus

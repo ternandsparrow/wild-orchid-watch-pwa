@@ -1,15 +1,15 @@
 // Removes process.env.* references that explode browsers
 // thanks https://github.com/rollup/rollup/issues/487#issuecomment-486229172
 import MagicString from 'magic-string'
-import * as wowEnvVars from './dist/wow-env-vars.js'
+import * as extraEnvVars from './dist/wow-env-vars.js' // it would be nice to have this filename as a param but for that we need to do dynamic imports (https://v8.dev/features/dynamic-import#dynamic) and it starts getting a bit crazy, so that's a future job.
 
 export default function injectProcessPlugin(envVarWhitelist) {
   // The virtual id for our shared "process" mock. We prefix it with \0 so that
   // other plugins ignore it
   const INJECT_PROCESS_MODULE_ID = '\0inject-process'
 
-  for (const currKey of Object.keys(wowEnvVars)) {
-    process.env[currKey] = wowEnvVars[currKey]
+  for (const currKey of Object.keys(extraEnvVars)) {
+    process.env[currKey] = extraEnvVars[currKey]
   }
 
   // only expose the env vars that we whitelist

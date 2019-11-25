@@ -73,6 +73,8 @@ new Vue({
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 
+      this.$store.dispatch('auth/sendSwUpdatedAuthToken')
+
       // TODO WOW-136 should we delay this so it doesn't show over the
       // onboarder?
       initAppleInstallPrompt()
@@ -95,17 +97,27 @@ new Vue({
         return
       }
       navigator.serviceWorker.addEventListener('message', event => {
+        const obsUuid = event.data.obsUuid
         switch (event.data.id) {
           case constants.refreshObsMsg:
-            // FIXME implement this
-            alert('FIXME handle refreshing obs')
+            this.$store.dispatch('refreshRemoteObs')
             break
           case constants.failedToUploadObsMsg:
-            // FIXME show a nice message to the user, probably trigger global
-            // error handler too
-            // FIXME set the status of that record (get the ID) to the
-            // appropriate status
-            alert(event.data.msg)
+            alert(event.data.msg) // FIXME delete when we have another notification
+            // FIXME differentiate between systemError and userError
+            this.$store
+              .dispatch('obs/setRecordProcessingOutcome', {
+                obsUuid,
+                outcome: 'systemError',
+              })
+              .catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to process Db record with UUID='${obsUuid}'`,
+                  // FIXME use something more user friendly than the ID
+                  userMsg: `Error while trying upload record with UUID='${obsUuid}'`,
+                  err,
+                })
+              })
             break
           default:
             console.debug('Client received message from SW: ' + event.data)
