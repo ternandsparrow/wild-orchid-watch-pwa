@@ -67,7 +67,27 @@
         Trigger queue processing
       </div>
       <div>
-        <v-ons-button @click="doLQP">Trigger</v-ons-button>
+        <v-ons-button @click="doLQP"
+          >Trigger local (client) queue processing</v-ons-button
+        >
+      </div>
+      <p>
+        Beware of these two SW triggers. If the queue is already processing,
+        it'll start double processing. There's no safe guard. These status
+        reports are only for manually triggered processing, they have no idea
+        about workbox-triggered processing.
+      </p>
+      <div>
+        <p>Manually triggered processing status = {{ swObsQueueStatus }}</p>
+        <v-ons-button @click="triggerSwObsQueue"
+          >Trigger SW obs queue processing</v-ons-button
+        >
+      </div>
+      <div>
+        <p>Manually triggered processing status = {{ swDepsQueueStatus }}</p>
+        <v-ons-button @click="triggerSwDepsQueue"
+          >Trigger SW deps queue processing</v-ons-button
+        >
       </div>
     </v-ons-card>
     <v-ons-card>
@@ -197,6 +217,8 @@ export default {
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
+      swObsQueueStatus: 'not started',
+      swDepsQueueStatus: 'not started',
     }
   },
   computed: {
@@ -329,6 +351,48 @@ export default {
     fireCheckSwCall() {
       isSwActive().then(result => {
         console.log('Is SW alive? ' + result)
+      })
+    },
+    triggerSwObsQueue() {
+      this.swObsQueueStatus = 'processing'
+      this._sendMessageToSw(constants.syncObsQueueMsg)
+        .then(() => {
+          console.debug(
+            'Triggering of SW obs queue processing completed successfully',
+          )
+          this.swObsQueueStatus = 'finished'
+        })
+        .catch(err => {
+          this.swObsQueueStatus = 'error. ' + err
+        })
+    },
+    triggerSwDepsQueue() {
+      this.swDepsQueueStatus = 'processing'
+      this._sendMessageToSw(constants.syncDepsQueueMsg)
+        .then(() => {
+          console.debug(
+            'Triggering of SW deps queue processing completed successfully',
+          )
+          this.swDepsQueueStatus = 'finished'
+        })
+        .catch(err => {
+          this.swDepsQueueStatus = 'error. ' + err
+        })
+    },
+    _sendMessageToSw(msg) {
+      return new Promise(function(resolve, reject) {
+        const msgChan = new MessageChannel()
+        msgChan.port1.onmessage = function(event) {
+          if ((event.data || {}).error) {
+            return reject(event.data.error)
+          }
+          return resolve(event.data)
+        }
+        const controller = navigator.serviceWorker.controller
+        if (!controller) {
+          return reject('No service worker active. Cannot send msg=' + msg)
+        }
+        controller.postMessage(msg, [msgChan.port2])
       })
     },
   },

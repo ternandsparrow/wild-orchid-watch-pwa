@@ -137,11 +137,20 @@ const actions = {
   }) {
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
     const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
-      .filter(e => uuidsOfRemoteRecords.includes(e.uuid))
+      .filter(e => {
+        const isNewOrEditAndPresent =
+          [recordType('new'), recordType('edit')].includes(
+            e[recordTypeFieldName],
+          ) && uuidsOfRemoteRecords.includes(e.uuid)
+        const isDeleteAndNotPresent =
+          e[recordTypeFieldName] === recordType('delete') &&
+          !uuidsOfRemoteRecords.includes(e.uuid)
+        return isNewOrEditAndPresent || isDeleteAndNotPresent
+      })
       .map(e => e.uuid)
     console.debug(
       `Deleting Db IDs that remote ` +
-        `has echoed back=[${successfulLocalRecordDbIdsToDelete}]`,
+        `has confirmed as successful=[${successfulLocalRecordDbIdsToDelete}]`,
     )
     const dbIdsOfDeletesWithErrorThatNoLongerExistOnRemote = state.localQueueSummary
       .filter(
@@ -554,17 +563,19 @@ const actions = {
       )
       return existingWorker
     }
-    commit(
-      'ephemeral/setQueueProcessorPromise',
-      worker().then(() => {
-        // we chain this as part of the returned promise so any caller awaiting
-        // it won't be able to act until we've cleaned up as they're awaiting
-        // this then() block
-        console.debug(`${logPrefix} Worker done, killing stored promise`)
-        commit('ephemeral/setQueueProcessorPromise', null, { root: true })
-      }),
-      { root: true },
-    )
+    const processorPromise = worker().finally(() => {
+      // we chain this as part of the returned promise so any caller awaiting
+      // it won't be able to act until we've cleaned up as they're awaiting
+      // this block
+      console.debug(
+        `${logPrefix} Worker done (could be error or success)` +
+          `, killing stored promise`,
+      )
+      commit('ephemeral/setQueueProcessorPromise', null, { root: true })
+    })
+    commit('ephemeral/setQueueProcessorPromise', processorPromise, {
+      root: true,
+    })
     return rootState.ephemeral.queueProcessorPromise
     async function worker() {
       console.debug(`${logPrefix} Starting to process local queue`)
@@ -596,7 +607,7 @@ const actions = {
         const strategy = isNoServiceWorkerAvailable
           ? 'processWaitingDbRecordNoSw'
           : 'processWaitingDbRecordWithSw'
-        await dispatch(strategy, { dbRecord, idToProcess })
+        await dispatch(strategy, { dbRecord })
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
@@ -639,7 +650,7 @@ const actions = {
       await worker()
     }
   },
-  async setRecordProcessingOutcome({ dbId, outcome }) {
+  async setRecordProcessingOutcome(_, { dbId, outcome }) {
     const record = await obsStore.getItem(dbId)
     if (!record) {
       throw new Error('Could not find record for ID=' + dbId)
@@ -724,7 +735,7 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch }, { dbRecord, idToProcess }) {
+  async processWaitingDbRecordNoSw({ dispatch }, { dbRecord }) {
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     let tasksLeftTodo = apiRecords.totalTaskCount // TODO probably should commit changes to store
     tasksLeftTodo += (dbRecord.wowMeta.photoIdsToDelete || []).length
@@ -762,10 +773,7 @@ const actions = {
           const inatRecordId = null
           return inatRecordId // it won't be used anyway
         },
-        async end() {
-          // only delete after the photos have been successfully deleted
-          return deleteDbRecordById(dbRecord.uuid)
-        },
+        async end() {},
       },
     }
     const key = dbRecord.wowMeta[recordTypeFieldName]
@@ -817,9 +825,13 @@ const actions = {
     await strategy.end()
     console.log(`Tasks left ${tasksLeftTodo}`) // FIXME delete line when we use value
     await dispatch('setRecordProcessingOutcome', {
-      dbId: idToProcess,
+      dbId: dbRecord.uuid,
       outcome: 'success',
     })
+    // FIXME is there a better way than simply waiting for some period. We keep
+    // it short-ish so it doesn't look like we're taking forever to process the
+    // record. If we're still too fast, then the user will just have to wait
+    // until the next refresh.
     const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
     await new Promise(resolve => {
       setTimeout(() => {
@@ -829,10 +841,7 @@ const actions = {
       }, antiRaceConditionDelayToLetServerIndexNewRecord)
     })
   },
-  async processWaitingDbRecordWithSw(
-    { state, dispatch },
-    { dbRecord, idToProcess },
-  ) {
+  async processWaitingDbRecordWithSw({ state, dispatch }, { dbRecord }) {
     const strategies = {
       [recordType('new')]: async formData => {
         const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
@@ -904,7 +913,7 @@ const actions = {
     fd.append(constants.projectIdFieldName, projectId)
     await strategy(fd)
     await dispatch('setRecordProcessingOutcome', {
-      dbId: idToProcess,
+      dbId: dbRecord.uuid,
       outcome: 'success',
     })
     await dispatch('refreshLocalRecordQueue')

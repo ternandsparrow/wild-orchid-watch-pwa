@@ -5,8 +5,8 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build && rollup -c && workbox injectManifest",
-    "build:watch": "NODE_END=development nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build && servor dist/ index.html --no-browser'",
-    "build:serve": "NODE_END=development yarn build && servor dist/ index.html --no-browser",
+    "build:watch": "NODE_ENV=development nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build && servor dist/ index.html --no-browser'",
+    "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 yarn build && servor dist/ index.html --no-browser",
     "lint": "vue-cli-service lint",
     "test:e2e": "vue-cli-service test:e2e",
     "test:e2e:headless": "vue-cli-service test:e2e --headless",
@@ -91,11 +91,16 @@
       "autoprefixer": {}
     }
   },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not ie <= 8"
-  ],
+  "browserslist": {
+    "production": [
+      "> 1%",
+      "last 2 versions",
+      "not ie <= 8"
+    ],
+    "debug": [
+      "last 2 Chrome versions"
+    ]
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",

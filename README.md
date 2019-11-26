@@ -32,7 +32,10 @@ Requirements:
       # note that this will only work when running in development mode as there's no service worker, which would require HTTPS and a valid cert, which you almost certainly don't have on your local machine.
       ```
   1. open the app URL (probably `http://localhost:8080`) in your browser
-  1. this is a PWA (web page that feels like a native app) so it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device) as a Pixel 2 or iPhone 8.
+  1. this is a PWA (web page that feels like a native app) so it's best to
+     enable the [Mobile Device Viewport
+     Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
+     as a Pixel 2 or iPhone 8.
 
 ## Not-so-quick-but-better-start
 
@@ -45,8 +48,10 @@ Reload sockets won't connect) so the fix is to run a remote SSH tunnel to a
 bastion host that has a real SSL cert issued. You can use [this docker-compose
 stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
 
-  1. start the bastion host from [this repo](https://github.com/tomsaleeba/docker-https-ssh-tunnel)
-  1. run the webpack-dev-server for this project, telling it to respond to the DNS associated with the bastion host
+  1. start the bastion host from [this
+     repo](https://github.com/tomsaleeba/docker-https-ssh-tunnel)
+  1. run the webpack-dev-server for this project, telling it to respond to the
+     DNS associated with the bastion host
       ```bash
       PROXY_HOST=blah.example.com yarn serve
       ```
@@ -54,25 +59,33 @@ stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
       ```bash
       ./start_tunnel.sh 8080 blah.example.com
       ```
-  1. generate a new oauth app on the target inat server, e.g. at https://dev.inat.techotom.com/oauth/applications and fill in the appropriate redirect URL
+  1. generate a new oauth app on the target inat server, e.g. at
+     https://dev.inat.techotom.com/oauth/applications and fill in the
+     appropriate redirect URL
   1. update your .env.local
-   
+
 Now you have a publicly accessible host, with an SSL cert from a trusted CA,
 that also has HotModuleReload. Hack away!
 
 ### Testing service worker
 
 To check that the service worker is working as you expect, there's a few things
-you need to do differently.
+you need to do differently. We can't use the webpack dev server, instead we need
+to perform the full build process and serve the built files. We can do that with
+the following command:
 
-  1. you can't use the webpack-dev-server, instead you must `yarn build` to
-     produce the binary in the `dist/` dir
-  1. serve the built files using a webserver, and
-      1. set the `NODE_ENV=production` env var
-      1. don't serve the content (or access it) on `localhost` (or `127.0.0.1`)
-      1. make sure the webserver is configure to play nice with an SPA, that is
-         if a request comes in and there's no matching file (e.g.
-         `/oauth-callback`) then it should instead serve up `index.html`
+```bash
+yarn build:serve
+```
+
+To make your life easier when it comes to debugging, we make two changes to the
+build: don't minify the output and don't transpile. This means you can debug the
+source directly, not the sourcemap, and when you place a breakpoint in an async
+function, it'll go where you expect. To achieve this, we set two env vars when
+we build `BROWSERSLIST_ENV=debug` ([more
+info](https://github.com/browserslist/browserslist#environment-variables)) and
+`DISABLE_MINIFY=1`. This is done behind the scenes for you but you can use these
+against the normal `yarn:build` too.
 
 ## Configuring env vars
 There are aspects of this app that can be configured at deploy-time such as API

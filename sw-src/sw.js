@@ -498,7 +498,7 @@ registerRoute(
   new RegExp(`${constants.apiUrlBase}/observations/\d*`),
   async ({ url, event, params }) => {
     const obsId = url.pathname.substr(url.pathname.lastIndexOf('/') + 1)
-    console.log('found id ' + obsId)
+    console.debug(`Extracted obs ID='${obsId}' from url=${url.pathname}`)
     const isObsLocalOnly = false
     if (isObsLocalOnly) {
       // FIXME if we have this ID queued, kill it and shortcircuit
@@ -567,9 +567,14 @@ self.addEventListener('message', function(event) {
         return
       }
       console.log('triggering deps queue processing at request of client')
-      depsQueue._onSync().catch(err => {
-        console.warn('Manually triggered depsQueue sync has failed', err)
-      })
+      depsQueue
+        ._onSync()
+        .catch(err => {
+          console.warn('Manually triggered depsQueue sync has failed', err)
+        })
+        .finally(() => {
+          event.ports[0].postMessage('triggered')
+        })
       return
     case constants.syncObsQueueMsg:
       if (obsQueue._syncInProgress) {
@@ -578,10 +583,18 @@ self.addEventListener('message', function(event) {
         return
       }
       console.log('triggering obs queue processing at request of client')
-      obsQueue._onSync().catch(err => {
-        console.warn('Manually triggered obsQueue sync has failed', err)
-      })
+      obsQueue
+        ._onSync()
+        .catch(err => {
+          console.warn('Manually triggered obsQueue sync has failed', err)
+        })
+        .finally(() => {
+          event.ports[0].postMessage('triggered')
+        })
       return
+    case constants.skipWaitingMsg:
+      console.debug('SW is skipping waiting')
+      return self.skipWaiting()
   }
 })
 
@@ -608,4 +621,5 @@ function sendMessageToAllClients(msg) {
   })
 }
 
+// build process will inject manifest into the following statement.
 workboxPrecacheAndRoute([])

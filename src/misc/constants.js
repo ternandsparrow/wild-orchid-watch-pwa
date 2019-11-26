@@ -132,6 +132,7 @@ export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
 export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
 export const failedToUploadObsMsg = 'OBS_FAIL'
+export const skipWaitingMsg = 'SKIP_WAITING'
 
 const serviceWorkerMagicUrlPrefix = 'http://local.service-worker'
 export const serviceWorkerBundleMagicUrl =

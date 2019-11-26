@@ -1,4 +1,5 @@
 import { isNil } from 'lodash'
+import * as constants from '@/misc/constants'
 
 /**
  * A vuex module for anything that should NOT be saved to local storage.
@@ -65,7 +66,9 @@ const actions = {
       return
     }
     commit('setRefreshingApp', true)
-    state.SWRegistrationForNewContent.waiting.postMessage('skipWaiting')
+    state.SWRegistrationForNewContent.waiting.postMessage(
+      constants.skipWaitingMsg,
+    )
   },
 
   manualServiceWorkerUpdateCheck({ state }) {

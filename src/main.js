@@ -98,23 +98,26 @@ new Vue({
       }
       navigator.serviceWorker.addEventListener('message', event => {
         const obsUuid = event.data.obsUuid
+        const wowId = obsUuid || event.data.obsId
         switch (event.data.id) {
           case constants.refreshObsMsg:
-            this.$store.dispatch('refreshRemoteObs')
+            this.$store.dispatch('obs/refreshRemoteObs')
             break
           case constants.failedToUploadObsMsg:
-            alert(event.data.msg) // FIXME delete when we have another notification
             // FIXME differentiate between systemError and userError
             this.$store
-              .dispatch('obs/setRecordProcessingOutcome', {
-                obsUuid,
-                outcome: 'systemError',
+              .dispatch('obs/findDbIdForWowId', wowId)
+              .then(dbId => {
+                this.$store.dispatch('obs/setRecordProcessingOutcome', {
+                  dbId,
+                  outcome: 'systemError',
+                })
               })
               .catch(err => {
                 this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to process Db record with UUID='${obsUuid}'`,
+                  msg: `Failed to process Db record with wowId='${wowId}'`,
                   // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying upload record with UUID='${obsUuid}'`,
+                  userMsg: `Error while trying upload record with wowId='${wowId}'`,
                   err,
                 })
               })
