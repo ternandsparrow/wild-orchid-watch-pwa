@@ -25,6 +25,7 @@ const recordType = makeEnumValidator(['delete', 'edit', 'new'])
 
 const recordProcessingOutcome = makeEnumValidator([
   'waiting', // waiting to be processed
+  'withServiceWorker', // we've processed it, but haven't heard back from SW yet
   'success', // successfully processed
   'userError', // processed but encountered an error the user can fix
   'systemError', // processed but encountered an error the user CANNOT fix
@@ -914,7 +915,7 @@ const actions = {
     await strategy(fd)
     await dispatch('setRecordProcessingOutcome', {
       dbId: dbRecord.uuid,
-      outcome: 'success',
+      outcome: 'withServiceWorker',
     })
     await dispatch('refreshLocalRecordQueue')
   },
@@ -1320,6 +1321,7 @@ function processObsFieldName(fieldName) {
 function mapObsFromOurDomainOntoApi(dbRecord) {
   const ignoredKeys = [
     'id',
+    'inatId',
     'lat',
     'lng',
     'obsFieldValues',
@@ -1336,6 +1338,13 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   const isRecordToUpload =
     dbRecord.wowMeta[recordTypeFieldName] !== recordType('delete')
   if (isRecordToUpload) {
+    const recordIdObjFragment = (() => {
+      const inatId = dbRecord.inatId
+      if (inatId) {
+        return { id: inatId }
+      }
+      return {}
+    })()
     result.observationPostBody = {
       ignore_photos: true,
       observation: Object.keys(dbRecord).reduce(
@@ -1348,6 +1357,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
           return accum
         },
         {
+          ...recordIdObjFragment,
           latitude: dbRecord.lat,
           longitude: dbRecord.lng,
           observed_on_string: dbRecord.observedAt,

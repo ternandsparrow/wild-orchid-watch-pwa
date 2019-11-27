@@ -165,7 +165,7 @@ async function handleJsonResp(resp) {
     typeof body === 'string'
       ? body.substr(0, 300)
       : JSON.stringify(body).substr(0, 300)
-  let msg = `\nResp details:\n`
+  let msg = `\nResponse is either not OK or not JSON\nResp details:\n`
   msg += `  is ok=${isRespOk},\n`
   msg += `  is JSON=${isJson}\n`
   msg += `  status=${resp.status}\n`

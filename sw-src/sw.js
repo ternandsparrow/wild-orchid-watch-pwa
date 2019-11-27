@@ -11,6 +11,10 @@ const createTag = 'create:'
 const updateTag = 'update:'
 const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'
 
+const magicMethod = 'MAGIC'
+const poisonPillUrlPrefix = 'http://local.poison-pill'
+const obsPutPoisonPillUrl = poisonPillUrlPrefix + '/obs-put'
+
 let authHeaderValue = null
 
 // FIXME why is the page not refreshing when we accept the update prompt?
@@ -20,13 +24,16 @@ const depsQueue = new Queue('obs-dependant-queue', {
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
-      async (req, resp) => {
+      async (entry, req, resp) => {
+        const obsUuid = entry.metadata.obsUuid
+        const obsId = entry.metadata.obsId
         switch (req.method) {
           case 'POST':
-            const isProjectLinkingResp = resp.url.endsWith(
+            const isProjectLinkingResp = req.url.endsWith(
               '/project_observations',
             )
-            if (!isProjectLinkingResp) {
+            const isEndOfObsPostGroup = isProjectLinkingResp
+            if (!isEndOfObsPostGroup) {
               return
             }
             console.debug(
@@ -34,8 +41,25 @@ const depsQueue = new Queue('obs-dependant-queue', {
             )
             sendMessageToAllClients({ id: constants.refreshObsMsg })
             return
+          case magicMethod:
+            const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
+            if (isEndOfObsPutGroup) {
+              console.debug('found magic poison pill indicating end of obs PUT')
+              sendMessageToAllClients({
+                id: constants.obsPutSuccessMsg,
+                obsId,
+                obsUuid,
+              })
+              return
+            }
+            throw new Error(
+              `Lazy programmer error: don't know how to handle ` +
+                `method=${magicMethod} with url=${req.url}`,
+            )
           case 'PUT':
-          // probably don't have to do anything
+            throw new Error(
+              `Lazy programmer error: not implemented as we don't do PUTs for deps`,
+            )
           case 'DELETE':
             // probably don't have to do anything
             throw new Error(
@@ -118,7 +142,7 @@ const obsQueue = new Queue('obs-queue', {
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
-      async (req, resp) => {
+      async (entry, req, resp) => {
         let obsId = '(not sure)'
         try {
           const obs = await resp.json()
@@ -128,7 +152,7 @@ const obsQueue = new Queue('obs-queue', {
               await onObsPostSuccess(obs)
               break
             case 'PUT':
-            // we would generate all the reqs for deps
+              await onObsPutSuccess(obs)
             case 'DELETE':
               sendMessageToAllClients({ id: constants.refreshObsMsg })
               break
@@ -157,10 +181,10 @@ const obsQueue = new Queue('obs-queue', {
         }
       },
       async (entry, resp) => {
+        const obsUuid = entry.metadata.obsUuid
+        const obsId = entry.metadata.obsId
         switch (entry.request.method) {
           case 'POST':
-            const obsUuid = entry.metadata.obsUuid
-            const obsId = entry.metadata.obsId
             sendMessageToAllClients({
               id: constants.failedToUploadObsMsg,
               obsId,
@@ -168,19 +192,20 @@ const obsQueue = new Queue('obs-queue', {
               msg: `Failed to completely create observation with obsUuid=${obsUuid}`,
             })
             // FIXME what if we have pending PUTs or DELETEs?
-            break
             await obsStore.removeItem(createTag + obsUuid)
             break
           case 'DELETE':
-            // I guess it's already been deleted
-            // FIXME
+            // FIXME I guess it's already been deleted but it could also be a 401
             throw new Error('FIXME do we need to notify the client?')
             break
           case 'PUT':
-            // FIXME make sure we don't retry this req
-            throw new Error(
-              'FIXME what do we do here? Notify UI, remove any pending deps reqs.',
-            )
+            sendMessageToAllClients({
+              id: constants.failedToEditObsMsg,
+              obsId,
+              obsUuid,
+              msg: `Failed to completely edit observation with obsUuid=${obsUuid}`,
+            })
+            await obsStore.removeItem(updateTag + obsUuid)
             break
           default:
             throw new Error(
@@ -206,6 +231,17 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         console.debug(
           `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
         )
+        continue
+      }
+      const isLocalOnlySyntheticRequest = entry.request.url.startsWith(
+        poisonPillUrlPrefix,
+      )
+      if (isLocalOnlySyntheticRequest) {
+        console.debug(
+          `Found req with url stating with '${poisonPillUrlPrefix}' ` +
+            `shortcircuiting straight to the success callback, no request will be sent over the network`,
+        )
+        await successCb(entry, entry.request, null)
         continue
       }
       const req = entry.request.clone()
@@ -266,7 +302,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       })()
     }
     try {
-      await successCb(entry.request, resp)
+      await successCb(entry, entry.request, resp)
     } catch (err) {
       console.error('Failed during callback for a queue item, re-throwing...')
       // FIXME probably shouldn't throw here. Not sure what to do. Certainly
@@ -276,72 +312,68 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
   }
 }
 
-async function onObsPostSuccess(obsResp) {
-  // it would be nice to print a warning if there are still items in the queue.
-  // For this demo, things can get crazy when this is the case.
+async function onObsPutSuccess(obsResp) {
   const obsUuid = obsResp.uuid
   const obsId = obsResp.id
   console.debug(
-    `Running post-success block for obs UUID=${obsUuid}, ` +
+    `Running post-PUT-success block for obs UUID=${obsUuid}, ` +
       `which has ID=${obsId}`,
   )
-  // We're using localForage in the hope that webkit won't silently eat our
-  // blobs. If it does, you need to reserialise them to ArrayBuffers to avoid
-  // heartache.
-  // https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-  const depsRecord = await obsStore.getItem(createTag + obsUuid)
+  const key = updateTag + obsUuid
+  const depsRecord = await obsStore.getItem(key)
   if (!depsRecord) {
-    // FIXME this is probably an error. We *always* have deps!
-    console.warn(`No deps found for obsUuid=${obsUuid}`)
-    return
+    throw new Error(
+      `No deps found under key='${key}'. We should always have deps!`,
+    )
   }
   try {
-    for (const curr of depsRecord.photos) {
-      const fd = new FormData()
-      fd.append('observation_photo[observation_id]', obsId)
-      fd.append('file', curr)
-      console.debug('Pushing a photo to the queue')
-      await depsQueue.pushRequest({
-        metadata: {
-          // details used when things go wrong so we can clean up
-          obsId: obsId,
-          obsUuid: obsUuid,
-        },
-        request: new Request(constants.apiUrlBase + '/photos', {
-          method: 'POST',
-          mode: 'cors',
-          body: fd,
-        }),
-      })
-    }
-    for (const curr of depsRecord.obsFields) {
-      console.debug('Pushing an obsField to the queue')
-      await depsQueue.pushRequest({
-        metadata: {
-          // details used when things go wrong so we can clean up
-          obsId: obsId,
-          obsUuid: obsUuid,
-        },
-        request: new Request(
-          constants.apiUrlBase + '/observation_field_values',
-          {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-              'Content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              observation_id: obsId,
-              ...curr,
-            }),
-          },
-        ),
-      })
-    }
+    await processPhotosAndObsFields(depsRecord, obsUuid, obsId)
+    // FIXME handle photo and obsField deletes
+    await depsQueue.pushRequest({
+      metadata: {
+        obsId: obsId,
+        obsUuid: obsUuid,
+      },
+      request: new Request(obsPutPoisonPillUrl, {
+        method: magicMethod,
+      }),
+    })
+    // if (!depsQueue._syncInProgress) {
+    //   console.debug('depsQueue is not currently processing, giving it a kick')
+    //   depsQueue._onSync() // FIXME do we need to catch errors here?
+    // }
+  } catch (err) {
+    // Note: errors related to queue processing won't be caught here. If we're
+    // connected to the network, processing will be triggered by pushing items.
+    console.debug('caught error while populating queue, rethrowing...')
+    throw err
+  }
+  console.debug(
+    'Cleaning up after ourselves. All requests have been generated and ' +
+      `queued up for key=${key}, so we do not need this data anymore`,
+  )
+  await obsStore.removeItem(key)
+}
+
+async function onObsPostSuccess(obsResp) {
+  const obsUuid = obsResp.uuid
+  const obsId = obsResp.id
+  console.debug(
+    `Running post-POST-success block for obs UUID=${obsUuid}, ` +
+      `which has ID=${obsId}`,
+  )
+  const key = createTag + obsUuid
+  const depsRecord = await obsStore.getItem(key)
+  if (!depsRecord) {
+    throw new Error(
+      `No deps found under key='${key}'. We should always have deps!`,
+    )
+  }
+  try {
+    await processPhotosAndObsFields(depsRecord, obsUuid, obsId)
     console.debug('Pushing project linkage call to the queue')
     await depsQueue.pushRequest({
       metadata: {
-        // details used when things go wrong so we can clean up
         obsId: obsId,
         obsUuid: obsUuid,
       },
@@ -362,8 +394,8 @@ async function onObsPostSuccess(obsResp) {
     //   depsQueue._onSync() // FIXME do we need to catch errors here?
     // }
   } catch (err) {
-    // Note: error related to queue processing, which if we're connected to the
-    // network will be triggered by pushing items, won't be caught here.
+    // Note: errors related to queue processing won't be caught here. If we're
+    // connected to the network, processing will be triggered by pushing items.
     console.debug('caught error while populating queue, rethrowing...')
     throw err
   }
@@ -371,7 +403,7 @@ async function onObsPostSuccess(obsResp) {
     'Cleaning up after ourselves. All requests have been generated and ' +
       `queued up for UUID=${obsUuid}, so we do not need this data anymore`,
   )
-  await obsStore.removeItem(createTag + obsUuid)
+  await obsStore.removeItem(key)
 }
 
 registerRoute(
@@ -380,18 +412,17 @@ registerRoute(
     console.debug('Service worker processing POSTed bundle')
     const formData = await event.request.formData()
     const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
-    const obsUuid = obsRecord.observation.uuid
-    const photos = formData.getAll(constants.photosFieldName)
-    const obsFields = formData
-      .getAll(constants.obsFieldsFieldName)
-      .map(e => JSON.parse(e))
+    const obsUuid = verifyNotImpendingDoom(obs.observation.uuid)
     const projectId = formData.get(constants.projectIdFieldName)
-    await obsStore.setItem(createTag + obsUuid, {
+    const depsRecord = {
       obsUuid: obsUuid,
-      photos,
-      obsFields,
+      photos: formData.getAll(constants.photosFieldName),
+      obsFields: formData
+        .getAll(constants.obsFieldsFieldName)
+        .map(e => JSON.parse(e)),
       projectId,
-    })
+    }
+    await obsStore.setItem(createTag + obsUuid, depsRecord)
     try {
       await obsQueue.pushRequest({
         metadata: {
@@ -416,22 +447,20 @@ registerRoute(
       //   obsQueue._onSync() // FIXME do we need to catch errors here?
       // }
     } catch (err) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           result: 'failed',
           msg: err.toString(),
-        }),
-        { status: 500 },
+        },
+        500,
       )
     }
-    return new Response(
-      JSON.stringify({
-        result: 'queued',
-        photoCount: photos.length,
-        obsFieldCount: obsFields.length,
-        projectId,
-      }),
-    )
+    return jsonResponse({
+      result: 'queued',
+      photoCount: depsRecord.photos.length,
+      obsFieldCount: depsRecord.obsFields.length,
+      projectId,
+    })
   },
   'POST',
 )
@@ -443,16 +472,20 @@ registerRoute(
     const formData = await event.request.formData()
     const obs = JSON.parse(formData.get(constants.obsFieldName))
     // FIXME pull all the parts out of the bundle for storage
-    const obsUuid = obs.uuid
+    const obsUuid = verifyNotImpendingDoom(obs.observation.uuid)
+    const obsId = verifyNotImpendingDoom(obs.observation.id)
     // We could queue all the deps because we have the obsId but it's easier to
     // keep them in localForage so it's easy to clean up if anything goes wrong
-    await obsStore.setItem(updateTag + obsUuid, {
+    const depsRecord = {
       obsUuid: obsUuid,
-      newPhotos: [],
-      newObsFields: [],
-      removedPhotos: [],
-      removedObsFields: [],
-    })
+      photos: formData.getAll(constants.photosFieldName),
+      obsFields: formData
+        .getAll(constants.obsFieldsFieldName)
+        .map(e => JSON.parse(e)),
+      deletedPhotos: formData.getAll(constants.photoIdsToDeleteFieldName),
+      deletedObsFields: formData.getAll(constants.obsFieldIdsToDeleteFieldName),
+    }
+    await obsStore.setItem(updateTag + obsUuid, depsRecord)
     // FIXME it's possible for the PUT to be queued while the POST is still
     // waiting. If this is the case, we should probably stash the obs PUT req
     // until we have the response from the POST. Then when we get the
@@ -463,35 +496,34 @@ registerRoute(
       await obsQueue.pushRequest({
         metadata: {
           // details used when things go wrong so we can clean up
-          obsUuid: obs.obsUuid,
-          obsId: obs.obsId,
+          obsUuid: obsUuid,
+          obsId: obsId,
         },
-        request: new Request(
-          `${constants.apiUrlBase}/observations/${obs.obsId}`,
-          {
-            method: 'PUT',
-            mode: 'cors',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+        request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
+          method: 'PUT',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        ),
+          body: JSON.stringify(obs),
+        }),
       })
     } catch (err) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           result: 'failed',
           msg: err.toString(),
-        }),
-        { status: 500 },
+        },
+        500,
       )
     }
-    return new Response(
-      JSON.stringify({
-        result: 'queued',
-        // we would send back a summary of what we queued here
-      }),
-    )
+    return jsonResponse({
+      result: 'queued',
+      newPhotoCount: depsRecord.photos.length,
+      newObsFieldCount: depsRecord.obsFields.length,
+      deletedPhotoCount: depsRecord.deletedPhotos.length,
+      deletedObsFields: depsRecord.deletedObsFields.length,
+    })
   },
   'PUT',
 )
@@ -505,19 +537,20 @@ registerRoute(
     if (isObsLocalOnly) {
       // FIXME if we have this ID queued, kill it and shortcircuit
       sendMessageToAllClients({ id: constants.refreshObsMsg })
-      return new Response(JSON.stringify({ result: 'deleted' }))
+      return jsonResponse({ result: 'deleted' })
     }
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,
-        // obsUuid: FIXME find this
+        // obsUuid: FIXME find this. Although might not need it as we can look
+        // it up via the obsId back on the client-side
       },
       request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
         method: 'DELETE',
         mode: 'cors',
       }),
     })
-    return new Response(JSON.stringify({ result: 'queued' }))
+    return jsonResponse({ result: 'queued' })
   },
   'DELETE',
 )
@@ -525,11 +558,9 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerIsAliveMagicUrl,
   async ({ url, event, params }) => {
-    return new Response(
-      JSON.stringify({
-        result: 'yep',
-      }),
-    )
+    return jsonResponse({
+      result: 'yep',
+    })
   },
   'GET',
 )
@@ -542,12 +573,10 @@ registerRoute(
   constants.serviceWorkerUpdateAuthHeaderUrl,
   async ({ url, event, params }) => {
     authHeaderValue = event.request.headers.get('Authorization')
-    return new Response(
-      JSON.stringify({
-        result: 'thanks',
-        suppliedAuthHeader: authHeaderValue,
-      }),
-    )
+    return jsonResponse({
+      result: 'thanks',
+      suppliedAuthHeader: authHeaderValue,
+    })
   },
   'POST',
 )
@@ -621,6 +650,66 @@ function sendMessageToAllClients(msg) {
       )
     })
   })
+}
+
+function verifyNotImpendingDoom(val) {
+  const theSkyIsNotFalling = val != null
+  if (theSkyIsNotFalling) {
+    return val
+  }
+  throw new Error(
+    `Value='${val}' is null-ish, things will go wrong ` +
+      'if we continue. So we are failing fast.',
+  )
+}
+
+function jsonResponse(bodyObj, status = 200) {
+  return new Response(JSON.stringify(bodyObj), {
+    status,
+    headers: {
+      'Content-type': 'application/json',
+    },
+  })
+}
+
+async function processPhotosAndObsFields(depsRecord, obsUuid, obsId) {
+  for (const curr of depsRecord.photos) {
+    const fd = new FormData()
+    fd.append('observation_photo[observation_id]', obsId)
+    fd.append('file', curr)
+    console.debug('Pushing a photo to the queue')
+    await depsQueue.pushRequest({
+      metadata: {
+        obsId: obsId,
+        obsUuid: obsUuid,
+      },
+      request: new Request(constants.apiUrlBase + '/photos', {
+        method: 'POST',
+        mode: 'cors',
+        body: fd,
+      }),
+    })
+  }
+  for (const curr of depsRecord.obsFields) {
+    console.debug('Pushing an obsField to the queue')
+    await depsQueue.pushRequest({
+      metadata: {
+        obsId: obsId,
+        obsUuid: obsUuid,
+      },
+      request: new Request(constants.apiUrlBase + '/observation_field_values', {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          observation_id: obsId,
+          ...curr,
+        }),
+      }),
+    })
+  }
 }
 
 // build process will inject manifest into the following statement.
