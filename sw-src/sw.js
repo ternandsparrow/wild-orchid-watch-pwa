@@ -239,7 +239,8 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       if (isLocalOnlySyntheticRequest) {
         console.debug(
           `Found req with url stating with '${poisonPillUrlPrefix}' ` +
-            `shortcircuiting straight to the success callback, no request will be sent over the network`,
+            `shortcircuiting straight to the success callback, no request ` +
+            `will be sent over the network`,
         )
         await successCb(entry, entry.request, null)
         continue
@@ -328,7 +329,38 @@ async function onObsPutSuccess(obsResp) {
   }
   try {
     await processPhotosAndObsFields(depsRecord, obsUuid, obsId)
-    // FIXME handle photo and obsField deletes
+    for (const curr of depsRecord.deletedPhotoIds) {
+      console.debug('Pushing a photo DELETE to the queue')
+      await depsQueue.pushRequest({
+        metadata: {
+          obsId: obsId,
+          obsUuid: obsUuid,
+        },
+        request: new Request(
+          constants.apiUrlBase + '/observation_photos/' + curr,
+          {
+            method: 'DELETE',
+            mode: 'cors',
+          },
+        ),
+      })
+    }
+    for (const curr of depsRecord.deletedObsFieldIds) {
+      console.debug('Pushing an obsField DELETE to the queue')
+      await depsQueue.pushRequest({
+        metadata: {
+          obsId: obsId,
+          obsUuid: obsUuid,
+        },
+        request: new Request(
+          constants.apiUrlBase + '/observation_field_values/' + curr,
+          {
+            method: 'DELETE',
+            mode: 'cors',
+          },
+        ),
+      })
+    }
     await depsQueue.pushRequest({
       metadata: {
         obsId: obsId,
@@ -482,8 +514,10 @@ registerRoute(
       obsFields: formData
         .getAll(constants.obsFieldsFieldName)
         .map(e => JSON.parse(e)),
-      deletedPhotos: formData.getAll(constants.photoIdsToDeleteFieldName),
-      deletedObsFields: formData.getAll(constants.obsFieldIdsToDeleteFieldName),
+      deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
+      deletedObsFieldIds: formData.getAll(
+        constants.obsFieldIdsToDeleteFieldName,
+      ),
     }
     await obsStore.setItem(updateTag + obsUuid, depsRecord)
     // FIXME it's possible for the PUT to be queued while the POST is still
@@ -521,8 +555,8 @@ registerRoute(
       result: 'queued',
       newPhotoCount: depsRecord.photos.length,
       newObsFieldCount: depsRecord.obsFields.length,
-      deletedPhotoCount: depsRecord.deletedPhotos.length,
-      deletedObsFields: depsRecord.deletedObsFields.length,
+      deletedPhotoCount: depsRecord.deletedPhotoIds.length,
+      deletedObsFieldCount: depsRecord.deletedObsFieldIds.length,
     })
   },
   'PUT',
