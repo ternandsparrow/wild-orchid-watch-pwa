@@ -1,4 +1,5 @@
 import objectUnderTest from '@/store/ephemeral'
+import * as constants from '@/misc/constants'
 
 const actions = objectUnderTest.actions
 const commit = jest.fn()
@@ -33,7 +34,7 @@ describe('app module action', () => {
       expect(commit).toHaveBeenCalledWith('setRefreshingApp', true)
       expect(
         state.SWRegistrationForNewContent.waiting.postMessage,
-      ).toHaveBeenCalledWith('skipWaiting')
+      ).toHaveBeenCalledWith(constants.skipWaitingMsg)
     })
 
     it('should not set app refreshing status and call sw postMessage with skipWaiting', () => {
