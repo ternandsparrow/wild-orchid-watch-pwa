@@ -298,7 +298,7 @@ async function onObsPostSuccess(obsResp) {
   try {
     for (const curr of depsRecord.photos) {
       const fd = new FormData()
-      fd.append('obsId', obsId)
+      fd.append('observation_photo[observation_id]', obsId)
       fd.append('file', curr)
       console.debug('Pushing a photo to the queue')
       await depsQueue.pushRequest({
@@ -322,18 +322,20 @@ async function onObsPostSuccess(obsResp) {
           obsId: obsId,
           obsUuid: obsUuid,
         },
-        // FIXME update URL
-        request: new Request(constants.apiUrlBase + '/obs-fields', {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-type': 'application/json',
+        request: new Request(
+          constants.apiUrlBase + '/observation_field_values',
+          {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+              'Content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              observation_id: obsId,
+              ...curr,
+            }),
           },
-          body: JSON.stringify({
-            field: curr,
-            obsId,
-          }),
-        }),
+        ),
       })
     }
     console.debug('Pushing project linkage call to the queue')
@@ -350,8 +352,8 @@ async function onObsPostSuccess(obsResp) {
           'Content-type': 'application/json',
         },
         body: JSON.stringify({
-          obsId,
-          projectId: depsRecord.projectId,
+          observation_id: obsId,
+          project_id: depsRecord.projectId,
         }),
       }),
     })

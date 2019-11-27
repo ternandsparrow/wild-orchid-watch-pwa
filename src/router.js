@@ -84,10 +84,10 @@ router.beforeEach((to, from, next) => {
 })
 
 function resolveObsByIdOrNotFound(to, from, next) {
-  const parsed = parseInt(to.params.id)
-  const obsId = isNaN(parsed) ? to.params.id : parsed
-  store.commit('obs/setSelectedObservationId', obsId)
+  const wowId = isNaN(to.params.id) ? to.params.id : parseInt(to.params.id)
+  store.commit('obs/setSelectedObservationId', wowId)
   if (!store.getters['obs/observationDetail']) {
+    console.debug(`Could not find obs record for wowId=${wowId}`)
     return next({ name: 'NotFound', replace: true })
   }
   return next()
