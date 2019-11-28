@@ -39,7 +39,11 @@ const depsQueue = new Queue('obs-dependant-queue', {
             console.debug(
               'resp IS a project linkage one, this marks the end of an obs',
             )
-            sendMessageToAllClients({ id: constants.refreshObsMsg })
+            sendMessageToAllClients({
+              id: constants.obsPostSuccessMsg,
+              obsId,
+              obsUuid,
+            })
             return
           case magicMethod:
             const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
@@ -444,7 +448,7 @@ registerRoute(
     console.debug('Service worker processing POSTed bundle')
     const formData = await event.request.formData()
     const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
-    const obsUuid = verifyNotImpendingDoom(obs.observation.uuid)
+    const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
     const projectId = formData.get(constants.projectIdFieldName)
     const depsRecord = {
       obsUuid: obsUuid,
@@ -453,6 +457,17 @@ registerRoute(
         .getAll(constants.obsFieldsFieldName)
         .map(e => JSON.parse(e)),
       projectId,
+    }
+    try {
+      verifyDepsRecord(depsRecord)
+    } catch (err) {
+      return jsonResponse(
+        {
+          result: 'failed',
+          msg: err.toString(),
+        },
+        400,
+      )
     }
     await obsStore.setItem(createTag + obsUuid, depsRecord)
     try {
@@ -502,10 +517,9 @@ registerRoute(
   async ({ url, event, params }) => {
     console.debug('Service worker processing PUTed bundle')
     const formData = await event.request.formData()
-    const obs = JSON.parse(formData.get(constants.obsFieldName))
-    // FIXME pull all the parts out of the bundle for storage
-    const obsUuid = verifyNotImpendingDoom(obs.observation.uuid)
-    const obsId = verifyNotImpendingDoom(obs.observation.id)
+    const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
+    const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+    const obsId = verifyNotImpendingDoom(obsRecord.observation.id)
     // We could queue all the deps because we have the obsId but it's easier to
     // keep them in localForage so it's easy to clean up if anything goes wrong
     const depsRecord = {
@@ -539,7 +553,7 @@ registerRoute(
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(obs),
+          body: JSON.stringify(obsRecord),
         }),
       })
     } catch (err) {
@@ -717,7 +731,7 @@ async function processPhotosAndObsFields(depsRecord, obsUuid, obsId) {
         obsId: obsId,
         obsUuid: obsUuid,
       },
-      request: new Request(constants.apiUrlBase + '/photos', {
+      request: new Request(constants.apiUrlBase + '/observation_photos', {
         method: 'POST',
         mode: 'cors',
         body: fd,
@@ -743,6 +757,20 @@ async function processPhotosAndObsFields(depsRecord, obsUuid, obsId) {
         }),
       }),
     })
+  }
+}
+
+function verifyDepsRecord(depsRecord) {
+  for (const curr of depsRecord.photos) {
+    const isPhotoEmpty = !curr.size
+    if (isPhotoEmpty) {
+      throw new Error(
+        `Photo with name='${curr.name}' and type='${curr.type}' ` +
+          `has no size='${
+            curr.size
+          }'. This will cause a 422 if we were to continue.`,
+      )
+    }
   }
 }
 

@@ -111,6 +111,7 @@ new Vue({
           case constants.refreshObsMsg:
             this.$store.dispatch('obs/refreshRemoteObs')
             break
+          case constants.obsPostSuccessMsg:
           case constants.obsPutSuccessMsg:
             this.$store
               .dispatch('obs/findDbIdForWowId', wowId)

@@ -854,7 +854,10 @@ const actions = {
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${resp.status}`,
+              ` but the status code indicates an error. Status=${
+                resp.status
+              }.` +
+              ` Message=${await getBundleErrorMsg(resp)}`,
           )
         }
       },
@@ -867,7 +870,8 @@ const actions = {
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${resp.status}`,
+              ` but the status code indicates an error. Status=${resp.status}` +
+              ` Message=${await getBundleErrorMsg(resp)}`,
           )
         }
       },
@@ -1487,6 +1491,17 @@ export function extractGeolocationText(record) {
 
 function trimDecimalPlaces(val) {
   return parseFloat(val).toFixed(6)
+}
+
+async function getBundleErrorMsg(resp) {
+  try {
+    const body = await resp.json()
+    return body.msg
+  } catch (err) {
+    const msg = 'Bundle resp was not JSON, could not extract message'
+    console.debug(msg, err)
+    return `(${msg})`
+  }
 }
 
 export const _testonly = {
