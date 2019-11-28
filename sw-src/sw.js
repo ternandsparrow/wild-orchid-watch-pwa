@@ -17,8 +17,6 @@ const obsPutPoisonPillUrl = poisonPillUrlPrefix + '/obs-put'
 
 let authHeaderValue = null
 
-// FIXME why is the page not refreshing when we accept the update prompt?
-
 const depsQueue = new Queue('obs-dependant-queue', {
   maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
   async onSync() {
@@ -66,9 +64,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
             )
           case 'DELETE':
             // probably don't have to do anything
-            throw new Error(
-              `Lazy programmer error: not implemented for this demo`,
-            )
+            throw new Error(`Lazy programmer error: not implemented`)
           default:
             throw new Error(
               `Programmer error: we don't know how to handle method=${
@@ -140,7 +136,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
 
 // We don't need to register a route for /observations, etc because:
 //  1. if we have a SW, we're using the synthetic bundle endpoint
-//  2. fetch calls made *from* the SW don't hit the routes we configure
+//  2. fetch calls *from* the SW don't hit the routes configured *in* the SW
 const obsQueue = new Queue('obs-queue', {
   maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
   async onSync() {
@@ -158,7 +154,10 @@ const obsQueue = new Queue('obs-queue', {
             case 'PUT':
               await onObsPutSuccess(obs)
             case 'DELETE':
-              sendMessageToAllClients({ id: constants.refreshObsMsg })
+              sendMessageToAllClients({
+                id: constants.obsDeleteSuccessMsg,
+                obsId: entry.metadata.obsId,
+              })
               break
             default:
               throw new Error(
@@ -579,19 +578,21 @@ registerRoute(
 registerRoute(
   new RegExp(`${constants.apiUrlBase}/observations/\d*`),
   async ({ url, event, params }) => {
-    const obsId = url.pathname.substr(url.pathname.lastIndexOf('/') + 1)
+    const obsId = parseInt(
+      url.pathname.substr(url.pathname.lastIndexOf('/') + 1),
+    )
     console.debug(`Extracted obs ID='${obsId}' from url=${url.pathname}`)
     const isObsLocalOnly = false
     if (isObsLocalOnly) {
-      // FIXME if we have this ID queued, kill it and shortcircuit
+      // FIXME if we have this ID queued, kill it and shortcircuit. Or just
+      // maintain a list of IDs that should be ignored and let the whole
+      // process go as usual but without any actual HTTP call being made
       sendMessageToAllClients({ id: constants.refreshObsMsg })
       return jsonResponse({ result: 'deleted' })
     }
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,
-        // obsUuid: FIXME find this. Although might not need it as we can look
-        // it up via the obsId back on the client-side
       },
       request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
         method: 'DELETE',

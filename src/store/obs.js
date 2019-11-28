@@ -354,7 +354,7 @@ const actions = {
       return possibleDbId
     }
     throw new Error(
-      `Could not resolve wowId='${wowId}' to a Db ID ` +
+      `Could not resolve wowId='${wowId}' (typeof=${typeof wowId}) to a DB ID ` +
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
   },

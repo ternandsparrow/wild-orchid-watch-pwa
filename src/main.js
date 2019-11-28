@@ -113,6 +113,7 @@ new Vue({
             break
           case constants.obsPostSuccessMsg:
           case constants.obsPutSuccessMsg:
+          case constants.obsDeleteSuccessMsg:
             this.$store
               .dispatch('obs/findDbIdForWowId', wowId)
               .then(dbId => {
