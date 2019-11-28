@@ -528,6 +528,7 @@ const actions = {
         [recordTypeFieldName]: r.wowMeta[recordTypeFieldName],
         [constants.recordProcessingOutcomeFieldName]:
           r.wowMeta[constants.recordProcessingOutcomeFieldName],
+        inatId: r.inatId,
         uuid: r.uuid,
       }))
       commit('setLocalQueueSummary', localQueueSummary)
@@ -1069,8 +1070,7 @@ const getters = {
           e.wowMeta[recordTypeFieldName] === recordType('edit') &&
           e.wowMeta[hasRemoteRecordFieldName],
       )
-      .map(e => e.uuid)
-      .includes(selectedId)
+      .some(e => wowIdOf(e) === selectedId)
   },
   waitingLocalQueueSummary(state) {
     return state.localQueueSummary.filter(
