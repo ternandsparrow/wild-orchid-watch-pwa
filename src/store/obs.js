@@ -412,7 +412,18 @@ const actions = {
         // photos. We need the raw photo data itself so we go to the DB record
         // for photos.
         const existingPhotos = existingDbRecord.photos || []
-        return [...newPhotos, ...existingPhotos]
+        const photosWithDeletesApplied = [
+          ...newPhotos,
+          ...existingPhotos,
+        ].filter(p => !photoIdsToDelete.includes(p.id))
+        return fixIds(photosWithDeletesApplied)
+        function fixIds(thePhotos) {
+          return thePhotos.map((e, $index) => {
+            const isPhotoLocalOnly = e.id < 0
+            e.id = isPhotoLocalOnly ? -1 * ($index + 1) : e.id
+            return e
+          })
+        }
       })()
       const enhancedRecord = Object.assign(existingDbRecord, record, {
         photos,
@@ -423,7 +434,10 @@ const actions = {
             'waiting',
           ),
           [hasRemoteRecordFieldName]: !!existingRemoteRecord,
-          photoIdsToDelete: photoIdsToDelete,
+          photoIdsToDelete: photoIdsToDelete.filter(p => {
+            const photoIsRemote = p.id > 0
+            return photoIsRemote
+          }),
           obsFieldIdsToDelete: obsFieldIdsToDelete,
         },
       })

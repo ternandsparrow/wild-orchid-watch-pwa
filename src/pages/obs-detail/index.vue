@@ -146,6 +146,7 @@ import {
   approxAreaSearchValueToTitle,
   formatMetricDistance,
   humanDateString,
+  wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
 
@@ -355,7 +356,7 @@ export default {
       )
     },
     onEdit() {
-      const obsId = this.nullSafeObs.inatId
+      const obsId = wowIdOf(this.nullSafeObs)
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
     },
   },

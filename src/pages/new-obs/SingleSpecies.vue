@@ -186,7 +186,7 @@
       <p class="text-center">
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
       </p>
-      <p v-show="isShowModelForceClose" class="text-center">
+      <p v-show="isShowModalForceClose" class="text-center">
         Hmmm, this is taking a while. It's best to wait for saving to finish,
         but if you're sure something has gone wrong, you can
         <v-ons-button @click="isSaveModalVisible = false"
@@ -259,7 +259,7 @@ export default {
       formErrorMsgs: [],
       existingRecordSnapshot: null,
       isSaveModalVisible: false,
-      isShowModelForceClose: false,
+      isShowModalForceClose: false,
       geolocationErrorMsg: null,
       obsFieldSorterFn: null,
     }
@@ -565,14 +565,14 @@ export default {
     },
     async onSave() {
       const timeoutId = setTimeout(() => {
-        this.isShowModelForceClose = true
+        this.isShowModalForceClose = true
       }, 30 * 1000)
       try {
         if (!this.validateInputs()) {
           return
         }
         this.isSaveModalVisible = true
-        this.isShowModelForceClose = false
+        this.isShowModalForceClose = false
         this.$store.commit('obs/addRecentlyUsedTaxa', {
           type: speciesGuessRecentTaxaKey,
           value: this.speciesGuessSelectedItem,
