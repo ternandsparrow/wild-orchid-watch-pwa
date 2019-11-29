@@ -138,7 +138,7 @@ export const failedToUploadObsMsg = 'OBS_CREATE_FAIL'
 export const failedToEditObsMsg = 'OBS_EDIT_FAIL'
 export const skipWaitingMsg = 'SKIP_WAITING'
 
-const serviceWorkerMagicUrlPrefix = 'http://local.service-worker'
+const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
 export const serviceWorkerBundleMagicUrl =
   serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
 export const serviceWorkerIsAliveMagicUrl =
