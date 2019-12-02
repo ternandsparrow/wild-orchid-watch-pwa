@@ -5,26 +5,22 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build && rollup -c && workbox injectManifest",
-    "build:watch": "NODE_ENV=development nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build && servor dist/ index.html --no-browser'",
-    "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 yarn build && servor dist/ index.html --no-browser",
-    "lint": "vue-cli-service lint",
-    "test:e2e": "vue-cli-service test:e2e",
-    "test:e2e:headless": "vue-cli-service test:e2e --headless",
     "test:unit": "vue-cli-service test:unit",
-    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/vue-cli-service test:unit --runInBand",
-    "prettier:format-all": "prettier --write \"**/*.{vue,scss,sass,js}\"",
+    "test:e2e": "vue-cli-service test:e2e",
+    "lint": "vue-cli-service lint",
+    "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 yarn build && servor dist/ index.html --no-browser",
+    "build:watch": "NODE_ENV=development nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build && servor dist/ index.html --no-browser'",
+    "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
     "prettier:check": "prettier \"**/*.{vue,scss,sass,js}\" --list-different",
-    "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit"
-  },
-  "engines": {
-    "npm": ">=5.5.0",
-    "node": ">=8.16.0"
+    "prettier:format-all": "prettier --write \"**/*.{vue,scss,sass,js}\"",
+    "test:e2e:headless": "vue-cli-service test:e2e --headless",
+    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/vue-cli-service test:unit --runInBand"
   },
   "dependencies": {
     "@sentry/browser": "^5.6.2",
     "@sentry/integrations": "^5.6.1",
     "browser-image-compression": "1.0.6",
-    "core-js": "^3.1.3",
+    "core-js": "^3.4.3",
     "exif-js": "2.3.0",
     "fetch-retry": "^2.2.3",
     "is_js": "^0.9.0",
@@ -51,7 +47,7 @@
   "devDependencies": {
     "@sentry/webpack-plugin": "^1.8.0",
     "@types/lodash": "^4.14.132",
-    "@vue/cli-plugin-babel": "^3.8.0",
+    "@vue/cli-plugin-babel": "^4.1.1",
     "@vue/cli-plugin-e2e-cypress": "^3.8.0",
     "@vue/cli-plugin-eslint": "^3.8.0",
     "@vue/cli-plugin-pwa": "4.0.0-rc.3",
@@ -93,9 +89,9 @@
   },
   "browserslist": {
     "production": [
-      "> 1%",
-      "last 2 versions",
-      "not ie <= 8"
+      "ChromeAndroid >= 42",
+      "FirefoxAndroid >= 39",
+      "iOS >= 10.3"
     ],
     "debug": [
       "last 2 Chrome versions"
@@ -125,6 +121,10 @@
     "testURL": "http://localhost/",
     "setupTestFrameworkScriptFile": "<rootDir>/tests/unit/setup.js"
   },
-  "readme": "ERROR: No README data found!",
-  "_id": "wild-orchid-watch-pwa@0.1.0"
+  "_id": "wild-orchid-watch-pwa@0.1.0",
+  "engines": {
+    "npm": ">=5.5.0",
+    "node": ">=8.16.0"
+  },
+  "readme": "ERROR: No README data found!"
 }

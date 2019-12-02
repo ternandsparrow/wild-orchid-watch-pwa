@@ -29,6 +29,14 @@ https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API#Browser_compatibility
 Safari 10.1 (desktop)/10.3 (iOS).
 
 
+## babel
+Our code is written using JS syntax that not all our target browsers can
+support. So we use babel to transpile/polyfill our code so it will run on all
+our target. We target browsers with
+[browserslist](https://github.com/browserslist/browserslist) and you can find
+our config in the `browserslist` key in `package.json`.
+
+
 ## UI Framework - Onsen UI
 We're using [Onsen](https://onsen.io) as it gives us a native app feel from a
 purely web based client. It's also smart enough to style itself correctly based
