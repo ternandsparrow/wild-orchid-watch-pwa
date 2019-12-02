@@ -15,7 +15,18 @@ We chose to build this app as a PWA for a few reasons:
 We explored using React Native but found the extra friction in the development
 process wasn't worth it. The one thing that using React Native (or similar)
 would give us that a PWA doesn't is a presence in Google Play and the Apple
-AppStore. We've decided that we'll try running without that and see how we go.
+AppStore. We've decided that we'll try running without a store presence and see
+how we go. We may be able to use
+[TWAs](https://developers.google.com/web/updates/2019/02/using-twa) to get a
+store presence (TODO - do more reading on that).
+
+
+## `fetch` for HTTP calls
+We need to use the `fetch` API in order to take advantage of service workers.
+Using fetch means we don't support browsers that [don't support this API](
+https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API#Browser_compatibility
+), which is Chrome &gte;42, Edge &gte;14, Firefox &gte;39, Opera &gte;29 and
+Safari 10.1 (desktop)/10.3 (iOS).
 
 
 ## UI Framework - Onsen UI
