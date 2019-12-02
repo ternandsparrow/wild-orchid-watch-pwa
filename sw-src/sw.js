@@ -67,9 +67,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
             throw new Error(`Lazy programmer error: not implemented`)
           default:
             throw new Error(
-              `Programmer error: we don't know how to handle method=${
-                req.method
-              }`,
+              `Programmer error: we don't know how to handle method=${req.method}`,
             )
         }
       },
@@ -124,9 +122,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
             )
           default:
             throw new Error(
-              `Programmer error: we don't know how to handle method=${
-                entry.request.method
-              }`,
+              `Programmer error: we don't know how to handle method=${entry.request.method}`,
             )
         }
       },
@@ -161,9 +157,7 @@ const obsQueue = new Queue('obs-queue', {
               break
             default:
               throw new Error(
-                `Programmer error: we don't know how to handle method=${
-                  req.method
-                }`,
+                `Programmer error: we don't know how to handle method=${req.method}`,
               )
           }
         } catch (err) {
@@ -212,9 +206,7 @@ const obsQueue = new Queue('obs-queue', {
             break
           default:
             throw new Error(
-              `Programmer error: we don't know how to handle method=${
-                entry.request.method
-              }`,
+              `Programmer error: we don't know how to handle method=${entry.request.method}`,
             )
         }
       },
@@ -767,9 +759,7 @@ function verifyDepsRecord(depsRecord) {
     if (isPhotoEmpty) {
       throw new Error(
         `Photo with name='${curr.name}' and type='${curr.type}' ` +
-          `has no size='${
-            curr.size
-          }'. This will cause a 422 if we were to continue.`,
+          `has no size='${curr.size}'. This will cause a 422 if we were to continue.`,
       )
     }
   }

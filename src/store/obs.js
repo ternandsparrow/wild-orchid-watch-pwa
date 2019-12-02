@@ -108,9 +108,7 @@ const actions = {
     commit('setIsUpdatingRemoteObs', true)
     const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
-    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${
-      constants.inatProjectSlug
-    }`
+    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(mapObsFromApiIntoOurDomain)
@@ -177,9 +175,7 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${
-      constants.inatProjectSlug
-    }`
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
@@ -868,9 +864,7 @@ const actions = {
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${
-                resp.status
-              }.` +
+              ` but the status code indicates an error. Status=${resp.status}.` +
               ` Message=${await getBundleErrorMsg(resp)}`,
           )
         }
