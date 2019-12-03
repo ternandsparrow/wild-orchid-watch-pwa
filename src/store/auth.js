@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/browser' // piggybacks on the config done in sr
 
 import * as constants from '@/misc/constants'
 import {
+  arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
@@ -205,7 +206,11 @@ export default {
           `${constants.apiUrlBase}/observation_photos`,
           formData => {
             formData.append('observation_photo[observation_id]', obsId)
-            formData.append('file', photoRecord.file)
+            const photoBlob = arrayBufferToBlob(
+              photoRecord.file.data,
+              photoRecord.file.mime,
+            )
+            formData.append('file', photoBlob)
           },
           `${state.apiToken}`,
         )

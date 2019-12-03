@@ -72,7 +72,7 @@
     "rollup": "^1.27.2",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-node-resolve": "^5.2.0",
-    "sass-loader": "^7.1.0",
+    "sass-loader": "^8.0.0",
     "servor": "^2.2.1",
     "vue-template-compiler": "^2.6.10",
     "webpack-bundle-analyzer": "^3.3.2",
@@ -119,7 +119,9 @@
       "**/tests/unit/**/*.spec.(js|jsx|ts|tsx)|**/__tests__/*.(js|jsx|ts|tsx)"
     ],
     "testURL": "http://localhost/",
-    "setupTestFrameworkScriptFile": "<rootDir>/tests/unit/setup.js"
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/unit/setup.js"
+    ]
   },
   "_id": "wild-orchid-watch-pwa@0.1.0",
   "engines": {

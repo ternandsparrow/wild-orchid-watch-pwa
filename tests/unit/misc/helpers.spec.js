@@ -38,6 +38,44 @@ describe('makeEnumValidator', () => {
   })
 })
 
+describe('chainedError', () => {
+  it('should handle no error passed in', () => {
+    const err = null
+    const result = objectUnderTest.chainedError('some msg', err)
+    expect(result.message).toEqual(
+      expect.stringMatching(/some msg\nWARNING:.*/),
+    )
+  })
+
+  it('should handle an error object passed in', () => {
+    const err = new Error('some cause')
+    const result = objectUnderTest.chainedError('some caller', err)
+    expect(result.message).toEqual(
+      expect.stringMatching(/some caller\nCaused by: some cause/),
+    )
+  })
+
+  it('should handle an error string passed in', () => {
+    const err = 'some cause string'
+    const result = objectUnderTest.chainedError('some caller', err)
+    expect(result.message).toEqual(
+      expect.stringMatching(/some caller\nCaused by: some cause string/),
+    )
+  })
+
+  it('should handle an error with readonly message', () => {
+    const err = new Error()
+    Object.defineProperty(err, 'message', {
+      value: 'some readonly msg',
+      writable: false,
+    })
+    const result = objectUnderTest.chainedError('some caller', err)
+    expect(result.message).toEqual(
+      expect.stringMatching(/some caller\nCaused by: some readonly msg/),
+    )
+  })
+})
+
 describe('formatMetricDistance', () => {
   it('should handle less than 1 km', () => {
     const result = objectUnderTest.formatMetricDistance(123)

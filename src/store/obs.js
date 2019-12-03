@@ -4,6 +4,8 @@ import imageCompression from 'browser-image-compression'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import {
+  arrayBufferToBlob,
+  blobToArrayBuffer,
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
@@ -913,7 +915,8 @@ const actions = {
       fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
     }
     for (const curr of apiRecords.photoPostBodyPartials) {
-      fd.append(constants.photosFieldName, curr.file)
+      const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
+      fd.append(constants.photosFieldName, photoBlob)
     }
     for (const curr of apiRecords.obsFieldPostBodyPartials) {
       fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
@@ -1179,13 +1182,17 @@ function mapPhotoFromDbToUi(p) {
   return result
 }
 
-function mintObjectUrl(blob) {
-  if (!blob) {
+function mintObjectUrl(blobAsArrayBuffer) {
+  if (!blobAsArrayBuffer) {
     throw new Error(
       'Supplied blob is falsey/nullish, refusing to even try to use it',
     )
   }
   try {
+    const blob = arrayBufferToBlob(
+      blobAsArrayBuffer.data,
+      blobAsArrayBuffer.mime,
+    )
     const result = (window.webkitURL || window.URL || {}).createObjectURL(blob)
     photoObjectUrlsInUse.push(result)
     return result
@@ -1193,7 +1200,7 @@ function mintObjectUrl(blob) {
     throw chainedError(
       // Don't get distracted, the MIME has no impact. If it fails, it's due to
       // something else, the MIME will just help you debug (hopefully)
-      `Failed to mint object URL for blob with MIME='${blob.type}'`,
+      `Failed to mint object URL for blob with MIME='${blobAsArrayBuffer.mime}'`,
       err,
     )
   }
@@ -1395,11 +1402,15 @@ async function processPhotos(photos) {
     photos.map(async (curr, $index) => {
       const tempId = -1 * ($index + 1)
       const photoData = await compressPhotoIfRequired(curr.file)
+      const photoDataAsArrayBuffer = await blobToArrayBuffer(photoData)
       const photo = {
         id: tempId,
         url: '(set at render time)',
         type: curr.type,
-        file: photoData,
+        file: {
+          data: photoDataAsArrayBuffer,
+          mime: curr.file.type,
+        },
         // TODO read and use user's default settings for these:
         licenseCode: 'default',
         attribution: 'default',

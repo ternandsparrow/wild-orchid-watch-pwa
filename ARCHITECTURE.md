@@ -72,9 +72,10 @@ TODO
 ## localForage
 A simple key-val store that we use to store observations that haven't yet been
 uploaded. We did use Dexie first off but it turns out we don't need all the
-extra DB-like functionality and localForage help with compatibility as it will
+extra DB-like functionality and localForage helps with compatibility as it will
 run on various underlying storage APIs and handles (de)serialising Blobs when
-running on webkit.
+running on webkit. On this last point, related to blobs on webkit, it seems to
+work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
 
 ## iNaturalist

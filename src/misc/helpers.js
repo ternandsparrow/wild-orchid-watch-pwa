@@ -211,12 +211,29 @@ function isRespJson(resp) {
 export function chainedError(msg, err) {
   if (!err) {
     return new Error(
-      `${msg}\nWARNING: chainedError` + ` was called without an error to chain`,
+      `${msg}\nWARNING: chainedError was called without an error to chain`,
     )
   }
   if (typeof err === 'object') {
-    err.message = `${msg}\nCaused by: ${err.message}`
-    return err
+    const newMsg = `${msg}\nCaused by: ${err.message}`
+    try {
+      err.message = newMsg
+      return err
+    } catch (err2) {
+      // Store a blob in Safari's IndexedDB on iOS (not macOS) and it will
+      // throw an error with message = "An unknown error occurred within
+      // Indexed Database.". That error will have the 'message' property set as
+      // readonly and that's how you get here.
+      console.warn(
+        `While handling another error, encountered this error ` +
+          `(but we're working around it):${err2.message}`,
+      )
+      return new Error(
+        newMsg +
+          `\nOriginal stack (readonly Error.message forced ` +
+          `creation of a new Error):\n${err.stack}`,
+      )
+    }
   }
   return new Error(`${msg}\nCaused by: ${err}`)
 }
@@ -338,6 +355,27 @@ export function getExifFromBlob(blobish) {
 
 export function wowIdOf(record) {
   return record.inatId || record.uuid
+}
+
+// Thanks for these two functions:
+// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
+//
+// Safari on iOS cannot store Blobs, which are what we get from the file input
+// UI control. So we have to convert them to ArrayBuffers, which do have
+// support. If we ever stop supporting Safari 10, I think these can be removed.
+export function arrayBufferToBlob(buffer, type) {
+  return new Blob([buffer], { type: type })
+}
+
+export function blobToArrayBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('loadend', () => {
+      resolve(reader.result)
+    })
+    reader.addEventListener('error', reject)
+    reader.readAsArrayBuffer(blob)
+  })
 }
 
 export const _testonly = {

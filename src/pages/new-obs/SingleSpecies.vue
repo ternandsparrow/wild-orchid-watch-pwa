@@ -586,6 +586,7 @@ export default {
             value: paramToPass,
           })
         }
+        const filterUnsuppliedPhotos = p => !!p
         const record = {
           photos: this.photoMenu
             .map(curr => {
@@ -598,7 +599,7 @@ export default {
                 file: currPhoto.file,
               }
             })
-            .filter(p => !!p /*remove those nulls*/),
+            .filter(filterUnsuppliedPhotos),
           speciesGuess: this.speciesGuessValue,
           // FIXME add placeGuess
           obsFieldValues: this.displayableObsFields
