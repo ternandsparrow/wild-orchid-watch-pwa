@@ -99,14 +99,6 @@ new Vue({
       navigator.serviceWorker.addEventListener('message', event => {
         const obsUuid = event.data.obsUuid
         const wowId = obsUuid || event.data.obsId
-        const handleFailedDispatchOnWowId = err => {
-          this.$store.dispatch('flagGlobalError', {
-            msg: `Failed to process Db record with wowId='${wowId}'`,
-            // FIXME use something more user friendly than the ID
-            userMsg: `Error while trying upload record with wowId='${wowId}'`,
-            err,
-          })
-        }
         switch (event.data.id) {
           case constants.refreshObsMsg:
             this.$store.dispatch('obs/refreshRemoteObs')
@@ -115,41 +107,44 @@ new Vue({
           case constants.obsPutSuccessMsg:
           case constants.obsDeleteSuccessMsg:
             this.$store
-              .dispatch('obs/findDbIdForWowId', wowId)
-              .then(dbId => {
-                return this.$store.dispatch('obs/setRecordProcessingOutcome', {
-                  dbId,
-                  outcome: 'success',
-                })
-              })
+              .dispatch('obs/transitionToSuccessOutcome', wowId)
               .then(() => {
                 return this.$store.dispatch('obs/refreshRemoteObs')
               })
-              .catch(handleFailedDispatchOnWowId)
+              .catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to set outcome=success for Db record with wowId='${wowId}'`,
+                  // FIXME use something more user friendly than the ID
+                  userMsg: `Error while trying upload record with wowId='${wowId}'`,
+                  err,
+                })
+              })
             break
           case constants.failedToUploadObsMsg:
             // FIXME differentiate between systemError and userError
             this.$store
-              .dispatch('obs/findDbIdForWowId', wowId)
-              .then(dbId => {
-                this.$store.dispatch('obs/setRecordProcessingOutcome', {
-                  dbId,
-                  outcome: 'systemError',
+              .dispatch('obs/transitionToSystemErrorOutcome', wowId)
+              .catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
+                  // FIXME use something more user friendly than the ID
+                  userMsg: `Error while trying upload record with wowId='${wowId}'`,
+                  err,
                 })
               })
-              .catch(handleFailedDispatchOnWowId)
             break
           case constants.failedToEditObsMsg:
             // FIXME differentiate between systemError and userError
             this.$store
-              .dispatch('obs/findDbIdForWowId', wowId)
-              .then(dbId => {
-                this.$store.dispatch('obs/setRecordProcessingOutcome', {
-                  dbId,
-                  outcome: 'systemError',
+              .dispatch('obs/transitionToSystemErrorOutcome', wowId)
+              .catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
+                  // FIXME use something more user friendly than the ID
+                  userMsg: `Error while trying edit record with wowId='${wowId}'`,
+                  err,
                 })
               })
-              .catch(handleFailedDispatchOnWowId)
             break
           default:
             console.debug('Client received message from SW: ' + event.data)

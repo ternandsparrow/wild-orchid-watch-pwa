@@ -180,6 +180,7 @@ const obsQueue = new Queue('obs-queue', {
       async (entry, resp) => {
         const obsUuid = entry.metadata.obsUuid
         const obsId = entry.metadata.obsId
+        const respStatus = resp.status
         switch (entry.request.method) {
           case 'POST':
             sendMessageToAllClients({
@@ -192,7 +193,10 @@ const obsQueue = new Queue('obs-queue', {
             await obsStore.removeItem(createTag + obsUuid)
             break
           case 'DELETE':
-            // FIXME I guess it's already been deleted but it could also be a 401
+            if (respStatus === 404) {
+              return // that's fine, the job is done
+            }
+            // FIXME it could be a 401
             throw new Error('FIXME do we need to notify the client?')
             break
           case 'PUT':

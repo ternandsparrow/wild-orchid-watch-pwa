@@ -122,20 +122,25 @@ export async function isSwActive() {
 }
 
 export function deleteWithAuth(url, authHeaderValue) {
-  return doManagedFetch(url, {
-    method: 'DELETE',
-    mode: 'cors',
-    headers: {
-      ...jsonHeaders,
-      Authorization: authHeaderValue,
+  const alsoOkHttpStatuses = [404]
+  return doManagedFetch(
+    url,
+    {
+      method: 'DELETE',
+      mode: 'cors',
+      headers: {
+        ...jsonHeaders,
+        Authorization: authHeaderValue,
+      },
     },
-  })
+    alsoOkHttpStatuses,
+  )
 }
 
-async function doManagedFetch(url, req) {
+async function doManagedFetch(url, req, alsoOkHttpStatuses) {
   try {
     const resp = await fetch(url, req)
-    const result = await handleJsonResp(resp, req)
+    const result = await handleJsonResp(resp, alsoOkHttpStatuses)
     return result
   } catch (err) {
     let msg = `Failed while doing fetch() with\n`
@@ -145,9 +150,9 @@ async function doManagedFetch(url, req) {
   }
 }
 
-async function handleJsonResp(resp) {
+async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
   const isJson = isRespJson(resp)
-  const isRespOk = resp.ok
+  const isRespOk = resp.ok || alsoOkHttpStatuses.includes(resp.status)
   try {
     if (isRespOk && isJson) {
       return resp.json()
