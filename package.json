@@ -19,7 +19,7 @@
   "dependencies": {
     "@sentry/browser": "^5.6.2",
     "@sentry/integrations": "^5.6.1",
-    "browser-image-compression": "1.0.6",
+    "browser-image-compression": "https://github.com/tomsaleeba/browser-image-compression#issue-17",
     "core-js": "^3.4.3",
     "exif-js": "2.3.0",
     "fetch-retry": "^2.2.3",

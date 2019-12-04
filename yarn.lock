@@ -3001,10 +3001,9 @@ brorand@^1.0.1:
   resolved "https://registry.yarnpkg.com/brorand/-/brorand-1.1.0.tgz#12c25efe40a45e3c323eb8675a0a0ce57b22371f"
   integrity sha1-EsJe/kCkXjwyPrhnWgoM5XsiNx8=
 
-browser-image-compression@1.0.6:
+"browser-image-compression@https://github.com/tomsaleeba/browser-image-compression#issue-17":
   version "1.0.6"
-  resolved "https://registry.yarnpkg.com/browser-image-compression/-/browser-image-compression-1.0.6.tgz#3d710aea5a6bb1cb6804737418fceb8a527e79f2"
-  integrity sha512-gb++v1g26BgV/I9qrdXNzirFLDGcOiPmobVxuTJymNTFHbbxJnZ74o1GRoYHjDTgOt1Iypqh4Wk1K03C8tjXHQ==
+  resolved "https://github.com/tomsaleeba/browser-image-compression#e858a3de05e40487e301787d9ef1aff3d3a3a8ce"
 
 browser-process-hrtime@^0.1.2:
   version "0.1.3"
