@@ -3003,7 +3003,7 @@ brorand@^1.0.1:
 
 "browser-image-compression@https://github.com/tomsaleeba/browser-image-compression#issue-17":
   version "1.0.6"
-  resolved "https://github.com/tomsaleeba/browser-image-compression#e858a3de05e40487e301787d9ef1aff3d3a3a8ce"
+  resolved "https://github.com/tomsaleeba/browser-image-compression#bf891b0e244715e08bd28a07045b8d209adbe0a7"
 
 browser-process-hrtime@^0.1.2:
   version "0.1.3"
