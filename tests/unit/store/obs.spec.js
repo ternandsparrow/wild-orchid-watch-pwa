@@ -1,3 +1,5 @@
+import { getOrCreateInstance } from '@/indexeddb/storage-manager'
+import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 
 describe('mutations', () => {
@@ -114,6 +116,17 @@ describe('mutations', () => {
 
 describe('actions', () => {
   describe('waitForProjectInfo', () => {
+    let origConsoleDebug
+
+    beforeAll(function() {
+      origConsoleDebug = console.debug
+      console.debug = () => {}
+    })
+
+    afterAll(function() {
+      console.debug = origConsoleDebug
+    })
+
     it('should succeed when we have projectInfo that is NOT stale', async () => {
       const state = { projectInfo: { id: 1 } }
       const rootState = {
@@ -321,6 +334,451 @@ describe('actions', () => {
         // success
       }
     })
+  })
+
+  describe('edit strategies', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    describe('upsertQueuedAction', () => {
+      it('should create the record when none exists', async () => {
+        const record = {
+          uuid: '123A',
+          testRecord: true,
+          wowMeta: {},
+        }
+        await objectUnderTest.actions.upsertQueuedAction(null, { record })
+        const result = await obsStore.getItem('123A')
+        expect(result.testRecord).toBeTruthy()
+        expect(
+          result.wowMeta[constants.recordProcessingOutcomeFieldName],
+        ).toEqual('waiting')
+      })
+
+      it('should clobber the record when one already exists', async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          existingRecord: true,
+          wowMeta: {},
+        })
+        const record = {
+          uuid: '123A',
+          testRecord: true,
+          wowMeta: {},
+        }
+        await objectUnderTest.actions.upsertQueuedAction(null, { record })
+        const result = await obsStore.getItem('123A')
+        expect(result.testRecord).toBeTruthy()
+        expect(result.existingRecord).toBeFalsy()
+      })
+
+      it('should merge obsFieldIdsToDelete with the existing', async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          wowMeta: {
+            [constants.obsFieldIdsToDeleteFieldName]: [11, 22, 33],
+          },
+        })
+        const record = {
+          uuid: '123A',
+          wowMeta: {
+            [constants.obsFieldIdsToDeleteFieldName]: [11, 22, 33],
+          },
+        }
+        const newObsFieldIdsToDelete = [44]
+        await objectUnderTest.actions.upsertQueuedAction(null, {
+          record,
+          obsFieldIdsToDelete: newObsFieldIdsToDelete,
+        })
+        const result = await obsStore.getItem('123A')
+        expect(result.wowMeta[constants.obsFieldIdsToDeleteFieldName]).toEqual([
+          11,
+          22,
+          33,
+          44,
+        ])
+      })
+
+      it('should merge photoIdsToDelete with the existing', async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          wowMeta: {
+            [constants.photoIdsToDeleteFieldName]: [11, 22, 33],
+          },
+        })
+        const record = {
+          uuid: '123A',
+          wowMeta: {
+            [constants.photoIdsToDeleteFieldName]: [11, 22, 33],
+          },
+        }
+        const newPhotoIdsToDelete = [44]
+        await objectUnderTest.actions.upsertQueuedAction(null, {
+          record,
+          obsFieldIdsToDelete: [],
+          photoIdsToDelete: newPhotoIdsToDelete,
+        })
+        const result = await obsStore.getItem('123A')
+        expect(result.wowMeta[constants.photoIdsToDeleteFieldName]).toEqual([
+          11,
+          22,
+          33,
+          44,
+        ])
+      })
+    })
+
+    describe('upsertBlockedAction', () => {
+      it('should create the blocked action when none exists', async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          someField: 'old value',
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'new',
+            [constants.blockedActionFieldName]: null,
+          },
+        })
+        const record = {
+          uuid: '123A',
+          someField: 'new value',
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'edit',
+          },
+        }
+        const newPhotoIdsToDelete = []
+        const newObsFieldIdsToDelete = []
+        await objectUnderTest.actions.upsertBlockedAction(null, {
+          record,
+          photoIdsToDelete: newPhotoIdsToDelete,
+          obsFieldIdsToDelete: newObsFieldIdsToDelete,
+        })
+        const result = await obsStore.getItem('123A')
+        expect(result.someField).toEqual('new value')
+        expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('new')
+        expect(
+          result.wowMeta[constants.blockedActionFieldName].wowMeta[
+            constants.recordTypeFieldName
+          ],
+        ).toEqual('edit')
+      })
+
+      it(
+        'should only merge the {photos,obsFields}IdsToDelete with the existing ' +
+          'blocked action, but leave the record xToDelete values alone',
+        async () => {
+          await obsStore.setItem('123A', {
+            uuid: '123A',
+            wowMeta: {
+              [constants.recordTypeFieldName]: 'new',
+              [constants.photoIdsToDeleteFieldName]: [21, 22],
+              [constants.obsFieldIdsToDeleteFieldName]: [31, 32],
+              [constants.blockedActionFieldName]: {
+                wowMeta: {
+                  [constants.photoIdsToDeleteFieldName]: [23, 24],
+                  [constants.obsFieldIdsToDeleteFieldName]: [33, 34],
+                },
+              },
+            },
+          })
+          const record = {
+            uuid: '123A',
+            wowMeta: {
+              [constants.recordTypeFieldName]: 'edit',
+            },
+          }
+          const newPhotoIdsToDelete = [25, 26]
+          const newObsFieldIdsToDelete = [35, 36]
+          await objectUnderTest.actions.upsertBlockedAction(null, {
+            record,
+            photoIdsToDelete: newPhotoIdsToDelete,
+            obsFieldIdsToDelete: newObsFieldIdsToDelete,
+          })
+          const result = await obsStore.getItem('123A')
+          expect(result.wowMeta[constants.photoIdsToDeleteFieldName]).toEqual([
+            21,
+            22,
+          ])
+          expect(
+            result.wowMeta[constants.obsFieldIdsToDeleteFieldName],
+          ).toEqual([31, 32])
+          expect(
+            result.wowMeta[constants.blockedActionFieldName].wowMeta[
+              constants.photoIdsToDeleteFieldName
+            ],
+          ).toEqual([23, 24, 25, 26])
+          expect(
+            result.wowMeta[constants.blockedActionFieldName].wowMeta[
+              constants.obsFieldIdsToDeleteFieldName
+            ],
+          ).toEqual([33, 34, 35, 36])
+        },
+      )
+    })
+
+    it('should reset localForage store for each test', async () => {
+      // not completely foolproof but a canary to verify beforeEach
+      const result = (await obsStore.keys()).length
+      expect(result).toEqual(0)
+    })
+  })
+
+  describe('refreshLocalRecordQueue', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    it('should see a new record as UI visible', async () => {
+      const record = {
+        uuid: '123A',
+        photos: [],
+        wowMeta: {
+          [constants.recordTypeFieldName]: 'new',
+          [constants.recordProcessingOutcomeFieldName]: 'waiting',
+        },
+      }
+      await obsStore.setItem('123A', record)
+      const committedState = {}
+      await objectUnderTest.actions.refreshLocalRecordQueue({
+        commit: (key, value) => (committedState[key] = value),
+      })
+      expect(committedState.setLocalQueueSummary).toEqual([
+        {
+          [constants.recordTypeFieldName]: 'new',
+          [constants.isEventuallyDeletedFieldName]: false,
+          [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.hasBlockedActionFieldName]: false,
+          inatId: undefined,
+          uuid: '123A',
+        },
+      ])
+      expect(committedState.setUiVisibleLocalRecords).toEqual([
+        {
+          geolocationAccuracy: undefined,
+          photos: [],
+          uuid: '123A',
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'new',
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          },
+        },
+      ])
+    })
+
+    it('should see record with a blocked delete action as NOT UI visible', async () => {
+      const record = {
+        uuid: '123A',
+        inatId: 33,
+        photos: [],
+        wowMeta: {
+          [constants.recordTypeFieldName]: 'edit',
+          [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+          [constants.blockedActionFieldName]: {
+            uuid: '123A',
+            inatId: 33,
+            photos: [],
+            wowMeta: {
+              [constants.recordTypeFieldName]: 'delete',
+            },
+          },
+        },
+      }
+      await obsStore.setItem('123A', record)
+      const committedState = {}
+      await objectUnderTest.actions.refreshLocalRecordQueue({
+        commit: (key, value) => (committedState[key] = value),
+      })
+      expect(committedState.setLocalQueueSummary).toEqual([
+        {
+          [constants.recordTypeFieldName]: 'edit',
+          [constants.isEventuallyDeletedFieldName]: true,
+          [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+          [constants.hasBlockedActionFieldName]: true,
+          inatId: 33,
+          uuid: '123A',
+        },
+      ])
+      expect(committedState.setUiVisibleLocalRecords).toEqual([])
+    })
+  })
+
+  describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+    let origConsoleDebug
+
+    beforeAll(function() {
+      origConsoleDebug = console.debug
+      console.debug = () => {}
+    })
+
+    afterAll(function() {
+      console.debug = origConsoleDebug
+    })
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    it('should delete a successful new record that remote has echoed back', async () => {
+      await obsStore.setItem('123A', { uuid: '123A' })
+      const state = {
+        allRemoteObs: [{ uuid: '123A' }],
+        localQueueSummary: [
+          {
+            uuid: '123A',
+            [constants.recordProcessingOutcomeFieldName]: 'success',
+            [constants.recordTypeFieldName]: 'new',
+          },
+        ],
+      }
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
+        state,
+        getters: {
+          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+            state,
+          ),
+          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+            state,
+          ),
+        },
+        dispatch: () => {},
+      })
+      const result = await obsStore.getItem('123A')
+      expect(result).toBeNull()
+    })
+
+    it('should delete a successful edit record that remote has echoed back', async () => {
+      await obsStore.setItem('456B', { uuid: '456B' })
+      const state = {
+        allRemoteObs: [{ uuid: '456B' }],
+        localQueueSummary: [
+          {
+            uuid: '456B',
+            [constants.recordProcessingOutcomeFieldName]: 'success',
+            [constants.recordTypeFieldName]: 'edit',
+          },
+        ],
+      }
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
+        state,
+        getters: {
+          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+            state,
+          ),
+          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+            state,
+          ),
+        },
+        dispatch: () => {},
+      })
+      const result = await obsStore.getItem('456B')
+      expect(result).toBeNull()
+    })
+
+    it('should delete a successful delete record that is not in remote obs list', async () => {
+      await obsStore.setItem('456B', { uuid: '456B' })
+      const state = {
+        allRemoteObs: [],
+        localQueueSummary: [
+          {
+            uuid: '456B',
+            [constants.recordProcessingOutcomeFieldName]: 'success',
+            [constants.recordTypeFieldName]: 'delete',
+          },
+        ],
+      }
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
+        state,
+        getters: {
+          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+            state,
+          ),
+          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+            state,
+          ),
+        },
+        dispatch: () => {},
+      })
+      const result = await obsStore.getItem('456B')
+      expect(result).toBeNull()
+    })
+
+    it('should delete a delete record with error that is not in remote obs list', async () => {
+      await obsStore.setItem('456B', { uuid: '456B' })
+      const state = {
+        allRemoteObs: [],
+        localQueueSummary: [
+          {
+            uuid: '456B',
+            [constants.recordProcessingOutcomeFieldName]: 'systemError',
+            [constants.recordTypeFieldName]: 'delete',
+          },
+        ],
+      }
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
+        state,
+        getters: {
+          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+            state,
+          ),
+          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+            state,
+          ),
+        },
+        dispatch: () => {},
+      })
+      const result = await obsStore.getItem('456B')
+      expect(result).toBeNull()
+    })
+
+    it('should trigger a blocked action', async () => {
+      await obsStore.setItem('456B', {
+        uuid: '456B',
+        wowMeta: {
+          [constants.blockedActionFieldName]: {
+            wowMeta: {
+              [constants.recordTypeFieldName]: 'edit',
+              [constants.photoIdsToDeleteFieldName]: [111],
+            },
+          },
+        },
+      })
+      const state = {
+        allRemoteObs: [{ uuid: '456B' }],
+        localQueueSummary: [
+          {
+            uuid: '456B',
+            [constants.recordProcessingOutcomeFieldName]: 'success',
+            [constants.recordTypeFieldName]: 'new',
+            [constants.hasBlockedActionFieldName]: true,
+          },
+        ],
+      }
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
+        state,
+        getters: {
+          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+            state,
+          ),
+          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+            state,
+          ),
+        },
+        dispatch: () => {},
+      })
+      const result = await obsStore.getItem('456B')
+      expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
+      expect(result.wowMeta[constants.photoIdsToDeleteFieldName]).toEqual([111])
+    })
+
+    // FIXME what about adding a photo in the main record and another in the
+    // blocked action? We don't want to double upload that first new photo so
+    // we need to refresh the record with what we have from the remote before
+    // we process the blocked action
   })
 })
 

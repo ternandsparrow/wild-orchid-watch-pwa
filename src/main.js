@@ -97,6 +97,15 @@ new Vue({
         return
       }
       navigator.serviceWorker.addEventListener('message', event => {
+        // FIXME maybe this shouldn't have so much responsibility and the SW
+        // should directly update the status of records. I'm worried about:
+        //  - user saves record
+        //  - process sends it to SW
+        //  - SW starts processing
+        //  - our app is closed, loses focus, crashes, phone is turned off
+        //  - SW completes processing, send message
+        // There's no client to accept that message. And if that's the only
+        // point that we update the status for records, we're in trouble.
         const obsUuid = event.data.obsUuid
         const wowId = obsUuid || event.data.obsId
         switch (event.data.id) {

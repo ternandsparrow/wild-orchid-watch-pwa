@@ -628,7 +628,6 @@ export default {
             }, []),
           description: this.notes,
         }
-        // FIXME change to strategy pattern
         if (this.isEdit) {
           const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
             (accum, currKey) => {
@@ -648,9 +647,9 @@ export default {
             },
             [],
           )
+          record.uuid = this.observationDetail.uuid
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
-            existingRecord: this.existingRecordSnapshot,
             photoIdsToDelete: this.photoIdsToDelete,
             obsFieldIdsToDelete,
           })

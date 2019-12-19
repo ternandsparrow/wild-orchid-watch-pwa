@@ -65,6 +65,8 @@ describe('chainedError', () => {
 
   it('should handle an error with readonly message', () => {
     const err = new Error()
+    const origConsoleWarn = console.warn
+    console.warn = () => {}
     Object.defineProperty(err, 'message', {
       value: 'some readonly msg',
       writable: false,
@@ -73,6 +75,7 @@ describe('chainedError', () => {
     expect(result.message).toEqual(
       expect.stringMatching(/some caller\nCaused by: some readonly msg/),
     )
+    console.warn = origConsoleWarn
   })
 })
 

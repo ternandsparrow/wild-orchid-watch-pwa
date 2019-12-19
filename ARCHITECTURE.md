@@ -94,6 +94,13 @@ TODO, talk about:
   - projects to namespace our observations
 
 
+# JestJS
+The unit testing and assertion framework we're using is
+[Jest](https://jestjs.io/docs/). This is what came pre-configured with the
+starter project we used and it's supported by Facebook so it should have a
+decent lifetime.
+
+
 ## Firebase
 Firebase offers a lot of features, a lot of which are only for native apps, but
 at this stage we're only using the hosting feature. Out-of-the-box it's
@@ -144,3 +151,29 @@ importing modules so we solve that by building the service worker so it
 contains all the dependencies it needs. Previously we used the hosted version
 of Workbox (via an `importScripts()` call) but seeing as we're building the sw,
 we might as well include the workbox deps in it for extra reliability.
+
+## Pseudo code for edit strategy
+if 'item is queued for ID'
+  we need to modify the queued item somehow
+else
+  queue up our item
+
+
+if 'is local only'
+  edit: changes need to result in a 'new' action
+  delete: just delete the record (unless processing)
+else
+  leave record as 'new' or 'edit'
+
+
+if 'is processing queued item'
+  we can only act on the blocked placeholder
+else
+  we can act on the queued item
+
+
+if 'is existing blocked action'
+  edit: merge with existing
+  delete: replace with delete action
+else
+  set value to our action

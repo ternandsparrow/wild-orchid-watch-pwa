@@ -304,7 +304,10 @@ export default {
       }
       if (this.isSelectedRecordEditOfRemote) {
         menu['Delete only local edit'] = () => {
-          // FIXME handle when we're currently uploading this record
+          // FIXME handle when we're currently uploading this record. Perhaps
+          // we should dispatch a normal delete and inside that action is the
+          // logic to determine if it's still local-only or if it's being
+          // processed.
           this.$ons.notification
             .confirm(
               'This record has an edit that has NOT yet been ' +

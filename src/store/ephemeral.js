@@ -92,6 +92,7 @@ const getters = {
     }, {})
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
+  isLocalProcessorRunning: state => !!state.queueProcessorPromise,
 }
 
 export default {
