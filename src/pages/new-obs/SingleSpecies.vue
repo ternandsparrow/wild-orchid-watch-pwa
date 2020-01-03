@@ -588,7 +588,7 @@ export default {
         }
         const filterUnsuppliedPhotos = p => !!p
         const record = {
-          photos: this.photoMenu
+          addedPhotos: this.photoMenu
             .map(curr => {
               const currPhoto = this.photos[curr.id]
               if (!currPhoto) {

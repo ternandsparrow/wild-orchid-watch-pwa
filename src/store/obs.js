@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import moment from 'moment'
 import * as uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
@@ -135,20 +136,40 @@ const actions = {
     getters,
     dispatch,
   }) {
-    // FIXME WOW-135 look at moving this off the main thread
+    // FIXME WOW-135 look at moving this whole function body off the main
+    // thread
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
+    const lastUpdatedDatesOnRemote = state.allRemoteObs.reduce(
+      (accum, curr) => {
+        accum[curr.uuid] = curr.updatedAt
+        return accum
+      },
+      {},
+    )
+    const localUpdatedDates = getters.successfulLocalQueueSummary.reduce(
+      (accum, curr) => {
+        accum[curr.uuid] = curr.wowUpdatedAt
+        return accum
+      },
+      {},
+    )
     const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => {
-        // TODO do we need to check more than just "is present" for edit
-        // record? Something like lastUpdated?
-        const isNewOrEditAndPresent =
-          [recordType('new'), recordType('edit')].includes(
-            e[constants.recordTypeFieldName],
-          ) && uuidsOfRemoteRecords.includes(e.uuid)
+        const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
+        const isUpdatedOnRemoteAfterLocalUpdate =
+          currUpdatedDateOnRemote &&
+          moment(currUpdatedDateOnRemote) > moment(localUpdatedDates[e.uuid])
+        const isNewAndPresent =
+          e[constants.recordTypeFieldName] === recordType('new') &&
+          uuidsOfRemoteRecords.includes(e.uuid)
+        const isEditAndUpdated =
+          e[constants.recordTypeFieldName] === recordType('edit') &&
+          uuidsOfRemoteRecords.includes(e.uuid) &&
+          isUpdatedOnRemoteAfterLocalUpdate
         const isDeleteAndNotPresent =
           e[constants.recordTypeFieldName] === recordType('delete') &&
           !uuidsOfRemoteRecords.includes(e.uuid)
-        return isNewOrEditAndPresent || isDeleteAndNotPresent
+        return isNewAndPresent || isEditAndUpdated || isDeleteAndNotPresent
       })
       .map(e => e.uuid)
     console.debug(
@@ -179,10 +200,6 @@ const actions = {
             if (hasBlockedAction) {
               blockedAction = {
                 ...record,
-                // FIXME there's a bug here. If we created a new photo in the
-                // just-finished record, we'll create it again here. That's not
-                // right. But how to do know what new actions we need to apply
-                // to the new remote record?
                 wowMeta: {
                   ...record.wowMeta[constants.blockedActionFieldName].wowMeta,
                   [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
@@ -403,13 +420,13 @@ const actions = {
   },
   async upsertQueuedAction(
     _,
-    { record, obsFieldIdsToDelete, photoIdsToDelete },
+    { record, obsFieldIdsToDelete, photoIdsToDelete, newPhotos, newObsFields },
   ) {
     const mergedRecord = {
       ...record,
       wowMeta: {
         ...record.wowMeta,
-        // if we're writing to the record, it *will* be waiting to be processed!
+        // we're writing to the record, it *will* be waiting to be processed when we're done!
         [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
           'waiting',
         ),
@@ -419,41 +436,52 @@ const actions = {
         [constants.obsFieldIdsToDeleteFieldName]: (
           record.wowMeta[constants.obsFieldIdsToDeleteFieldName] || []
         ).concat(obsFieldIdsToDelete),
+        [constants.photosToAddFieldName]: (
+          record.wowMeta[constants.photosToAddFieldName] || []
+        ).concat(newPhotos),
+        [constants.obsFieldsToAddFieldName]: (
+          record.wowMeta[constants.obsFieldsToAddFieldName] || []
+        ).concat(newObsFields),
       },
     }
     return storeRecord(mergedRecord)
   },
   async upsertBlockedAction(
     _,
-    { record, obsFieldIdsToDelete, photoIdsToDelete },
+    { record, obsFieldIdsToDelete, photoIdsToDelete, newPhotos, newObsFields },
   ) {
-    // we edit the record in-place so the UI reflects the changes instantly,
-    // and we also queue up the changes to trigger once the blocker is
-    // processed. We only need to store the wowMeta for the blocked action as
-    // the main record is always the source of truth.
     const key = record.uuid
     const existingStoreRecord = await obsStore.getItem(key)
     const existingWowMeta = existingStoreRecord.wowMeta
-    const existingBlockedAction =
+    const existingBlockedActionWowMeta =
       (existingStoreRecord.wowMeta[constants.blockedActionFieldName] || {})
         .wowMeta || {}
     const mergedPhotoIdsToDelete = (
-      existingBlockedAction[constants.photoIdsToDeleteFieldName] || []
+      existingBlockedActionWowMeta[constants.photoIdsToDeleteFieldName] || []
     ).concat(photoIdsToDelete || [])
     const mergedObsFieldIdsToDelete = (
-      existingBlockedAction[constants.obsFieldIdsToDeleteFieldName] || []
+      existingBlockedActionWowMeta[constants.obsFieldIdsToDeleteFieldName] || []
     ).concat(obsFieldIdsToDelete || [])
+    const mergedPhotosToAdd = (
+      existingBlockedActionWowMeta[constants.photosToAddFieldName] || []
+    ).concat(newPhotos || [])
+    const mergedObsFieldsToAdd = (
+      existingBlockedActionWowMeta[constants.obsFieldsToAddFieldName] || []
+    ).concat(newObsFields || [])
     const mergedRecord = {
-      ...record,
+      ...record, // passed record is new source of truth
       wowMeta: {
-        ...existingWowMeta,
+        ...existingWowMeta, // don't touch wowMeta as it's being processed
         [constants.blockedActionFieldName]: {
           wowMeta: {
-            ...existingBlockedAction,
+            ...record.wowMeta,
+            ...existingBlockedActionWowMeta,
             [constants.recordTypeFieldName]:
               record.wowMeta[constants.recordTypeFieldName],
             [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
             [constants.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
+            [constants.photosToAddFieldName]: mergedPhotosToAdd,
+            [constants.obsFieldsToAddFieldName]: mergedObsFieldsToAdd,
           },
         },
       },
@@ -502,21 +530,21 @@ const actions = {
             'cannot continue without at least one',
         )
       }
-      const newPhotos = (await processPhotos(record.photos)) || []
+      const newPhotos = (await processPhotos(record.addedPhotos)) || []
+      const newObsFields = [] // FIXME implement this (need to support multiple obs fields)
       const photos = (() => {
-        const isEditingRemoteDirectly =
-          !existingLocalRecord && existingRemoteRecord
-        if (isEditingRemoteDirectly) {
-          return [...newPhotos, ...(existingRemoteRecord.photos || [])]
-        }
         // existingLocalRecord is the UI version that has a blob URL for the
         // photos. We need the raw photo data itself so we go to the DB record
         // for photos.
-        const existingPhotos = existingDbRecord.photos || []
+        const existingRemotePhotos = (existingRemoteRecord || []).photos || []
+        const existingLocalPhotos = existingDbRecord.photos
         const photosWithDeletesApplied = [
+          ...(existingLocalPhotos || existingRemotePhotos),
           ...newPhotos,
-          ...existingPhotos,
-        ].filter(p => !photoIdsToDelete.includes(p.id))
+        ].filter(p => {
+          const isPhotoDeleted = photoIdsToDelete.includes(p.id)
+          return !isPhotoDeleted
+        })
         return fixIds(photosWithDeletesApplied)
         function fixIds(thePhotos) {
           return thePhotos.map((e, $index) => {
@@ -531,8 +559,10 @@ const actions = {
         uuid: editedUuid,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('edit'),
+          wowUpdatedAt: new Date().toISOString(),
         },
       })
+      delete enhancedRecord.addedPhotos
       try {
         const localQueueSummaryForEditTarget =
           state.localQueueSummary.find(e => e.uuid === enhancedRecord.uuid) ||
@@ -613,11 +643,13 @@ const actions = {
         console.debug(`[Edit] dispatching action='${strategy}'`)
         await dispatch(strategy, {
           record: enhancedRecord,
-          photoIdsToDelete: photoIdsToDelete.filter(p => {
-            const photoIsRemote = p.id > 0
+          photoIdsToDelete: photoIdsToDelete.filter(id => {
+            const photoIsRemote = id > 0
             return photoIsRemote
           }),
           obsFieldIdsToDelete,
+          newPhotos,
+          newObsFields,
         })
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
@@ -652,19 +684,20 @@ const actions = {
         geoprivacy: 'obscured',
         observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
-        photos: await processPhotos(record.photos),
+        photos: await processPhotos(record.addedPhotos),
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
           [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
             'waiting',
           ),
-          photoIdsToDelete: [],
-          obsFieldIdsToDelete: [],
+          [constants.photoIdsToDeleteFieldName]: [],
+          [constants.obsFieldIdsToDeleteFieldName]: [],
         },
         uuid: uuid(),
         // FIXME get these from UI
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
       })
+      delete enhancedRecord.addedPhotos
       try {
         const key = enhancedRecord.uuid
         await obsStore.setItem(key, enhancedRecord)
@@ -719,6 +752,7 @@ const actions = {
           [constants.recordProcessingOutcomeFieldName]:
             r.wowMeta[constants.recordProcessingOutcomeFieldName],
           [constants.hasBlockedActionFieldName]: hasBlockedAction,
+          wowUpdatedAt: r.wowMeta.wowUpdatedAt,
           inatId: r.inatId,
           uuid: r.uuid,
         }
@@ -803,7 +837,7 @@ const actions = {
         const strategy = isNoServiceWorkerAvailable
           ? 'processWaitingDbRecordNoSw'
           : 'processWaitingDbRecordWithSw'
-        await dispatch(strategy, { dbRecordSnapshot })
+        await dispatch(strategy, { dbRecord: dbRecordSnapshot })
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
@@ -977,7 +1011,7 @@ const actions = {
     }
     const inatRecordId = await strategy.start()
     await Promise.all(
-      dbRecord.wowMeta.photoIdsToDelete.map(id => {
+      dbRecord.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
         return dispatch('_deletePhoto', id).then(() => {})
       }),
     )
@@ -991,7 +1025,7 @@ const actions = {
       // FIXME trap one photo failure so others can still try
     }
     await Promise.all(
-      dbRecord.wowMeta.obsFieldIdsToDelete.map(id => {
+      dbRecord.wowMeta[constants.obsFieldIdsToDeleteFieldName].map(id => {
         return dispatch('_deleteObsFieldValue', id).then(() => {})
       }),
     )
@@ -1073,10 +1107,12 @@ const actions = {
       constants.obsFieldName,
       JSON.stringify(apiRecords.observationPostBody),
     )
-    for (const curr of dbRecord.wowMeta.photoIdsToDelete) {
+    for (const curr of dbRecord.wowMeta[constants.photoIdsToDeleteFieldName]) {
       fd.append(constants.photoIdsToDeleteFieldName, curr)
     }
-    for (const curr of dbRecord.wowMeta.obsFieldIdsToDelete) {
+    for (const curr of dbRecord.wowMeta[
+      constants.obsFieldIdsToDeleteFieldName
+    ]) {
       fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
     }
     for (const curr of apiRecords.photoPostBodyPartials) {
@@ -1125,7 +1161,6 @@ const actions = {
     }
   },
   async deleteSelectedRecord({ state, getters, dispatch, commit }) {
-    // FIXME handle when in process of uploading, maybe queue delete operation?
     const wowId = state.selectedObservationId
     const existingRemoteRecord = state.allRemoteObs.find(
       e => wowIdOf(e) === wowId,
@@ -1151,8 +1186,8 @@ const actions = {
         [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
           'waiting',
         ),
-        photoIdsToDelete: theyreCascadeDeletedByTheObs,
-        obsFieldIdsToDelete: [],
+        [constants.photoIdsToDeleteFieldName]: theyreCascadeDeletedByTheObs,
+        [constants.obsFieldIdsToDeleteFieldName]: [],
       },
     }
     const key = record.uuid
@@ -1192,9 +1227,7 @@ const actions = {
         case recordProcessingOutcome('withLocalProcessor'):
         case recordProcessingOutcome('withServiceWorker'):
           return async () => {
-            // FIXME trigger blocked reqs, we need to do this before we update
-            // the outcome to success to avoid a race condition where we're
-            // deleted while doing our thing
+            // nothing to do
           }
         default:
           throw new Error(
@@ -1279,7 +1312,8 @@ const actions = {
           }
         default:
           throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
+            `Unhandled fromOutcome=${fromOutcome} when transitioning to ` +
+              `${targetOutcome} for wowId=${wowId}`,
           )
       }
     }
@@ -1615,13 +1649,15 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return accum
   }, {})
   result.inatId = obsFromApi.id
-  // TODO what's the difference between .photos and .observation_photos?
-  const photos = (obsFromApi.photos || []).map(p => {
+  // not sure why we have .photos AND .observation_photos but the latter has
+  // the IDs that we need to be working with
+  const photos = (obsFromApi.observation_photos || []).map(p => {
     const result = {
-      url: p.url,
+      url: p.photo.url,
+      uuid: p.uuid,
       id: p.id,
-      licenseCode: p.license_code,
-      attribution: p.attribution,
+      licenseCode: p.photo.license_code,
+      attribution: p.photo.attribution,
       [isRemotePhotoFieldName]: true,
     }
     verifyWowDomainPhoto(result)
@@ -1684,43 +1720,44 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
   }
   const isRecordToUpload =
     dbRecord.wowMeta[constants.recordTypeFieldName] !== recordType('delete')
-  if (isRecordToUpload) {
-    const recordIdObjFragment = (() => {
-      const inatId = dbRecord.inatId
-      if (inatId) {
-        return { id: inatId }
-      }
-      return {}
-    })()
-    result.observationPostBody = {
-      ignore_photos: true,
-      observation: Object.keys(dbRecord).reduce(
-        (accum, currKey) => {
-          const isNotIgnored = !ignoredKeys.includes(currKey)
-          const value = dbRecord[currKey]
-          if (isNotIgnored && isAnswer(value)) {
-            accum[currKey] = value
-          }
-          return accum
-        },
-        {
-          ...recordIdObjFragment,
-          latitude: dbRecord.lat,
-          longitude: dbRecord.lng,
-          observed_on_string: dbRecord.observedAt,
-          species_guess: dbRecord.speciesGuess,
-        },
-      ),
-    }
+  if (!isRecordToUpload) {
+    return {}
   }
+  const recordIdObjFragment = (() => {
+    const inatId = dbRecord.inatId
+    if (inatId) {
+      return { id: inatId }
+    }
+    return {}
+  })()
+  result.observationPostBody = {
+    ignore_photos: true,
+    observation: Object.keys(dbRecord).reduce(
+      (accum, currKey) => {
+        const isNotIgnored = !ignoredKeys.includes(currKey)
+        const value = dbRecord[currKey]
+        if (isNotIgnored && isAnswer(value)) {
+          accum[currKey] = value
+        }
+        return accum
+      },
+      {
+        ...recordIdObjFragment,
+        latitude: dbRecord.lat,
+        longitude: dbRecord.lng,
+        observed_on_string: dbRecord.observedAt,
+        species_guess: dbRecord.speciesGuess,
+      },
+    ),
+  }
+  // FIXME read obsFields from wowMeta
   result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
     observation_field_id: e.fieldId,
     value: e.value,
   }))
   result.totalTaskCount += result.obsFieldPostBodyPartials.length
-  result.photoPostBodyPartials = (dbRecord.photos || []).filter(
-    e => !e[isRemotePhotoFieldName],
-  )
+  result.photoPostBodyPartials =
+    dbRecord.wowMeta[constants.photosToAddFieldName] || []
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }
@@ -1853,4 +1890,5 @@ async function getBundleErrorMsg(resp) {
 
 export const _testonly = {
   mapObsFromApiIntoOurDomain,
+  mapObsFromOurDomainOntoApi,
 }
