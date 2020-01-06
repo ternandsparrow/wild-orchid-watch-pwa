@@ -108,7 +108,9 @@ new Vue({
         // point that we update the status for records, we're in trouble.
         const obsUuid = event.data.obsUuid
         const wowId = obsUuid || event.data.obsId
-        switch (event.data.id) {
+        const msgId = event.data.id
+        console.debug(`Message received from SW with ID='${msgId}'`)
+        switch (msgId) {
           case constants.refreshObsMsg:
             this.$store.dispatch('obs/refreshRemoteObs')
             break

@@ -149,6 +149,7 @@ const obsQueue = new Queue('obs-queue', {
               break
             case 'PUT':
               await onObsPutSuccess(obs)
+              break
             case 'DELETE':
               sendMessageToAllClients({
                 id: constants.obsDeleteSuccessMsg,
