@@ -126,7 +126,7 @@ new Vue({
                 this.$store.dispatch('flagGlobalError', {
                   msg: `Failed to set outcome=success for Db record with wowId='${wowId}'`,
                   // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying upload record with wowId='${wowId}'`,
+                  userMsg: `Error while trying to upload record with wowId='${wowId}'`,
                   err,
                 })
               })
@@ -139,7 +139,7 @@ new Vue({
                 this.$store.dispatch('flagGlobalError', {
                   msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
                   // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying upload record with wowId='${wowId}'`,
+                  userMsg: `Error while trying to upload record with wowId='${wowId}'`,
                   err,
                 })
               })
@@ -152,7 +152,7 @@ new Vue({
                 this.$store.dispatch('flagGlobalError', {
                   msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
                   // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying edit record with wowId='${wowId}'`,
+                  userMsg: `Error while trying to edit record with wowId='${wowId}'`,
                   err,
                 })
               })

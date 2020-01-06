@@ -158,7 +158,9 @@ const actions = {
         const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
         const isUpdatedOnRemoteAfterLocalUpdate =
           currUpdatedDateOnRemote &&
-          moment(currUpdatedDateOnRemote) > moment(localUpdatedDates[e.uuid])
+          // remote times are rounded to the second
+          moment(currUpdatedDateOnRemote) >=
+            moment(localUpdatedDates[e.uuid]).startOf('second')
         const isNewAndPresent =
           e[constants.recordTypeFieldName] === recordType('new') &&
           uuidsOfRemoteRecords.includes(e.uuid)
@@ -559,6 +561,9 @@ const actions = {
         uuid: editedUuid,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('edit'),
+          // warning: relies on the local device time being synchronised. If
+          // the clock has drifted forward, our check for updates having
+          // occurred on the remote won't work.
           wowUpdatedAt: new Date().toISOString(),
         },
       })
@@ -842,31 +847,44 @@ const actions = {
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
       } catch (err) {
-        // FIXME how do we compute this?
-        const isUserError = false
-        if (isUserError) {
-          console.debug(
-            `Failed to process Db record with ID='${idToProcess}' ` +
-              `due to a user error. Notifying the user.`,
-          )
-          // FIXME send toast (or system notification?) to notify user that they
-          // need to check obs list
-          await dispatch('transitionToUserErrorOutcome', idToProcess)
-        } else {
-          // TODO should we try the next one or short-circuit? For system
-          // error, maybe halt as it might affect others?
-          // FIXME do we need to be atomic and rollback?
-          await dispatch('transitionToSystemErrorOutcome', idToProcess)
-          dispatch(
+        try {
+          const isUserError = false // FIXME how do we compute this?
+          if (isUserError) {
+            console.debug(
+              `Failed to process Db record with ID='${idToProcess}' ` +
+                `due to a user error. Notifying the user.`,
+            )
+            // FIXME send toast (or system notification?) to notify user that they
+            // need to check obs list
+            await dispatch('transitionToUserErrorOutcome', idToProcess)
+          } else {
+            // TODO should we try the next one or short-circuit? For system
+            // error, maybe halt as it might affect others?
+            // FIXME do we need to be atomic and rollback?
+            await dispatch('transitionToSystemErrorOutcome', idToProcess)
+            dispatch(
+              'flagGlobalError',
+              {
+                msg: `Failed to process Db record with ID='${idToProcess}'`,
+                // FIXME use something more user friendly than the ID
+                userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+                err,
+              },
+              { root: true },
+            )
+          }
+        } catch (err2) {
+          console.error('Original error for following message: ', err)
+          await dispatch(
             'flagGlobalError',
             {
-              msg: `Failed to process Db record with ID='${idToProcess}'`,
-              // FIXME use something more user friendly than the ID
-              userMsg: `Error while trying upload record with ID='${idToProcess}'`,
-              err,
+              msg: `Failed while handling error for Db record with UUID='${idToProcess}'`,
+              userMsg: `Error while trying to synchronise with the server`,
+              err2,
             },
             { root: true },
           )
+          return // no more processing
         }
       }
       // call ourself so the outer promise only resolves once we have nothing
@@ -1235,7 +1253,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,
@@ -1255,7 +1273,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,
@@ -1275,7 +1293,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,
@@ -1295,7 +1313,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,
@@ -1317,7 +1335,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,
@@ -1334,7 +1352,7 @@ const actions = {
           )
       }
     }
-    await dispatch('_transitionHelper', {
+    return dispatch('_transitionHelper', {
       wowId,
       targetOutcome,
       fromStrategyProviderFn,

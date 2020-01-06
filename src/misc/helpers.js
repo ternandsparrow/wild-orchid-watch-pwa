@@ -16,10 +16,10 @@ const jsonHeaders = {
 // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
 // this eventually
 export function wowErrorHandler(msg, err) {
-  console.error(msg, err || '(no error object passed')
+  console.error(msg, err || '(no error object passed)')
   const processedError = chainedError(msg, err)
   Sentry.withScope(function(scope) {
-    if (err.httpStatus) {
+    if (err && err.httpStatus) {
       scope.setTag('http-status', err.httpStatus)
     }
     Sentry.captureException(processedError)
