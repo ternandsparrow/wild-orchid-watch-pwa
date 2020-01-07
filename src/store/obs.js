@@ -947,6 +947,9 @@ const actions = {
     return resp.id
   },
   async _createObsFieldValue({ dispatch }, { obsFieldRecord, relatedObsId }) {
+    // we could do PUTs to modify the existing records but doing a POST
+    // clobbers the existing values so it's not worth the effort to track obs
+    // field value IDs.
     return dispatch(
       'doApiPost',
       {
@@ -981,36 +984,24 @@ const actions = {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
-      [recordType('new')]: {
-        async start() {
-          const inatRecordId = await dispatch('_createObservation', {
-            obsRecord: apiRecords.observationPostBody,
-          })
-          return inatRecordId
-        },
-        async end() {
-          await dispatch('_linkObsWithProject', { recordId: inatRecordId })
-        },
+      [recordType('new')]: async () => {
+        const inatRecordId = await dispatch('_createObservation', {
+          obsRecord: apiRecords.observationPostBody,
+        })
+        await processChildReqs(dbRecord, inatRecordId)
+        return dispatch('_linkObsWithProject', { recordId: inatRecordId })
       },
-      [recordType('edit')]: {
-        async start() {
-          const inatRecordId = await dispatch('_editObservation', {
-            obsRecord: apiRecords.observationPostBody,
-            inatRecordId: dbRecord.inatId,
-          })
-          return inatRecordId
-        },
-        async end() {},
+      [recordType('edit')]: async () => {
+        const inatRecordId = await dispatch('_editObservation', {
+          obsRecord: apiRecords.observationPostBody,
+          inatRecordId: dbRecord.inatId,
+        })
+        return processChildReqs(dbRecord, inatRecordId)
       },
-      [recordType('delete')]: {
-        async start() {
-          await dispatch('_deleteObservation', {
-            inatRecordId: dbRecord.inatId,
-          })
-          const inatRecordId = null
-          return inatRecordId // it won't be used anyway
-        },
-        async end() {},
+      [recordType('delete')]: async () => {
+        return dispatch('_deleteObservation', {
+          inatRecordId: dbRecord.inatId,
+        })
       },
     }
     const key = dbRecord.wowMeta[constants.recordTypeFieldName]
@@ -1021,43 +1012,13 @@ const actions = {
     // the partial obs. For delete, we do nothing. For edit, we should really
     // track which requests have worked so we only replay the
     // failed/not-yet-processed ones, but most users will use the withSw
-    // version of the processor and we get that for free.
+    // version of the processor and we get this smart retry for free.
     if (!strategy) {
       throw new Error(
         `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
       )
     }
-    const inatRecordId = await strategy.start()
-    await Promise.all(
-      dbRecord.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
-        return dispatch('_deletePhoto', id).then(() => {})
-      }),
-    )
-    for (const curr of apiRecords.photoPostBodyPartials) {
-      // TODO go parallel?
-      // TODO can we also store "photo type", curr.type, on the server?
-      await dispatch('_createPhoto', {
-        photoRecord: curr,
-        relatedObsId: inatRecordId,
-      })
-      // FIXME trap one photo failure so others can still try
-    }
-    await Promise.all(
-      dbRecord.wowMeta[constants.obsFieldIdsToDeleteFieldName].map(id => {
-        return dispatch('_deleteObsFieldValue', id).then(() => {})
-      }),
-    )
-    // FIXME should we be doing PUTs for modified obsFieldValues?
-    await Promise.all(
-      apiRecords.obsFieldPostBodyPartials.map(curr => {
-        return dispatch('_createObsFieldValue', {
-          obsFieldRecord: curr,
-          relatedObsId: inatRecordId,
-        })
-      }),
-      // FIXME trap one failure so others can still try
-    )
-    await strategy.end()
+    await strategy()
     await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
     // FIXME is there a better way than simply waiting for some period. We keep
     // it short-ish so it doesn't look like we're taking forever to process the
@@ -1071,10 +1032,47 @@ const actions = {
         })
       }, antiRaceConditionDelayToLetServerIndexNewRecord)
     })
+    async function processChildReqs(dbRecordParam, inatRecordId) {
+      await Promise.all(
+        dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
+          return dispatch('_deletePhoto', id).then(() => {})
+        }),
+      )
+      for (const curr of apiRecords.photoPostBodyPartials) {
+        // TODO can we also store "photo type", curr.type, on the server?
+        await dispatch('_createPhoto', {
+          photoRecord: curr,
+          relatedObsId: inatRecordId,
+        })
+      }
+      await Promise.all(
+        dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName].map(
+          id => {
+            return dispatch('_deleteObsFieldValue', id).then(() => {})
+          },
+        ),
+      )
+      await Promise.all(
+        apiRecords.obsFieldPostBodyPartials.map(curr => {
+          return dispatch('_createObsFieldValue', {
+            obsFieldRecord: curr,
+            relatedObsId: inatRecordId,
+          })
+        }),
+      )
+    }
   },
   async processWaitingDbRecordWithSw({ state, dispatch }, { dbRecord }) {
     const strategies = {
-      [recordType('new')]: async formData => {
+      [recordType('new')]: async () => {
+        const formData = generateFormData(dbRecord)
+        if (!(state.projectInfo || {}).id) {
+          throw new Error(
+            'No projectInfo stored, cannot link observation to project without ID',
+          )
+        }
+        const projectId = state.projectInfo.id
+        formData.append(constants.projectIdFieldName, projectId)
         const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
           method: 'POST',
           body: formData,
@@ -1088,7 +1086,8 @@ const actions = {
           )
         }
       },
-      [recordType('edit')]: async formData => {
+      [recordType('edit')]: async () => {
+        const formData = generateFormData(dbRecord)
         const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
           method: 'PUT',
           body: formData,
@@ -1119,37 +1118,35 @@ const actions = {
         `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
       )
     }
-    const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
-    const fd = new FormData()
-    fd.append(
-      constants.obsFieldName,
-      JSON.stringify(apiRecords.observationPostBody),
-    )
-    for (const curr of dbRecord.wowMeta[constants.photoIdsToDeleteFieldName]) {
-      fd.append(constants.photoIdsToDeleteFieldName, curr)
-    }
-    for (const curr of dbRecord.wowMeta[
-      constants.obsFieldIdsToDeleteFieldName
-    ]) {
-      fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
-    }
-    for (const curr of apiRecords.photoPostBodyPartials) {
-      const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
-      fd.append(constants.photosFieldName, photoBlob)
-    }
-    for (const curr of apiRecords.obsFieldPostBodyPartials) {
-      fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
-    }
-    if (!(state.projectInfo || {}).id) {
-      throw new Error(
-        'No projectInfo stored, cannot link observation to project without ID',
-      )
-    }
-    const projectId = state.projectInfo.id
-    fd.append(constants.projectIdFieldName, projectId)
-    await strategy(fd)
+    await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
+    function generateFormData(dbRecordParam) {
+      const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
+      const fd = new FormData()
+      fd.append(
+        constants.obsFieldName,
+        JSON.stringify(apiRecords.observationPostBody),
+      )
+      for (const curr of dbRecordParam.wowMeta[
+        constants.photoIdsToDeleteFieldName
+      ]) {
+        fd.append(constants.photoIdsToDeleteFieldName, curr)
+      }
+      for (const curr of dbRecordParam.wowMeta[
+        constants.obsFieldIdsToDeleteFieldName
+      ]) {
+        fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
+      }
+      for (const curr of apiRecords.photoPostBodyPartials) {
+        const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
+        fd.append(constants.photosFieldName, photoBlob)
+      }
+      for (const curr of apiRecords.obsFieldPostBodyPartials) {
+        fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
+      }
+      return fd
+    }
   },
   async _linkObsWithProject({ state, dispatch }, { recordId }) {
     if (!state.projectInfo) {
@@ -1183,6 +1180,7 @@ const actions = {
     const existingRemoteRecord = state.allRemoteObs.find(
       e => wowIdOf(e) === wowId,
     )
+    // FIXME need to be aware of processing and queue a blocked action if needed
     const isLocalOnlyRecord = !existingRemoteRecord
     if (isLocalOnlyRecord) {
       console.debug(
