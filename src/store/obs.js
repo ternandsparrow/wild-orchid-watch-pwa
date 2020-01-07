@@ -194,12 +194,24 @@ const actions = {
       .map(e => e.uuid)
     try {
       await Promise.all(
-        dbIdsToDelete.map(e =>
+        dbIdsToDelete.map(currDbId =>
           (async () => {
-            const hasBlockedAction = idsWithBlockedActions.includes(e)
+            const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
             let blockedAction
-            const record = await obsStore.getItem(e)
             if (hasBlockedAction) {
+              const record = await obsStore.getItem(currDbId)
+              const remoteRecord = state.allRemoteObs.find(
+                e => e.uuid === currDbId,
+              )
+              if (!remoteRecord) {
+                // this is weird because the reason we're processing this
+                // record is *because* we saw it in the list of remote records
+                throw new Error(
+                  `Unable to find remote record with UUID='${currDbId}', ` +
+                    'cannot continue.',
+                )
+              }
+              record.inatId = remoteRecord.inatId
               blockedAction = {
                 ...record,
                 wowMeta: {
@@ -210,7 +222,7 @@ const actions = {
                 },
               }
             }
-            await deleteDbRecordById(e)
+            await deleteDbRecordById(currDbId)
             if (hasBlockedAction) {
               await storeRecord(blockedAction)
             }

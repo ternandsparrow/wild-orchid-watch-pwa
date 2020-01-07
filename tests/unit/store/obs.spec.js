@@ -1528,7 +1528,7 @@ describe('actions', () => {
       expect(result).toBeNull()
     })
 
-    it('should delete a delete record with error that is not in remote obs list', async () => {
+    it('should delete a "delete" record with error that is not in remote obs list', async () => {
       await obsStore.setItem('456B', { uuid: '456B' })
       const state = {
         allRemoteObs: [],
@@ -1572,7 +1572,7 @@ describe('actions', () => {
         },
       })
       const state = {
-        allRemoteObs: [{ uuid: '456B' }],
+        allRemoteObs: [{ uuid: '456B', inatId: 987 }],
         localQueueSummary: [
           {
             uuid: '456B',
@@ -1595,6 +1595,7 @@ describe('actions', () => {
         dispatch: () => {},
       })
       const result = await obsStore.getItem('456B')
+      expect(result.inatId).toEqual(987)
       expect(result.wowMeta).toEqual({
         [constants.recordTypeFieldName]: 'edit',
         [constants.recordProcessingOutcomeFieldName]: 'waiting',
