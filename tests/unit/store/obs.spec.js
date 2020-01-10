@@ -1607,7 +1607,6 @@ describe('actions', () => {
 
   describe('deleteSelectedLocalRecord', () => {
     const obsStore = getOrCreateInstance('wow-obs')
-    let origConsoleDebug
 
     beforeEach(async () => {
       await obsStore.clear()
