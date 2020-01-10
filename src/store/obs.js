@@ -199,7 +199,7 @@ const actions = {
             const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
             let blockedAction
             if (hasBlockedAction) {
-              const record = await obsStore.getItem(currDbId)
+              const record = await getRecord(currDbId)
               const remoteRecord = state.allRemoteObs.find(
                 e => e.uuid === currDbId,
               )
@@ -410,7 +410,7 @@ const actions = {
     // and use that as the DB ID. The ID that is passed in will therefore
     // already be a DB ID but we're confirming.
     const possibleDbId = wowId
-    const record = await obsStore.getItem(possibleDbId)
+    const record = await getRecord(possibleDbId)
     if (record) {
       return possibleDbId
     }
@@ -419,22 +419,15 @@ const actions = {
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
   },
-  async deleteSelectedLocalEditOnly({ state, dispatch }) {
-    const selectedId = state.selectedObservationId
-    try {
-      const dbId = await dispatch('findDbIdForWowId', selectedId)
-      await obsStore.removeItem(dbId)
-      await dispatch('refreshLocalRecordQueue')
-    } catch (err) {
-      throw new chainedError(
-        `Failed to delete local edit for ID='${selectedId}'`,
-        err,
-      )
-    }
-  },
   async upsertQueuedAction(
     _,
-    { record, obsFieldIdsToDelete, photoIdsToDelete, newPhotos, newObsFields },
+    {
+      record,
+      obsFieldIdsToDelete = [],
+      photoIdsToDelete = [],
+      newPhotos = [],
+      newObsFields = [],
+    },
   ) {
     const mergedRecord = {
       ...record,
@@ -462,34 +455,40 @@ const actions = {
   },
   async upsertBlockedAction(
     _,
-    { record, obsFieldIdsToDelete, photoIdsToDelete, newPhotos, newObsFields },
+    {
+      record,
+      obsFieldIdsToDelete = [],
+      photoIdsToDelete = [],
+      newPhotos = [],
+      newObsFields = [],
+    },
   ) {
     const key = record.uuid
-    const existingStoreRecord = await obsStore.getItem(key)
+    const existingStoreRecord = await getRecord(key)
     const existingWowMeta = existingStoreRecord.wowMeta
     const existingBlockedActionWowMeta =
       (existingStoreRecord.wowMeta[constants.blockedActionFieldName] || {})
         .wowMeta || {}
     const mergedPhotoIdsToDelete = (
       existingBlockedActionWowMeta[constants.photoIdsToDeleteFieldName] || []
-    ).concat(photoIdsToDelete || [])
+    ).concat(photoIdsToDelete)
     const mergedObsFieldIdsToDelete = (
       existingBlockedActionWowMeta[constants.obsFieldIdsToDeleteFieldName] || []
-    ).concat(obsFieldIdsToDelete || [])
+    ).concat(obsFieldIdsToDelete)
     const mergedPhotosToAdd = (
       existingBlockedActionWowMeta[constants.photosToAddFieldName] || []
-    ).concat(newPhotos || [])
+    ).concat(newPhotos)
     const mergedObsFieldsToAdd = (
       existingBlockedActionWowMeta[constants.obsFieldsToAddFieldName] || []
-    ).concat(newObsFields || [])
+    ).concat(newObsFields)
     const mergedRecord = {
       ...record, // passed record is new source of truth
       wowMeta: {
         ...existingWowMeta, // don't touch wowMeta as it's being processed
         [constants.blockedActionFieldName]: {
           wowMeta: {
-            ...record.wowMeta,
             ...existingBlockedActionWowMeta,
+            ...record.wowMeta,
             [constants.recordTypeFieldName]:
               record.wowMeta[constants.recordTypeFieldName],
             [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
@@ -534,7 +533,7 @@ const actions = {
       )
       const existingDbRecord = await (() => {
         if (existingLocalRecord) {
-          return obsStore.getItem(editedUuid)
+          return getRecord(editedUuid)
         }
         return { inatId: existingRemoteRecord.inatId, uuid: editedUuid }
       })()
@@ -716,8 +715,7 @@ const actions = {
       })
       delete enhancedRecord.addedPhotos
       try {
-        const key = enhancedRecord.uuid
-        await obsStore.setItem(key, enhancedRecord)
+        await storeRecord(enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
           photos: enhancedRecord.photos.map(p => ({
@@ -847,7 +845,7 @@ const actions = {
       try {
         // the DB record may be further edited while we're processing but that
         // won't affect our snapshot here
-        const dbRecordSnapshot = await obsStore.getItem(idToProcess)
+        const dbRecordSnapshot = await getRecord(idToProcess)
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
@@ -905,14 +903,14 @@ const actions = {
     }
   },
   async _setRecordProcessingOutcome(_, { dbId, outcome }) {
-    const record = await obsStore.getItem(dbId)
+    const record = await getRecord(dbId)
     if (!record) {
       throw new Error('Could not find record for ID=' + dbId)
     }
     record.wowMeta[
       constants.recordProcessingOutcomeFieldName
     ] = recordProcessingOutcome(outcome)
-    return obsStore.setItem(dbId, record)
+    return storeRecord(record)
   },
   async _createObservation({ dispatch }, { obsRecord }) {
     const obsResp = await dispatch(
@@ -1187,39 +1185,62 @@ const actions = {
       )
     }
   },
-  async deleteSelectedRecord({ state, getters, dispatch, commit }) {
-    const wowId = state.selectedObservationId
-    const existingRemoteRecord = state.allRemoteObs.find(
-      e => wowIdOf(e) === wowId,
-    )
-    // FIXME need to be aware of processing and queue a blocked action if needed
-    const isLocalOnlyRecord = !existingRemoteRecord
-    if (isLocalOnlyRecord) {
-      console.debug(
-        `Record with WOW ID='${wowId}' is local-only so deleting right now.`,
+  async deleteSelectedLocalRecord({ state, dispatch, commit }) {
+    const selectedId = state.selectedObservationId
+    try {
+      const dbId = await dispatch('findDbIdForWowId', selectedId)
+      await deleteDbRecordById(dbId)
+      commit('setSelectedObservationId', null)
+      return dispatch('refreshLocalRecordQueue')
+    } catch (err) {
+      throw new chainedError(
+        `Failed to delete local edit for ID='${selectedId}'`,
+        err,
       )
-      const existingLocalRecord = getters.localRecords.find(
-        e => wowIdOf(e) === wowId,
-      )
-      await deleteDbRecordById(existingLocalRecord.uuid)
-      await dispatch('refreshLocalRecordQueue')
-      return
     }
-    const theyreCascadeDeletedByTheObs = []
+  },
+  async deleteSelectedRecord({ state, dispatch, commit }) {
+    const wowId = state.selectedObservationId
+    const localQueueSummaryForDeleteTarget =
+      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
+    const isProcessingQueuedNow = isObsStateProcessing(
+      localQueueSummaryForDeleteTarget[
+        constants.recordProcessingOutcomeFieldName
+      ],
+    )
+    const existingRemoteRecord =
+      state.allRemoteObs.find(e => wowIdOf(e) === wowId) || {}
     const record = {
       inatId: existingRemoteRecord.inatId,
-      uuid: existingRemoteRecord.uuid,
+      // if we don't have a remote record, the wowId will be a uuid
+      uuid: existingRemoteRecord.uuid || wowId,
       wowMeta: {
         [constants.recordTypeFieldName]: recordType('delete'),
-        [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
-          'waiting',
-        ),
-        [constants.photoIdsToDeleteFieldName]: theyreCascadeDeletedByTheObs,
-        [constants.obsFieldIdsToDeleteFieldName]: [],
       },
     }
-    const key = record.uuid
-    await obsStore.setItem(key, record)
+    const strategyKey =
+      `${isProcessingQueuedNow ? '' : 'no'}processing.` +
+      `${existingRemoteRecord.uuid ? '' : 'no'}remote`
+    const strategyPromise = (() => {
+      switch (strategyKey) {
+        case 'noprocessing.noremote':
+          console.debug(
+            `Record with WOW ID='${wowId}' is local-only so deleting right now.`,
+          )
+          return dispatch('deleteSelectedLocalRecord', wowId)
+        case 'noprocessing.remote':
+          return dispatch('upsertQueuedAction', { record })
+        case 'processing.noremote':
+          return dispatch('upsertBlockedAction', { record })
+        case 'processing.remote':
+          return dispatch('upsertBlockedAction', { record })
+        default:
+          throw new Error(
+            `Programmer problem: no strategy defined for key='${strategyKey}'`,
+          )
+      }
+    })()
+    await strategyPromise
     commit('setSelectedObservationId', null)
     return dispatch('onLocalRecordEvent')
   },
@@ -1408,6 +1429,17 @@ async function storeRecord(record) {
   }
 }
 
+async function getRecord(recordId) {
+  try {
+    if (!recordId) {
+      throw new Error(`No record ID='${recordId}' supplied, cannot continue`)
+    }
+    return obsStore.getItem(recordId)
+  } catch (err) {
+    throw chainedError(`Failed to get db record with ID='${recordId}'`, err)
+  }
+}
+
 const getters = {
   isDoingSync(state, getters, rootState) {
     return (
@@ -1540,7 +1572,7 @@ function resolveLocalRecordUuids(ids) {
   photoObjectUrlsInUse = []
   return Promise.all(
     ids.map(async currId => {
-      const currRecord = await obsStore.getItem(currId)
+      const currRecord = await getRecord(currId)
       const photos = currRecord.photos.map(mapPhotoFromDbToUi)
       const result = {
         ...currRecord,

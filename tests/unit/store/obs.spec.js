@@ -1381,6 +1381,290 @@ describe('actions', () => {
     })
   })
 
+  describe('deleteSelectedRecord', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+    let origConsoleDebug
+
+    beforeAll(function() {
+      origConsoleDebug = console.debug
+      console.debug = () => {}
+    })
+
+    afterAll(function() {
+      console.debug = origConsoleDebug
+    })
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    async function buildContext(state, capturedCommits) {
+      const result = {
+        state: {
+          _uiVisibleLocalRecords: [],
+          localQueueSummary: [],
+          ...state,
+        },
+        getters: {},
+        commit: (name, value) => {
+          switch (name) {
+            case 'setLocalQueueSummary':
+            case 'setUiVisibleLocalRecords':
+              objectUnderTest.mutations[name](result.state, value)
+              refreshGetters()
+              break
+            default:
+              capturedCommits[name] = value
+          }
+        },
+        dispatch: (actionName, argsObj) => {
+          const availableActions = Object.assign({}, objectUnderTest.actions, {
+            processLocalQueue: () => Promise.resolve(),
+          })
+          const action = availableActions[actionName]
+          if (!action) {
+            console.error(
+              `Cannot find action with name='${actionName}'` +
+                '. Passed args = ',
+              argsObj,
+            )
+            return // can't throw because there's nothing to catch
+          }
+          return action(result, argsObj)
+        },
+      }
+      await objectUnderTest.actions.refreshLocalRecordQueue(result)
+      return result
+      function refreshGetters() {
+        result.getters.localRecords = objectUnderTest.getters.localRecords(
+          result.state,
+        )
+      }
+    }
+
+    it(
+      'should directly delete a local-only record that has NOT ' +
+        'started processing',
+      async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          photos: [],
+          wowMeta: {
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.recordTypeFieldName]: 'new',
+          },
+        })
+        const state = {
+          selectedObservationId: '123A',
+          allRemoteObs: [],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedRecord(
+          await buildContext(state, capturedCommits),
+        )
+        const result = await obsStore.getItem('123A')
+        expect(result).toBeNull()
+        expect(capturedCommits.setSelectedObservationId).toBeNull()
+      },
+    )
+
+    it(
+      'should queue a blocked delete action for a local record ' +
+        'that has started processing',
+      async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          photos: [],
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'new',
+            [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+          },
+        })
+        const state = {
+          selectedObservationId: '123A',
+          allRemoteObs: [],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedRecord(
+          await buildContext(state, capturedCommits),
+        )
+        const result = await obsStore.getItem('123A')
+        expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'delete',
+            [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.photosToAddFieldName]: [],
+            [constants.obsFieldsToAddFieldName]: [],
+          },
+        })
+        expect(capturedCommits.setSelectedObservationId).toBeNull()
+      },
+    )
+
+    it('should queue a delete action for remote record', async () => {
+      await obsStore.setItem('123A', { uuid: '123A', photos: [], wowMeta: {} })
+      const state = {
+        selectedObservationId: 666,
+        allRemoteObs: [{ uuid: '123A', inatId: 666 }],
+      }
+      const capturedCommits = {}
+      await objectUnderTest.actions.deleteSelectedRecord(
+        await buildContext(state, capturedCommits),
+      )
+      const result = await obsStore.getItem('123A')
+      expect(result).toEqual({
+        inatId: 666,
+        uuid: '123A',
+        wowMeta: {
+          [constants.recordTypeFieldName]: 'delete',
+          [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.photoIdsToDeleteFieldName]: [],
+          [constants.obsFieldIdsToDeleteFieldName]: [],
+          [constants.photosToAddFieldName]: [],
+          [constants.obsFieldsToAddFieldName]: [],
+        },
+      })
+      expect(capturedCommits.setSelectedObservationId).toBeNull()
+    })
+
+    it(
+      'should clobber the existing action for a remote record ' +
+        'with local edit that is NOT processing',
+      async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          photos: [],
+          wowMeta: {
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.recordTypeFieldName]: 'edit',
+            [constants.photoIdsToDeleteFieldName]: [
+              'this should get clobbered',
+            ],
+          },
+        })
+        const state = {
+          selectedObservationId: 666,
+          allRemoteObs: [{ uuid: '123A', inatId: 666 }],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedRecord(
+          await buildContext(state, capturedCommits),
+        )
+        const result = await obsStore.getItem('123A')
+        expect(result).toEqual({
+          inatId: 666,
+          uuid: '123A',
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'delete',
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.photosToAddFieldName]: [],
+            [constants.obsFieldsToAddFieldName]: [],
+          },
+        })
+        expect(capturedCommits.setSelectedObservationId).toBeNull()
+      },
+    )
+
+    it(
+      'should queue a blocked delete action for a remote record ' +
+        'with local edit that IS processing',
+      async () => {
+        await obsStore.setItem('123A', {
+          uuid: '123A',
+          inatId: 666,
+          photos: [],
+          wowMeta: {
+            [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+            [constants.recordTypeFieldName]: 'edit',
+          },
+        })
+        const state = {
+          selectedObservationId: 666,
+          allRemoteObs: [{ uuid: '123A', inatId: 666 }],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedRecord(
+          await buildContext(state, capturedCommits),
+        )
+        const result = await obsStore.getItem('123A')
+        expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
+        expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
+          wowMeta: {
+            [constants.recordTypeFieldName]: 'delete',
+            [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.photosToAddFieldName]: [],
+            [constants.obsFieldsToAddFieldName]: [],
+          },
+        })
+        expect(capturedCommits.setSelectedObservationId).toBeNull()
+      },
+    )
+  })
+
+  describe('deleteSelectedLocalRecord', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+    let origConsoleDebug
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    it('should delete a local record when it exists', async () => {
+      await obsStore.setItem('123A', { uuid: '123A' })
+      const state = {
+        selectedObservationId: '123A',
+        localQueueSummary: [
+          {
+            uuid: '123A',
+          },
+        ],
+      }
+      const capturedCommits = {}
+      await objectUnderTest.actions.deleteSelectedLocalRecord({
+        state,
+        commit: (name, value) => (capturedCommits[name] = value),
+        dispatch: (actionName, argsObj) => {
+          return objectUnderTest.actions[actionName](
+            { state, commit: () => {} },
+            argsObj,
+          )
+        },
+      })
+      const result = await obsStore.getItem('123A')
+      expect(result).toBeNull()
+      expect(capturedCommits.setSelectedObservationId).toBeNull()
+    })
+
+    it('should throw the expected error when we try to delete a non-existent ID', async () => {
+      // obsStore is empty
+      const state = {
+        selectedObservationId: 'NOT-REAL-ID',
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.deleteSelectedLocalRecord({
+          state,
+          dispatch: (actionName, argsObj) => {
+            return objectUnderTest.actions[actionName](
+              { state, commit: () => {} },
+              argsObj,
+            )
+          },
+        })
+      } catch (err) {
+        expect(err.message).toEqual(
+          expect.stringMatching(/^Failed to delete local edit/),
+        )
+        return
+      }
+      throw new Error('Expected error should have been thrown')
+    })
+  })
+
   describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
     const obsStore = getOrCreateInstance('wow-obs')
     let origConsoleDebug
