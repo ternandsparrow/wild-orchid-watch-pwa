@@ -190,16 +190,18 @@ const obsQueue = new Queue('obs-queue', {
               obsUuid,
               msg: `Failed to completely create observation with obsUuid=${obsUuid}`,
             })
-            // FIXME what if we have pending PUTs or DELETEs?
             await obsStore.removeItem(createTag + obsUuid)
             break
           case 'DELETE':
             if (respStatus === 404) {
               return // that's fine, the job is done
             }
-            // FIXME it could be a 401
-            throw new Error('FIXME do we need to notify the client?')
-            break
+            // FIXME could be a 401
+            // we should let the UI know that this has failed.
+            // FIXME add a failedToDelete handler on the client
+            throw new Error(
+              'Throwing because if we do not, the req will disappear into the eather',
+            )
           case 'PUT':
             sendMessageToAllClients({
               id: constants.failedToEditObsMsg,
@@ -579,14 +581,6 @@ registerRoute(
       url.pathname.substr(url.pathname.lastIndexOf('/') + 1),
     )
     console.debug(`Extracted obs ID='${obsId}' from url=${url.pathname}`)
-    const isObsLocalOnly = false
-    if (isObsLocalOnly) {
-      // FIXME if we have this ID queued, kill it and shortcircuit. Or just
-      // maintain a list of IDs that should be ignored and let the whole
-      // process go as usual but without any actual HTTP call being made
-      sendMessageToAllClients({ id: constants.refreshObsMsg })
-      return jsonResponse({ result: 'deleted' })
-    }
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,

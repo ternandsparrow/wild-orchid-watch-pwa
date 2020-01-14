@@ -97,6 +97,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
+        // TODO handle a 422: unknown user
         throw chainedError(
           `Failed to make GET to API with URL suffix='${urlSuffix}'`,
           err,
