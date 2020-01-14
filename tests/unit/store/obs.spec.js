@@ -343,6 +343,137 @@ describe('actions', () => {
     beforeEach(async () => {
       await obsStore.clear()
     })
+
+    describe('saveNewAndScheduleUpload', () => {
+      let origConsoleDebug
+
+      beforeAll(function() {
+        origConsoleDebug = console.debug
+        console.debug = () => {}
+      })
+
+      afterAll(function() {
+        console.debug = origConsoleDebug
+      })
+
+      it('should save a new record without photos', async () => {
+        const record = {
+          speciesGuess: 'species new',
+          addedPhotos: [],
+        }
+        const state = {
+          lat: 138,
+          lng: 35,
+          locAccuracy: 123,
+        }
+        const dispatchedStuff = {}
+        const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
+          {
+            state,
+            dispatch: (actionName, theArg) =>
+              (dispatchedStuff[actionName] = theArg),
+          },
+          record,
+        )
+        const result = await obsStore.getItem(newRecordId)
+        expect(result).toEqual({
+          captive_flag: false,
+          geoprivacy: 'obscured',
+          lat: 138,
+          lng: 35,
+          observedAt: expect.stringMatching(
+            /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
+          ),
+          positional_accuracy: 123,
+          photos: [],
+          speciesGuess: 'species new',
+          uuid: newRecordId,
+          wowMeta: {
+            recordType: 'new',
+            [constants.photosToAddFieldName]: [],
+            [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldsToAddFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          },
+        })
+      })
+
+      it('should save a new record with photos', async () => {
+        const record = {
+          speciesGuess: 'species new',
+          addedPhotos: [
+            {
+              file: getMinimalJpegBlob(),
+              type: 'top',
+            },
+            {
+              file: getMinimalJpegBlob(),
+              type: 'habitat',
+            },
+          ],
+        }
+        const state = {
+          lat: 138,
+          lng: 35,
+          locAccuracy: 123,
+        }
+        const dispatchedStuff = {}
+        const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
+          {
+            state,
+            dispatch: (actionName, theArg) =>
+              (dispatchedStuff[actionName] = theArg),
+          },
+          record,
+        )
+        const result = await obsStore.getItem(newRecordId)
+        const expectedPhoto1 = {
+          attribution: 'default',
+          file: {
+            data: {}, // doesn't show up in str representation
+            mime: 'image/jpeg',
+          },
+          id: -1,
+          licenseCode: 'default',
+          type: 'top',
+          url: '(set at render time)',
+        }
+        const expectedPhoto2 = {
+          attribution: 'default',
+          file: {
+            data: {}, // doesn't show up in str representation
+            mime: 'image/jpeg',
+          },
+          id: -2,
+          licenseCode: 'default',
+          type: 'habitat',
+          url: '(set at render time)',
+        }
+        expect(result).toEqual({
+          captive_flag: false,
+          geoprivacy: 'obscured',
+          lat: 138,
+          lng: 35,
+          observedAt: expect.stringMatching(
+            /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
+          ),
+          positional_accuracy: 123,
+          photos: [expectedPhoto1, expectedPhoto2],
+          speciesGuess: 'species new',
+          uuid: newRecordId,
+          wowMeta: {
+            recordType: 'new',
+            [constants.photosToAddFieldName]: [expectedPhoto1, expectedPhoto2],
+            [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldsToAddFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          },
+        })
+      })
+    })
+
     describe('saveEditAndScheduleUpdate', () => {
       let origConsoleDebug
 
@@ -2298,4 +2429,20 @@ function getApiRecord() {
     faves: [],
     non_owner_ids: [],
   }
+}
+
+function getMinimalJpegBlob() {
+  // thanks for the tiny JPEG https://github.com/mathiasbynens/small/blob/master/jpeg.jpg
+  const tinyJpegBase64Enc =
+    '/9j/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA' +
+    '8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wA' +
+    'BgAQEAX/2gAIAQEAAD8A0s8g/9k='
+  // thanks for the conversion https://stackoverflow.com/a/16245768/1410035
+  const byteCharacters = atob(tinyJpegBase64Enc)
+  const byteNumbers = new Array(byteCharacters.length)
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i)
+  }
+  const byteArray = new Uint8Array(byteNumbers)
+  return new Blob([byteArray], { type: 'image/jpeg' })
 }

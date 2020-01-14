@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import moment from 'moment'
-import * as uuid from 'uuid/v1'
+import uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
@@ -692,7 +692,9 @@ const actions = {
   },
   async saveNewAndScheduleUpload({ dispatch, state }, record) {
     try {
+      const newRecordId = uuid()
       const nowDate = new Date()
+      const newPhotos = await processPhotos(record.addedPhotos)
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
         lat: state.lat,
@@ -700,16 +702,18 @@ const actions = {
         geoprivacy: 'obscured',
         observedAt: nowDate,
         positional_accuracy: state.locAccuracy,
-        photos: await processPhotos(record.addedPhotos),
+        photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
           [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
             'waiting',
           ),
+          [constants.photosToAddFieldName]: newPhotos,
+          [constants.obsFieldsToAddFieldName]: [],
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
         },
-        uuid: uuid(),
+        uuid: newRecordId,
         // FIXME get these from UI
         // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
       })
@@ -730,6 +734,7 @@ const actions = {
         )
       }
       await dispatch('onLocalRecordEvent')
+      return newRecordId
     } catch (err) {
       throw chainedError(`Failed to save new record to local queue.`, err)
     }
