@@ -347,22 +347,6 @@ async function onObsPutSuccess(obsResp) {
         ),
       })
     }
-    for (const curr of depsRecord.deletedObsFieldIds) {
-      console.debug('Pushing an obsField DELETE to the queue')
-      await depsQueue.pushRequest({
-        metadata: {
-          obsId: obsId,
-          obsUuid: obsUuid,
-        },
-        request: new Request(
-          constants.apiUrlBase + '/observation_field_values/' + curr,
-          {
-            method: 'DELETE',
-            mode: 'cors',
-          },
-        ),
-      })
-    }
     await depsQueue.pushRequest({
       metadata: {
         obsId: obsId,
@@ -527,9 +511,6 @@ registerRoute(
         .getAll(constants.obsFieldsFieldName)
         .map(e => JSON.parse(e)),
       deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
-      deletedObsFieldIds: formData.getAll(
-        constants.obsFieldIdsToDeleteFieldName,
-      ),
     }
     await obsStore.setItem(updateTag + obsUuid, depsRecord)
     // FIXME it's possible for the PUT to be queued while the POST is still
@@ -568,7 +549,6 @@ registerRoute(
       newPhotoCount: depsRecord.photos.length,
       newObsFieldCount: depsRecord.obsFields.length,
       deletedPhotoCount: depsRecord.deletedPhotoIds.length,
-      deletedObsFieldCount: depsRecord.deletedObsFieldIds.length,
     })
   },
   'PUT',

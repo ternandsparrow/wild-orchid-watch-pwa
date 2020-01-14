@@ -629,29 +629,10 @@ export default {
           description: this.notes,
         }
         if (this.isEdit) {
-          const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
-            (accum, currKey) => {
-              const value = this.obsFieldValues[currKey]
-              const hadValueBeforeEditing = !_.isNil(
-                this.obsFieldInitialValues[currKey],
-              )
-              const isEmpty = isDeletedObsFieldValue(value)
-              if (isEmpty && hadValueBeforeEditing) {
-                const obsFieldInstance = this.getObsFieldInstance(currKey)
-                const isObsFieldStoredOnRemote = obsFieldInstance.relationshipId
-                if (isObsFieldStoredOnRemote) {
-                  accum.push(obsFieldInstance.relationshipId)
-                }
-              }
-              return accum
-            },
-            [],
-          )
           record.uuid = this.observationDetail.uuid
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
             photoIdsToDelete: this.photoIdsToDelete,
-            obsFieldIdsToDelete,
           })
         } else {
           await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)

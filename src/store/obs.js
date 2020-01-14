@@ -421,13 +421,7 @@ const actions = {
   },
   async upsertQueuedAction(
     _,
-    {
-      record,
-      obsFieldIdsToDelete = [],
-      photoIdsToDelete = [],
-      newPhotos = [],
-      newObsFields = [],
-    },
+    { record, photoIdsToDelete = [], newPhotos = [] },
   ) {
     const mergedRecord = {
       ...record,
@@ -440,28 +434,16 @@ const actions = {
         [constants.photoIdsToDeleteFieldName]: (
           record.wowMeta[constants.photoIdsToDeleteFieldName] || []
         ).concat(photoIdsToDelete),
-        [constants.obsFieldIdsToDeleteFieldName]: (
-          record.wowMeta[constants.obsFieldIdsToDeleteFieldName] || []
-        ).concat(obsFieldIdsToDelete),
         [constants.photosToAddFieldName]: (
           record.wowMeta[constants.photosToAddFieldName] || []
         ).concat(newPhotos),
-        [constants.obsFieldsToAddFieldName]: (
-          record.wowMeta[constants.obsFieldsToAddFieldName] || []
-        ).concat(newObsFields),
       },
     }
     return storeRecord(mergedRecord)
   },
   async upsertBlockedAction(
     _,
-    {
-      record,
-      obsFieldIdsToDelete = [],
-      photoIdsToDelete = [],
-      newPhotos = [],
-      newObsFields = [],
-    },
+    { record, photoIdsToDelete = [], newPhotos = [] },
   ) {
     const key = record.uuid
     const existingStoreRecord = await getRecord(key)
@@ -472,15 +454,9 @@ const actions = {
     const mergedPhotoIdsToDelete = (
       existingBlockedActionWowMeta[constants.photoIdsToDeleteFieldName] || []
     ).concat(photoIdsToDelete)
-    const mergedObsFieldIdsToDelete = (
-      existingBlockedActionWowMeta[constants.obsFieldIdsToDeleteFieldName] || []
-    ).concat(obsFieldIdsToDelete)
     const mergedPhotosToAdd = (
       existingBlockedActionWowMeta[constants.photosToAddFieldName] || []
     ).concat(newPhotos)
-    const mergedObsFieldsToAdd = (
-      existingBlockedActionWowMeta[constants.obsFieldsToAddFieldName] || []
-    ).concat(newObsFields)
     const mergedRecord = {
       ...record, // passed record is new source of truth
       wowMeta: {
@@ -492,9 +468,7 @@ const actions = {
             [constants.recordTypeFieldName]:
               record.wowMeta[constants.recordTypeFieldName],
             [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
-            [constants.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
             [constants.photosToAddFieldName]: mergedPhotosToAdd,
-            [constants.obsFieldsToAddFieldName]: mergedObsFieldsToAdd,
           },
         },
       },
@@ -503,7 +477,7 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { state, dispatch, getters },
-    { record, photoIdsToDelete, obsFieldIdsToDelete },
+    { record, photoIdsToDelete },
   ) {
     const editedUuid = record.uuid
     if (!editedUuid) {
@@ -522,7 +496,7 @@ const actions = {
     //  - processor snapshots the record from the DB and processes it
     //  - processing finishes, blocked action is triggered
     // The issue is that some of the blocked action was already processed (the
-    // record but not the xToDelete IDs). Processing the blocked action now is
+    // record but not the photoIdsToDelete). Processing the blocked action now is
     // slightly redundant but shouldn't fail.
     try {
       const existingLocalRecord = getters.localRecords.find(
@@ -544,7 +518,6 @@ const actions = {
         )
       }
       const newPhotos = (await processPhotos(record.addedPhotos)) || []
-      const newObsFields = [] // FIXME implement this (need to support multiple obs fields)
       const photos = (() => {
         // existingLocalRecord is the UI version that has a blob URL for the
         // photos. We need the raw photo data itself so we go to the DB record
@@ -663,9 +636,7 @@ const actions = {
             const photoIsRemote = id > 0
             return photoIsRemote
           }),
-          obsFieldIdsToDelete,
           newPhotos,
-          newObsFields,
         })
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
@@ -709,9 +680,7 @@ const actions = {
             'waiting',
           ),
           [constants.photosToAddFieldName]: newPhotos,
-          [constants.obsFieldsToAddFieldName]: [],
           [constants.photoIdsToDeleteFieldName]: [],
-          [constants.obsFieldIdsToDeleteFieldName]: [],
         },
         uuid: newRecordId,
         // FIXME get these from UI
@@ -986,15 +955,6 @@ const actions = {
       { root: true },
     )
   },
-  async _deleteObsFieldValue({ dispatch }, obsFieldId) {
-    return dispatch(
-      'doApiDelete',
-      {
-        urlSuffix: `/observation_field_values/${obsFieldId}`,
-      },
-      { root: true },
-    )
-  },
   async processWaitingDbRecordNoSw({ dispatch }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
@@ -1060,13 +1020,6 @@ const actions = {
           relatedObsId: inatRecordId,
         })
       }
-      await Promise.all(
-        dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName].map(
-          id => {
-            return dispatch('_deleteObsFieldValue', id).then(() => {})
-          },
-        ),
-      )
       await Promise.all(
         apiRecords.obsFieldPostBodyPartials.map(curr => {
           return dispatch('_createObsFieldValue', {
@@ -1147,11 +1100,6 @@ const actions = {
         constants.photoIdsToDeleteFieldName
       ]) {
         fd.append(constants.photoIdsToDeleteFieldName, curr)
-      }
-      for (const curr of dbRecordParam.wowMeta[
-        constants.obsFieldIdsToDeleteFieldName
-      ]) {
-        fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
       }
       for (const curr of apiRecords.photoPostBodyPartials) {
         const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
@@ -1815,7 +1763,8 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
       },
     ),
   }
-  // FIXME read obsFields from wowMeta
+  // we could store the fields to send in wowMeta like we do with photos, but
+  // this approach works and is simple
   result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
     observation_field_id: e.fieldId,
     value: e.value,
