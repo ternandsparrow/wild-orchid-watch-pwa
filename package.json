@@ -103,12 +103,13 @@
       "js",
       "jsx",
       "json",
-      "vue"
+      "vue",
+      "mjs"
     ],
     "transform": {
       "^.+\\.vue$": "vue-jest",
       ".+\\.(css|styl|less|sass|scss|svg|png|jpg|ttf|woff|woff2)$": "jest-transform-stub",
-      "^.+\\.jsx?$": "babel-jest"
+      "^.+\\.(jsx?|mjs)$": "babel-jest"
     },
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
@@ -122,6 +123,9 @@
     "testURL": "http://localhost/",
     "setupFilesAfterEnv": [
       "<rootDir>/tests/unit/setup.js"
+    ],
+    "transformIgnorePatterns": [
+      "/node_modules/(?!workbox-).+\\.js$"
     ]
   },
   "_id": "wild-orchid-watch-pwa@0.1.0",

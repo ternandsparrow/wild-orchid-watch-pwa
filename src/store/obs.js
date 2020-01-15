@@ -1030,7 +1030,10 @@ const actions = {
       )
     }
   },
-  async processWaitingDbRecordWithSw({ state, dispatch }, { dbRecord }) {
+  async processWaitingDbRecordWithSw(
+    { state, dispatch, rootState },
+    { dbRecord },
+  ) {
     const strategies = {
       [recordType('new')]: async () => {
         const formData = generateFormData(dbRecord)
@@ -1041,11 +1044,7 @@ const actions = {
         }
         const projectId = state.projectInfo.id
         formData.append(constants.projectIdFieldName, projectId)
-        const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
-          method: 'POST',
-          body: formData,
-          retries: 0,
-        })
+        const resp = await doBundleEndpointFetch(formData, 'POST')
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
@@ -1056,11 +1055,7 @@ const actions = {
       },
       [recordType('edit')]: async () => {
         const formData = generateFormData(dbRecord)
-        const resp = await fetch(constants.serviceWorkerBundleMagicUrl, {
-          method: 'PUT',
-          body: formData,
-          retries: 0,
-        })
+        const resp = await doBundleEndpointFetch(formData, 'PUT')
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
@@ -1109,6 +1104,16 @@ const actions = {
         fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
       }
       return fd
+    }
+    function doBundleEndpointFetch(fd, method) {
+      return fetch(constants.serviceWorkerBundleMagicUrl, {
+        method,
+        headers: {
+          Authorization: rootState.auth.apiToken,
+        },
+        body: fd,
+        retries: 0,
+      })
     }
   },
   async _linkObsWithProject({ state, dispatch }, { recordId }) {

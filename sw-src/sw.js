@@ -199,6 +199,10 @@ const obsQueue = new Queue('obs-queue', {
             // FIXME could be a 401
             // we should let the UI know that this has failed.
             // FIXME add a failedToDelete handler on the client
+            // if it we get a 401, we can just put it back into the queue and
+            // wait for the next action to come from the UI which will bring a
+            // fresh auth token and we'll be ok. For anything else, I guess we
+            // should send it back to the UI
             throw new Error(
               'Throwing because if we do not, the req will disappear into the eather',
             )
@@ -221,7 +225,22 @@ const obsQueue = new Queue('obs-queue', {
   },
 })
 
+function isSafeToProcessQueue() {
+  const isAuthHeaderSet = !!authHeaderValue
+  if (!isAuthHeaderSet) {
+    console.debug(
+      `Auth header='${authHeaderValue}' is not set, refusing to ` +
+        'even try to replay the queue',
+    )
+    return false
+  }
+  return true
+}
+
 async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
+  if (!isSafeToProcessQueue()) {
+    return
+  }
   const obsIdsToIgnore = []
   let entry
   while ((entry = await this.shiftRequest())) {
@@ -428,6 +447,7 @@ registerRoute(
   constants.serviceWorkerBundleMagicUrl,
   async ({ url, event, params }) => {
     console.debug('Service worker processing POSTed bundle')
+    setAuthHeaderFromReq(event.request)
     const formData = await event.request.formData()
     const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
     const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
@@ -498,6 +518,7 @@ registerRoute(
   constants.serviceWorkerBundleMagicUrl,
   async ({ url, event, params }) => {
     console.debug('Service worker processing PUTed bundle')
+    setAuthHeaderFromReq(event.request)
     const formData = await event.request.formData()
     const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
     const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
@@ -557,6 +578,7 @@ registerRoute(
 registerRoute(
   new RegExp(`${constants.apiUrlBase}/observations/\d*`),
   async ({ url, event, params }) => {
+    setAuthHeaderFromReq(event.request)
     const obsId = parseInt(
       url.pathname.substr(url.pathname.lastIndexOf('/') + 1),
     )
@@ -592,7 +614,7 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerUpdateAuthHeaderUrl,
   async ({ url, event, params }) => {
-    authHeaderValue = event.request.headers.get('Authorization')
+    setAuthHeaderFromReq(event.request)
     return jsonResponse({
       result: 'thanks',
       suppliedAuthHeader: authHeaderValue,
@@ -600,6 +622,27 @@ registerRoute(
   },
   'POST',
 )
+
+// We don't want the SW to interfere here but if we have a mapping, calls to
+// this endpoint will "wake up" the SW. This will prompt queue processing if
+// required so things will get processed sooner.
+registerRoute(
+  new RegExp(`${constants.apiUrlBase}/observations.*cache-bust.*`),
+  // TODO we could wrap the NetworkOnly strategy to do a setAuthHeaderFromReq()
+  // then defer to NetworkOnly. This will help 401'd reqs in the queue get
+  // going sooner.
+  new NetworkOnly(),
+  'GET',
+)
+
+function setAuthHeaderFromReq(req) {
+  const newValue = req.headers.get('Authorization')
+  if (!newValue || newValue === 'undefined' /*everything gets stringified*/) {
+    console.debug(`No auth header='${newValue}' passed, leaving existing value`)
+    return
+  }
+  authHeaderValue = newValue
+}
 
 self.addEventListener('install', function(event) {
   console.debug('SW installed!')
@@ -746,3 +789,10 @@ function verifyDepsRecord(depsRecord) {
 
 // build process will inject manifest into the following statement.
 workboxPrecacheAndRoute([])
+
+export const _testonly = {
+  isSafeToProcessQueue,
+  setAuthHeader(newVal) {
+    authHeaderValue = newVal
+  },
+}

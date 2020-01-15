@@ -1,15 +1,21 @@
 import localForage from 'localforage'
 
 const knownInstances = {}
+const useDefaultLocalForageLogic = undefined
+let lfDriver = useDefaultLocalForageLogic
 
 export function getOrCreateInstance(name) {
   const existingInstance = knownInstances[name]
   if (existingInstance) {
     return existingInstance
   }
-  const instance = localForage.createInstance({
+  const lfConfig = {
     name: name,
-  })
+  }
+  if (lfDriver) {
+    lfConfig.driver = lfDriver
+  }
+  const instance = localForage.createInstance(lfConfig)
   knownInstances[name] = instance
   return instance
 }
@@ -26,4 +32,10 @@ export async function deleteKnownStorageInstances() {
     return instance.dropInstance()
   })
   return Promise.all(promises)
+}
+
+export const _testonly = {
+  forceLocalForageDriver(driverName) {
+    lfDriver = driverName
+  },
 }

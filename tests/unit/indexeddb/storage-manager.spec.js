@@ -2,6 +2,7 @@ import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 
 describe('snapshot of object', () => {
   const testStore = getOrCreateInstance('test-store')
+  let origIndexedDb
 
   beforeEach(async () => {
     await testStore.clear()
