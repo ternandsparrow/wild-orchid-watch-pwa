@@ -36,10 +36,18 @@ global.URL = (function() {
   result.createObjectURL = () => {}
   return result
 })()
-global.IDBObjectStore = { prototype: {} }
-global.IDBKeyRange = { only: () => {} }
-global.indexedDB = { open: () => ({}) }
+global.Request = function MockRequest(url) {
+  const self = this
+  self.method = 'GET'
+  self.clone = () => ({
+    method: self.method,
+    headers: { entries: () => [], set: () => {} },
+    url,
+  })
+  self.url = url
+}
+global.WowMockRequest = global.Request
 global.registration = {
   scope: 'testing',
-  sync: 'something so the workbox Queue does NOT fire on startup',
+  sync: { register() {} },
 }

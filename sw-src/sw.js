@@ -266,7 +266,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       const req = entry.request.clone()
       req.headers.set('Authorization', authHeaderValue)
       resp = await fetch(req)
-      console.log(
+      console.debug(
         `Request for '${entry.request.url}' ` +
           `has been replayed in queue '${this._name}'`,
       )
@@ -285,7 +285,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       }
       const is4xxStatusCode = statusCode >= 400 && statusCode < 500
       if (is4xxStatusCode) {
-        console.log(
+        console.debug(
           `Response (status=${statusCode}) for '${resp.url}'` +
             ` indicates client error. Calling cleanup callback, then ` +
             `continuing processing the queue`,
@@ -314,7 +314,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       // "Failed to fetch" lands us here. It could be a network error or a
       // non-CORS response.
       await this.unshiftRequest(entry)
-      console.log(
+      console.debug(
         `Request for '${entry.request.url}' ` +
           `failed to replay, putting it back in queue '${this._name}'.`,
       )
@@ -644,10 +644,10 @@ self.addEventListener('message', function(event) {
     case constants.syncDepsQueueMsg:
       if (depsQueue._syncInProgress) {
         // FIXME doesn't seem to work. The flag doesn't seem reliable
-        console.log('depsQueue already seems to be doing a sync')
+        console.debug('depsQueue already seems to be doing a sync')
         return
       }
-      console.log('triggering deps queue processing at request of client')
+      console.debug('triggering deps queue processing at request of client')
       depsQueue
         ._onSync()
         .catch(err => {
@@ -660,10 +660,10 @@ self.addEventListener('message', function(event) {
     case constants.syncObsQueueMsg:
       if (obsQueue._syncInProgress) {
         // FIXME doesn't seem to work. The flag doesn't seem reliable
-        console.log('obsQueue already seems to be doing a sync')
+        console.debug('obsQueue already seems to be doing a sync')
         return
       }
-      console.log('triggering obs queue processing at request of client')
+      console.debug('triggering obs queue processing at request of client')
       obsQueue
         ._onSync()
         .catch(err => {
@@ -696,7 +696,7 @@ function sendMessageToAllClients(msg) {
   clients.matchAll().then(clients => {
     clients.forEach(client => {
       sendMessageToClient(client, msg).then(m =>
-        console.log('SW received message: ' + m),
+        console.debug('SW received message: ' + m),
       )
     })
   })
@@ -778,8 +778,9 @@ function verifyDepsRecord(depsRecord) {
 workboxPrecacheAndRoute([])
 
 export const _testonly = {
-  isSafeToProcessQueue,
   setAuthHeader(newVal) {
     authHeaderValue = newVal
   },
+  isSafeToProcessQueue,
+  onSyncWithPerItemCallback,
 }
