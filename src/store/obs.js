@@ -1215,6 +1215,11 @@ const actions = {
     )
     return dispatch('onLocalRecordEvent')
   },
+  async cancelFailedDeletes({ getters, dispatch }) {
+    const idsToCancel = getters.deletesWithErrorDbIds
+    await Promise.all(idsToCancel.map(currId => deleteDbRecordById(currId)))
+    return dispatch('onLocalRecordEvent')
+  },
   async getCurrentOutcomeForWowId({ state }, wowId) {
     const found = state.localQueueSummary.find(
       e => e.inatId === wowId || e.uuid === wowId,

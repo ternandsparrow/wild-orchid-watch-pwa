@@ -133,34 +133,29 @@ new Vue({
             break
           case constants.failedToUploadObsMsg:
             // FIXME differentiate between systemError and userError
-            this.$store
-              .dispatch('obs/transitionToSystemErrorOutcome', wowId)
-              .catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
-                  // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying to upload record with wowId='${wowId}'`,
-                  err,
-                })
-              })
-            break
+            return this.transitionToSystemErrorHelper(wowId, 'upload')
           case constants.failedToEditObsMsg:
             // FIXME differentiate between systemError and userError
-            this.$store
-              .dispatch('obs/transitionToSystemErrorOutcome', wowId)
-              .catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
-                  // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying to edit record with wowId='${wowId}'`,
-                  err,
-                })
-              })
-            break
+            return this.transitionToSystemErrorHelper(wowId, 'edit')
+          case constants.failedToDeleteObsMsg:
+            // FIXME differentiate between systemError and userError
+            return this.transitionToSystemErrorHelper(wowId, 'delete')
           default:
             console.debug('Client received message from SW: ' + event.data)
         }
       })
+    },
+    async transitionToSystemErrorHelper(wowId, msgFragment) {
+      try {
+        await this.$store.dispatch('obs/transitionToSystemErrorOutcome', wowId)
+      } catch (err) {
+        this.$store.dispatch('flagGlobalError', {
+          msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
+          // FIXME use something more user friendly than the ID
+          userMsg: `Error while trying to ${msgFragment} record with wowId='${wowId}'`,
+          err,
+        })
+      }
     },
   },
   render: h => h(AppNavigator),

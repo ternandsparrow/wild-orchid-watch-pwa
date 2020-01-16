@@ -140,6 +140,7 @@ export const obsPostSuccessMsg = 'OBS_POST_SUCCESS'
 export const obsDeleteSuccessMsg = 'OBS_DELETE_SUCCESS'
 export const failedToUploadObsMsg = 'OBS_CREATE_FAIL'
 export const failedToEditObsMsg = 'OBS_EDIT_FAIL'
+export const failedToDeleteObsMsg = 'OBS_DELETE_FAIL'
 export const skipWaitingMsg = 'SKIP_WAITING'
 
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'

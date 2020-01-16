@@ -74,6 +74,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
       async (entry, resp) => {
         const obsUuid = entry.metadata.obsUuid
         const obsId = entry.metadata.obsId
+        const respStatus = resp.status
         // at this point we have a choice: press on and accept that we'll be
         // missing some of the data on the remote, or rollback everything on
         // the remote and do whatever is necessary to fix it up.
@@ -102,7 +103,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
               ),
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
-          case 'PUT': // we don't really update deps, we just delete+create
+          case 'PUT': // we don't update deps, we just clobber with POST
             sendMessageToAllClients({
               id: constants.failedToUploadObsMsg,
               obsId,
@@ -113,12 +114,11 @@ const depsQueue = new Queue('obs-dependant-queue', {
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'DELETE':
-            // if we get a client error when trying to do a deps req then we
-            // don't want to delete the obs but we need to do something. It
-            // could be a 404, in which case we don't have to worry. If it's a
-            // 401 then it's more serious but we can't recover here.
+            if (respStatus === 404) {
+              return // that's fine, the job is done
+            }
             throw new Error(
-              `Lazy programmer error: not implemented for this demo`,
+              `Lazy programmer error: we don't have deps for DELETEs`,
             )
           default:
             throw new Error(
@@ -196,16 +196,13 @@ const obsQueue = new Queue('obs-queue', {
             if (respStatus === 404) {
               return // that's fine, the job is done
             }
-            // FIXME could be a 401
-            // we should let the UI know that this has failed.
-            // FIXME add a failedToDelete handler on the client
-            // if it we get a 401, we can just put it back into the queue and
-            // wait for the next action to come from the UI which will bring a
-            // fresh auth token and we'll be ok. For anything else, I guess we
-            // should send it back to the UI
-            throw new Error(
-              'Throwing because if we do not, the req will disappear into the eather',
-            )
+            sendMessageToAllClients({
+              id: constants.failedToDeleteObsMsg,
+              obsId,
+              obsUuid,
+              msg: `Failed to delete observation with obsUuid=${obsUuid}`,
+            })
+            break
           case 'PUT':
             sendMessageToAllClients({
               id: constants.failedToEditObsMsg,
@@ -274,6 +271,18 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
           `has been replayed in queue '${this._name}'`,
       )
       const statusCode = resp.status
+      if (statusCode === 401) {
+        // other queued reqs probably won't succeed (right now), wait for next sync
+        throw (() => {
+          // throwing so catch block can handle unshifting, etc
+          const result = new Error(
+            `Response indicates failed auth (status=${statusCode}), ` +
+              `stopping now but we'll retry on next sync.`,
+          )
+          result.name = 'Server401Error'
+          return result
+        })()
+      }
       const is4xxStatusCode = statusCode >= 400 && statusCode < 500
       if (is4xxStatusCode) {
         console.log(
@@ -375,10 +384,6 @@ async function onObsPutSuccess(obsResp) {
         method: magicMethod,
       }),
     })
-    // if (!depsQueue._syncInProgress) {
-    //   console.debug('depsQueue is not currently processing, giving it a kick')
-    //   depsQueue._onSync() // FIXME do we need to catch errors here?
-    // }
   } catch (err) {
     // Note: errors related to queue processing won't be caught here. If we're
     // connected to the network, processing will be triggered by pushing items.
@@ -426,10 +431,6 @@ async function onObsPostSuccess(obsResp) {
         }),
       }),
     })
-    // if (!depsQueue._syncInProgress) {
-    //   console.debug('depsQueue is not currently processing, giving it a kick')
-    //   depsQueue._onSync() // FIXME do we need to catch errors here?
-    // }
   } catch (err) {
     // Note: errors related to queue processing won't be caught here. If we're
     // connected to the network, processing will be triggered by pushing items.
@@ -487,14 +488,6 @@ registerRoute(
           body: JSON.stringify(obsRecord),
         }),
       })
-      // TODO the real sync doesn't seem to check before running so you can get
-      // two threads of processing running at once; messy. If the queue has seen
-      // an error, it won't start processing when we push a new request so that's
-      // when this would be good.
-      // if (!obsQueue._syncInProgress) {
-      //   console.debug('obsQueue is not currently processing, giving it a kick')
-      //   obsQueue._onSync() // FIXME do we need to catch errors here?
-      // }
     } catch (err) {
       return jsonResponse(
         {
@@ -534,12 +527,6 @@ registerRoute(
       deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
     }
     await obsStore.setItem(updateTag + obsUuid, depsRecord)
-    // FIXME it's possible for the PUT to be queued while the POST is still
-    // waiting. If this is the case, we should probably stash the obs PUT req
-    // until we have the response from the POST. Then when we get the
-    // response from the POST, we need to generate the obs PUT request. Maybe
-    // if the obsId is some placeholder token then we know to wait for the
-    // POST resp?
     try {
       await obsQueue.pushRequest({
         metadata: {

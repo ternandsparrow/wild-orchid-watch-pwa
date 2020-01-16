@@ -17,16 +17,26 @@
         <v-ons-list-header
           v-if="isShowDeleteDetails"
           class="waiting-for-delete-header"
-          >Waiting for network to perform delete on
-          <strong>{{ waitingForDeleteCount }}</strong> record(s)
+        >
+          <span v-if="waitingForDeleteCount"
+            >Waiting for internet connection;
+            <strong>{{ waitingForDeleteCount }}</strong> pending record
+            delete(s).</span
+          >
           <div v-if="isSyncDisabled">
             (Sync <span class="red">disabled</span> in settings)
           </div>
           <div v-if="deletesWithErrorCount">
-            <span class="red">Error</span> while trying to delete
-            <strong>{{ deletesWithErrorCount }}</strong> records on server,
-            <strong class="red" @click="retryFailedDeletes">tap to retry</strong
-            >.
+            <div>
+              <span class="red">Error</span> while deleting
+              <strong>{{ deletesWithErrorCount }}</strong> record(s) on server.
+            </div>
+            <div class="delete-fail-button-container">
+              <v-ons-button @click="retryFailedDeletes">Retry</v-ons-button>
+              <v-ons-button modifier="outline " @click="cancelFailedDeletes"
+                >Cancel deletes</v-ons-button
+              >
+            </div>
           </div>
         </v-ons-list-header>
         <v-ons-list-header v-if="isWaitingForUpload"
@@ -127,8 +137,13 @@ export default {
       }
       done && done()
     },
+    // TODO it might be nice to be able to retry/cancel failed deletes
+    // individually rather than all at once.
     retryFailedDeletes() {
       this.$store.dispatch('obs/retryFailedDeletes')
+    },
+    cancelFailedDeletes() {
+      this.$store.dispatch('obs/cancelFailedDeletes')
     },
   },
 }
@@ -153,5 +168,11 @@ export default {
 
 .waiting-for-delete-header {
   background-color: #ffd384;
+}
+
+.delete-fail-button-container {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 1em;
 }
 </style>

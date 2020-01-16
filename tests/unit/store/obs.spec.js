@@ -1040,6 +1040,32 @@ describe('actions', () => {
         })
       })
 
+      describe('cancelFailedDeletes', () => {
+        it('should run without error when there is nothing to do', async () => {
+          await objectUnderTest.actions.cancelFailedDeletes({
+            getters: {
+              deletesWithErrorDbIds: [],
+            },
+            dispatch: () => {},
+          })
+          // no errors is a success
+        })
+
+        it('should remove delete action records from the DB when required', async () => {
+          await obsStore.setItem('123A', {
+            uuid: '123A',
+          })
+          await objectUnderTest.actions.cancelFailedDeletes({
+            getters: {
+              deletesWithErrorDbIds: ['123A'],
+            },
+            dispatch: () => {},
+          })
+          const result = await obsStore.getItem('123A')
+          expect(result).toBeNull()
+        })
+      })
+
       describe('upsertBlockedAction', () => {
         it('should create the blocked action when none exists', async () => {
           await obsStore.setItem('123A', {
