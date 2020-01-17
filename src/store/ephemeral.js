@@ -71,11 +71,16 @@ const actions = {
     )
   },
 
-  manualServiceWorkerUpdateCheck({ state }) {
+  async manualServiceWorkerUpdateCheck({ state }) {
     if (!state.swReg) {
       return false
     }
-    state.swReg.update()
+    try {
+      await state.swReg.update()
+    } catch (err) {
+      // probably the server is down
+      console.warn('Failed while trying to check for a new service worker', err)
+    }
     return true
   },
 }
