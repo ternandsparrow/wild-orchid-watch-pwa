@@ -4,10 +4,10 @@ import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/
 import { registerRoute } from 'workbox-routing/registerRoute.mjs'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
+import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import * as constants from '../src/misc/constants.js'
 
 const wowSwStore = getOrCreateInstance('wow-sw')
-const wowObsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 const createTag = 'create:'
 const updateTag = 'update:'
 const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'
@@ -38,26 +38,27 @@ const depsQueue = new Queue('obs-dependant-queue', {
             console.debug(
               'resp IS a project linkage one, this marks the end of an obs',
             )
-            sendMessageToAllClients({
-              id: constants.obsPostSuccessMsg,
-              obsId,
-              obsUuid,
+            await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             return
           case magicMethod:
             const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
             if (isEndOfObsPutGroup) {
               console.debug('found magic poison pill indicating end of obs PUT')
-              sendMessageToAllClients({
-                id: constants.obsPutSuccessMsg,
-                obsId,
+              await setRecordProcessingOutcome(
                 obsUuid,
+                constants.successOutcome,
+              )
+              await sendMessageToAllClients({
+                id: constants.refreshObsMsg,
               })
               return
             }
             throw new Error(
               `Lazy programmer error: don't know how to handle ` +
-                `method=${magicMethod} with url=${req.url}`,
+                ` out magic method=${magicMethod} with url=${req.url}`,
             )
           case 'PUT':
             throw new Error(
@@ -81,13 +82,12 @@ const depsQueue = new Queue('obs-dependant-queue', {
         // the remote and do whatever is necessary to fix it up.
         switch (entry.request.method) {
           case 'POST':
-            sendMessageToAllClients({
-              id: constants.failedToUploadObsMsg,
-              obsId,
+            await setRecordProcessingOutcome(
               obsUuid,
-              msg:
-                `Failed to completely create observation with ` +
-                `inatId=${obsId},uuid=${obsUuid}`,
+              constants.systemErrorOutcome,
+            )
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             console.debug('Handling POST client error by rolling back obs')
             await obsQueue.unshiftRequest({
@@ -105,13 +105,12 @@ const depsQueue = new Queue('obs-dependant-queue', {
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'PUT': // we don't update deps, we just clobber with POST
-            sendMessageToAllClients({
-              id: constants.failedToUploadObsMsg,
-              obsId,
+            await setRecordProcessingOutcome(
               obsUuid,
-              msg:
-                `Failed to completely update observation with ` +
-                `inatId=${obsId},uuid=${obsUuid}`,
+              constants.systemErrorOutcome,
+            )
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'DELETE':
@@ -152,9 +151,12 @@ const obsQueue = new Queue('obs-queue', {
               await onObsPutSuccess(obs)
               break
             case 'DELETE':
-              sendMessageToAllClients({
-                id: constants.obsDeleteSuccessMsg,
-                obsId: entry.metadata.obsId,
+              await setRecordProcessingOutcome(
+                entry.metadata.obsUuid,
+                constants.successOutcome,
+              )
+              await sendMessageToAllClients({
+                id: constants.refreshObsMsg,
               })
               break
             default:
@@ -185,11 +187,12 @@ const obsQueue = new Queue('obs-queue', {
         const respStatus = resp.status
         switch (entry.request.method) {
           case 'POST':
-            sendMessageToAllClients({
-              id: constants.failedToUploadObsMsg,
-              obsId,
+            await setRecordProcessingOutcome(
               obsUuid,
-              msg: `Failed to completely create observation with obsUuid=${obsUuid}`,
+              constants.systemErrorOutcome,
+            )
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             await wowSwStore.removeItem(createTag + obsUuid)
             break
@@ -197,19 +200,21 @@ const obsQueue = new Queue('obs-queue', {
             if (respStatus === 404) {
               return // that's fine, the job is done
             }
-            sendMessageToAllClients({
-              id: constants.failedToDeleteObsMsg,
-              obsId,
+            await setRecordProcessingOutcome(
               obsUuid,
-              msg: `Failed to delete observation with obsUuid=${obsUuid}`,
+              constants.systemErrorOutcome,
+            )
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             break
           case 'PUT':
-            sendMessageToAllClients({
-              id: constants.failedToEditObsMsg,
-              obsId,
+            await setRecordProcessingOutcome(
               obsUuid,
-              msg: `Failed to completely edit observation with obsUuid=${obsUuid}`,
+              constants.systemErrorOutcome,
+            )
+            await sendMessageToAllClients({
+              id: constants.refreshObsMsg,
             })
             await wowSwStore.removeItem(updateTag + obsUuid)
             break
@@ -574,6 +579,7 @@ registerRoute(
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,
+        obsUuid: event.request.headers.get(constants.wowUuidCustomHttpHeader),
       },
       request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
         method: 'DELETE',
@@ -693,14 +699,16 @@ function sendMessageToClient(client, msg) {
   })
 }
 
-function sendMessageToAllClients(msg) {
-  clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      sendMessageToClient(client, msg).then(m =>
-        console.debug('SW received message: ' + m),
-      )
-    })
-  })
+async function sendMessageToAllClients(msg) {
+  const matchedClients = await clients.matchAll()
+  for (let client of matchedClients) {
+    try {
+      const clientResp = await sendMessageToClient(client, msg)
+      console.debug('SW received message: ' + clientResp)
+    } catch (err) {
+      console.error(`Failed to send message to client`, err)
+    }
+  }
 }
 
 function verifyNotImpendingDoom(val) {

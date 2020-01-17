@@ -104,12 +104,13 @@ export default {
         )
       }
     },
-    async doApiDelete({ state, dispatch }, { urlSuffix }) {
+    async doApiDelete({ state, dispatch }, { urlSuffix, recordUuid }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
         const resp = await deleteWithAuth(
           `${constants.apiUrlBase}${urlSuffix}`,
           `${state.apiToken}`,
+          recordUuid,
         )
         return resp
       } catch (err) {

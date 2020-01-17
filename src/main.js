@@ -97,65 +97,22 @@ new Vue({
         return
       }
       navigator.serviceWorker.addEventListener('message', event => {
-        // FIXME maybe this shouldn't have so much responsibility and the SW
-        // should directly update the status of records. I'm worried about:
-        //  - user saves record
-        //  - process sends it to SW
-        //  - SW starts processing
-        //  - our app is closed, loses focus, crashes, phone is turned off
-        //  - SW completes processing, send message
-        // There's no client to accept that message. And if that's the only
-        // point that we update the status for records, we're in trouble.
-        const obsUuid = event.data.obsUuid
-        const wowId = obsUuid || event.data.obsId
         const msgId = event.data.id
         console.debug(`Message received from SW with ID='${msgId}'`)
         switch (msgId) {
           case constants.refreshObsMsg:
-            this.$store.dispatch('obs/refreshRemoteObs')
-            break
-          case constants.obsPostSuccessMsg:
-          case constants.obsPutSuccessMsg:
-          case constants.obsDeleteSuccessMsg:
-            this.$store
-              .dispatch('obs/transitionToSuccessOutcome', wowId)
-              .then(() => {
-                return this.$store.dispatch('obs/refreshRemoteObs')
+            this.$store.dispatch('obs/refreshRemoteObsWithDelay').catch(err => {
+              this.$store.dispatch('flagGlobalError', {
+                msg: `Failed to refresh observations after prompt to do so from the SW`,
+                userMsg: `Error while trying to refresh your list of observations`,
+                err,
               })
-              .catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to set outcome=success for Db record with wowId='${wowId}'`,
-                  // FIXME use something more user friendly than the ID
-                  userMsg: `Error while trying to upload record with wowId='${wowId}'`,
-                  err,
-                })
-              })
-            break
-          case constants.failedToUploadObsMsg:
-            // FIXME differentiate between systemError and userError
-            return this.transitionToSystemErrorHelper(wowId, 'upload')
-          case constants.failedToEditObsMsg:
-            // FIXME differentiate between systemError and userError
-            return this.transitionToSystemErrorHelper(wowId, 'edit')
-          case constants.failedToDeleteObsMsg:
-            // FIXME differentiate between systemError and userError
-            return this.transitionToSystemErrorHelper(wowId, 'delete')
+            })
+            return
           default:
             console.debug('Client received message from SW: ' + event.data)
         }
       })
-    },
-    async transitionToSystemErrorHelper(wowId, msgFragment) {
-      try {
-        await this.$store.dispatch('obs/transitionToSystemErrorOutcome', wowId)
-      } catch (err) {
-        this.$store.dispatch('flagGlobalError', {
-          msg: `Failed to set outcome=systemError for Db record with wowId='${wowId}'`,
-          // FIXME use something more user friendly than the ID
-          userMsg: `Error while trying to ${msgFragment} record with wowId='${wowId}'`,
-          err,
-        })
-      }
     },
   },
   render: h => h(AppNavigator),

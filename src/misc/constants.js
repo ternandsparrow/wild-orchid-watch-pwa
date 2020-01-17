@@ -136,12 +136,6 @@ export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
 export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
-export const obsPutSuccessMsg = 'OBS_PUT_SUCCESS'
-export const obsPostSuccessMsg = 'OBS_POST_SUCCESS'
-export const obsDeleteSuccessMsg = 'OBS_DELETE_SUCCESS'
-export const failedToUploadObsMsg = 'OBS_CREATE_FAIL'
-export const failedToEditObsMsg = 'OBS_EDIT_FAIL'
-export const failedToDeleteObsMsg = 'OBS_DELETE_FAIL'
 export const skipWaitingMsg = 'SKIP_WAITING'
 
 // Record processing outcomes
@@ -159,3 +153,5 @@ export const serviceWorkerIsAliveMagicUrl =
   serviceWorkerMagicUrlPrefix + '/are-you-alive'
 export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
+
+export const wowUuidCustomHttpHeader = 'x-wow-uuid'

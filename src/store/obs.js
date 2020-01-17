@@ -2,7 +2,13 @@ import _ from 'lodash'
 import moment from 'moment'
 import uuid from 'uuid/v1'
 import imageCompression from 'browser-image-compression'
-import { getOrCreateInstance } from '@/indexeddb/storage-manager'
+import {
+  getRecord,
+  storeRecord,
+  deleteDbRecordById,
+  mapOverObsStore,
+  setRecordProcessingOutcome,
+} from '@/indexeddb/obs-store-common'
 import * as constants from '@/misc/constants'
 import {
   arrayBufferToBlob,
@@ -19,7 +25,6 @@ import {
   wowIdOf,
 } from '@/misc/helpers'
 
-const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 const isRemotePhotoFieldName = 'isRemote'
 
 const recordType = makeEnumValidator(['delete', 'edit', 'new'])
@@ -97,10 +102,24 @@ const mutations = {
 }
 
 const actions = {
+  async refreshRemoteObsWithDelay({ dispatch }) {
+    // TODO is there a better way than simply waiting for some period. We keep
+    // it short-ish so it doesn't look like we're taking forever to process the
+    // record. If we're still too fast, then the user will just have to wait
+    // until the next refresh.
+    const delayToLetServerPerformIndexing = 3333
+    await new Promise(resolve => {
+      setTimeout(() => {
+        resolve()
+      }, delayToLetServerPerformIndexing)
+    })
+    await dispatch('refreshRemoteObs')
+  },
   async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
     const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
+    // FIXME do we need to do paging to get everything?
     const urlSuffix = `/observations?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
@@ -889,10 +908,11 @@ const actions = {
     )
     return inatRecordId
   },
-  async _deleteObservation({ dispatch }, { inatRecordId }) {
+  async _deleteObservation({ dispatch }, { inatRecordId, recordUuid }) {
+    // SW will intercept this if running
     await dispatch(
       'doApiDelete',
-      { urlSuffix: `/observations/${inatRecordId}` },
+      { urlSuffix: `/observations/${inatRecordId}`, recordUuid },
       { root: true },
     )
   },
@@ -972,18 +992,7 @@ const actions = {
     }
     await strategy()
     await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
-    // TODO is there a better way than simply waiting for some period. We keep
-    // it short-ish so it doesn't look like we're taking forever to process the
-    // record. If we're still too fast, then the user will just have to wait
-    // until the next refresh.
-    const antiRaceConditionDelayToLetServerIndexNewRecord = 1337
-    await new Promise(resolve => {
-      setTimeout(() => {
-        dispatch('refreshRemoteObs').then(() => {
-          resolve()
-        })
-      }, antiRaceConditionDelayToLetServerIndexNewRecord)
-    })
+    await dispatch('refreshRemoteObsWithDelay')
     async function processChildReqs(dbRecordParam, inatRecordId) {
       await Promise.all(
         dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
@@ -1042,11 +1051,9 @@ const actions = {
         }
       },
       [recordType('delete')]: () => {
-        // sw will intercept this
-        // FIXME need to implement a callback from the SW for when the delete
-        // has completed, so we remove the record from our DB
         return dispatch('_deleteObservation', {
           inatRecordId: dbRecord.inatId,
+          recordUuid: dbRecord.uuid,
         })
       },
     }
@@ -1210,167 +1217,72 @@ const actions = {
     return found[constants.recordProcessingOutcomeFieldName]
   },
   async transitionToSuccessOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'success'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        case constants.withLocalProcessorOutcome:
-        case constants.withServiceWorkerOutcome:
-          return async () => {
-            // nothing to do
-          }
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.successOutcome,
+      validFromOutcomes: [
+        constants.withLocalProcessorOutcome,
+        constants.withServiceWorkerOutcome,
+      ],
     })
   },
   async transitionToWithLocalProcessorOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'withLocalProcessor'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        case constants.waitingOutcome:
-          return async () => {
-            // nothing to do
-          }
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.withLocalProcessorOutcome,
+      validFromOutcomes: [constants.waitingOutcome],
     })
   },
   async transitionToWaitingOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'waiting'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        case constants.systemErrorOutcome:
-          return async () => {
-            // nothing to do
-          }
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.waitingOutcome,
+      validFromOutcomes: [
+        constants.withLocalProcessorOutcome,
+        constants.withServiceWorkerOutcome,
+      ],
     })
   },
   async transitionToWithServiceWorkerOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'withServiceWorker'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        case constants.waitingOutcome:
-          return async () => {
-            // nothing to do
-          }
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.withServiceWorkerOutcome,
+      validFromOutcomes: [constants.waitingOutcome],
     })
   },
   async transitionToSystemErrorOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'systemError'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        case constants.withLocalProcessorOutcome:
-        case constants.withServiceWorkerOutcome:
-          return async () => {
-            // nothing to do
-          }
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ` +
-              `${targetOutcome} for wowId=${wowId}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.systemErrorOutcome,
+      validFromOutcomes: [
+        constants.withLocalProcessorOutcome,
+        constants.withServiceWorkerOutcome,
+      ],
     })
   },
   async transitionToUserErrorOutcome({ dispatch }, wowId) {
-    const targetOutcome = 'userError'
-    const fromStrategyProviderFn = fromOutcome => {
-      switch (fromOutcome) {
-        // TODO add supported cases when we start using this outcome
-        default:
-          throw new Error(
-            `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-          )
-      }
-    }
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome,
-      fromStrategyProviderFn,
+      targetOutcome: constants.userErrorOutcome,
+      validFromOutcomes: [
+        // TODO add supported cases when we start using this outcome
+      ],
     })
   },
   async _transitionHelper(
     { dispatch },
-    { wowId, targetOutcome, fromStrategyProviderFn },
+    { wowId, targetOutcome, validFromOutcomes },
   ) {
     const fromOutcome = await dispatch('getCurrentOutcomeForWowId', wowId)
-    const fromStrategy = fromStrategyProviderFn(fromOutcome)
-    await fromStrategy()
+    if (!validFromOutcomes.includes(fromOutcome)) {
+      throw new Error(
+        `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
+      )
+    }
     const dbId = await dispatch('findDbIdForWowId', wowId)
     await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
-}
-
-async function deleteDbRecordById(id) {
-  try {
-    return obsStore.removeItem(id)
-  } catch (err) {
-    throw chainedError(`Failed to delete db record with ID='${id}'`, err)
-  }
-}
-
-async function storeRecord(record) {
-  const key = record.uuid
-  try {
-    if (!key) {
-      throw new Error('Record has no key, cannot continue')
-    }
-    return obsStore.setItem(key, record)
-  } catch (err) {
-    throw chainedError(`Failed to store db record with ID='${key}'`, err)
-  }
-}
-
-async function getRecord(recordId) {
-  try {
-    if (!recordId) {
-      throw new Error(`No record ID='${recordId}' supplied, cannot continue`)
-    }
-    return obsStore.getItem(recordId)
-  } catch (err) {
-    throw chainedError(`Failed to get db record with ID='${recordId}'`, err)
-  }
 }
 
 const getters = {
@@ -1483,20 +1395,6 @@ function isErrorOutcome(outcome) {
   return [constants.systemErrorOutcome, constants.userErrorOutcome].includes(
     outcome,
   )
-}
-
-function mapOverObsStore(mapperFn) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const result = []
-      await obsStore.iterate(r => {
-        result.push(mapperFn(r))
-      })
-      return resolve(result)
-    } catch (err) {
-      return reject(err)
-    }
-  })
 }
 
 function resolveLocalRecordUuids(ids) {
@@ -1880,16 +1778,6 @@ async function getBundleErrorMsg(resp) {
     console.debug(msg, err)
     return `(${msg})`
   }
-}
-
-export async function setRecordProcessingOutcome(dbId, targetOutcome) {
-  console.debug(`Transitioning dbId=${dbId} to outcome=${targetOutcome}`)
-  const record = await getRecord(dbId)
-  if (!record) {
-    throw new Error('Could not find record for ID=' + dbId)
-  }
-  record.wowMeta[constants.recordProcessingOutcomeFieldName] = targetOutcome
-  return storeRecord(record)
 }
 
 export const _testonly = {
