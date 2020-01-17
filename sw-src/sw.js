@@ -6,7 +6,8 @@ import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import * as constants from '../src/misc/constants.js'
 
-const obsStore = getOrCreateInstance('wow-sw')
+const wowSwStore = getOrCreateInstance('wow-sw')
+const wowObsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 const createTag = 'create:'
 const updateTag = 'update:'
 const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'
@@ -190,7 +191,7 @@ const obsQueue = new Queue('obs-queue', {
               obsUuid,
               msg: `Failed to completely create observation with obsUuid=${obsUuid}`,
             })
-            await obsStore.removeItem(createTag + obsUuid)
+            await wowSwStore.removeItem(createTag + obsUuid)
             break
           case 'DELETE':
             if (respStatus === 404) {
@@ -210,7 +211,7 @@ const obsQueue = new Queue('obs-queue', {
               obsUuid,
               msg: `Failed to completely edit observation with obsUuid=${obsUuid}`,
             })
-            await obsStore.removeItem(updateTag + obsUuid)
+            await wowSwStore.removeItem(updateTag + obsUuid)
             break
           default:
             throw new Error(
@@ -351,7 +352,7 @@ async function onObsPutSuccess(obsResp) {
       `which has ID=${obsId}`,
   )
   const key = updateTag + obsUuid
-  const depsRecord = await obsStore.getItem(key)
+  const depsRecord = await wowSwStore.getItem(key)
   if (!depsRecord) {
     throw new Error(
       `No deps found under key='${key}'. We should always have deps!`,
@@ -394,7 +395,7 @@ async function onObsPutSuccess(obsResp) {
     'Cleaning up after ourselves. All requests have been generated and ' +
       `queued up for key=${key}, so we do not need this data anymore`,
   )
-  await obsStore.removeItem(key)
+  await wowSwStore.removeItem(key)
 }
 
 async function onObsPostSuccess(obsResp) {
@@ -405,7 +406,7 @@ async function onObsPostSuccess(obsResp) {
       `which has ID=${obsId}`,
   )
   const key = createTag + obsUuid
-  const depsRecord = await obsStore.getItem(key)
+  const depsRecord = await wowSwStore.getItem(key)
   if (!depsRecord) {
     throw new Error(
       `No deps found under key='${key}'. We should always have deps!`,
@@ -441,7 +442,7 @@ async function onObsPostSuccess(obsResp) {
     'Cleaning up after ourselves. All requests have been generated and ' +
       `queued up for UUID=${obsUuid}, so we do not need this data anymore`,
   )
-  await obsStore.removeItem(key)
+  await wowSwStore.removeItem(key)
 }
 
 registerRoute(
@@ -472,7 +473,7 @@ registerRoute(
         400,
       )
     }
-    await obsStore.setItem(createTag + obsUuid, depsRecord)
+    await wowSwStore.setItem(createTag + obsUuid, depsRecord)
     try {
       await obsQueue.pushRequest({
         metadata: {
@@ -526,7 +527,7 @@ registerRoute(
         .map(e => JSON.parse(e)),
       deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
     }
-    await obsStore.setItem(updateTag + obsUuid, depsRecord)
+    await wowSwStore.setItem(updateTag + obsUuid, depsRecord)
     try {
       await obsQueue.pushRequest({
         metadata: {

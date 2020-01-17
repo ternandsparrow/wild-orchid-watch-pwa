@@ -19,19 +19,10 @@ import {
   wowIdOf,
 } from '@/misc/helpers'
 
-const obsStore = getOrCreateInstance('wow-obs')
+const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 const isRemotePhotoFieldName = 'isRemote'
 
 const recordType = makeEnumValidator(['delete', 'edit', 'new'])
-
-const recordProcessingOutcome = makeEnumValidator([
-  'waiting', // waiting to be processed
-  'withLocalProcessor', // we're actively processing it
-  'withServiceWorker', // we've processed it, but haven't heard back from SW yet
-  'success', // successfully processed
-  'userError', // processed but encountered an error the user can fix
-  'systemError', // processed but encountered an error the user CANNOT fix
-])
 
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
@@ -216,9 +207,8 @@ const actions = {
                 ...record,
                 wowMeta: {
                   ...record.wowMeta[constants.blockedActionFieldName].wowMeta,
-                  [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
-                    'waiting',
-                  ),
+                  [constants.recordProcessingOutcomeFieldName]:
+                    constants.waitingOutcome,
                 },
               }
             }
@@ -428,9 +418,7 @@ const actions = {
       wowMeta: {
         ...record.wowMeta,
         // we're writing to the record, it *will* be waiting to be processed when we're done!
-        [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
-          'waiting',
-        ),
+        [constants.recordProcessingOutcomeFieldName]: constants.waitingOutcome,
         [constants.photoIdsToDeleteFieldName]: (
           record.wowMeta[constants.photoIdsToDeleteFieldName] || []
         ).concat(photoIdsToDelete),
@@ -676,9 +664,8 @@ const actions = {
         photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
-          [constants.recordProcessingOutcomeFieldName]: recordProcessingOutcome(
-            'waiting',
-          ),
+          [constants.recordProcessingOutcomeFieldName]:
+            constants.waitingOutcome,
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
         },
@@ -876,16 +863,6 @@ const actions = {
       await worker()
     }
   },
-  async _setRecordProcessingOutcome(_, { dbId, outcome }) {
-    const record = await getRecord(dbId)
-    if (!record) {
-      throw new Error('Could not find record for ID=' + dbId)
-    }
-    record.wowMeta[
-      constants.recordProcessingOutcomeFieldName
-    ] = recordProcessingOutcome(outcome)
-    return storeRecord(record)
-  },
   async _createObservation({ dispatch }, { obsRecord }) {
     const obsResp = await dispatch(
       'doApiPost',
@@ -995,7 +972,7 @@ const actions = {
     }
     await strategy()
     await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
-    // FIXME is there a better way than simply waiting for some period. We keep
+    // TODO is there a better way than simply waiting for some period. We keep
     // it short-ish so it doesn't look like we're taking forever to process the
     // record. If we're still too fast, then the user will just have to wait
     // until the next refresh.
@@ -1236,8 +1213,8 @@ const actions = {
     const targetOutcome = 'success'
     const fromStrategyProviderFn = fromOutcome => {
       switch (fromOutcome) {
-        case recordProcessingOutcome('withLocalProcessor'):
-        case recordProcessingOutcome('withServiceWorker'):
+        case constants.withLocalProcessorOutcome:
+        case constants.withServiceWorkerOutcome:
           return async () => {
             // nothing to do
           }
@@ -1257,7 +1234,7 @@ const actions = {
     const targetOutcome = 'withLocalProcessor'
     const fromStrategyProviderFn = fromOutcome => {
       switch (fromOutcome) {
-        case recordProcessingOutcome('waiting'):
+        case constants.waitingOutcome:
           return async () => {
             // nothing to do
           }
@@ -1277,7 +1254,7 @@ const actions = {
     const targetOutcome = 'waiting'
     const fromStrategyProviderFn = fromOutcome => {
       switch (fromOutcome) {
-        case recordProcessingOutcome('systemError'):
+        case constants.systemErrorOutcome:
           return async () => {
             // nothing to do
           }
@@ -1297,7 +1274,7 @@ const actions = {
     const targetOutcome = 'withServiceWorker'
     const fromStrategyProviderFn = fromOutcome => {
       switch (fromOutcome) {
-        case recordProcessingOutcome('waiting'):
+        case constants.waitingOutcome:
           return async () => {
             // nothing to do
           }
@@ -1317,8 +1294,8 @@ const actions = {
     const targetOutcome = 'systemError'
     const fromStrategyProviderFn = fromOutcome => {
       switch (fromOutcome) {
-        case recordProcessingOutcome('withLocalProcessor'):
-        case recordProcessingOutcome('withServiceWorker'):
+        case constants.withLocalProcessorOutcome:
+        case constants.withServiceWorkerOutcome:
           return async () => {
             // nothing to do
           }
@@ -1356,18 +1333,11 @@ const actions = {
     { dispatch },
     { wowId, targetOutcome, fromStrategyProviderFn },
   ) {
-    const verifiedTargetOutcome = recordProcessingOutcome(targetOutcome)
-    console.debug(
-      `Transitioning wowId=${wowId} to rpo=${verifiedTargetOutcome}`,
-    )
     const fromOutcome = await dispatch('getCurrentOutcomeForWowId', wowId)
     const fromStrategy = fromStrategyProviderFn(fromOutcome)
     await fromStrategy()
     const dbId = await dispatch('findDbIdForWowId', wowId)
-    await dispatch('_setRecordProcessingOutcome', {
-      dbId,
-      outcome: verifiedTargetOutcome,
-    })
+    await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
 }
@@ -1469,14 +1439,14 @@ const getters = {
     return state.localQueueSummary.filter(
       e =>
         e[constants.recordProcessingOutcomeFieldName] ===
-        recordProcessingOutcome('waiting'),
+        constants.waitingOutcome,
     )
   },
   successfulLocalQueueSummary(state) {
     return state.localQueueSummary.filter(
       e =>
         e[constants.recordProcessingOutcomeFieldName] ===
-        recordProcessingOutcome('success'),
+        constants.successOutcome,
     )
   },
   obsFields(state) {
@@ -1510,10 +1480,9 @@ const getters = {
 }
 
 function isErrorOutcome(outcome) {
-  return [
-    recordProcessingOutcome('systemError'),
-    recordProcessingOutcome('userError'),
-  ].includes(outcome)
+  return [constants.systemErrorOutcome, constants.userErrorOutcome].includes(
+    outcome,
+  )
 }
 
 function mapOverObsStore(mapperFn) {
@@ -1616,14 +1585,15 @@ export const networkHooks = [
 export function isObsSystemError(record) {
   return (
     (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
-    recordProcessingOutcome('systemError')
+    constants.systemErrorOutcome
   )
 }
 
 function isObsStateProcessing(state) {
-  const processingStates = ['withLocalProcessor', 'withServiceWorker'].map(e =>
-    recordProcessingOutcome(e),
-  )
+  const processingStates = [
+    constants.withLocalProcessorOutcome,
+    constants.withServiceWorkerOutcome,
+  ]
   return processingStates.includes(state)
 }
 
@@ -1910,6 +1880,16 @@ async function getBundleErrorMsg(resp) {
     console.debug(msg, err)
     return `(${msg})`
   }
+}
+
+export async function setRecordProcessingOutcome(dbId, targetOutcome) {
+  console.debug(`Transitioning dbId=${dbId} to outcome=${targetOutcome}`)
+  const record = await getRecord(dbId)
+  if (!record) {
+    throw new Error('Could not find record for ID=' + dbId)
+  }
+  record.wowMeta[constants.recordProcessingOutcomeFieldName] = targetOutcome
+  return storeRecord(record)
 }
 
 export const _testonly = {

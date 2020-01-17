@@ -107,10 +107,11 @@ export const onboarderComponentName = 'Onboarder'
 export const oauthCallbackComponentName = 'OauthCallback'
 
 export const alwaysUpload = 'ALWAYS'
-
 export const neverUpload = 'NEVER'
 
 export const persistedStateLocalStorageKey = 'wow-vuex'
+
+export const lfWowObsStoreName = 'wow-obs'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 
@@ -142,6 +143,14 @@ export const failedToUploadObsMsg = 'OBS_CREATE_FAIL'
 export const failedToEditObsMsg = 'OBS_EDIT_FAIL'
 export const failedToDeleteObsMsg = 'OBS_DELETE_FAIL'
 export const skipWaitingMsg = 'SKIP_WAITING'
+
+// Record processing outcomes
+export const waitingOutcome = 'waiting' // waiting to be processed
+export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
+export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet
+export const successOutcome = 'success' // successfully processed
+export const userErrorOutcome = 'userError' // processed but encountered an error the user can fix
+export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
 
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
 export const serviceWorkerBundleMagicUrl =
