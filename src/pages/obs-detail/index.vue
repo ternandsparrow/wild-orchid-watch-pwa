@@ -23,6 +23,23 @@
         >
       </p>
     </v-ons-card>
+    <v-ons-card v-show="isPossiblyStuck" class="warn-card">
+      <div class="title">Possible problem</div>
+      <p>
+        It looks like this observation might be stuck while trying to upload to
+        the server. This can happen when this app is closed/crashes midway
+        through uploading.
+      </p>
+      <p>
+        You can choose to do nothing and see if it eventually solves itself.
+        This option will remain available as long as we think it's stuck.
+      </p>
+      <p>
+        <v-ons-button @click="resetProcessingOutcome"
+          >Retry upload</v-ons-button
+        >
+      </p>
+    </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
         v-if="isPhotos"
@@ -151,6 +168,7 @@ import {
   approxAreaSearchValueToTitle,
   formatMetricDistance,
   humanDateString,
+  isPossiblyStuck,
   wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
@@ -177,6 +195,9 @@ export default {
     ...mapGetters('obs', ['observationDetail', 'isSelectedRecordEditOfRemote']),
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
+    },
+    isPossiblyStuck() {
+      return isPossiblyStuck(this.$store, this.observationDetail)
     },
     nullSafeObs() {
       const valueMappers = {
@@ -372,6 +393,8 @@ export default {
 </script>
 
 <style scoped lang="scss">
+@import '@/theme/variables.scss';
+
 .a-photo {
   max-width: 100%;
 }
@@ -449,6 +472,10 @@ table.geolocation-detail {
 .error-card {
   background-color: #ffe4e8;
   color: red;
+}
+
+.warn-card {
+  background-color: #ffe291;
 }
 
 .wow-subtitle {

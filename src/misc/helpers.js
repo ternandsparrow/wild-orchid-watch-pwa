@@ -124,6 +124,21 @@ export async function isSwActive() {
   }
 }
 
+function isObsWithLocalProcessor(record) {
+  return (
+    (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
+    constants.withLocalProcessorOutcome
+  )
+}
+
+export function isPossiblyStuck($store, record) {
+  const isAllowedToSync = !$store.getters.isSyncDisabled
+  const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
+  return (
+    isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
+  )
+}
+
 export function deleteWithAuth(url, authHeaderValue, wowUuid) {
   const alsoOkHttpStatuses = [404]
   const extraHeaders = {}
