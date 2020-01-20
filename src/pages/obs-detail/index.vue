@@ -99,6 +99,11 @@
             </div>
           </v-ons-list-item>
         </v-ons-list>
+        <div class="inat-details">
+          <div>iNat ID: {{ observationDetail.inatId }}</div>
+          <div>iNat UUID: {{ observationDetail.uuid }}</div>
+          <div>Updated at: {{ observationDetail.updatedAt }}</div>
+        </div>
       </div>
       <div v-if="selectedTab === 1">
         <h3>Geolocation</h3>
@@ -448,5 +453,10 @@ table.geolocation-detail {
 
 .wow-subtitle {
   color: #666;
+}
+
+.inat-details {
+  color: #888;
+  margin-top: 1em;
 }
 </style>
