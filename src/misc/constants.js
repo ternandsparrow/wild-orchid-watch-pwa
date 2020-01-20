@@ -90,6 +90,8 @@ export const approxAreaSearchedObsFieldId = parseInt(
   process.env.VUE_APP_OBS_FIELD_AREA_SEARCHED,
 )
 
+export const obsPageSize = parseInt(process.env.VUE_APP_OBS_PAGE_SIZE || 100)
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '

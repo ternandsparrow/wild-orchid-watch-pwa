@@ -118,16 +118,21 @@ const actions = {
     })
     await dispatch('refreshRemoteObs')
   },
-  async refreshRemoteObs({ commit, dispatch, rootGetters }) {
+  async refreshRemoteObs({ commit, dispatch }) {
     commit('setIsUpdatingRemoteObs', true)
-    const myUserId = rootGetters.myUserId
     // TODO look at only pulling "new" records to save on bandwidth
-    // FIXME do we need to do paging to get everything?
-    const urlSuffix = `/observations?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
-      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      const records = resp.results.map(mapObsFromApiIntoOurDomain)
-      commit('setAllRemoteObs', records)
+      let isMorePages = true
+      let allRecords = []
+      let currPage = 1
+      while (isMorePages) {
+        const resp = await dispatch('_getPageOfObsFromRemote', currPage)
+        const records = resp.results.map(mapObsFromApiIntoOurDomain)
+        isMorePages = records.length === constants.obsPageSize
+        allRecords = allRecords.concat(records)
+        currPage += 1
+      }
+      commit('setAllRemoteObs', allRecords)
       await dispatch('cleanSuccessfulLocalRecordsRemoteHasEchoed')
     } catch (err) {
       dispatch(
@@ -142,6 +147,25 @@ const actions = {
       return false
     } finally {
       commit('setIsUpdatingRemoteObs', false)
+    }
+  },
+  async _getPageOfObsFromRemote({ rootGetters, dispatch }, pageNum) {
+    console.debug(`Getting page=${pageNum} of remote obs`)
+    try {
+      const myUserId = rootGetters.myUserId
+      const urlSuffix =
+        `/observations` +
+        `?user_id=${myUserId}` +
+        `&project_id=${constants.inatProjectSlug}` +
+        `&per_page=${constants.obsPageSize}` +
+        `&page=${pageNum}`
+      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
+      return resp
+    } catch (err) {
+      throw chainedError(
+        `Failed while trying to get page=${pageNum} of obs`,
+        err,
+      )
     }
   },
   async cleanSuccessfulLocalRecordsRemoteHasEchoed({
