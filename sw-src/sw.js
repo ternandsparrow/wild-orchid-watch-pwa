@@ -58,15 +58,15 @@ const depsQueue = new Queue('obs-dependant-queue', {
             }
             throw new Error(
               `Lazy programmer error: don't know how to handle ` +
-                ` out magic method=${magicMethod} with url=${req.url}`,
+                ` the magic method=${magicMethod} with url=${req.url}`,
             )
           case 'PUT':
             throw new Error(
               `Lazy programmer error: not implemented as we don't do PUTs for deps`,
             )
           case 'DELETE':
-            // probably don't have to do anything
-            throw new Error(`Lazy programmer error: not implemented`)
+            // nothing to do
+            return
           default:
             throw new Error(
               `Programmer error: we don't know how to handle method=${req.method}`,
