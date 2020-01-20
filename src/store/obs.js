@@ -107,11 +107,14 @@ const actions = {
     // it short-ish so it doesn't look like we're taking forever to process the
     // record. If we're still too fast, then the user will just have to wait
     // until the next refresh.
-    const delayToLetServerPerformIndexing = 3333
+    const delayToLetServerPerformIndexingMs = 10 * 1000
+    console.debug(
+      `Sleeping for ${delayToLetServerPerformIndexingMs}ms before refreshing remote`,
+    )
     await new Promise(resolve => {
       setTimeout(() => {
         resolve()
-      }, delayToLetServerPerformIndexing)
+      }, delayToLetServerPerformIndexingMs)
     })
     await dispatch('refreshRemoteObs')
   },

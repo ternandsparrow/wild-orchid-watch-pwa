@@ -19,8 +19,7 @@
           class="waiting-for-delete-header"
         >
           <span v-if="waitingForDeleteCount"
-            >Waiting for internet connection;
-            <strong>{{ waitingForDeleteCount }}</strong> pending record
+            ><strong>{{ waitingForDeleteCount }}</strong> pending record
             delete(s).</span
           >
           <div v-if="isSyncDisabled">
