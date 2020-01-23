@@ -2,13 +2,17 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 
 import store from '@/store'
-import WowHeader from '@/pages/WowHeader'
+import Admin from '@/pages/Admin'
+import FAQ from '@/pages/faq/index'
+import HelpPage from '@/pages/HelpPage'
+import NotFound from '@/pages/NotFound'
 import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/index'
-import Admin from '@/pages/Admin'
-import NotFound from '@/pages/NotFound'
-import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Onboarder from '@/pages/Onboarder'
+import OrchidScience from '@/pages/orchid-science/index'
+import Settings from '@/pages/Settings'
+import SingleSpecies from '@/pages/new-obs/SingleSpecies'
+import WowHeader from '@/pages/WowHeader'
 import { mainStackReplace } from '@/misc/nav-stacks'
 
 const uuidRegex =
@@ -58,6 +62,26 @@ const router = new VueRouter({
       path: '/onboarder',
       name: 'Onboarder',
       component: Onboarder,
+    },
+    {
+      path: '/help',
+      name: 'HelpPage',
+      component: HelpPage,
+    },
+    {
+      path: '/settings',
+      name: 'Settings',
+      component: Settings,
+    },
+    {
+      path: '/science',
+      name: 'OrchidScience',
+      component: OrchidScience,
+    },
+    {
+      path: '/faq',
+      name: 'FAQ',
+      component: FAQ,
     },
     {
       path: '/zzadmin',

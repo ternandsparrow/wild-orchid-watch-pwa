@@ -1,5 +1,6 @@
 <template>
   <v-ons-page>
+    <custom-toolbar back-label="Home" title="Settings" />
     <v-ons-list>
       <ons-list-item>
         <div class="center">

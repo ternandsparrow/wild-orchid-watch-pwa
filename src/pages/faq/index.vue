@@ -1,5 +1,6 @@
 <template>
   <v-ons-page>
+    <custom-toolbar back-label="Home" title="FAQ" />
     <v-ons-list>
       <v-ons-list-header>
         <div>

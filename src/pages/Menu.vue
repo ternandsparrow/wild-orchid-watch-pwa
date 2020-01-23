@@ -16,10 +16,10 @@
     </div>
     <v-ons-list>
       <v-ons-list-item
-        v-for="(item, index) in access"
+        v-for="item in access"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
-        @click="loadView(index)"
+        @click="handleMenuClick(item.clickData)"
       >
         <div class="left">
           <v-ons-icon
@@ -68,9 +68,6 @@ import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
 // import Missions from '@/pages/missions/index'
 // import Dashboard from '@/pages/dashboard/index'
-import FAQ from '@/pages/faq/index'
-import Orchid_Science from '@/pages/orchid-science/index'
-import Settings from '@/pages/Settings'
 import {
   appVersion,
   deployedEnvName,
@@ -78,6 +75,9 @@ import {
   inatProjectSlug,
 } from '@/misc/constants'
 import { innerPageStackReplace } from '@/misc/nav-stacks'
+
+const componentType = 'COMPONENT'
+const routerType = 'ROUTER'
 
 export default {
   data() {
@@ -121,7 +121,10 @@ export default {
         {
           title: 'My Observations',
           icon: 'fa-microscope',
-          component: Observations,
+          clickData: {
+            type: componentType,
+            component: Observations,
+          },
         },
         // FIXME uncomment when they have real content
         // {
@@ -137,17 +140,34 @@ export default {
         {
           title: 'Orchid Science',
           icon: 'fa-book-open',
-          component: Orchid_Science,
+          clickData: {
+            type: routerType,
+            target: { name: 'FAQ' },
+          },
         },
         {
           title: 'FAQ',
+          icon: 'fa-info',
+          clickData: {
+            type: routerType,
+            target: { name: 'FAQ' },
+          },
+        },
+        {
+          title: 'Help',
           icon: 'fa-question-circle',
-          component: FAQ,
+          clickData: {
+            type: routerType,
+            target: { name: 'HelpPage' },
+          },
         },
         {
           title: 'Settings',
           icon: 'md-settings',
-          component: Settings,
+          clickData: {
+            type: routerType,
+            target: { name: 'Settings' },
+          },
         },
       ],
     }
@@ -162,10 +182,21 @@ export default {
     },
   },
   methods: {
-    loadView(index) {
-      const component = this.access[index].component
-      innerPageStackReplace(component) // TODO are we happy with no back for these pages?
+    handleMenuClick(clickData) {
       this.$store.commit('ephemeral/toggleSplitter')
+      switch (clickData.type) {
+        case componentType:
+          return this.loadView(clickData.component)
+        case routerType:
+          return this.$router.push(clickData.target)
+        default:
+          throw new Error(
+            `Programmer problem: unhandled clickData=${clickData}`,
+          )
+      }
+    },
+    loadView(component) {
+      innerPageStackReplace(component) // TODO are we happy with no back for these pages?
     },
     loadLink(url) {
       window.open(url, '_blank')

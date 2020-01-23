@@ -1,5 +1,6 @@
 <template>
   <v-ons-page>
+    <custom-toolbar back-label="Home" title="Orchid Science" />
     <v-ons-list>
       <v-ons-list-header
         >This page will contain information on the science which is enabled by

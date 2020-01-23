@@ -18,7 +18,11 @@
           </p>
         </div>
       </v-ons-list-item>
-      <v-ons-list-header class="wow-list-header">Photos</v-ons-list-header>
+      <v-ons-list-item modifier="nodivider">
+        Provide responses for at least all the required questions, then press
+        the save button.
+      </v-ons-list-item>
+      <wow-header label="Photos" help-target="photos" @on-help="showHelp" />
       <div class="photo-container">
         <div
           v-for="(curr, $index) of photoMenu"
@@ -76,7 +80,11 @@
           </div>
         </v-ons-list-item>
       </template>
-      <v-ons-list-header class="wow-list-header">Field Name</v-ons-list-header>
+      <wow-header
+        label="Field Name"
+        help-target="field-name"
+        @on-help="showHelp"
+      />
       <v-ons-list-item modifier="nodivider">
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
@@ -91,11 +99,12 @@
         </div>
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
-        <v-ons-list-header
+        <wow-header
           :key="currField.id + '-list'"
-          class="wow-list-header"
-          >{{ currField.name }}</v-ons-list-header
-        >
+          :label="currField.name"
+          :help-target="lookupHelpTarget(currField)"
+          @on-help="showHelp"
+        />
         <v-ons-list-item
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
@@ -156,7 +165,7 @@
           </div>
         </v-ons-list-item>
       </template>
-      <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
+      <wow-header label="Notes" />
       <v-ons-list-item>
         <textarea
           v-model="notes"
@@ -193,6 +202,9 @@
           >force close this notification</v-ons-button
         >
       </p>
+    </v-ons-modal>
+    <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModelPostShow">
+      <wow-help ref="wowHelp" @close="closeHelpModal" />
     </v-ons-modal>
   </v-ons-page>
 </template>
@@ -258,6 +270,8 @@ export default {
       formErrorDialogVisible: false,
       formErrorMsgs: [],
       existingRecordSnapshot: null,
+      isHelpModalVisible: false,
+      targetHelpSection: null,
       isSaveModalVisible: false,
       isShowModalForceClose: false,
       geolocationErrorMsg: null,
@@ -265,7 +279,6 @@ export default {
     }
   },
   computed: {
-    ...mapState('obs', ['lat', 'lng']),
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['networkOnLine']),
     displayableObsFields() {
@@ -419,6 +432,16 @@ export default {
       // this on the server? A do-not-edit obs field just for metadata?
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
+    },
+    showHelp(section) {
+      this.isHelpModalVisible = true
+      this.targetHelpSection = section
+    },
+    helpModelPostShow() {
+      this.$refs.wowHelp.scrollToSection(this.targetHelpSection)
+    },
+    closeHelpModal() {
+      this.isHelpModalVisible = false
     },
     isShowInputStatus(field) {
       return field.required && field.wowDatatype !== taxonFieldType
@@ -685,8 +708,8 @@ export default {
       }
       const exifData = await getExifFromBlob(file)
       if (exifData) {
-        // FIXME pull lat, long, accuracy and altitude from EXIF data if present,
-        // and use it in the obs
+        // FIXME if we don't already have geolocation then pull lat, long,
+        // accuracy and altitude from EXIF data if present, and use it in the obs
         console.debug(
           `Pre-compression GPS related metadata = ` +
             JSON.stringify(exifData, onlyGpsFieldsFrom(exifData), 2),
@@ -743,6 +766,19 @@ export default {
       this.existingRecordSnapshot = _.cloneDeep(
         this.$store.getters['obs/observationDetail'],
       )
+    },
+    lookupHelpTarget(field) {
+      // TODO this could be made into an env var and loaded as a constant so
+      // changes to the field names in iNat don't require a code change. Only a
+      // config update and rebuild/redeploy.
+      const mapping = {
+        ['Orchid type']: 'orchid-type',
+        ['Is located in a layer of leaf litter?']: 'litter',
+        ['Landform element']: 'landform-element',
+        // FIXME populate the rest
+      }
+      const key = field.name
+      return mapping[key]
     },
   },
 }
