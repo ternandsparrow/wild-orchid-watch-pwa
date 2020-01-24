@@ -6,6 +6,8 @@
 // Run with something like:
 // $ WOW_SESSION_VALUE=5c0b232a94ea34a4a21e648b607f6593 \
 //     WOW_AUTHENTICITY_TOKEN='n1wN6vpq4sHoEQkzIz9EHJEhHa+XmWzs5lcEK7xDBuW9kwk4MUxjO3LGlK/9WsNbqCRS6+8EnmiALTFUTDB2wQ==' \
+//     WOW_SESSION_KEY='_devinat_session' \
+//     WOW_SERVER='https://dev.inat.techotom.com' \
 //     node ./create-obs-fields.js
 //
 // See below for how to get an authenticity token
@@ -18,13 +20,20 @@ const namePrefix = 'WOW '
 const serverBaseUrl = process.env.WOW_SERVER || 'https://dev.inat.techotom.com'
 const sessionCookieKey = process.env.WOW_SESSION_KEY || '_yoursite_session'
 
-// Use chrome dev tools to pull this out of an active session with iNat
-// example session value = '5c0b232a94ea34a4a21e648b607f6593'
+// Use chrome dev tools to pull this Cookie out of an active session with iNat.
+// The cookie name is named after the Rails site that you configure so at the
+// time of writing the prod inat (inaturalist.org) uses _inaturalist_session
+// and our dev server uses _devinat_session.
+// example session cookie value = '5c0b232a94ea34a4a21e648b607f6593'
 const sessionCookieValue = requiredEnvVar('WOW_SESSION_VALUE')
 
-// we're pretending to do a POST from a web page so we need the CSRF protection
+// we're pretending to do a POST from a web page so we *need* the CSRF protection
 // token. Lucky Rails seems to accept the same token repeatedly so we can get
-// one once and keep using it. Get it with something like (uncomment it):
+// one once and keep using it. You can get an auth token by uncommenting the
+// following fragment then running this script (and providing all env vars
+// except the auth token). The output will be a bash script that you need to
+// copy+paste and run. Remember to comment again so you can create the obs
+// fields.
 
 // console.log(`curl -s '${serverBaseUrl}/observation_fields/new' \
 //   -H 'accept: text/html' \
@@ -36,13 +45,32 @@ const sessionCookieValue = requiredEnvVar('WOW_SESSION_VALUE')
 const authenticityToken = requiredEnvVar('WOW_AUTHENTICITY_TOKEN')
 // *YOU* need to config these values /\
 
+const commonLanduses =
+  'Production from relatively natural environments|Production from dryland agriculture and plantations|Production from irrigated agriculture plantations|Intensive uses|Water'
+const conservationLanduse = 'Conservation and natural environments'
+const epiphyte = 'Epiphyte'
+const squareAreas = '1|4|9|16|25|36|49|64|81|100|>100'
+const phenologyValues =
+  'Not collected|Vegetative|Budding|Flowering|Senescent flower|Developing fruit|Senescent fruit'
+
 const obsFields = [
   {
     name: 'Orchid type',
     description: '',
     datatype: 'text',
-    allowedValues: 'Epiphyte|Terrestrial|Lithophyte',
+    allowedValues: `Terrestrial|${epiphyte}|Lithophyte`,
   },
+  // Orchid photos - not an obs field
+  //  - whole plant (required)
+  //  - flower
+  //  - leaf
+  // Habitat photos - not an obs field
+  //  - habitat, site photo ~5m either side of plant (required)
+  //  - microhabitat, downward looking photo ~30cm either side of plant (required)
+  //  - canopy, looking upward from flower height (or chest)
+  // Georeferenced location - not an obs field
+  // Date - not an obs field
+  // Time - not an obs field
   {
     name: 'Altitude metres',
     description:
@@ -51,11 +79,16 @@ const obsFields = [
     allowedValues: '',
   },
   {
-    name: 'Surrounding land use',
+    name: 'Landuse of the immediate area',
     description: 'Categorise the immediate area surrounding the observation',
     datatype: 'text',
-    allowedValues:
-      'Conservation and natural environments|Production from relatively natural environments|Production from dryland agriculture and plantations|Production from irrigated agriculture plantations|Intensive uses|Water',
+    allowedValues: `${conservationLanduse}|${commonLanduses}`,
+  },
+  {
+    name: 'Wider landuse',
+    description: `Categorise the wider area surrounding the observation. Only required when surrounding landuse = ${conservationLanduse}`,
+    datatype: 'text',
+    allowedValues: `Not applicable|${commonLanduses}|Unknown`,
   },
   {
     name: 'Is surrounded by litter',
@@ -65,69 +98,63 @@ const obsFields = [
   },
   {
     name: 'Host tree species',
-    description:
-      'Species of the host that this orchid grows on. Only required for Orchid Type = Epiphyte',
+    description: `Species of the host that this orchid grows on. Only required for Orchid Type = ${epiphyte}`,
     datatype: 'taxon',
     allowedValues: '',
   },
   {
     name: 'Epiphyte height (cm)',
-    description: 'Only required for Orchid Type = Epiphyte',
+    description: `Only required for Orchid Type = ${epiphyte}`,
     datatype: 'numeric',
     allowedValues: '',
   },
+  // Host tree photo - not an obs field
   {
-    name: 'Landform element',
+    name: 'Landform morphology type',
     description: '',
     datatype: 'text',
     allowedValues:
-      'Plain|Playa/Pan|Lunette|Breakaway|Drainage depression|Dune|Dune crest|Dune slope|Swale|Hill crest|Hill slope|Gully|Cliff|Scarp|Stream channel|Floodout|Fan-alluvial|Lake|Swamp',
+      'Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression',
   },
   {
-    name: 'Soil texture',
+    name: 'Soil structure as observed from the surface',
+    description: 'Used as an indication, NO DIGGING ALLOWED!',
+    datatype: 'text',
+    allowedValues: 'Unknown|Sand - felt or heard when pinching|Loam|Clay',
+  },
+  {
+    name: 'Surface coarse fragments present',
     description: '',
     datatype: 'text',
     allowedValues:
-      'Not collected|Sand|Loam|Clay|Sandy-loam|Loamy-clay|Gravel|Rocky',
+      'Not collected|Not Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
   },
   {
-    name: 'Vegetation community notes',
-    description: '',
+    name: 'Approx area searched (m²)',
+    description:
+      'How large is the area you searched while counting individuals? Only required when observing more than one individual',
     datatype: 'text',
-    allowedValues: '',
+    allowedValues: `Not collected|${squareAreas}`,
   },
   {
-    name: 'Sign of disturbance and threats',
-    description: '',
-    datatype: 'text',
-    allowedValues:
-      'Not collected|Clearing (vegetation clearance)|Clearing – mowing/slashing|Chemical spray (incl. spray drift)|Cultivation (incl. pasture/ag activities)|Soil erosion (incl. run-off)|Firewood/coarse woody debris removal|Grazing (stock species, presence of sheep/cattle scats)|Grazing (native species, presence of roo/possum scats)|Fire|Storm damage|Weed invasion|Foot trampling (human)|Other human disturbance (e.g. car parking)|Not Applicable',
-  },
-  {
-    name: 'Phenology',
-    description: '',
+    name: 'Search effort (minutes)',
+    description:
+      'Time spent surveying: minutes actively searching (not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
     datatype: 'text',
     allowedValues:
-      'Not collected|Vegetative|Bud|Flower|Senescent flower|Developing fruit|Senescent fruit',
+      'Not collected|<1|a few minutes|5|10|15|20|30|45|60|90|120|>120',
   },
   {
-    name: 'Floral visitors observed',
-    description: '',
+    name: 'Accuracy of population count',
+    description: 'How accurate is the count of indiviudals recorded.',
     datatype: 'text',
-    allowedValues:
-      'Not collected|Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+    allowedValues: 'Exact|Partial count|Extrapolated/Estimate',
   },
   {
-    name: 'Damaged flowers',
-    description: '',
+    name: 'Area of exact count (m²)',
+    description: 'Size of the area searched while performing an exact count',
     datatype: 'text',
-    allowedValues: 'Not collected|Yes|No',
-  },
-  {
-    name: 'Deheaded flowers',
-    description: '',
-    datatype: 'text',
-    allowedValues: 'Not collected|Yes|No',
+    allowedValues: `Not applicable|${squareAreas}`,
   },
   {
     name: 'Count of individuals recorded',
@@ -136,17 +163,63 @@ const obsFields = [
     allowedValues: '',
   },
   {
-    name: 'Accuracy of count',
-    description: 'How accurate is the count of indiviudals recorded.',
+    name: 'Area of population (m²)',
+    description: 'Only applicable when recording >1 individual',
     datatype: 'text',
-    allowedValues: 'Exact|Estimate',
+    allowedValues: `Not applicable|${squareAreas}`,
   },
   {
-    name: 'Approx area searched (m²)',
-    description:
-      'How large is the area you searched while counting individuals? Only required when observing more than one individual',
+    name: 'Vegetation formation',
+    description: '',
     datatype: 'text',
-    allowedValues: 'Not collected|1|4|9|16|25|36|49|64|81|100|>100',
+    allowedValues: 'Not collected|Value1|Value2', // FIXME get these values
+  },
+  {
+    name: 'Vegetation height of the dominant layer (metres)',
+    description:
+      'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for shrublands, height of the shrub layer',
+    datatype: 'text',
+    allowedValues: 'Not collected|<0.1,0.3,0.5,0.75,1,2,3,5,7,10,15,20,30,>30', // FIXME get these values
+  },
+  {
+    name: 'Vegetation community notes',
+    description: '',
+    datatype: 'text',
+    allowedValues: '',
+  },
+  {
+    name: 'Evidence of disturbance and threats in the immediate area',
+    description: '',
+    datatype: 'text',
+    allowedValues:
+      'Not collected|Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance',
+  },
+  {
+    name: 'Florivory damage noted',
+    description: '',
+    datatype: 'text',
+    allowedValues: 'Not collected|Yes|No',
+  },
+  {
+    name: 'Floral visitors/potential pollinators observed',
+    description: '',
+    datatype: 'text',
+    allowedValues:
+      'Not collected|Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+  },
+  // Floral visitors photo - not an obs field
+  {
+    name: 'Phenology - life stage status occurring',
+    description: '',
+    datatype: 'text',
+    allowedValues: phenologyValues,
+  },
+  {
+    name: 'Phenology - dominant life stage status most occurring',
+    description:
+      'Which is the most dominant phenology amongst the individuals observed',
+    datatype: 'text',
+    allowedValues: phenologyValues,
   },
 ]
 
@@ -198,6 +271,10 @@ function requiredEnvVar(key) {
   console.log(`[INFO] creating ${obsFields.length} fields`)
   for (const curr of obsFields) {
     console.log(`[INFO] processing name='${curr.name}'...`)
+    if (process.env.PRINTONLY) {
+      console.log(curr.allowedValues) // copy+paste friendly for manually updating fields
+      continue
+    }
     await createObsField(curr)
   }
   console.log('[INFO] Done, all fields created without error')

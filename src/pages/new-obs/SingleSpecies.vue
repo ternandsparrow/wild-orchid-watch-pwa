@@ -173,6 +173,11 @@
           class="wow-textarea"
         >
         </textarea>
+        <div class="wow-obs-field-desc">
+          For personal notes only. None of this information will be read by
+          orchid researchers, and data will not be transferred from this field
+          into the other fields.
+        </div>
       </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
