@@ -179,7 +179,7 @@ const obsFields = [
     description:
       'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for shrublands, height of the shrub layer',
     datatype: 'text',
-    allowedValues: 'Not collected|<0.1,0.3,0.5,0.75,1,2,3,5,7,10,15,20,30,>30', // FIXME get these values
+    allowedValues: 'Not collected|<0.1|0.3|0.5|0.75|1|2|3|5|7|10|15|20|30|30+', // FIXME get these values
   },
   {
     name: 'Vegetation community notes',
