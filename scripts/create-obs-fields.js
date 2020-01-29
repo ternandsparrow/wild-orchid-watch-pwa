@@ -88,13 +88,13 @@ const obsFields = [
     name: 'Wider landuse',
     description: `Categorise the wider area surrounding the observation. Only required when surrounding landuse = ${conservationLanduse}`,
     datatype: 'text',
-    allowedValues: `Not applicable|${commonLanduses}|Unknown`,
+    allowedValues: `${commonLanduses}|Unknown`,
   },
   {
     name: 'Is surrounded by litter',
     description: '',
     datatype: 'text',
-    allowedValues: 'Yes|No',
+    allowedValues: 'Not collected|Yes|No',
   },
   {
     name: 'Host tree species',
@@ -127,7 +127,7 @@ const obsFields = [
     description: '',
     datatype: 'text',
     allowedValues:
-      'Not collected|Not Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
+      'Not collected|Not Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders 2000+ mm',
   },
   {
     name: 'Approx area searched (m²)',
@@ -142,7 +142,7 @@ const obsFields = [
       'Time spent surveying: minutes actively searching (not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
     datatype: 'text',
     allowedValues:
-      'Not collected|<1|a few minutes|5|10|15|20|30|45|60|90|120|>120',
+      'Not collected|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+', // FIXME get these values
   },
   {
     name: 'Accuracy of population count',
@@ -154,7 +154,7 @@ const obsFields = [
     name: 'Area of exact count (m²)',
     description: 'Size of the area searched while performing an exact count',
     datatype: 'text',
-    allowedValues: `Not applicable|${squareAreas}`,
+    allowedValues: `${squareAreas}`,
   },
   {
     name: 'Count of individuals recorded',

@@ -52,45 +52,74 @@ const assumedIdOfLifeTaxa = 1 // everything should have "Life" as an ancestor
 // want orchids so we specify an integer ID (the ID in
 // inaturalist.org/taxa/<ID>-Orchidaceae) here and we'll use it to filter species lists
 // (like autocomplete) to only include taxa that have this node as an ancestor
-export const targetTaxaNodeId = parseInt(
+export const targetTaxaNodeId = convertAndAssertInteger(
   process.env.VUE_APP_TARGET_TAXA_ID || assumedIdOfLifeTaxa,
 )
 
-export const accuracyOfCountObsFieldId = parseInt(
-  process.env.VUE_APP_OBS_FIELD_ID_ACCURACY,
-)
-
-// Needs to match the value that the obs field accepts
-export const accuracyOfCountObsFieldDefault =
-  process.env.VUE_APP_OBS_FIELD_DEFAULT_ACCURACY || 'Exact'
-
-export const countOfIndividualsObsFieldId = parseInt(
+export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
 )
 
 export const countOfIndividualsObsFieldDefault = 1
 
-export const orchidTypeObsFieldId = parseInt(
+export const orchidTypeObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_ORCHID_TYPE,
 )
 
-// The value that indicates we need to show/hide other fields conditional on this
+export const widerLanduseObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_WIDER_LANDUSE,
+)
+
+export const immediateLanduseObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE,
+)
+
+export const soilStructureObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_SOIL_STRUCTURE,
+)
+
+export const coarseFragmentsObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_COARSE_FRAGMENTS,
+)
+
+export const areaOfExactCountObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_EXACT_COUNT,
+)
+
+export const accuracyOfPopulationCountObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_ACCURACY_OF_POPULATION_COUNT,
+)
+
+// We need to show/hide other fields based on the orchid type. Here we define
+// the values so we can match for them. Note: they must *exactly* match what is
+// configured in iNat!
 export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || 'Epiphyte'
+export const orchidTypeTerrestrial =
+  process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || 'Terrestrial'
+export const landuseConservation =
+  process.env.VUE_APP_OBS_FIELD_LANDUSE_CONSERVATION ||
+  'Conservation and natural environments'
+export const accuracyOfCountExact =
+  process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || 'Exact'
 
-export const hostTreeSpeciesObsFieldId = parseInt(
+export const notCollected = process.env.VUE_APP_NOT_COLLECTED || 'Not collected'
+
+export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
 )
 
-export const epiphyteHeightObsFieldId = parseInt(
+export const epiphyteHeightObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT,
 )
 
-export const approxAreaSearchedObsFieldId = parseInt(
-  process.env.VUE_APP_OBS_FIELD_AREA_SEARCHED,
+export const approxAreaSearchedObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_AREA_SEARCHED,
 )
 
-export const obsPageSize = parseInt(process.env.VUE_APP_OBS_PAGE_SIZE || 100)
+export const obsPageSize = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_PAGE_SIZE || 100,
+)
 
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
@@ -157,3 +186,13 @@ export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
+
+function convertAndAssertInteger(val) {
+  const result = parseInt(val)
+  if (isNaN(result)) {
+    throw new Error(
+      `Runtime config problem: expected integer is not a number='${val}'`,
+    )
+  }
+  return result
+}

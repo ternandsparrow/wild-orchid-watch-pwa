@@ -108,6 +108,7 @@
         <v-ons-list-item
           :key="currField.id + '-obs-field'"
           modifier="nodivider"
+          :data-debug-field-id="currField.id"
         >
           <div class="wow-obs-field-input-container input-status-wrapper">
             <v-ons-select
@@ -132,6 +133,7 @@
               float
               placeholder="Input value"
               type="number"
+              @change="onNumberChange($event, currField.id)"
             >
             </v-ons-input>
             <textarea
@@ -223,18 +225,26 @@ import {
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
-  accuracyOfCountObsFieldDefault,
-  accuracyOfCountObsFieldId,
+  accuracyOfPopulationCountObsFieldId,
+  accuracyOfCountExact,
   approxAreaSearchedObsFieldId,
+  areaOfExactCountObsFieldId,
   blocked,
+  coarseFragmentsObsFieldId,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   failed,
   hostTreeSpeciesObsFieldId,
+  immediateLanduseObsFieldId,
+  landuseConservation,
   notSupported,
+  notCollected,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
+  orchidTypeTerrestrial,
+  soilStructureObsFieldId,
+  widerLanduseObsFieldId,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
@@ -281,6 +291,9 @@ export default {
       isShowModalForceClose: false,
       geolocationErrorMsg: null,
       obsFieldSorterFn: null,
+      isExactCount: false,
+      isPopulationRecord: false,
+      extraConditionalRequiredFieldIds: [],
     }
   },
   computed: {
@@ -294,17 +307,20 @@ export default {
         }
         const hasAllowedValues = (curr.allowedValues || []).length
         const wowDatatype = hasAllowedValues ? selectFieldType : curr.datatype
-        const isEpiphyteDependentField = [
-          hostTreeSpeciesObsFieldId,
+        const isConditionalRequiredField = [
+          ...this.extraConditionalRequiredFieldIds,
+          areaOfExactCountObsFieldId,
           epiphyteHeightObsFieldId,
+          hostTreeSpeciesObsFieldId,
+          widerLanduseObsFieldId,
         ].includes(curr.id)
         const field = {
           ...curr,
-          required: isEpiphyteDependentField ? true : curr.required,
+          required: isConditionalRequiredField || curr.required,
           wowDatatype,
         }
         if (hasAllowedValues) {
-          const strategy = getAllowedValsStrategy(curr.id)
+          const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
         }
         accum.push(field)
@@ -334,6 +350,17 @@ export default {
       const isEpiphyte = newVal === orchidTypeEpiphyte
       this.obsFieldVisibility[hostTreeSpeciesObsFieldId] = isEpiphyte
       this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
+      const isTerrestrial = newVal === orchidTypeTerrestrial
+      this.obsFieldVisibility[soilStructureObsFieldId] = isTerrestrial
+      this.obsFieldVisibility[coarseFragmentsObsFieldId] = isTerrestrial
+    },
+    [`obsFieldValues.${immediateLanduseObsFieldId}`](newVal) {
+      const isConservation = newVal === landuseConservation
+      this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
+    },
+    [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
+      this.isExactCount = newVal === accuracyOfCountExact
+      this.refreshAreaOfExactCountVisibility()
     },
   },
   beforeMount() {
@@ -438,6 +465,42 @@ export default {
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
     },
+    onNumberChange(event, fieldId) {
+      // we should be able to use the Vue "watch" to achieve this but I
+      // couldn't get it to work on number fields (the watcher never gets
+      // fired) hence this hack. If you get the watcher working, delete
+      // this mess.
+      this.extraConditionalRequiredFieldIds = []
+      const newVal = event.target.value
+      switch (fieldId) {
+        case countOfIndividualsObsFieldId:
+          this.isPopulationRecord =
+            parseInt(newVal) > countOfIndividualsObsFieldDefault
+          if (this.isPopulationRecord) {
+            this.extraConditionalRequiredFieldIds.push(
+              approxAreaSearchedObsFieldId,
+            )
+            const isSetToNotCollected =
+              this.obsFieldValues[approxAreaSearchedObsFieldId] === notCollected
+            if (isSetToNotCollected) {
+              this.obsFieldValues[approxAreaSearchedObsFieldId] = null
+            }
+          } else {
+            // individual record
+            const isSetToNull =
+              this.obsFieldValues[approxAreaSearchedObsFieldId] === null
+            if (isSetToNull) {
+              this.obsFieldValues[approxAreaSearchedObsFieldId] = notCollected
+            }
+          }
+          this.refreshAreaOfExactCountVisibility()
+          break
+      }
+    },
+    refreshAreaOfExactCountVisibility() {
+      this.obsFieldVisibility[areaOfExactCountObsFieldId] =
+        this.isExactCount && this.isPopulationRecord
+    },
     showHelp(section) {
       this.isHelpModalVisible = true
       this.targetHelpSection = section
@@ -500,10 +563,6 @@ export default {
             return accum
           },
           {},
-        )
-        this.setDefaultIfSupplied(
-          accuracyOfCountObsFieldId,
-          accuracyOfCountObsFieldDefault,
         )
         this.setDefaultIfSupplied(
           countOfIndividualsObsFieldId,
@@ -773,9 +832,9 @@ export default {
       )
     },
     lookupHelpTarget(field) {
-      // TODO this could be made into an env var and loaded as a constant so
-      // changes to the field names in iNat don't require a code change. Only a
-      // config update and rebuild/redeploy.
+      // TODO this mapping could be made into an env var and loaded as a
+      // constant so changes to the field names in iNat don't require a code
+      // change. Only a config update and rebuild/redeploy.
       const mapping = {
         ['Orchid type']: 'orchid-type',
         ['Is located in a layer of leaf litter?']: 'litter',
@@ -794,15 +853,20 @@ function isDeletedObsFieldValue(value) {
   )
 }
 
-function getAllowedValsStrategy(fieldId) {
+function getAllowedValsStrategy(field) {
+  const excludeNotCollectedForRequiredFilter = v =>
+    !field.required || v !== notCollected
   const strats = {
     [approxAreaSearchedObsFieldId]: vals =>
-      vals.map(v => {
+      vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
         return { value: v, title: approxAreaSearchValueToTitle(v) }
       }),
   }
-  const result = strats[fieldId]
-  const defaultStrat = vals => vals.map(v => ({ value: v, title: v }))
+  const result = strats[field.id]
+  const defaultStrat = vals =>
+    vals
+      .filter(excludeNotCollectedForRequiredFilter)
+      .map(v => ({ value: v, title: v }))
   return result || defaultStrat
 }
 </script>

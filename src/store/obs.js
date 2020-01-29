@@ -1267,6 +1267,8 @@ const actions = {
       validFromOutcomes: [
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
+        constants.systemErrorOutcome,
+        constants.userErrorOutcome,
       ],
     })
   },
@@ -1582,7 +1584,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return result
   })
   result.updatedAt = obsFromApi.updated_at
-  result.observedAt = obsFromApi.observed_on_string
+  result.observedAt = obsFromApi.time_observed_at
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -1663,7 +1665,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
         ...recordIdObjFragment,
         latitude: dbRecord.lat,
         longitude: dbRecord.lng,
-        observed_on_string: dbRecord.observedAt,
+        time_observed_at: dbRecord.observedAt,
         species_guess: dbRecord.speciesGuess,
       },
     ),
