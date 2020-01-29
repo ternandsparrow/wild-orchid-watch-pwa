@@ -1845,7 +1845,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
         geoprivacy: 'obscured',
         latitude: -35.123,
         longitude: 138.123,
-        time_observed_at: '2020-01-03T05:18:10.702Z',
+        observed_on_string: '2020-01-03T05:18:10.702Z',
         positional_accuracy: 1234,
       },
     })
@@ -1890,7 +1890,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
         observation: {
           latitude: -35.123,
           longitude: 138.123,
-          time_observed_at: '2020-01-03T05:18:10.702Z',
+          observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
         },
@@ -1919,7 +1919,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
         observation: {
           latitude: -35.123,
           longitude: 138.123,
-          time_observed_at: '2020-01-03T05:18:10.702Z',
+          observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
         },

@@ -1033,14 +1033,12 @@ const actions = {
           relatedObsId: inatRecordId,
         })
       }
-      await Promise.all(
-        apiRecords.obsFieldPostBodyPartials.map(curr => {
-          return dispatch('_createObsFieldValue', {
-            obsFieldRecord: curr,
-            relatedObsId: inatRecordId,
-          })
-        }),
-      )
+      for (const curr of apiRecords.obsFieldPostBodyPartials) {
+        await dispatch('_createObsFieldValue', {
+          obsFieldRecord: curr,
+          relatedObsId: inatRecordId,
+        })
+      }
     }
   },
   async processWaitingDbRecordWithSw(
@@ -1584,6 +1582,10 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return result
   })
   result.updatedAt = obsFromApi.updated_at
+  // we don't use observed_on_string because the iNat web UI uses non-standard
+  // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
+  // them. The time_observed_at field seems to be standardised, which is good
+  // for us to read. We cannot write to time_observed_at though.
   result.observedAt = obsFromApi.time_observed_at
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
@@ -1665,7 +1667,7 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
         ...recordIdObjFragment,
         latitude: dbRecord.lat,
         longitude: dbRecord.lng,
-        time_observed_at: dbRecord.observedAt,
+        observed_on_string: dbRecord.observedAt,
         species_guess: dbRecord.speciesGuess,
       },
     ),
