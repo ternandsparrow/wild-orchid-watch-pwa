@@ -107,6 +107,14 @@ function getHelpData() {
       heading: 'Sign of disturbance and threats',
       values: [['FIXME', 'fill this in', null]],
     },
+    {
+      heading: 'Dominant phenology',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
+      heading: 'Phenology occurring',
+      values: [['FIXME', 'fill this in', null]],
+    },
   ]
   return dontWantToTypeAttributeNamesOverAndOver.map(currSection => {
     const helpImageUrlPrefix = '/img/help/'

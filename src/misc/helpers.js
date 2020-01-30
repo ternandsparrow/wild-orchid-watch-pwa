@@ -175,6 +175,20 @@ async function doManagedFetch(url, req, alsoOkHttpStatuses) {
   }
 }
 
+export function findCommonString(string1, string2) {
+  let firstDiffChar = 0
+  for (let i = 0; i < string1.length; i++) {
+    const currString1Char = string1.charAt(i)
+    const currString2Char = string2.charAt(i)
+    const isDifferent = currString1Char !== currString2Char
+    if (isDifferent) {
+      firstDiffChar = i
+      break
+    }
+  }
+  return string1.substr(0, firstDiffChar)
+}
+
 async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok || alsoOkHttpStatuses.includes(resp.status)
@@ -281,7 +295,7 @@ export function buildStaleCheckerFn(
   }
 }
 
-export function approxAreaSearchValueToTitle(v) {
+export function squareAreaValueToTitle(v) {
   const sqrt = Math.sqrt(v)
   return isNaN(v) ? v : `${sqrt}x${sqrt} (${v}m²)`
 }

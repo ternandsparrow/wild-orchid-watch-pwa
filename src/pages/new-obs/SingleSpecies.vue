@@ -110,7 +110,13 @@
           modifier="nodivider"
           :data-debug-field-id="currField.id"
         >
-          <div class="wow-obs-field-input-container input-status-wrapper">
+          <div
+            class="wow-obs-field-input-container input-status-wrapper"
+            :class="{
+              'multiselect-container':
+                currField.wowDatatype === multiselectFieldType,
+            }"
+          >
             <v-ons-select
               v-if="currField.wowDatatype === selectFieldType"
               v-model="obsFieldValues[currField.id]"
@@ -152,6 +158,23 @@
               @change="debouncedOnTaxonQuestionInput"
               @item-selected="onTaxonQuestionSet"
             />
+            <template
+              v-else-if="currField.wowDatatype === multiselectFieldType"
+            >
+              <div
+                v-for="currVal of currField.multiselectValues"
+                :key="currVal.id"
+                class="multiselect-value"
+              >
+                <v-ons-switch
+                  v-model="obsFieldValues[currVal.id]"
+                  :input-id="currField.id + '-' + currVal.id"
+                />
+                <label :for="currField.id + '-' + currVal.id">{{
+                  currVal.label
+                }}</label>
+              </div>
+            </template>
             <div v-else style="color: red;">
               FIXME - support '{{ currField.wowDatatype }}' field type
             </div>
@@ -220,15 +243,17 @@
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
-  approxAreaSearchValueToTitle,
+  squareAreaValueToTitle,
+  findCommonString,
   getExifFromBlob,
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
-  accuracyOfPopulationCountObsFieldId,
   accuracyOfCountExact,
+  accuracyOfPopulationCountObsFieldId,
   approxAreaSearchedObsFieldId,
   areaOfExactCountObsFieldId,
+  areaOfPopulationObsFieldId,
   blocked,
   coarseFragmentsObsFieldId,
   countOfIndividualsObsFieldDefault,
@@ -238,19 +263,26 @@ import {
   hostTreeSpeciesObsFieldId,
   immediateLanduseObsFieldId,
   landuseConservation,
-  notSupported,
+  noValue,
   notCollected,
+  notSupported,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
+  phenologyObsFieldIds,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
+  yesValue,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
 const taxonFieldType = 'taxon'
 const numericFieldType = 'numeric'
 const selectFieldType = 'select'
+const multiselectFieldType = 'multiselect'
+
+const phenologyMultiselectId = 'phenologyMultiselect'
+const allMutliselectFieldIds = [...phenologyObsFieldIds]
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
@@ -282,6 +314,7 @@ export default {
       taxonFieldType,
       numericFieldType,
       selectFieldType,
+      multiselectFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
       existingRecordSnapshot: null,
@@ -305,8 +338,59 @@ export default {
         if (!this.obsFieldVisibility[curr.id]) {
           return accum
         }
-        const hasAllowedValues = (curr.allowedValues || []).length
-        const wowDatatype = hasAllowedValues ? selectFieldType : curr.datatype
+        const isMultiselect = phenologyObsFieldIds.includes(curr.id)
+        const wowDatatype = (() => {
+          if (isMultiselect) {
+            return multiselectFieldType
+          }
+          const hasAllowedValues = (curr.allowedValues || []).length
+          if (hasAllowedValues) {
+            return selectFieldType
+          }
+          return curr.datatype
+        })()
+        if (isMultiselect) {
+          const multiselectIdMapping = {
+            [phenologyObsFieldIds]: phenologyMultiselectId,
+          }
+          const multiselectId = Object.entries(multiselectIdMapping).find(e =>
+            e[0].includes(curr.id),
+          )[1]
+          const existingQuestionContainer = accum.find(
+            e => e.id === multiselectId,
+          )
+          if (existingQuestionContainer) {
+            const trimTrailingStuffRegex = /[^\w]*$/
+            const trimLeadingStuffRegex = /^[^\w]*/
+            existingQuestionContainer.name = findCommonString(
+              curr.name,
+              existingQuestionContainer.name,
+            ).replace(trimTrailingStuffRegex, '')
+            ;(function fixUpFirstValue() {
+              const firstValue = existingQuestionContainer.multiselectValues[0]
+              firstValue.label = firstValue.label
+                .replace(existingQuestionContainer.name, '')
+                .replace(trimLeadingStuffRegex, '')
+            })()
+            const thisMultiselectValueName = curr.name
+              .replace(existingQuestionContainer.name, '')
+              .replace(trimLeadingStuffRegex, '')
+            existingQuestionContainer.multiselectValues.push({
+              id: curr.id,
+              label: thisMultiselectValueName,
+            })
+            return accum
+          }
+          accum.push({
+            id: multiselectId,
+            description: '', // TODO how do we get this?
+            position: curr.position,
+            name: curr.name,
+            wowDatatype,
+            multiselectValues: [{ id: curr.id, label: curr.name }],
+          })
+          return accum
+        }
         const isConditionalRequiredField = [
           ...this.extraConditionalRequiredFieldIds,
           areaOfExactCountObsFieldId,
@@ -319,7 +403,7 @@ export default {
           required: isConditionalRequiredField || curr.required,
           wowDatatype,
         }
-        if (hasAllowedValues) {
+        if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
         }
@@ -360,7 +444,7 @@ export default {
     },
     [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
       this.isExactCount = newVal === accuracyOfCountExact
-      this.refreshAreaOfExactCountVisibility()
+      this.refreshVisibilityOfPopulationRecordFields()
     },
   },
   beforeMount() {
@@ -444,7 +528,23 @@ export default {
         // pre-populate obs fields
         this.obsFieldValues = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
-            accum[curr.fieldId] = curr.value
+            const isMultiselect = allMutliselectFieldIds.includes(curr.fieldId)
+            let value = curr.value
+            if (isMultiselect) {
+              value = (() => {
+                if (value === yesValue) {
+                  return true
+                }
+                if (value === noValue) {
+                  return false
+                }
+                throw new Error(
+                  `Unhandled value='${value}' when mapping from remote ` +
+                    'obs field value to local multiselect value',
+                )
+              })()
+            }
+            accum[curr.fieldId] = value
             return accum
           },
           this.obsFieldValues,
@@ -476,9 +576,13 @@ export default {
         case countOfIndividualsObsFieldId:
           this.isPopulationRecord =
             parseInt(newVal) > countOfIndividualsObsFieldDefault
+          this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
             this.extraConditionalRequiredFieldIds.push(
               approxAreaSearchedObsFieldId,
+            )
+            this.extraConditionalRequiredFieldIds.push(
+              areaOfPopulationObsFieldId,
             )
             const isSetToNotCollected =
               this.obsFieldValues[approxAreaSearchedObsFieldId] === notCollected
@@ -493,13 +597,16 @@ export default {
               this.obsFieldValues[approxAreaSearchedObsFieldId] = notCollected
             }
           }
-          this.refreshAreaOfExactCountVisibility()
+          this.refreshVisibilityOfPopulationRecordFields()
           break
       }
     },
-    refreshAreaOfExactCountVisibility() {
+    refreshVisibilityOfPopulationRecordFields() {
       this.obsFieldVisibility[areaOfExactCountObsFieldId] =
         this.isExactCount && this.isPopulationRecord
+      this.obsFieldVisibility[
+        areaOfPopulationObsFieldId
+      ] = this.isPopulationRecord
     },
     showHelp(section) {
       this.isHelpModalVisible = true
@@ -523,6 +630,9 @@ export default {
       }
     },
     setDefaultObsFieldVisibility() {
+      // TODO currently the multiselect questions are missing from the
+      // visibility list. It's not a problem until we need to hide at least
+      // one of them
       this.obsFieldVisibility = this.obsFields.reduce((accum, curr) => {
         accum[curr.id] = true
         return accum
@@ -551,10 +661,18 @@ export default {
     },
     setDefaultAnswers() {
       try {
-        // FIXME are these defaults ok? Should we be smarter like picking the last used values?
-        // Or should we have a button to "clone previous observation"?
+        // TODO are these defaults ok? Should we be smarter like picking the
+        // last used values? Or should we have a button to "clone previous
+        // observation"?
         this.obsFieldValues = this.displayableObsFields.reduce(
           (accum, curr) => {
+            const isMultiselect = curr.wowDatatype === multiselectFieldType
+            if (isMultiselect) {
+              for (const currVal of curr.multiselectValues) {
+                accum[currVal.id] = false
+              }
+              return accum
+            }
             const hasSelectOptions = (curr.allowedValues || []).length
             if (!hasSelectOptions) {
               return accum
@@ -688,10 +806,37 @@ export default {
             })
             .filter(filterUnsuppliedPhotos),
           speciesGuess: this.speciesGuessValue,
-          // FIXME add placeGuess
-          obsFieldValues: this.displayableObsFields
-            .map(e => e.id)
-            .reduce((accum, currFieldId) => {
+          obsFieldValues: this.displayableObsFields.reduce(
+            (accum, currField) => {
+              const isMultiselect =
+                currField.wowDatatype === multiselectFieldType
+              if (isMultiselect) {
+                for (const currSubFieldId of currField.multiselectValues.map(
+                  e => e.id,
+                )) {
+                  const mappedValue = (() => {
+                    const v = this.obsFieldValues[currSubFieldId]
+                    // here we're fixing up the booleans that come out of switches
+                    if (v === true) {
+                      return yesValue
+                    }
+                    if (v === false) {
+                      return noValue
+                    }
+                    throw new Error(
+                      `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
+                    )
+                  })()
+                  accum.push({
+                    fieldId: parseInt(currSubFieldId),
+                    // name: // FIXME do we need this?
+                    value: mappedValue,
+                    // datatype: // FIXME do we need this?
+                  })
+                }
+                return accum
+              }
+              const currFieldId = currField.id
               const obsFieldDef = this.getObsFieldDef(currFieldId)
               let value = this.obsFieldValues[currFieldId]
               if (isDeletedObsFieldValue(value)) {
@@ -712,7 +857,9 @@ export default {
                 datatype: obsFieldDef.datatype,
               })
               return accum
-            }, []),
+            },
+            [],
+          ),
           description: this.notes,
         }
         if (this.isEdit) {
@@ -832,16 +979,17 @@ export default {
       )
     },
     lookupHelpTarget(field) {
-      // TODO this mapping could be made into an env var and loaded as a
-      // constant so changes to the field names in iNat don't require a code
-      // change. Only a config update and rebuild/redeploy.
+      // FIXME we need all obs fields IDs (that have help) defined as env var
+      // constants so we can create this mapping
       const mapping = {
-        ['Orchid type']: 'orchid-type',
-        ['Is located in a layer of leaf litter?']: 'litter',
-        ['Landform element']: 'landform-element',
+        [orchidTypeObsFieldId]: 'orchid-type',
+        [43]: 'litter',
+        [46]: 'landform-element',
+        [62]: 'dominant-phenology',
+        [phenologyMultiselectId]: 'phenology-occurring',
         // FIXME populate the rest
       }
-      const key = field.name
+      const key = field.id
       return mapping[key]
     },
   },
@@ -859,7 +1007,7 @@ function getAllowedValsStrategy(field) {
   const strats = {
     [approxAreaSearchedObsFieldId]: vals =>
       vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
-        return { value: v, title: approxAreaSearchValueToTitle(v) }
+        return { value: v, title: squareAreaValueToTitle(v) }
       }),
   }
   const result = strats[field.id]
@@ -1009,5 +1157,17 @@ function getAllowedValsStrategy(field) {
   padding-left: 1em;
   padding-right: 1em;
   margin: 0 auto;
+}
+
+.multiselect-container {
+  flex-direction: column;
+  align-items: start;
+}
+.multiselect-value {
+  margin: 0.7em 0;
+
+  label {
+    padding-left: 2em;
+  }
 }
 </style>

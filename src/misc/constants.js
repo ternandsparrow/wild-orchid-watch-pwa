@@ -1,3 +1,15 @@
+import {
+  conservationLanduse,
+  epiphyte,
+  exact,
+  noValue,
+  notCollected as notCollectedDefault,
+  obsFieldNamePrefix,
+  terrestrial,
+  yesValue,
+} from '@/misc/obs-field-constants'
+
+export { noValue, yesValue }
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
 
@@ -86,6 +98,10 @@ export const areaOfExactCountObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_EXACT_COUNT,
 )
 
+export const areaOfPopulationObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_POPULATION,
+)
+
 export const accuracyOfPopulationCountObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_ACCURACY_OF_POPULATION_COUNT,
 )
@@ -94,20 +110,30 @@ export const accuracyOfPopulationCountObsFieldId = convertAndAssertInteger(
 // the values so we can match for them. Note: they must *exactly* match what is
 // configured in iNat!
 export const orchidTypeEpiphyte =
-  process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || 'Epiphyte'
+  process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
-  process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || 'Terrestrial'
+  process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || terrestrial
 export const landuseConservation =
-  process.env.VUE_APP_OBS_FIELD_LANDUSE_CONSERVATION ||
-  'Conservation and natural environments'
+  process.env.VUE_APP_OBS_FIELD_LANDUSE_CONSERVATION || conservationLanduse
 export const accuracyOfCountExact =
-  process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || 'Exact'
+  process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || exact
 
-export const notCollected = process.env.VUE_APP_NOT_COLLECTED || 'Not collected'
+export const notCollected =
+  process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault
 
 export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
 )
+
+export const phenologyObsFieldIds = (() => {
+  const ids = process.env.VUE_APP_OBS_FIELD_IDS_PHENOLOGY
+  if (!ids) {
+    throw new Error(
+      'Runtime config problem: no phenology multiselect obs field IDs provided',
+    )
+  }
+  return JSON.parse(`[${ids}]`)
+})()
 
 export const epiphyteHeightObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT,
@@ -123,7 +149,8 @@ export const obsPageSize = convertAndAssertInteger(
 
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
-export const obsFieldPrefix = process.env.VUE_APP_OBS_FIELD_PREFIX || 'WOW '
+export const obsFieldPrefix =
+  process.env.VUE_APP_OBS_FIELD_PREFIX || obsFieldNamePrefix
 
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 

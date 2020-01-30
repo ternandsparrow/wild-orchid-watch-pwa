@@ -1,11 +1,11 @@
 <template>
-  <v-ons-list-header class="wow-list-header"
-    >{{ label
-    }}<span v-if="helpTarget" class="help-trigger" @click="triggerHelp">
+  <v-ons-list-header class="wow-list-header">
+    <span v-if="helpTarget" class="help-trigger" @click="triggerHelp">
       <v-ons-icon icon="fa-question-circle"></v-ons-icon>
       Help</span
-    ></v-ons-list-header
-  >
+    >
+    {{ label }}
+  </v-ons-list-header>
 </template>
 
 <script>

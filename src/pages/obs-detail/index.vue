@@ -162,10 +162,12 @@ import { mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
   approxAreaSearchedObsFieldId,
+  areaOfExactCountObsFieldId,
+  areaOfPopulationObsFieldId,
   noImagePlaceholderUrl,
 } from '@/misc/constants'
 import {
-  approxAreaSearchValueToTitle,
+  squareAreaValueToTitle,
   formatMetricDistance,
   humanDateString,
   isPossiblyStuck,
@@ -201,7 +203,9 @@ export default {
     },
     nullSafeObs() {
       const valueMappers = {
-        [approxAreaSearchedObsFieldId]: approxAreaSearchValueToTitle,
+        [approxAreaSearchedObsFieldId]: squareAreaValueToTitle,
+        [areaOfExactCountObsFieldId]: squareAreaValueToTitle,
+        [areaOfPopulationObsFieldId]: squareAreaValueToTitle,
       }
       const result = _.cloneDeep(this.observationDetail || {})
       if (result.obsFieldValues) {

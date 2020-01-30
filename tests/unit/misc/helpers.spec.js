@@ -1,5 +1,23 @@
 import * as objectUnderTest from '@/misc/helpers'
 
+describe('findCommonString', () => {
+  it('should find a common string when there is one', () => {
+    const string1 =
+      'WOW Phenology - life stage status occurring - Senescent fruit'
+    const string2 = 'WOW Phenology - life stage status occurring - Flowering'
+    const result = objectUnderTest.findCommonString(string1, string2)
+    expect(result).toEqual('WOW Phenology - life stage status occurring - ')
+  })
+
+  it('should handle when string1 is shorter', () => {
+    const string1 = 'WOW Phenology - life stage status occurring - Flowering'
+    const string2 =
+      'WOW Phenology - life stage status occurring - Senescent fruit'
+    const result = objectUnderTest.findCommonString(string1, string2)
+    expect(result).toEqual('WOW Phenology - life stage status occurring - ')
+  })
+})
+
 describe('makeEnumValidator', () => {
   it('should handle valid enum array and valid input to Fn', () => {
     const fooStatuses = ['aaa', 'bbb', 'ccc']
@@ -296,24 +314,24 @@ describe('formatStorageSize', () => {
   })
 })
 
-describe('approxAreaSearchValueToTitle', () => {
+describe('squareAreaValueToTitle', () => {
   it('should handle 1', () => {
-    const result = objectUnderTest.approxAreaSearchValueToTitle(1)
+    const result = objectUnderTest.squareAreaValueToTitle(1)
     expect(result).toEqual('1x1 (1m²)')
   })
 
   it('should handle a number, that is a sqaure, that is larger than 1', () => {
-    const result = objectUnderTest.approxAreaSearchValueToTitle(25)
+    const result = objectUnderTest.squareAreaValueToTitle(25)
     expect(result).toEqual('5x5 (25m²)')
   })
 
   it('should handle a stringy number', () => {
-    const result = objectUnderTest.approxAreaSearchValueToTitle('36')
+    const result = objectUnderTest.squareAreaValueToTitle('36')
     expect(result).toEqual('6x6 (36m²)')
   })
 
   it('should handle a non-number input', () => {
-    const result = objectUnderTest.approxAreaSearchValueToTitle('>100')
+    const result = objectUnderTest.squareAreaValueToTitle('>100')
     expect(result).toEqual('>100')
   })
 })

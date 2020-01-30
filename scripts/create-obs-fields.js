@@ -1,3 +1,7 @@
+const obsFieldConstants = require('../src/misc/obs-field-constants')
+
+const isPrintOnly = !!process.env.PRINTONLY
+
 // Creates all of our observation fields in an iNaturalist server.
 //
 // During dev we need to re-create them semi-often so this makes life easier.
@@ -13,8 +17,6 @@
 // See below for how to get an authenticity token
 const got = require('got') // something else pulls this in so we'll use it
 const FormData = require('form-data')
-
-const namePrefix = 'WOW '
 
 // *YOU* need to config these values \/
 const serverBaseUrl = process.env.WOW_SERVER || 'https://dev.inat.techotom.com'
@@ -47,18 +49,16 @@ const authenticityToken = requiredEnvVar('WOW_AUTHENTICITY_TOKEN')
 
 const commonLanduses =
   'Production from relatively natural environments|Production from dryland agriculture and plantations|Production from irrigated agriculture plantations|Intensive uses|Water'
-const conservationLanduse = 'Conservation and natural environments'
-const epiphyte = 'Epiphyte'
 const squareAreas = '1|4|9|16|25|36|49|64|81|100|>100'
 const phenologyValues =
-  'Not collected|Vegetative|Budding|Flowering|Senescent flower|Developing fruit|Senescent fruit'
+  'Vegetative|Budding|Flowering|Senescent flower|Developing fruit|Senescent fruit'
 
 const obsFields = [
   {
     name: 'Orchid type',
     description: '',
     datatype: 'text',
-    allowedValues: `Terrestrial|${epiphyte}|Lithophyte`,
+    allowedValues: `${obsFieldConstants.terrestrial}|${obsFieldConstants.epiphyte}|Lithophyte`,
   },
   // Orchid photos - not an obs field
   //  - whole plant (required)
@@ -82,11 +82,11 @@ const obsFields = [
     name: 'Landuse of the immediate area',
     description: 'Categorise the immediate area surrounding the observation',
     datatype: 'text',
-    allowedValues: `${conservationLanduse}|${commonLanduses}`,
+    allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.conservationLanduse}|${commonLanduses}`,
   },
   {
     name: 'Wider landuse',
-    description: `Categorise the wider area surrounding the observation. Only required when surrounding landuse = ${conservationLanduse}`,
+    description: `Categorise the wider area surrounding the observation. Only required when surrounding landuse = ${obsFieldConstants.conservationLanduse}`,
     datatype: 'text',
     allowedValues: `${commonLanduses}|Unknown`,
   },
@@ -98,13 +98,13 @@ const obsFields = [
   },
   {
     name: 'Host tree species',
-    description: `Species of the host that this orchid grows on. Only required for Orchid Type = ${epiphyte}`,
+    description: `Species of the host that this orchid grows on. Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
     datatype: 'taxon',
     allowedValues: '',
   },
   {
     name: 'Epiphyte height (cm)',
-    description: `Only required for Orchid Type = ${epiphyte}`,
+    description: `Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
     datatype: 'numeric',
     allowedValues: '',
   },
@@ -113,21 +113,20 @@ const obsFields = [
     name: 'Landform morphology type',
     description: '',
     datatype: 'text',
-    allowedValues:
-      'Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression',
+    allowedValues: `${obsFieldConstants.notCollected}|Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression`,
   },
   {
     name: 'Soil structure as observed from the surface',
     description: 'Used as an indication, NO DIGGING ALLOWED!',
     datatype: 'text',
-    allowedValues: 'Unknown|Sand - felt or heard when pinching|Loam|Clay',
+    allowedValues: `${obsFieldConstants.notCollected}|Unknown|Sand - felt or heard when pinching|Loam|Clay`,
   },
   {
     name: 'Surface coarse fragments present',
     description: '',
     datatype: 'text',
     allowedValues:
-      'Not collected|Not Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders 2000+ mm',
+      'Not collected|Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders 2000+ mm',
   },
   {
     name: 'Approx area searched (m²)',
@@ -148,13 +147,13 @@ const obsFields = [
     name: 'Accuracy of population count',
     description: 'How accurate is the count of indiviudals recorded.',
     datatype: 'text',
-    allowedValues: 'Exact|Partial count|Extrapolated/Estimate',
+    allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
   {
     name: 'Area of exact count (m²)',
     description: 'Size of the area searched while performing an exact count',
     datatype: 'text',
-    allowedValues: `${squareAreas}`,
+    allowedValues: squareAreas,
   },
   {
     name: 'Count of individuals recorded',
@@ -166,7 +165,7 @@ const obsFields = [
     name: 'Area of population (m²)',
     description: 'Only applicable when recording >1 individual',
     datatype: 'text',
-    allowedValues: `Not applicable|${squareAreas}`,
+    allowedValues: squareAreas,
   },
   {
     name: 'Vegetation formation',
@@ -191,8 +190,7 @@ const obsFields = [
     name: 'Evidence of disturbance and threats in the immediate area',
     description: '',
     datatype: 'text',
-    allowedValues:
-      'Not collected|Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance',
+    allowedValues: `${obsFieldConstants.notCollected}|No evidence present|Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance`,
   },
   {
     name: 'Florivory damage noted',
@@ -209,23 +207,29 @@ const obsFields = [
   },
   // Floral visitors photo - not an obs field
   {
-    name: 'Phenology - life stage status occurring',
-    description: '',
-    datatype: 'text',
-    allowedValues: phenologyValues,
-  },
-  {
     name: 'Phenology - dominant life stage status most occurring',
     description:
       'Which is the most dominant phenology amongst the individuals observed',
     datatype: 'text',
-    allowedValues: phenologyValues,
+    allowedValues: `${obsFieldConstants.notCollected}|${phenologyValues}`,
   },
 ]
 
+for (const curr of phenologyValues.split('|')) {
+  obsFields.push({
+    name: 'Phenology - life stage status occurring - ' + curr,
+    description: '',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.noValue}|${obsFieldConstants.yesValue}`,
+  })
+}
+
 async function createObsField({ name, description, datatype, allowedValues }) {
   const form = new FormData()
-  form.append('observation_field[name]', namePrefix + name)
+  form.append(
+    'observation_field[name]',
+    obsFieldConstants.obsFieldNamePrefix + name,
+  )
   form.append('observation_field[description]', description)
   form.append('observation_field[datatype]', datatype)
   form.append('observation_field[allowed_values]', allowedValues)
@@ -257,9 +261,12 @@ function requiredEnvVar(key) {
   const result = process.env[key]
   const isNotFound = typeof result === 'undefined'
   if (isNotFound) {
-    throw new Error(
-      `[ERROR] Required env var '${key}' is not found, cannot continue`,
-    )
+    const msg = `[ERROR] Required env var '${key}' is not found, cannot continue`
+    if (isPrintOnly) {
+      console.warn(msg)
+    } else {
+      throw new Error(msg)
+    }
   }
   return result
 }
@@ -271,7 +278,7 @@ function requiredEnvVar(key) {
   console.log(`[INFO] creating ${obsFields.length} fields`)
   for (const curr of obsFields) {
     console.log(`[INFO] processing name='${curr.name}'...`)
-    if (process.env.PRINTONLY) {
+    if (isPrintOnly) {
       console.log(curr.allowedValues) // copy+paste friendly for manually updating fields
       continue
     }
