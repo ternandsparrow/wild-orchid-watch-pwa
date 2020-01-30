@@ -7,7 +7,7 @@ import {
   obsFieldNamePrefix,
   terrestrial,
   yesValue,
-} from '@/misc/obs-field-constants'
+} from './obs-field-constants'
 
 export { noValue, yesValue }
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
