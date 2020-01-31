@@ -364,9 +364,9 @@ async function onObsPutSuccess(obsResp) {
     )
   }
   try {
-    await processPhotosAndObsFields(depsRecord, obsUuid, obsId)
+    await processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId)
     for (const curr of depsRecord.deletedPhotoIds) {
-      console.debug('Pushing a photo DELETE to the queue')
+      console.debug(`Pushing a photo DELETE, for ID=${curr}, to the queue`)
       await depsQueue.pushRequest({
         metadata: {
           obsId: obsId,
@@ -374,6 +374,22 @@ async function onObsPutSuccess(obsResp) {
         },
         request: new Request(
           constants.apiUrlBase + '/observation_photos/' + curr,
+          {
+            method: 'DELETE',
+            mode: 'cors',
+          },
+        ),
+      })
+    }
+    for (const curr of depsRecord.deletedObsFieldIds) {
+      console.debug(`Pushing an obsField DELETE, for ID=${curr}, to the queue`)
+      await depsQueue.pushRequest({
+        metadata: {
+          obsId: obsId,
+          obsUuid: obsUuid,
+        },
+        request: new Request(
+          constants.apiUrlBase + '/observation_field_values/' + curr,
           {
             method: 'DELETE',
             mode: 'cors',
@@ -418,7 +434,7 @@ async function onObsPostSuccess(obsResp) {
     )
   }
   try {
-    await processPhotosAndObsFields(depsRecord, obsUuid, obsId)
+    await processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId)
     console.debug('Pushing project linkage call to the queue')
     await depsQueue.pushRequest({
       metadata: {
@@ -531,6 +547,9 @@ registerRoute(
         .getAll(constants.obsFieldsFieldName)
         .map(e => JSON.parse(e)),
       deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
+      deletedObsFieldIds: formData.getAll(
+        constants.obsFieldIdsToDeleteFieldName,
+      ),
     }
     await wowSwStore.setItem(updateTag + obsUuid, depsRecord)
     try {
@@ -563,6 +582,7 @@ registerRoute(
       newPhotoCount: depsRecord.photos.length,
       newObsFieldCount: depsRecord.obsFields.length,
       deletedPhotoCount: depsRecord.deletedPhotoIds.length,
+      deletedObsFieldCount: depsRecord.deletedObsFieldIds.length,
     })
   },
   'PUT',
@@ -731,7 +751,7 @@ function jsonResponse(bodyObj, status = 200) {
   })
 }
 
-async function processPhotosAndObsFields(depsRecord, obsUuid, obsId) {
+async function processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId) {
   for (const curr of depsRecord.photos) {
     const fd = new FormData()
     fd.append('observation_photo[observation_id]', obsId)

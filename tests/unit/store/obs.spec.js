@@ -392,6 +392,7 @@ describe('actions', () => {
             recordType: 'new',
             [constants.photosToAddFieldName]: [],
             [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
           },
         })
@@ -464,6 +465,7 @@ describe('actions', () => {
             recordType: 'new',
             [constants.photosToAddFieldName]: [expectedPhoto1, expectedPhoto2],
             [constants.photoIdsToDeleteFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
           },
         })
@@ -525,12 +527,14 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
         expect(result).toEqual({
           newPhotos: [],
           photoIdsToDelete: [],
+          obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [],
@@ -588,12 +592,14 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
         expect(result).toEqual({
           newPhotos: [],
           photoIdsToDelete: [],
+          obsFieldIdsToDelete: [],
           record: {
             photos: [],
             speciesGuess: 'species new',
@@ -645,12 +651,14 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
         expect(result).toEqual({
           newPhotos: [],
           photoIdsToDelete: [],
+          obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [],
@@ -707,6 +715,7 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
@@ -724,6 +733,7 @@ describe('actions', () => {
         expect(result).toEqual({
           photoIdsToDelete: [],
           newPhotos: [expectedPhoto1],
+          obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [expectedPhoto1],
@@ -801,6 +811,7 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
@@ -819,6 +830,7 @@ describe('actions', () => {
         expect(result).toEqual({
           photoIdsToDelete: [],
           newPhotos: [expectedNewPhoto],
+          obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [
@@ -898,12 +910,86 @@ describe('actions', () => {
           {
             record,
             photoIdsToDelete: [841],
-            newPhotos: [],
+            obsFieldIdsToDelete: [],
           },
         )
         const result = dispatchedStuff.upsertQueuedAction
         expect(result).toEqual({
           photoIdsToDelete: [841],
+          newPhotos: [],
+          obsFieldIdsToDelete: [],
+          record: {
+            inatId: 666,
+            photos: [],
+            speciesGuess: 'species blah',
+            uuid: '123A',
+            wowMeta: {
+              recordType: 'edit',
+              wowUpdatedAt: expect.stringMatching(
+                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
+              ),
+            },
+          },
+        })
+      })
+
+      it('should save an edit that deletes an obs field', async () => {
+        const record = {
+          uuid: '123A',
+          speciesGuess: 'species blah',
+          addedPhotos: [],
+        }
+        const state = {
+          _uiVisibleLocalRecords: [],
+          allRemoteObs: [
+            {
+              inatId: 666,
+              uuid: '123A',
+              speciesGuess: 'species blah',
+              photos: [],
+              obsFieldValues: {
+                relationshipId: 32423,
+                fieldId: 1,
+                datatype: 'text',
+                name: 'Orchid type',
+                value: 'Lithophyte',
+              },
+            },
+          ],
+          localQueueSummary: [
+            {
+              uuid: '123A',
+              [constants.recordProcessingOutcomeFieldName]: 'waiting',
+              [constants.recordTypeFieldName]: 'new',
+            },
+          ],
+        }
+        const dispatchedStuff = {}
+        await objectUnderTest.actions.saveEditAndScheduleUpdate(
+          {
+            state,
+            getters: {
+              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                state,
+              ),
+              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                state,
+              ),
+              localRecords: objectUnderTest.getters.localRecords(state),
+            },
+            dispatch: (actionName, theArg) =>
+              (dispatchedStuff[actionName] = theArg),
+          },
+          {
+            record,
+            photoIdsToDelete: [],
+            obsFieldIdsToDelete: [32423],
+          },
+        )
+        const result = dispatchedStuff.upsertQueuedAction
+        expect(result).toEqual({
+          obsFieldIdsToDelete: [32423],
+          photoIdsToDelete: [],
           newPhotos: [],
           record: {
             inatId: 666,
@@ -1009,7 +1095,6 @@ describe('actions', () => {
           const newPhotos = [{ testTag: 'photo 1' }]
           await objectUnderTest.actions.upsertQueuedAction(null, {
             record,
-            photoIdsToDelete: [],
             newPhotos,
           })
           const result = await obsStore.getItem('123A')
@@ -1029,7 +1114,6 @@ describe('actions', () => {
           const newPhotos = [{ testTag: 'photo 2' }]
           await objectUnderTest.actions.upsertQueuedAction(null, {
             record,
-            photoIdsToDelete: [],
             newPhotos,
           })
           const result = await obsStore.getItem('123A')
@@ -1037,6 +1121,25 @@ describe('actions', () => {
             { testTag: 'photo 1' },
             { testTag: 'photo 2' },
           ])
+        })
+
+        it('should merge obsFieldIdsToDelete with the existing', async () => {
+          const record = {
+            uuid: '123A',
+            wowMeta: {
+              [constants.obsFieldIdsToDeleteFieldName]: [11, 22, 33],
+            },
+          }
+          await obsStore.setItem('123A', record)
+          const newObsFieldIdsToDelete = [44]
+          await objectUnderTest.actions.upsertQueuedAction(null, {
+            record,
+            obsFieldIdsToDelete: newObsFieldIdsToDelete,
+          })
+          const result = await obsStore.getItem('123A')
+          expect(
+            result.wowMeta[constants.obsFieldIdsToDeleteFieldName],
+          ).toEqual([11, 22, 33, 44])
         })
       })
 
@@ -1085,8 +1188,6 @@ describe('actions', () => {
           }
           await objectUnderTest.actions.upsertBlockedAction(null, {
             record,
-            photoIdsToDelete: [],
-            newPhotos: [],
           })
           const result = await obsStore.getItem('123A')
           expect(result.someField).toEqual('new value')
@@ -1176,30 +1277,73 @@ describe('actions', () => {
           },
         )
 
-        it('should keep the values from the passed record.wowMeta, like wowUpdatedAt', async () => {
-          await obsStore.setItem('123A', {
-            uuid: '123A',
-            wowMeta: {
-              [constants.recordTypeFieldName]: 'new',
-            },
-          })
-          const record = {
-            uuid: '123A',
-            wowMeta: {
-              [constants.recordTypeFieldName]: 'edit',
-              wowUpdatedAt: 'some time string',
-            },
-          }
-          await objectUnderTest.actions.upsertBlockedAction(null, {
-            record,
-          })
-          const result = await obsStore.getItem('123A')
-          expect(result.wowMeta.wowUpdatedAt).toBeUndefined()
-          expect(
-            result.wowMeta[constants.blockedActionFieldName].wowMeta
-              .wowUpdatedAt,
-          ).toEqual('some time string')
-        })
+        it(
+          'should only merge the obsFieldsIdsToDelete with the existing ' +
+            'blocked action, but leave the record wowMeta values alone',
+          async () => {
+            await obsStore.setItem('123A', {
+              uuid: '123A',
+              wowMeta: {
+                [constants.recordTypeFieldName]: 'new',
+                [constants.obsFieldIdsToDeleteFieldName]: [31, 32],
+                [constants.blockedActionFieldName]: {
+                  wowMeta: {
+                    [constants.obsFieldIdsToDeleteFieldName]: [33, 34],
+                  },
+                },
+              },
+            })
+            const record = {
+              uuid: '123A',
+              wowMeta: {
+                [constants.recordTypeFieldName]: 'edit',
+              },
+            }
+            const newObsFieldIdsToDelete = [35, 36]
+            await objectUnderTest.actions.upsertBlockedAction(null, {
+              record,
+              obsFieldIdsToDelete: newObsFieldIdsToDelete,
+            })
+            const result = await obsStore.getItem('123A')
+            expect(
+              result.wowMeta[constants.obsFieldIdsToDeleteFieldName],
+            ).toEqual([31, 32])
+            expect(
+              result.wowMeta[constants.blockedActionFieldName].wowMeta[
+                constants.obsFieldIdsToDeleteFieldName
+              ],
+            ).toEqual([33, 34, 35, 36])
+          },
+        )
+
+        it(
+          'should keep the values from the passed record.wowMeta,' +
+            ' like wowUpdatedAt',
+          async () => {
+            await obsStore.setItem('123A', {
+              uuid: '123A',
+              wowMeta: {
+                [constants.recordTypeFieldName]: 'new',
+              },
+            })
+            const record = {
+              uuid: '123A',
+              wowMeta: {
+                [constants.recordTypeFieldName]: 'edit',
+                wowUpdatedAt: 'some time string',
+              },
+            }
+            await objectUnderTest.actions.upsertBlockedAction(null, {
+              record,
+            })
+            const result = await obsStore.getItem('123A')
+            expect(result.wowMeta.wowUpdatedAt).toBeUndefined()
+            expect(
+              result.wowMeta[constants.blockedActionFieldName].wowMeta
+                .wowUpdatedAt,
+            ).toEqual('some time string')
+          },
+        )
       })
 
       it('should reset localForage store for each test', async () => {
@@ -1404,6 +1548,7 @@ describe('actions', () => {
             [constants.recordTypeFieldName]: 'delete',
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.photosToAddFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
         expect(capturedCommits.setSelectedObservationId).toBeNull()
@@ -1429,6 +1574,7 @@ describe('actions', () => {
           [constants.recordProcessingOutcomeFieldName]: 'waiting',
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.photosToAddFieldName]: [],
+          [constants.obsFieldIdsToDeleteFieldName]: [],
         },
       })
       expect(capturedCommits.setSelectedObservationId).toBeNull()
@@ -1466,6 +1612,7 @@ describe('actions', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.photosToAddFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
         expect(capturedCommits.setSelectedObservationId).toBeNull()
@@ -1500,6 +1647,7 @@ describe('actions', () => {
             [constants.recordTypeFieldName]: 'delete',
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.photosToAddFieldName]: [],
+            [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
         expect(capturedCommits.setSelectedObservationId).toBeNull()

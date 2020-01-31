@@ -526,7 +526,7 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         // pre-populate obs fields
-        this.obsFieldValues = this.observationDetail.obsFieldValues.reduce(
+        const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
             const isMultiselect = allMutliselectFieldIds.includes(curr.fieldId)
             let value = curr.value
@@ -547,9 +547,13 @@ export default {
             accum[curr.fieldId] = value
             return accum
           },
-          this.obsFieldValues,
+          {},
         )
-        this.obsFieldInitialValues = _.cloneDeep(this.obsFieldValues)
+        this.obsFieldValues = {
+          ...this.obsFieldValues,
+          ...answersFromSaved,
+        }
+        this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -863,10 +867,32 @@ export default {
           description: this.notes,
         }
         if (this.isEdit) {
+          const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
+            (accum, currKey) => {
+              // TODO if we ever have conditionally displayable multiselect
+              // fields, then this will need updating to support that.
+              const isNotVisible = !this.obsFieldVisibility[currKey]
+              const value = this.obsFieldValues[currKey]
+              const hadValueBeforeEditing = !_.isNil(
+                this.obsFieldInitialValues[currKey],
+              )
+              const isEmpty = isDeletedObsFieldValue(value)
+              if (hadValueBeforeEditing && (isNotVisible || isEmpty)) {
+                const obsFieldInstance = this.getObsFieldInstance(currKey)
+                const isObsFieldStoredOnRemote = obsFieldInstance.relationshipId
+                if (isObsFieldStoredOnRemote) {
+                  accum.push(obsFieldInstance.relationshipId)
+                }
+              }
+              return accum
+            },
+            [],
+          )
           record.uuid = this.observationDetail.uuid
           await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
             record,
             photoIdsToDelete: this.photoIdsToDelete,
+            obsFieldIdsToDelete,
           })
         } else {
           await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)

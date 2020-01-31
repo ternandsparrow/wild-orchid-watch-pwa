@@ -457,7 +457,7 @@ const actions = {
   },
   async upsertQueuedAction(
     _,
-    { record, photoIdsToDelete = [], newPhotos = [] },
+    { record, photoIdsToDelete = [], newPhotos = [], obsFieldIdsToDelete = [] },
   ) {
     const mergedRecord = {
       ...record,
@@ -471,13 +471,16 @@ const actions = {
         [constants.photosToAddFieldName]: (
           record.wowMeta[constants.photosToAddFieldName] || []
         ).concat(newPhotos),
+        [constants.obsFieldIdsToDeleteFieldName]: (
+          record.wowMeta[constants.obsFieldIdsToDeleteFieldName] || []
+        ).concat(obsFieldIdsToDelete),
       },
     }
     return storeRecord(mergedRecord)
   },
   async upsertBlockedAction(
     _,
-    { record, photoIdsToDelete = [], newPhotos = [] },
+    { record, photoIdsToDelete = [], newPhotos = [], obsFieldIdsToDelete = [] },
   ) {
     const key = record.uuid
     const existingStoreRecord = await getRecord(key)
@@ -491,6 +494,9 @@ const actions = {
     const mergedPhotosToAdd = (
       existingBlockedActionWowMeta[constants.photosToAddFieldName] || []
     ).concat(newPhotos)
+    const mergedObsFieldIdsToDelete = (
+      existingBlockedActionWowMeta[constants.obsFieldIdsToDeleteFieldName] || []
+    ).concat(obsFieldIdsToDelete)
     const mergedRecord = {
       ...record, // passed record is new source of truth
       wowMeta: {
@@ -503,6 +509,7 @@ const actions = {
               record.wowMeta[constants.recordTypeFieldName],
             [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
             [constants.photosToAddFieldName]: mergedPhotosToAdd,
+            [constants.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
           },
         },
       },
@@ -511,7 +518,7 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { state, dispatch, getters },
-    { record, photoIdsToDelete },
+    { record, photoIdsToDelete, obsFieldIdsToDelete },
   ) {
     const editedUuid = record.uuid
     if (!editedUuid) {
@@ -530,7 +537,7 @@ const actions = {
     //  - processor snapshots the record from the DB and processes it
     //  - processing finishes, blocked action is triggered
     // The issue is that some of the blocked action was already processed (the
-    // record but not the photoIdsToDelete). Processing the blocked action now is
+    // record but not the xIdsToDelete). Processing the blocked action now is
     // slightly redundant but shouldn't fail.
     try {
       const existingLocalRecord = getters.localRecords.find(
@@ -671,6 +678,7 @@ const actions = {
             return photoIsRemote
           }),
           newPhotos,
+          obsFieldIdsToDelete,
         })
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
@@ -714,6 +722,7 @@ const actions = {
             constants.waitingOutcome,
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
+          [constants.obsFieldIdsToDeleteFieldName]: [],
         },
         uuid: newRecordId,
         // FIXME get these from UI
@@ -979,6 +988,15 @@ const actions = {
       { root: true },
     )
   },
+  async _deleteObsFieldValue({ dispatch }, obsFieldId) {
+    return dispatch(
+      'doApiDelete',
+      {
+        urlSuffix: `/observation_field_values/${obsFieldId}`,
+      },
+      { root: true },
+    )
+  },
   async processWaitingDbRecordNoSw({ dispatch }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
@@ -1038,6 +1056,11 @@ const actions = {
           obsFieldRecord: curr,
           relatedObsId: inatRecordId,
         })
+      }
+      for (const id of dbRecordParam.wowMeta[
+        constants.obsFieldIdsToDeleteFieldName
+      ]) {
+        await dispatch('_deleteObsFieldValue', id)
       }
     }
   },
@@ -1111,6 +1134,11 @@ const actions = {
       }
       for (const curr of apiRecords.obsFieldPostBodyPartials) {
         fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
+      }
+      for (const curr of dbRecordParam.wowMeta[
+        constants.obsFieldIdsToDeleteFieldName
+      ]) {
+        fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
       }
       return fd
     }
