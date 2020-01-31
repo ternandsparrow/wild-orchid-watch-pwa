@@ -1422,7 +1422,8 @@ const getters = {
       return []
     }
     const result = projectInfo.project_observation_fields.map(fieldRel => {
-      // we have the field definition *and* the relationship to the project
+      // don't get confused: we have the field definition *and* the
+      // relationship to the project
       const fieldDef = fieldRel.observation_field
       return {
         id: fieldDef.id,
@@ -1438,9 +1439,9 @@ const getters = {
     })
     return result
   },
-  obsFieldPositions(state, getters) {
+  obsFieldPositions(_, getters) {
     return getters.obsFields.reduce((accum, curr) => {
-      accum[curr.fieldId] = curr.position
+      accum[curr.id] = curr.position
       return accum
     }, {})
   },

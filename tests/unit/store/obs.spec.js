@@ -2118,6 +2118,26 @@ describe('mapObsFromApiIntoOurDomain', () => {
   })
 })
 
+describe('getters', () => {
+  describe('obsFieldPositions', () => {
+    it('should generate the expected position mapping', () => {
+      const getters = {
+        obsFields: [
+          { id: 11, position: 0 },
+          { id: 22, position: 2 },
+          { id: 666, position: 1 },
+        ],
+      }
+      const result = objectUnderTest.getters.obsFieldPositions(null, getters)
+      expect(result).toEqual({
+        [11]: 0,
+        [22]: 2,
+        [666]: 1,
+      })
+    })
+  })
+})
+
 function wowUpdatedAtToBeCloseToNow(record) {
   const updatedAtStr = record.wowMeta.wowUpdatedAt
   if (!updatedAtStr) {
