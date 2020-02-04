@@ -20,6 +20,7 @@ const state = {
   isGlobalErrorState: false,
   globalErrorUserMsg: null,
   queueProcessorPromise: null,
+  isWarnOnLeaveRoute: false,
 }
 
 const mutations = {
@@ -49,6 +50,8 @@ const mutations = {
     state.isGlobalErrorState = false
     state.globalErrorUserMsg = null
   },
+  enableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = true),
+  disableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = false),
 }
 
 const actions = {

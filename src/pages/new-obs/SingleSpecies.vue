@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
+    <custom-toolbar cancellable :title="title">
       <template v-slot:right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
@@ -443,6 +443,7 @@ export default {
     },
   },
   beforeMount() {
+    this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
     this.photos = this.photoMenu.reduce((accum, curr) => {
       // prepopulate the keys of photos so they're watched by Vue
       accum[curr.id] = null
@@ -650,9 +651,6 @@ export default {
       const fieldId = data.extra
       this.obsFieldValues[fieldId] = data.value
     },
-    onCancel() {
-      // FIXME implement, is there anything to clean up or is it all local?
-    },
     onDeleteUploadedPhoto(record) {
       const id = record.id
       this.photoIdsToDelete.push(id)
@@ -766,6 +764,7 @@ export default {
       return true
     },
     async onSave() {
+      this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
         this.isShowModalForceClose = true
       }, 30 * 1000)
