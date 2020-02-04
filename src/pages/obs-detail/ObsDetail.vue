@@ -102,8 +102,31 @@
               :key="curr.fieldId + '-value'"
               modifier="nodivider"
               class="wow-list-item"
+              :class="{
+                'multiselect-container': curr.multiselectId,
+              }"
             >
-              {{ curr.title }}
+              <span v-if="!curr.multiselectId"> {{ curr.title }}</span>
+              <div v-else>
+                <div
+                  v-for="currMultiselectValue of curr.multiselectValues"
+                  :key="currMultiselectValue.name"
+                  class="multiselect-value"
+                >
+                  <div class="const-ms-width">
+                    <div v-if="currMultiselectValue.value === yesValue">
+                      <v-ons-icon icon="fa-check" class="yes"></v-ons-icon>
+                    </div>
+                    <div v-else-if="currMultiselectValue.value === noValue">
+                      <v-ons-icon icon="fa-times" class="no"></v-ons-icon>
+                    </div>
+                    <div v-else>{{ currMultiselectValue.value }}</div>
+                  </div>
+                  <div class="multiselect-question">
+                    {{ currMultiselectValue.name }}
+                  </div>
+                </div>
+              </div>
             </v-ons-list-item>
           </template>
           <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
@@ -164,10 +187,14 @@ import {
   approxAreaSearchedObsFieldId,
   areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
+  getMultiselectId,
   noImagePlaceholderUrl,
+  noValue,
+  yesValue,
 } from '@/misc/constants'
 import {
   squareAreaValueToTitle,
+  findCommonString,
   formatMetricDistance,
   humanDateString,
   isPossiblyStuck,
@@ -191,6 +218,8 @@ export default {
         // { icon: 'fa-comments' }, FIXME uncomment when we get the content
       ],
       obsFieldSorterFn: null,
+      yesValue,
+      noValue,
     }
   },
   computed: {
@@ -209,15 +238,52 @@ export default {
       }
       const result = _.cloneDeep(this.observationDetail || {})
       if (result.obsFieldValues) {
-        result.obsFieldValues = result.obsFieldValues.map(e => {
-          const val = e.value
+        result.obsFieldValues = result.obsFieldValues.reduce((accum, curr) => {
+          const val = curr.value
           const defaultStrat = v => v
-          const strategy = valueMappers[e.fieldId] || defaultStrat
-          return {
-            ...e,
-            title: strategy(val),
+          const strategy = valueMappers[curr.fieldId] || defaultStrat
+          const mappedValue = strategy(val)
+          const multiselectId = getMultiselectId(curr.fieldId)
+          const isMultiselect = !!multiselectId
+          if (!isMultiselect) {
+            accum.push({
+              ...curr,
+              title: mappedValue,
+            })
+            return accum
           }
-        })
+          const existingQuestionContainer = accum.find(
+            e => e.multiselectId === multiselectId,
+          )
+          if (!existingQuestionContainer) {
+            accum.push({
+              ...curr,
+              multiselectId,
+              multiselectValues: [{ name: curr.name, value: mappedValue }],
+            })
+            return accum
+          }
+          const trimTrailingStuffRegex = /[^\w]*$/
+          const trimLeadingStuffRegex = /^[^\w]*/
+          existingQuestionContainer.name = findCommonString(
+            curr.name,
+            existingQuestionContainer.name,
+          ).replace(trimTrailingStuffRegex, '')
+          ;(function fixUpFirstValue() {
+            const firstValue = existingQuestionContainer.multiselectValues[0]
+            firstValue.name = firstValue.name
+              .replace(existingQuestionContainer.name, '')
+              .replace(trimLeadingStuffRegex, '')
+          })()
+          const thisMultiselectValueName = curr.name
+            .replace(existingQuestionContainer.name, '')
+            .replace(trimLeadingStuffRegex, '')
+          existingQuestionContainer.multiselectValues.push({
+            name: thisMultiselectValueName,
+            value: mappedValue,
+          })
+          return accum
+        }, [])
         const targetField = 'fieldId'
         if (this.obsFieldSorterFn) {
           // no error on initial run, the real sorter will be used though
@@ -489,5 +555,17 @@ table.geolocation-detail {
 .inat-details {
   color: #888;
   margin-top: 1em;
+}
+
+.yes {
+  color: green;
+}
+
+.no {
+  color: red;
+}
+
+.const-ms-width {
+  flex: 0 0 1em;
 }
 </style>

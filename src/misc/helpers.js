@@ -176,17 +176,19 @@ async function doManagedFetch(url, req, alsoOkHttpStatuses) {
 }
 
 export function findCommonString(string1, string2) {
-  let firstDiffChar = 0
+  let lastSpaceIndex = 0
   for (let i = 0; i < string1.length; i++) {
     const currString1Char = string1.charAt(i)
     const currString2Char = string2.charAt(i)
+    if (currString1Char === ' ') {
+      lastSpaceIndex = i
+    }
     const isDifferent = currString1Char !== currString2Char
     if (isDifferent) {
-      firstDiffChar = i
       break
     }
   }
-  return string1.substr(0, firstDiffChar)
+  return string1.substr(0, lastSpaceIndex + 1)
 }
 
 async function handleJsonResp(resp, alsoOkHttpStatuses = []) {

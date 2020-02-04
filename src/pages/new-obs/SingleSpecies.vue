@@ -170,9 +170,11 @@
                   v-model="obsFieldValues[currVal.id]"
                   :input-id="currField.id + '-' + currVal.id"
                 />
-                <label :for="currField.id + '-' + currVal.id">{{
-                  currVal.label
-                }}</label>
+                <label
+                  :for="currField.id + '-' + currVal.id"
+                  class="multiselect-question"
+                  >{{ currVal.label }}</label
+                >
               </div>
             </template>
             <div v-else style="color: red;">
@@ -255,21 +257,22 @@ import {
   areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
   blocked,
-  coarseFragmentsObsFieldId,
+  coarseFragmentsMultiselectId,
+  conservationImmediateLanduseObsFieldId,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   failed,
+  getMultiselectId,
   hostTreeSpeciesObsFieldId,
-  immediateLanduseObsFieldId,
-  landuseConservation,
+  immediateLanduseMultiselectId,
   noValue,
   notCollected,
   notSupported,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
-  phenologyObsFieldIds,
+  phenologyMultiselectId,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
   yesValue,
@@ -280,9 +283,6 @@ const taxonFieldType = 'taxon'
 const numericFieldType = 'numeric'
 const selectFieldType = 'select'
 const multiselectFieldType = 'multiselect'
-
-const phenologyMultiselectId = 'phenologyMultiselect'
-const allMutliselectFieldIds = [...phenologyObsFieldIds]
 
 // TODO add a guard for page refresh to warn about lost changes, mainly for
 // webpage users
@@ -338,7 +338,8 @@ export default {
         if (!this.obsFieldVisibility[curr.id]) {
           return accum
         }
-        const isMultiselect = phenologyObsFieldIds.includes(curr.id)
+        const multiselectId = getMultiselectId(curr.id)
+        const isMultiselect = !!multiselectId
         const wowDatatype = (() => {
           if (isMultiselect) {
             return multiselectFieldType
@@ -350,12 +351,6 @@ export default {
           return curr.datatype
         })()
         if (isMultiselect) {
-          const multiselectIdMapping = {
-            [phenologyObsFieldIds]: phenologyMultiselectId,
-          }
-          const multiselectId = Object.entries(multiselectIdMapping).find(e =>
-            e[0].includes(curr.id),
-          )[1]
           const existingQuestionContainer = accum.find(
             e => e.id === multiselectId,
           )
@@ -383,7 +378,7 @@ export default {
           }
           accum.push({
             id: multiselectId,
-            description: '', // TODO how do we get this?
+            description: curr.description,
             position: curr.position,
             name: curr.name,
             wowDatatype,
@@ -436,10 +431,10 @@ export default {
       this.obsFieldVisibility[epiphyteHeightObsFieldId] = isEpiphyte
       const isTerrestrial = newVal === orchidTypeTerrestrial
       this.obsFieldVisibility[soilStructureObsFieldId] = isTerrestrial
-      this.obsFieldVisibility[coarseFragmentsObsFieldId] = isTerrestrial
+      this.obsFieldVisibility[coarseFragmentsMultiselectId] = isTerrestrial
     },
-    [`obsFieldValues.${immediateLanduseObsFieldId}`](newVal) {
-      const isConservation = newVal === landuseConservation
+    [`obsFieldValues.${conservationImmediateLanduseObsFieldId}`](newVal) {
+      const isConservation = newVal === true
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
     },
     [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
@@ -528,7 +523,7 @@ export default {
         // pre-populate obs fields
         const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
-            const isMultiselect = allMutliselectFieldIds.includes(curr.fieldId)
+            const isMultiselect = !!getMultiselectId(curr.fieldId)
             let value = curr.value
             if (isMultiselect) {
               value = (() => {
@@ -550,7 +545,7 @@ export default {
           {},
         )
         this.obsFieldValues = {
-          ...this.obsFieldValues,
+          ...this.obsFieldValues, // these will be the defaults
           ...answersFromSaved,
         }
         this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
@@ -1009,6 +1004,8 @@ export default {
       // constants so we can create this mapping
       const mapping = {
         [orchidTypeObsFieldId]: 'orchid-type',
+        [immediateLanduseMultiselectId]: 'landuse-types',
+        [widerLanduseObsFieldId]: 'landuse-types',
         [43]: 'litter',
         [46]: 'landform-element',
         [62]: 'dominant-phenology',
@@ -1183,17 +1180,5 @@ function getAllowedValsStrategy(field) {
   padding-left: 1em;
   padding-right: 1em;
   margin: 0 auto;
-}
-
-.multiselect-container {
-  flex-direction: column;
-  align-items: start;
-}
-.multiselect-value {
-  margin: 0.7em 0;
-
-  label {
-    padding-left: 2em;
-  }
 }
 </style>

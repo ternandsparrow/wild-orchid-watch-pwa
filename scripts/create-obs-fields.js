@@ -78,15 +78,14 @@ const obsFields = [
     datatype: 'numeric',
     allowedValues: '',
   },
-  {
-    name: 'Landuse of the immediate area',
-    description: 'Categorise the immediate area surrounding the observation',
-    datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.conservationLanduse}|${commonLanduses}`,
-  },
+  ...multiselect(
+    'Landuse of the immediate area',
+    'Categorise the immediate area surrounding the observation',
+    `Conservation and natural environments|${commonLanduses}`,
+  ),
   {
     name: 'Wider landuse',
-    description: `Categorise the wider area surrounding the observation. Only required when surrounding landuse = ${obsFieldConstants.conservationLanduse}`,
+    description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
     datatype: 'text',
     allowedValues: `${commonLanduses}|Unknown`,
   },
@@ -121,13 +120,11 @@ const obsFields = [
     datatype: 'text',
     allowedValues: `${obsFieldConstants.notCollected}|Unknown|Sand - felt or heard when pinching|Loam|Clay`,
   },
-  {
-    name: 'Surface coarse fragments present',
-    description: '',
-    datatype: 'text',
-    allowedValues:
-      'Not collected|Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders 2000+ mm',
-  },
+  ...multiselect(
+    'Surface coarse fragments present',
+    '',
+    'Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
+  ),
   {
     name: 'Approx area searched (m²)',
     description:
@@ -186,12 +183,11 @@ const obsFields = [
     datatype: 'text',
     allowedValues: '',
   },
-  {
-    name: 'Evidence of disturbance and threats in the immediate area',
-    description: '',
-    datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|No evidence present|Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance`,
-  },
+  ...multiselect(
+    'Evidence of disturbance and threats in the immediate area',
+    '',
+    'Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance',
+  ),
   {
     name: 'Florivory damage noted',
     description: '',
@@ -206,6 +202,7 @@ const obsFields = [
       'Not collected|Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
   },
   // Floral visitors photo - not an obs field
+  ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
   {
     name: 'Phenology - dominant life stage status most occurring',
     description:
@@ -215,13 +212,13 @@ const obsFields = [
   },
 ]
 
-for (const curr of phenologyValues.split('|')) {
-  obsFields.push({
-    name: 'Phenology - life stage status occurring - ' + curr,
-    description: '',
+function multiselect(containerQuestionName, description, values) {
+  return values.split('|').map(curr => ({
+    name: `${containerQuestionName}${obsFieldConstants.multiselectSeparator}${curr}`,
+    description,
     datatype: 'text',
     allowedValues: `${obsFieldConstants.noValue}|${obsFieldConstants.yesValue}`,
-  })
+  }))
 }
 
 async function createObsField({ name, description, datatype, allowedValues }) {
@@ -279,7 +276,7 @@ function requiredEnvVar(key) {
   for (const curr of obsFields) {
     console.log(`[INFO] processing name='${curr.name}'...`)
     if (isPrintOnly) {
-      console.log(curr.allowedValues) // copy+paste friendly for manually updating fields
+      console.log('  ' + curr.allowedValues) // copy+paste friendly for manually updating fields
       continue
     }
     await createObsField(curr)

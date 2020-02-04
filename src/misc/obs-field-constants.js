@@ -4,7 +4,7 @@ module.exports = {
   obsFieldNamePrefix: 'WOW ',
   notCollected: 'Not collected',
 
-  conservationLanduse: 'Conservation and natural environments',
+  multiselectSeparator: ' - ',
 
   exact: 'Exact',
 

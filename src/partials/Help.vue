@@ -101,7 +101,33 @@ function getHelpData() {
     },
     {
       heading: 'Landuse types',
-      values: [['FIXME', 'fill this in', null]],
+      values: [
+        [
+          'Production from relatively natural environments',
+          'grazed native vegetation, non-irrigated forestry excluding plantations',
+          null,
+        ],
+        [
+          'Production from dryland agriculture and plantations',
+          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+          null,
+        ],
+        [
+          'Production from irrigated agriculture and plantations',
+          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
+          null,
+        ],
+        [
+          'Intensive uses',
+          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+          null,
+        ],
+        [
+          'Water',
+          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+          null,
+        ],
+      ],
     },
     {
       heading: 'Sign of disturbance and threats',

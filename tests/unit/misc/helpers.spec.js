@@ -16,6 +16,13 @@ describe('findCommonString', () => {
     const result = objectUnderTest.findCommonString(string1, string2)
     expect(result).toEqual('WOW Phenology - life stage status occurring - ')
   })
+
+  it('should avoid cutting off part of a word', () => {
+    const string1 = 'WOW Foo - Cars'
+    const string2 = 'WOW Foo - Cats'
+    const result = objectUnderTest.findCommonString(string1, string2)
+    expect(result).toEqual('WOW Foo - ')
+  })
 })
 
 describe('makeEnumValidator', () => {

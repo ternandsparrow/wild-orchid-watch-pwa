@@ -1,7 +1,7 @@
 import {
-  conservationLanduse,
   epiphyte,
   exact,
+  multiselectSeparator,
   noValue,
   notCollected as notCollectedDefault,
   obsFieldNamePrefix,
@@ -9,7 +9,7 @@ import {
   yesValue,
 } from './obs-field-constants'
 
-export { noValue, yesValue }
+export { noValue, yesValue, multiselectSeparator }
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
 
@@ -82,16 +82,12 @@ export const widerLanduseObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_WIDER_LANDUSE,
 )
 
-export const immediateLanduseObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE,
-)
-
 export const soilStructureObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_SOIL_STRUCTURE,
 )
 
-export const coarseFragmentsObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_COARSE_FRAGMENTS,
+export const conservationImmediateLanduseObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE_CONSERVATION,
 )
 
 export const areaOfExactCountObsFieldId = convertAndAssertInteger(
@@ -113,8 +109,6 @@ export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || terrestrial
-export const landuseConservation =
-  process.env.VUE_APP_OBS_FIELD_LANDUSE_CONSERVATION || conservationLanduse
 export const accuracyOfCountExact =
   process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || exact
 
@@ -125,15 +119,60 @@ export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
 )
 
-export const phenologyObsFieldIds = (() => {
-  const ids = process.env.VUE_APP_OBS_FIELD_IDS_PHENOLOGY
+export const phenologyObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_PHENOLOGY',
+  'phenology',
+)
+
+export const coarseFragmentsObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_COARSE_FRAGMENTS',
+  'coarse fragments',
+)
+
+export const immediateLanduseObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_IMMEDIATE_LANDUSE',
+  'immediate landuse',
+)
+
+export const evidenceThreatsObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_EVIDENCE_THREATS',
+  'evidence of threats',
+)
+
+function parseFieldIdList(envVarKey, msgFragment) {
+  const ids = process.env[envVarKey]
   if (!ids) {
     throw new Error(
-      'Runtime config problem: no phenology multiselect obs field IDs provided',
+      `Runtime config problem: no ${msgFragment} multiselect obs field IDs provided`,
     )
   }
-  return JSON.parse(`[${ids}]`)
-})()
+  try {
+    return JSON.parse(`[${ids}]`)
+  } catch (err) {
+    throw new Error(
+      `Failed while parsing ${msgFragment} multiselect IDs from env var: ` +
+        err.message,
+    )
+  }
+}
+
+export const coarseFragmentsMultiselectId = 'coarseFragmentsMultiselect'
+export const evidenceThreatsMultiselectId = 'evidenceThreatsMultiselect'
+export const immediateLanduseMultiselectId = 'immediateLanduseMultiselect'
+export const phenologyMultiselectId = 'phenologyMultiselect'
+
+export function getMultiselectId(fieldId) {
+  const multiselectIdMapping = {
+    [coarseFragmentsObsFieldIds]: coarseFragmentsMultiselectId,
+    [evidenceThreatsObsFieldIds]: evidenceThreatsMultiselectId,
+    [immediateLanduseObsFieldIds]: immediateLanduseMultiselectId,
+    [phenologyObsFieldIds]: phenologyMultiselectId,
+  }
+  const found = Object.entries(multiselectIdMapping).find(e =>
+    e[0].includes(fieldId),
+  )
+  return (found || [])[1]
+}
 
 export const epiphyteHeightObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_EPIPHYTE_HEIGHT,

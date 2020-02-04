@@ -54,3 +54,17 @@ body {
   flex-direction: row;
   padding-top: 0.5em;
 }
+
+.multiselect-container {
+  flex-direction: column;
+  align-items: start;
+}
+
+.multiselect-value {
+  margin: 0.7em 0;
+  display: flex;
+
+  .multiselect-question {
+    padding-left: 2em;
+  }
+}
