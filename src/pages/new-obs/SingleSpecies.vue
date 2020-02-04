@@ -29,7 +29,7 @@
           :key="curr.name"
           class="photo-item"
         >
-          <div class="text-left">
+          <div class="text-left button-container">
             <input
               :id="'photo' + $index"
               :ref="photoRef(curr)"
@@ -284,20 +284,18 @@ const numericFieldType = 'numeric'
 const selectFieldType = 'select'
 const multiselectFieldType = 'multiselect'
 
-// TODO add a guard for page refresh to warn about lost changes, mainly for
-// webpage users
-
 export default {
   name: 'SingleSpecies',
   data() {
     return {
       photoMenu: [
         { id: 'whole', name: 'Whole plant' },
-        { id: 'top', name: 'Top' },
+        { id: 'flower', name: 'Flower' },
         { id: 'leaf', name: 'Leaf' },
-        { id: 'mhab', name: 'Micro-habitat' },
-        { id: 'pol', name: 'Visiting pollinators' },
         { id: 'hab', name: 'Habitat' },
+        { id: 'mhab', name: 'Micro-habitat' },
+        { id: 'can', name: 'Canopy' },
+        { id: 'pol', name: 'Floral visitors' },
       ],
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,
@@ -1044,30 +1042,33 @@ function getAllowedValsStrategy(field) {
 .photo-container {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-evenly;
 }
 
 .photo-item {
   background-color: #fff;
   border-radius: 4px;
   text-align: center;
-  flex-grow: 1;
-  /* TODO add media queries for larger res and more items per row */
-  width: 30%;
+  flex: 0 0 7em;
 
   label {
     display: block;
   }
-}
 
-.photo-button {
-  /* This isn't pretty but some versions of Safari don't trigger the input when
-  the label is tapped, so we need to make the input also cover the same area as
-  the label */
-  width: 33%;
-  height: 7em;
-  opacity: 0;
-  overflow: hidden;
-  position: absolute;
+  .button-container {
+    position: relative; /* needed for 100% width of child to work */
+
+    .photo-button {
+      /* This isn't pretty but some versions of Safari don't trigger the input when
+      the label is tapped, so we need to make the input also cover the same area as
+      the label */
+      width: 100%;
+      height: 7em;
+      opacity: 0;
+      overflow: hidden;
+      position: absolute;
+    }
+  }
 }
 
 .the-icon {
