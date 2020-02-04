@@ -809,9 +809,8 @@ export default {
               const isMultiselect =
                 currField.wowDatatype === multiselectFieldType
               if (isMultiselect) {
-                for (const currSubFieldId of currField.multiselectValues.map(
-                  e => e.id,
-                )) {
+                for (const currSubField of currField.multiselectValues) {
+                  const currSubFieldId = currSubField.id
                   const mappedValue = (() => {
                     const v = this.obsFieldValues[currSubFieldId]
                     // here we're fixing up the booleans that come out of switches
@@ -827,9 +826,9 @@ export default {
                   })()
                   accum.push({
                     fieldId: parseInt(currSubFieldId),
-                    // name: // FIXME do we need this?
+                    name: `${currField.name} - ${currSubField.label}`,
                     value: mappedValue,
-                    // datatype: // FIXME do we need this?
+                    // datatype: // don't need this
                   })
                 }
                 return accum
