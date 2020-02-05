@@ -101,6 +101,10 @@ const router = new VueRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  if (store.state.ephemeral.isHelpModalVisible) {
+    store.commit('ephemeral/hideHelpModal')
+    return next(false)
+  }
   if (store.state.ephemeral.isWarnOnLeaveRoute) {
     const resp = window.confirm(
       'WARNING are you sure you want to leave? You will lose any unsaved work',

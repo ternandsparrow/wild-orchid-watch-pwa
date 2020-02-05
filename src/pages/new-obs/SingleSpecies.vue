@@ -318,7 +318,6 @@ export default {
       formErrorDialogVisible: false,
       formErrorMsgs: [],
       existingRecordSnapshot: null,
-      isHelpModalVisible: false,
       targetHelpSection: null,
       isSaveModalVisible: false,
       isShowModalForceClose: false,
@@ -331,7 +330,7 @@ export default {
   },
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
-    ...mapState('ephemeral', ['networkOnLine']),
+    ...mapState('ephemeral', ['networkOnLine', 'isHelpModalVisible']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
@@ -607,14 +606,14 @@ export default {
       ] = this.isPopulationRecord
     },
     showHelp(section) {
-      this.isHelpModalVisible = true
+      this.$store.commit('ephemeral/showHelpModal')
       this.targetHelpSection = section
     },
     helpModelPostShow() {
       this.$refs.wowHelp.scrollToSection(this.targetHelpSection)
     },
     closeHelpModal() {
-      this.isHelpModalVisible = false
+      this.$store.commit('ephemeral/hideHelpModal')
     },
     isShowInputStatus(field) {
       return field.required && field.wowDatatype !== taxonFieldType

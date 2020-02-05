@@ -21,6 +21,7 @@ const state = {
   globalErrorUserMsg: null,
   queueProcessorPromise: null,
   isWarnOnLeaveRoute: false,
+  isHelpModalVisible: false,
 }
 
 const mutations = {
@@ -52,6 +53,8 @@ const mutations = {
   },
   enableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = true),
   disableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = false),
+  showHelpModal: state => (state.isHelpModalVisible = true),
+  hideHelpModal: state => (state.isHelpModalVisible = false),
 }
 
 const actions = {
