@@ -22,68 +22,65 @@
         Provide responses for at least all the required questions, then press
         the save button.
       </v-ons-list-item>
-      <wow-header label="Photos" help-target="photos" @on-help="showHelp" />
-      <div class="photo-container">
-        <div
-          v-for="(curr, $index) of photoMenu"
-          :key="curr.name"
-          class="photo-item"
-        >
-          <div class="text-left button-container">
-            <input
-              :id="'photo' + $index"
-              :ref="photoRef(curr)"
-              type="file"
-              :name="'photo' + $index"
-              accept="image/png, image/jpeg"
-              class="photo-button"
-              @change="onPhotoAdded(curr)"
+      <template v-for="currMenuItem of photoMenu">
+        <wow-header
+          :key="currMenuItem.name + '-header'"
+          :label="currMenuItem.name + ' photos'"
+          help-target="photos"
+          class="margin-for-photos"
+          @on-help="showHelp"
+        />
+        <div :key="currMenuItem.name + '-photos'" class="photo-container">
+          <div class="photo-item">
+            <div class="text-left button-container">
+              <input
+                :id="currMenuItem.id + '-add'"
+                :ref="photoRef(currMenuItem)"
+                type="file"
+                :name="currMenuItem.id + '-add'"
+                accept="image/png, image/jpeg"
+                class="photo-button"
+                @change="onPhotoChanged(currMenuItem)"
+              />
+            </div>
+            <label :for="currMenuItem.id + '-add'">
+              <v-ons-icon class="the-icon" icon="md-image-o"></v-ons-icon>
+              <div class="photo-label-text">Add</div>
+            </label>
+          </div>
+          <div
+            v-for="currPhoto of allPhotosByType[currMenuItem.id]"
+            :key="currPhoto.uuid"
+            class="photo-item"
+          >
+            <div
+              :style="{ 'background-image': `url('${currPhoto.url}')` }"
+              class="wow-thumbnail"
+              @click="showPhotoPreview(currPhoto)"
+            ></div>
+          </div>
+        </div>
+      </template>
+      <template v-if="allPhotosByType[otherType]">
+        <wow-header label="Other photos" class="margin-for-photos" />
+        <div class="photo-container">
+          <div
+            v-for="currPhoto of allPhotosByType[otherType]"
+            :key="currPhoto.uuid"
+            class="photo-item"
+          >
+            <img
+              :src="currPhoto.url"
+              class="wow-thumbnail"
+              @click="showPhotoPreview(currPhoto)"
             />
           </div>
-          <label :for="'photo' + $index">
-            <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
-            <!-- FIXME allow viewing full size image, delete button can be on that screen -->
-            <div class="thumb-container">
-              <v-ons-icon
-                v-if="!photos[curr.id]"
-                class="the-icon"
-                icon="md-image-o"
-              ></v-ons-icon>
-              <div
-                v-if="photos[curr.id]"
-                :style="{
-                  'background-image': 'url(' + photos[curr.id].url + ')',
-                }"
-              ></div>
-            </div>
-            <div class="photo-label-text">{{ curr.name }}</div>
-          </label>
         </div>
-      </div>
-      <template v-if="uploadedPhotos.length">
-        <v-ons-list-item>
-          <div class="photo-title">Existing photos</div>
-        </v-ons-list-item>
-        <v-ons-list-item v-for="curr of uploadedPhotos" :key="curr.id">
-          <div class="left">
-            <img class="list-item__thumbnail" :src="curr.url" />
-          </div>
-          <div class="center">
-            <span>{{ computeType(curr) }} photo</span>
-          </div>
-          <div class="right">
-            <div
-              class="text-center less-prominent"
-              @click="onDeleteUploadedPhoto(curr)"
-            >
-              <v-ons-icon icon="md-delete"></v-ons-icon>
-            </div>
-          </div>
-        </v-ons-list-item>
       </template>
       <wow-header
         label="Field Name"
         help-target="field-name"
+        class="margin-for-photos"
         @on-help="showHelp"
       />
       <v-ons-list-item modifier="nodivider">
@@ -239,10 +236,29 @@
     <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModelPostShow">
       <wow-help ref="wowHelp" @close="closeHelpModal" />
     </v-ons-modal>
+    <v-ons-modal :visible="isPhotoViewerVisible">
+      <img :src="(previewedPhoto || {}).url" class="photo-viewer-image" />
+      <div class="photo-viewer-toolbar">
+        <div>
+          <v-ons-button
+            class="delete-btn"
+            @click="onDeletePhoto(previewedPhoto)"
+            ><v-ons-icon icon="fa-trash"></v-ons-icon> Delete</v-ons-button
+          >
+        </div>
+        <div>
+          <v-ons-button @click="closePhotoPreview"
+            ><v-ons-icon icon="fa-times-circle"></v-ons-icon>
+            Close</v-ons-button
+          >
+        </div>
+      </div>
+    </v-ons-modal>
   </v-ons-page>
 </template>
 
 <script>
+import uuid from 'uuid/v1'
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
@@ -302,7 +318,7 @@ export default {
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,
       speciesGuessValue: null,
-      photos: {},
+      photos: [],
       uploadedPhotos: [],
       obsFieldValues: {},
       obsFieldInitialValues: {}, // for comparing after edit
@@ -326,6 +342,9 @@ export default {
       isExactCount: false,
       isPopulationRecord: false,
       extraConditionalRequiredFieldIds: [],
+      otherType: 'other',
+      isPhotoViewerVisible: false,
+      previewedPhoto: null,
     }
   },
   computed: {
@@ -422,6 +441,16 @@ export default {
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
     },
+    allPhotosByType() {
+      const allPhotos = [...this.uploadedPhotos, ...this.photos]
+      return allPhotos.reduce((accum, curr) => {
+        const type = this.computeType(curr).id || this.otherType
+        const photoCollection = accum[type] || []
+        photoCollection.push(curr)
+        accum[type] = photoCollection
+        return accum
+      }, {})
+    },
   },
   watch: {
     [`obsFieldValues.${orchidTypeObsFieldId}`](newVal) {
@@ -443,11 +472,6 @@ export default {
   },
   beforeMount() {
     this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
-    this.photos = this.photoMenu.reduce((accum, curr) => {
-      // prepopulate the keys of photos so they're watched by Vue
-      accum[curr.id] = null
-      return accum
-    }, {})
     // we cannot use this.taxonQuestionIds here as it's not bound at this stage
     this.taxonQuestionAutocompleteItems = this.obsFields
       .filter(f => f.datatype === taxonFieldType)
@@ -648,10 +672,24 @@ export default {
       const fieldId = data.extra
       this.obsFieldValues[fieldId] = data.value
     },
-    onDeleteUploadedPhoto(record) {
-      const id = record.id
-      this.photoIdsToDelete.push(id)
-      this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
+    onDeletePhoto(record) {
+      if (record.isRemote) {
+        const id = record.id
+        this.photoIdsToDelete.push(id)
+        this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
+        this.closePhotoPreview()
+        return
+      }
+      const indexOfPhoto = this.photos.findIndex(e => e.uuid == record.uuid)
+      if (indexOfPhoto < 0) {
+        // why can't we find the photo?
+        console.warn(`Data problem: could not find photo with
+          UUID='${record.uuid}'`)
+        this.closePhotoPreview()
+        return
+      }
+      this.photos.splice(indexOfPhoto, 1)
+      this.closePhotoPreview()
     },
     setDefaultAnswers() {
       try {
@@ -786,20 +824,11 @@ export default {
             value: paramToPass,
           })
         }
-        const filterUnsuppliedPhotos = p => !!p
         const record = {
-          addedPhotos: this.photoMenu
-            .map(curr => {
-              const currPhoto = this.photos[curr.id]
-              if (!currPhoto) {
-                return null
-              }
-              return {
-                type: curr.id,
-                file: currPhoto.file,
-              }
-            })
-            .filter(filterUnsuppliedPhotos),
+          addedPhotos: this.photos.map(curr => ({
+            type: curr.type,
+            file: curr.file,
+          })),
           speciesGuess: this.speciesGuessValue,
           obsFieldValues: this.displayableObsFields.reduce(
             (accum, currField) => {
@@ -922,17 +951,18 @@ export default {
       }
       return result
     },
-    async onPhotoAdded(photoDefObj) {
+    async onPhotoChanged(photoDefObj) {
       const type = photoDefObj.id
       const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
       if (!file) {
-        this.photos[type] = null
         return
       }
-      this.photos[type] = {
+      this.photos.push({
+        type,
         file,
         url: URL.createObjectURL(file),
-      }
+        uuid: uuid(),
+      })
       const exifData = await getExifFromBlob(file)
       if (exifData) {
         // FIXME if we don't already have geolocation then pull lat, long,
@@ -1019,7 +1049,27 @@ export default {
         }
         return this.photoMenu.find(p => url.includes(`/wow-${p.id}`))
       })()
-      return (matchingType || { name: 'unknown' }).name
+      return matchingType || { name: 'unknown' }
+    },
+    showPhotoPreview(photoRecord) {
+      this.isPhotoViewerVisible = true
+      // TODO get SW to cache the last few of these medium images and there will
+      // be passable offline support
+      const url = photoRecord.url
+      // FIXME if we aren't online, then don't do the replace on the URL. Just
+      // show the small photo
+      this.previewedPhoto = {
+        ...photoRecord,
+        url:
+          url.indexOf('square') > 0
+            ? photoRecord.url.replace('square', 'medium')
+            : url,
+      }
+    },
+    closePhotoPreview() {
+      // FIXME hook back button
+      this.isPhotoViewerVisible = false
+      this.previewedPhoto = null // no flash of old image
     },
   },
 }
@@ -1049,20 +1099,36 @@ function getAllowedValsStrategy(field) {
 </script>
 
 <style scoped lang="scss">
+$thumbnailSize: 75px;
+
+.margin-for-photos {
+  margin: 0.1em 0;
+}
+
 .photo-container {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-evenly;
+  justify-content: flex-start;
 }
 
 .photo-item {
-  background-color: #fff;
-  border-radius: 4px;
+  height: $thumbnailSize;
+  max-width: $thumbnailSize;
+  margin: 0.05em;
   text-align: center;
-  flex: 0 0 7em;
+  flex: 0 0 5em;
+
+  .wow-thumbnail {
+    height: 100%;
+    width: 100%;
+    background-size: cover;
+    background-position: center;
+  }
 
   label {
     display: block;
+    height: 100%;
+    background-color: #ececec;
   }
 
   .button-container {
@@ -1073,7 +1139,7 @@ function getAllowedValsStrategy(field) {
       the label is tapped, so we need to make the input also cover the same area as
       the label */
       width: 100%;
-      height: 7em;
+      height: $thumbnailSize;
       opacity: 0;
       overflow: hidden;
       position: absolute;
@@ -1081,9 +1147,31 @@ function getAllowedValsStrategy(field) {
   }
 }
 
+.photo-viewer-image {
+  /* we assume the photo is bigger than most screens so it'll fill as we expect */
+  max-width: 100vw;
+  max-height: 93vh;
+  display: block;
+  margin: 0 auto;
+}
+
+.photo-viewer-toolbar {
+  height: 6vh;
+  display: flex;
+  margin-top: 1vh;
+
+  div {
+    flex-grow: 1;
+  }
+
+  .delete-btn {
+    background-color: red;
+  }
+}
+
 .the-icon {
-  line-height: 70px;
-  font-size: 70px;
+  line-height: 1em;
+  font-size: 3em;
   color: #b9b9b9;
 }
 
@@ -1093,24 +1181,12 @@ function getAllowedValsStrategy(field) {
 }
 
 .photo-button + label {
-  font-size: 2em;
-  font-weight: 700;
   color: #5b5b5b;
 }
 
 .photo-button:focus + label,
 .photo-button + label:hover {
   color: black;
-}
-
-.thumb-container {
-  height: 70px;
-}
-
-.thumb-container div {
-  background-size: cover;
-  background-position: center center;
-  height: 100%;
 }
 
 // FIXME - make these map styles global?
