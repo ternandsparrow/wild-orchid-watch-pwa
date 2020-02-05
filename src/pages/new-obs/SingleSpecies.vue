@@ -42,6 +42,7 @@
           </div>
           <label :for="'photo' + $index">
             <!-- FIXME allow deleting photo. You can by browsing and cancelling but that's obscure -->
+            <!-- FIXME allow viewing full size image, delete button can be on that screen -->
             <div class="thumb-container">
               <v-ons-icon
                 v-if="!photos[curr.id]"
@@ -63,14 +64,14 @@
         <v-ons-list-item>
           <div class="photo-title">Existing photos</div>
         </v-ons-list-item>
-        <v-ons-list-item>
-          <div
-            v-for="curr of uploadedPhotos"
-            :key="curr.id"
-            class="uploaded-photo-item"
-          >
-            <!-- TODO add click event to photo to open larger view -->
-            <img :src="curr.url" />
+        <v-ons-list-item v-for="curr of uploadedPhotos" :key="curr.id">
+          <div class="left">
+            <img class="list-item__thumbnail" :src="curr.url" />
+          </div>
+          <div class="center">
+            <span>{{ computeType(curr) }} photo</span>
+          </div>
+          <div class="right">
             <div
               class="text-center less-prominent"
               @click="onDeleteUploadedPhoto(curr)"
@@ -289,13 +290,14 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole', name: 'Whole plant' },
+        { id: 'whole-plant', name: 'Whole plant' },
         { id: 'flower', name: 'Flower' },
         { id: 'leaf', name: 'Leaf' },
-        { id: 'hab', name: 'Habitat' },
-        { id: 'mhab', name: 'Micro-habitat' },
-        { id: 'can', name: 'Canopy' },
-        { id: 'pol', name: 'Floral visitors' },
+        { id: 'habitat', name: 'Habitat' },
+        { id: 'micro-habitat', name: 'Micro-habitat' },
+        { id: 'canopy', name: 'Canopy' },
+        { id: 'floral-visitors', name: 'Floral visitors' },
+        { id: 'host-tree', name: 'Epiphyte host tree' },
       ],
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,
@@ -558,8 +560,6 @@ export default {
         this.notes = this.observationDetail.notes
       }
       // pre-populate photos
-      // FIXME we don't know what type any given photo is, how can we store
-      // this on the server? A do-not-edit obs field just for metadata?
       this.uploadedPhotos = this.observationDetail.photos
       // FIXME support changing, or at least showing, geolocation
     },
@@ -1011,6 +1011,17 @@ export default {
       const key = field.id
       return mapping[key]
     },
+    computeType(photoRecord) {
+      const url = photoRecord.url
+      const type = photoRecord.type // will only be present for local photos
+      const matchingType = (() => {
+        if (type) {
+          return this.photoMenu.find(p => p.id === type)
+        }
+        return this.photoMenu.find(p => url.includes(`/wow-${p.id}`))
+      })()
+      return (matchingType || { name: 'unknown' }).name
+    },
   },
 }
 
@@ -1136,15 +1147,6 @@ function getAllowedValsStrategy(field) {
 .photo-title {
   font-weight: bold;
   margin-top: 1em;
-}
-
-.uploaded-photo-item {
-  margin: 0.25em 0.5em;
-
-  img {
-    max-width: 100px;
-    max-height: 100px;
-  }
 }
 
 .required {

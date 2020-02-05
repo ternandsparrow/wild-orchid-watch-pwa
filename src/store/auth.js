@@ -212,7 +212,12 @@ export default {
               photoRecord.file.data,
               photoRecord.file.mime,
             )
-            formData.append('file', photoBlob)
+            // we create a File so we can encode the type of the photo in the
+            // filename. Very sneaky ;)
+            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
+              type: photoBlob.type,
+            })
+            formData.append('file', photoFile)
           },
           `${state.apiToken}`,
         )

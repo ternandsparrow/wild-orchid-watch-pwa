@@ -1045,7 +1045,6 @@ const actions = {
         }),
       )
       for (const curr of apiRecords.photoPostBodyPartials) {
-        // TODO can we also store "photo type", curr.type, on the server?
         await dispatch('_createPhoto', {
           photoRecord: curr,
           relatedObsId: inatRecordId,
