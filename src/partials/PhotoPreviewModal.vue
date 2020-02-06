@@ -35,6 +35,7 @@ export default {
   data() {
     return {
       windowHeight: window.innerHeight,
+      debouncedResizeListener: null,
     }
   },
   computed: {
@@ -45,12 +46,15 @@ export default {
   },
   beforeMount() {
     // thanks https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
+    this.debouncedResizeListener = debounce(() => {
+      this.windowHeight = window.innerHeight
+    }, 250)
     window.addEventListener('resize', this.debouncedResizeListener)
   },
-  debouncedResizeListener: debounce(() => {
-    this.windowHeight = window.innerHeight
-  }, 250),
   beforeDestroy() {
+    if (!this.debouncedResizeListener) {
+      return
+    }
     window.removeEventListener('resize', this.debouncedResizeListener)
   },
   methods: {
