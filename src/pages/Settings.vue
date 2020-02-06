@@ -117,7 +117,6 @@ export default {
   data() {
     return {
       whenToSyncOptions: [
-        // FIXME support more options: only WiFi
         { value: alwaysUpload, label: 'Always (WiFi, mobile data)' },
         { value: neverUpload, label: 'Never' },
       ],
@@ -175,11 +174,7 @@ export default {
     },
     handleResetOnboarderClick() {
       this.$store.commit('app/setIsFirstRun', true)
-      this.$ons.notification.toast('Onboarder reset', {
-        timeout: 1000,
-        animation: 'ascend',
-      })
-      window.location.reload()
+      this.$router.push({ name: 'Onboarder' })
     },
     async doLogout() {
       try {
