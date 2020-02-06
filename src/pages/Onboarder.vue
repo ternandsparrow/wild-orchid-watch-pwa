@@ -144,6 +144,7 @@ export default {
         left: 0,
         right: 0,
         color: '#333',
+        'z-index': 1, // WOW-60 needed for Firefox
       },
       tsAndCsModalVisible: false,
     }
