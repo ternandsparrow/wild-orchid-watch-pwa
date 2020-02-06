@@ -162,11 +162,11 @@ function getHelpData() {
 
 <style scoped>
 .help-container {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   color: black;
   background-color: white;
-  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .padding-so-fab-doesnt-cover-text {
