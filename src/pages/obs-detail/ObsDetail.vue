@@ -49,10 +49,14 @@
         overscrollable
         :index.sync="carouselIndex"
       >
-        <!-- FIXME change ratio to landscape and images should "cover" -->
         <v-ons-carousel-item v-for="curr of photos" :key="curr">
           <div class="photo-container">
-            <img class="a-photo" :src="curr" alt="an observation photo" />
+            <img
+              class="a-photo"
+              :src="curr"
+              alt="an observation photo"
+              @click="showPhotoPreview(curr)"
+            />
           </div>
         </v-ons-carousel-item>
       </v-ons-carousel>
@@ -177,11 +181,12 @@
       <!--   </p>                                        -->
       <!-- </div>                                        -->
     </div>
+    <wow-photo-preview />
   </v-ons-page>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import {
   approxAreaSearchedObsFieldId,
@@ -224,6 +229,7 @@ export default {
   },
   computed: {
     ...mapGetters('obs', ['observationDetail', 'isSelectedRecordEditOfRemote']),
+    ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
     },
@@ -457,6 +463,11 @@ export default {
     onEdit() {
       const obsId = wowIdOf(this.nullSafeObs)
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
+    },
+    showPhotoPreview(url) {
+      this.$store.commit('ephemeral/previewPhoto', {
+        url: url.indexOf('medium') > 0 ? url.replace('medium', 'large') : url,
+      })
     },
   },
 }

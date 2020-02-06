@@ -236,24 +236,7 @@
     <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModelPostShow">
       <wow-help ref="wowHelp" @close="closeHelpModal" />
     </v-ons-modal>
-    <v-ons-modal :visible="isPhotoViewerVisible">
-      <img :src="(previewedPhoto || {}).url" class="photo-viewer-image" />
-      <div class="photo-viewer-toolbar">
-        <div>
-          <v-ons-button
-            class="delete-btn"
-            @click="onDeletePhoto(previewedPhoto)"
-            ><v-ons-icon icon="fa-trash"></v-ons-icon> Delete</v-ons-button
-          >
-        </div>
-        <div>
-          <v-ons-button @click="closePhotoPreview"
-            ><v-ons-icon icon="fa-times-circle"></v-ons-icon>
-            Close</v-ons-button
-          >
-        </div>
-      </div>
-    </v-ons-modal>
+    <wow-photo-preview :show-delete="true" @on-delete="onDeletePhoto" />
   </v-ons-page>
 </template>
 
@@ -343,8 +326,6 @@ export default {
       isPopulationRecord: false,
       extraConditionalRequiredFieldIds: [],
       otherType: 'other',
-      isPhotoViewerVisible: false,
-      previewedPhoto: null,
     }
   },
   computed: {
@@ -1052,24 +1033,22 @@ export default {
       return matchingType || { name: 'unknown' }
     },
     showPhotoPreview(photoRecord) {
-      this.isPhotoViewerVisible = true
-      // TODO get SW to cache the last few of these medium images and there will
-      // be passable offline support
       const url = photoRecord.url
-      // FIXME if we aren't online, then don't do the replace on the URL. Just
-      // show the small photo
-      this.previewedPhoto = {
+      // TODO enhancement idea: if we aren't online, then don't do the replace
+      // on the URL. Just show the small photo rather than a broken image
+      // placeholder. Or get the SW to cache the medium URLs so they'll be
+      // available when offline
+      const previewedPhoto = {
         ...photoRecord,
         url:
           url.indexOf('square') > 0
-            ? photoRecord.url.replace('square', 'medium')
+            ? photoRecord.url.replace('square', 'large')
             : url,
       }
+      this.$store.commit('ephemeral/previewPhoto', previewedPhoto)
     },
     closePhotoPreview() {
-      // FIXME hook back button
-      this.isPhotoViewerVisible = false
-      this.previewedPhoto = null // no flash of old image
+      this.$store.commit('ephemeral/closePhotoPreview')
     },
   },
 }
@@ -1144,28 +1123,6 @@ $thumbnailSize: 75px;
       overflow: hidden;
       position: absolute;
     }
-  }
-}
-
-.photo-viewer-image {
-  /* we assume the photo is bigger than most screens so it'll fill as we expect */
-  max-width: 100vw;
-  max-height: 93vh;
-  display: block;
-  margin: 0 auto;
-}
-
-.photo-viewer-toolbar {
-  height: 6vh;
-  display: flex;
-  margin-top: 1vh;
-
-  div {
-    flex-grow: 1;
-  }
-
-  .delete-btn {
-    background-color: red;
   }
 }
 

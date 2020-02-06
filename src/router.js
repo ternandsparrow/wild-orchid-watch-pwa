@@ -102,7 +102,13 @@ const router = new VueRouter({
 
 router.beforeEach((to, from, next) => {
   if (store.state.ephemeral.isHelpModalVisible) {
+    // make the back button close the help modal
     store.commit('ephemeral/hideHelpModal')
+    return next(false)
+  }
+  if (store.state.ephemeral.previewedPhoto) {
+    // make the back button close the photo preview modal
+    store.commit('ephemeral/closePhotoPreview')
     return next(false)
   }
   if (store.state.ephemeral.isWarnOnLeaveRoute) {

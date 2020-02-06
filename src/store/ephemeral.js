@@ -22,6 +22,7 @@ const state = {
   queueProcessorPromise: null,
   isWarnOnLeaveRoute: false,
   isHelpModalVisible: false,
+  previewedPhoto: null,
 }
 
 const mutations = {
@@ -55,6 +56,9 @@ const mutations = {
   disableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = false),
   showHelpModal: state => (state.isHelpModalVisible = true),
   hideHelpModal: state => (state.isHelpModalVisible = false),
+  previewPhoto: (state, previewedPhoto) =>
+    (state.previewedPhoto = previewedPhoto),
+  closePhotoPreview: state => (state.previewedPhoto = null),
 }
 
 const actions = {
