@@ -1062,11 +1062,14 @@ function isDeletedObsFieldValue(value) {
 function getAllowedValsStrategy(field) {
   const excludeNotCollectedForRequiredFilter = v =>
     !field.required || v !== notCollected
+  const squareAreaMapper = vals =>
+    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
+      return { value: v, title: squareAreaValueToTitle(v) }
+    })
   const strats = {
-    [approxAreaSearchedObsFieldId]: vals =>
-      vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
-        return { value: v, title: squareAreaValueToTitle(v) }
-      }),
+    [approxAreaSearchedObsFieldId]: squareAreaMapper,
+    [areaOfExactCountObsFieldId]: squareAreaMapper,
+    [areaOfPopulationObsFieldId]: squareAreaMapper,
   }
   const result = strats[field.id]
   const defaultStrat = vals =>
