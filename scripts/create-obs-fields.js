@@ -165,17 +165,24 @@ const obsFields = [
     allowedValues: squareAreas,
   },
   {
-    name: 'Vegetation formation',
+    name: 'Dominant vegetation growth form',
     description: '',
     datatype: 'text',
-    allowedValues: 'Not collected|Value1|Value2', // FIXME get these values
+    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Gress-tree|Cycad|Unknown`,
   },
   {
-    name: 'Vegetation height of the dominant layer (metres)',
+    name: 'Height of the most dominant growth form present (metres)',
     description:
       'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for shrublands, height of the shrub layer',
     datatype: 'text',
-    allowedValues: 'Not collected|<0.1|0.3|0.5|0.75|1|2|3|5|7|10|15|20|30|30+', // FIXME get these values
+    allowedValues: `${obsFieldConstants.notCollected}|>30|10-30|3-10|1-3|0.5-1|<0.5`,
+  },
+  {
+    name: 'Cover of the most dominant stratum',
+    description:
+      'Foliage cover - proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.notCollected}|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped clumps)`,
   },
   {
     name: 'Vegetation community notes',
