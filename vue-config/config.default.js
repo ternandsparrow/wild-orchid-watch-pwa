@@ -2,12 +2,14 @@ const path = require('path')
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
 const KillVueCliManifestPlugin = require('./KillVueCliManifestPlugin')
 const DumpVueEnvVarsWebpackPlugin = require('./DumpVueEnvVarsWebpackPlugin.js')
+const WorkerPlugin = require('worker-plugin');
 
 module.exports = {
   configureWebpack: {
     plugins: [
       new DumpVueEnvVarsWebpackPlugin({ filename: 'wow-env-vars.js' }),
       new KillVueCliManifestPlugin(),
+      new WorkerPlugin(),
       new FaviconsWebpackPlugin({
         logo: './src/assets/icon-seed-white.png',
         inject: true,

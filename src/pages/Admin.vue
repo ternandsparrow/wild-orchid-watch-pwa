@@ -188,6 +188,25 @@
         >Community workflow</v-ons-button
       >
     </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        ML Test
+      </div>
+      <p>
+        Load the Trained Model, Load a test Image and then do a predict on the
+        image.
+      </p>
+      <img
+        id="imageToClassify"
+        src="img/help/orchid-type_terrestrial.png"
+        alt="Onsen UI"
+        style="width: 100%"
+      />
+      <v-ons-button @click="doImageClassification"
+        >Perform classification</v-ons-button
+      >
+      <div class="code-style">{{ imageClassificationResult }}</div>
+    </v-ons-card>
     <div class="footer-whitespace"></div>
   </v-ons-page>
 </template>
@@ -195,11 +214,15 @@
 <script>
 import { mapGetters } from 'vuex'
 import _ from 'lodash'
+import ml5 from 'ml5'
+import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
 import { isSwActive } from '@/misc/helpers'
+
+const wowModelPath = '/image-ml/v1/model.json'
 
 export default {
   data() {
@@ -219,6 +242,8 @@ export default {
       isManualErrorCaught: true,
       swObsQueueStatus: 'not started',
       swDepsQueueStatus: 'not started',
+      imageClassificationResult: 'nothing yet',
+      classifier: null,
     }
   },
   computed: {
@@ -233,6 +258,7 @@ export default {
   },
   created() {
     this.computeConfigItems()
+    this.classifier = ml5.imageClassifier(wowModelPath, this.modelReady)
   },
   methods: {
     doLQP() {
@@ -289,6 +315,25 @@ export default {
         parsed.obs.mySpecies = `(excluded, ${parsed.obs.mySpecies.length} item array)`
       }
       this.vuexDump = JSON.stringify(parsed, null, 2)
+    },
+    doImageClassification() {
+      const worker = new Worker("classificationWorker.js");
+      const obj = Comlink.wrap(worker);
+      alert(`Counter: ${await obj.counter}`);
+      await obj.inc();
+      alert(`Counter: ${await obj.counter}`);
+      // Make a prediction with a selected image
+      this.classifier.classify(
+        document.getElementById('imageToClassify'),
+        (err, results) => {
+          console.log('err is: ' + err)
+          console.log('classification result is: ' + JSON.stringify(results))
+          this.imageClassificationResult = JSON.stringify(results)
+        },
+      )
+    },
+    modelReady() {
+      console.log('Model is loaded..')
     },
     getLocation() {
       this.locErrorMsg = null
