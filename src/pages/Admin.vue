@@ -64,6 +64,17 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Force refresh project info
+      </div>
+      <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
+      <p>
+        <v-ons-button @click="doProjectInfoRefresh"
+          >Get fresh project info now</v-ons-button
+        >
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Trigger queue processing
       </div>
       <div>
@@ -194,6 +205,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import moment from 'moment'
 import _ from 'lodash'
 
 import CommunityComponent from '@/pages/new-obs/Community'
@@ -229,6 +241,10 @@ export default {
     },
     isProcessingQueue() {
       return !!this.$store.state.ephemeral.queueProcessorPromise
+    },
+    projectInfoLastUpdatedPretty() {
+      const luDate = this.$store.state.obs.projectInfoLastUpdated
+      return moment(luDate || 0)
     },
   },
   created() {
@@ -388,6 +404,9 @@ export default {
         }
         controller.postMessage(msg, [msgChan.port2])
       })
+    },
+    async doProjectInfoRefresh() {
+      await this.$store.dispatch('obs/getProjectInfo')
     },
   },
 }

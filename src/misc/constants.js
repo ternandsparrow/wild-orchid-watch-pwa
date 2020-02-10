@@ -139,6 +139,11 @@ export const evidenceThreatsObsFieldIds = parseFieldIdList(
   'evidence of threats',
 )
 
+export const mutuallyExclusiveMultiselectObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_MUTUALLY_EXCLUSIVE_MULTISELECT',
+  'mutually exclusive',
+)
+
 function parseFieldIdList(envVarKey, msgFragment) {
   const ids = process.env[envVarKey]
   if (!ids) {

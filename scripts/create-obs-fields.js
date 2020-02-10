@@ -90,7 +90,7 @@ const obsFields = [
     allowedValues: `${commonLanduses}|Unknown`,
   },
   {
-    name: 'Is surrounded by litter',
+    name: 'Is the plant surrounded by litter',
     description: '',
     datatype: 'text',
     allowedValues: 'Not collected|Yes|No',
@@ -109,7 +109,7 @@ const obsFields = [
   },
   // Host tree photo - not an obs field
   {
-    name: 'Landform morphology type',
+    name: 'Landform type',
     description: '',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.notCollected}|Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression`,
@@ -121,9 +121,9 @@ const obsFields = [
     allowedValues: `${obsFieldConstants.notCollected}|Unknown|Sand - felt or heard when pinching|Loam|Clay`,
   },
   ...multiselect(
-    'Surface coarse fragments present',
+    'Rock cover size',
     '',
-    'Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
+    'None|Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
   ),
   {
     name: 'Approx area searched (m²)',
@@ -153,7 +153,7 @@ const obsFields = [
     allowedValues: squareAreas,
   },
   {
-    name: 'Count of individuals recorded',
+    name: 'Number of individuals recorded',
     description: 'How many individual organisms did you observe?',
     datatype: 'numeric',
     allowedValues: '',
@@ -206,7 +206,7 @@ const obsFields = [
     description: '',
     datatype: 'text',
     allowedValues:
-      'Not collected|Native bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+      'Not collected|Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
   },
   // Floral visitors photo - not an obs field
   ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
