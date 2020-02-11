@@ -78,7 +78,7 @@
         </div>
       </template>
       <wow-header
-        label="Field Name"
+        label="Species name or your descriptive field name"
         help-target="field-name"
         class="margin-for-photos"
         @on-help="showHelp"
@@ -167,12 +167,14 @@
                 <v-ons-switch
                   v-model="obsFieldValues[currVal.id]"
                   :input-id="currField.id + '-' + currVal.id"
+                  :disabled="fieldIdIsDisabled[currVal.id]"
+                  @change="onMultiselectChange(currField, currVal, $event)"
                 />
                 <label
                   :for="currField.id + '-' + currVal.id"
                   class="multiselect-question"
-                  >{{ currVal.label }}</label
-                >
+                  >{{ currVal.label }}
+                </label>
               </div>
             </template>
             <div v-else style="color: red;">
@@ -266,6 +268,7 @@ import {
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
   immediateLanduseMultiselectId,
+  mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
   notSupported,
@@ -326,6 +329,7 @@ export default {
       isPopulationRecord: false,
       extraConditionalRequiredFieldIds: [],
       otherType: 'other',
+      fieldIdIsDisabled: {},
     }
   },
   computed: {
@@ -488,6 +492,7 @@ export default {
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
+        this.setDefaultDisabledness()
       })
       this.geolocationErrorMsg = null
       // FIXME show message to prime users about accepting geolocation before
@@ -525,6 +530,7 @@ export default {
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
+        this.setDefaultDisabledness()
         // pre-populate obs fields
         const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
@@ -554,6 +560,18 @@ export default {
           ...answersFromSaved,
         }
         this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
+        // fire change handler for all multiselects to set the UI up as expected
+        for (const currMultiselect of this.displayableObsFields.filter(
+          e => e.wowDatatype === multiselectFieldType,
+        )) {
+          for (const currItem of currMultiselect.multiselectValues) {
+            // TODO possible enhancement: check for impossible situation due to
+            // edits done outside the app
+            this.onMultiselectChange(currMultiselect, currItem, {
+              value: this.obsFieldValues[currItem.id],
+            })
+          }
+        }
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -671,6 +689,11 @@ export default {
       }
       this.photos.splice(indexOfPhoto, 1)
       this.closePhotoPreview()
+    },
+    setDefaultDisabledness() {
+      for (const curr of Object.keys(this.obsFieldValues)) {
+        this.fieldIdIsDisabled[curr] = false
+      }
     },
     setDefaultAnswers() {
       try {
@@ -1049,6 +1072,33 @@ export default {
     },
     closePhotoPreview() {
       this.$store.commit('ephemeral/closePhotoPreview')
+    },
+    isMutuallyExclusive(field) {
+      return mutuallyExclusiveMultiselectObsFieldIds.includes(field.id)
+    },
+    onMultiselectChange(multiselectGroupField, itemField, $event) {
+      const newVal = $event.value
+      const siblingFieldIds = multiselectGroupField.multiselectValues
+        .map(e => e.id)
+        .filter(e => e !== itemField.id)
+      if (this.isMutuallyExclusive(itemField)) {
+        for (const curr of siblingFieldIds) {
+          this.fieldIdIsDisabled[curr] = newVal
+        }
+        return
+      }
+      const isAnySiblingTruthy = siblingFieldIds.some(
+        e => this.obsFieldValues[e],
+      )
+      if (isAnySiblingTruthy) {
+        return
+      }
+      const mutuallyExclusiveSiblingIdsToDisable = multiselectGroupField.multiselectValues
+        .filter(e => this.isMutuallyExclusive(e))
+        .map(e => e.id)
+      for (const curr of mutuallyExclusiveSiblingIdsToDisable) {
+        this.fieldIdIsDisabled[curr] = newVal
+      }
     },
   },
 }
