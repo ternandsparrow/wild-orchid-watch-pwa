@@ -134,6 +134,11 @@ export const immediateLanduseObsFieldIds = parseFieldIdList(
   'immediate landuse',
 )
 
+export const floralVisitorsObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_FLORAL_VISITORS',
+  'floral visitors',
+)
+
 export const evidenceThreatsObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_EVIDENCE_THREATS',
   'evidence of threats',
@@ -163,6 +168,7 @@ function parseFieldIdList(envVarKey, msgFragment) {
 
 export const coarseFragmentsMultiselectId = 'coarseFragmentsMultiselect'
 export const evidenceThreatsMultiselectId = 'evidenceThreatsMultiselect'
+export const floralVisitorsMultiselectId = 'floralVisitorsMultiselect'
 export const immediateLanduseMultiselectId = 'immediateLanduseMultiselect'
 export const phenologyMultiselectId = 'phenologyMultiselect'
 
@@ -170,6 +176,7 @@ export function getMultiselectId(fieldId) {
   const multiselectIdMapping = {
     [coarseFragmentsObsFieldIds]: coarseFragmentsMultiselectId,
     [evidenceThreatsObsFieldIds]: evidenceThreatsMultiselectId,
+    [floralVisitorsObsFieldIds]: floralVisitorsMultiselectId,
     [immediateLanduseObsFieldIds]: immediateLanduseMultiselectId,
     [phenologyObsFieldIds]: phenologyMultiselectId,
   }
