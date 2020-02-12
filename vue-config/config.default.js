@@ -2,7 +2,7 @@ const path = require('path')
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
 const KillVueCliManifestPlugin = require('./KillVueCliManifestPlugin')
 const DumpVueEnvVarsWebpackPlugin = require('./DumpVueEnvVarsWebpackPlugin.js')
-const WorkerPlugin = require('worker-plugin');
+const WorkerPlugin = require('worker-plugin')
 
 module.exports = {
   configureWebpack: {
