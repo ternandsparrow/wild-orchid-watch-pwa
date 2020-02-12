@@ -182,7 +182,7 @@ const obsFields = [
     description:
       'Foliage cover - proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
     datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped clumps)`,
+    allowedValues: `${obsFieldConstants.notCollected}|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped)`,
   },
   {
     name: 'Vegetation community notes',
@@ -201,13 +201,11 @@ const obsFields = [
     datatype: 'text',
     allowedValues: 'Not collected|Yes|No',
   },
-  {
-    name: 'Floral visitors/potential pollinators observed',
-    description: '',
-    datatype: 'text',
-    allowedValues:
-      'Not collected|Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
-  },
+  ...multiselect(
+    'Floral visitors/potential pollinators observed',
+    '',
+    'Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+  ),
   // Floral visitors photo - not an obs field
   ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
   {

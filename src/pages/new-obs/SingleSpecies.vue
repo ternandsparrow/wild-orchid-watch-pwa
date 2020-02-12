@@ -265,6 +265,7 @@ import {
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   failed,
+  floralVisitorsMultiselectId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
   immediateLanduseMultiselectId,
@@ -1034,6 +1035,7 @@ export default {
       const mapping = {
         [orchidTypeObsFieldId]: 'orchid-type',
         [immediateLanduseMultiselectId]: 'landuse-types',
+        [floralVisitorsMultiselectId]: 'floral-visitors',
         [widerLanduseObsFieldId]: 'landuse-types',
         [43]: 'litter',
         [46]: 'landform-element',

@@ -100,6 +100,10 @@ function getHelpData() {
       values: [['FIXME', 'fill this in', null]],
     },
     {
+      heading: 'Floral visitors',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
       heading: 'Landuse types',
       values: [
         [
