@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
-import * as moment from 'moment'
+import moment from 'moment'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
@@ -367,6 +367,79 @@ export function getExifFromBlob(blobish) {
 
 export function wowIdOf(record) {
   return record.inatId || record.uuid
+}
+
+export function fetchRecords(url) {
+  return fetch(url).then(function(resp) {
+    if (!resp.ok) {
+      console.error(`Made fetch() for url='${url}' but it was not ok`)
+      return false
+    }
+    return resp.json()
+  })
+}
+
+export function fetchSingleRecord(url) {
+  return fetchRecords(url).then(function(body) {
+    // FIXME also check for total_results > 1
+    if (!body.total_results) {
+      return null
+    }
+    return body.results[0]
+  })
+}
+
+const missionStartMarker = 'START-OF-MISSION'
+const missionEndMarker = 'END-OF-MISSION'
+export function encodeMissionBody(name, endDate, goal) {
+  const today = moment().format('DD-MMM-YYYY')
+  const endDatePretty = moment(endDate).format('DD-MMM-YYYY')
+  return `
+  ${name}
+  Start date: ${today}
+  End date: ${endDatePretty}
+  Goal: ${goal}
+  <code style="display: none;">
+  ${missionStartMarker}
+  ${JSON.stringify(
+    {
+      name,
+      startDateRaw: moment().unix(),
+      endDateRaw: moment(endDate).unix(),
+      goal,
+    },
+    null,
+    2,
+  )}
+  ${missionEndMarker}
+  // created by Wild Orchid Watch app version: ${constants.appVersion}
+  </code>
+  `
+}
+
+export function decodeMissionBody(body) {
+  const indexOfStartMarker = body.indexOf(missionStartMarker)
+  if (!~indexOfStartMarker) {
+    throw new Error('No start marker, cannot parse')
+  }
+  const indexOfEndMarker = body.indexOf(missionEndMarker)
+  if (!~indexOfEndMarker) {
+    throw new Error('No end marker, cannot parse')
+  }
+  const usefulBitAsString = body.substring(
+    indexOfStartMarker + missionStartMarker.length,
+    indexOfEndMarker,
+  )
+  const parsed = JSON.parse(usefulBitAsString)
+  return {
+    ...parsed,
+    startDate: moment.unix(parsed.startDateRaw).format('YYYY-MM-DD'),
+    endDate: moment.unix(parsed.endDateRaw).format('YYYY-MM-DD'),
+  }
+}
+
+export function isWowMissionJournalPost(bodyStr) {
+  return !!~bodyStr.indexOf(missionStartMarker)
 }
 
 // Thanks for these two functions:

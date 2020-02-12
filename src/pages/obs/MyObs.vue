@@ -12,7 +12,9 @@
       <div v-if="isDoingSync" class="updating-msg text-center">
         Synchronising with server
       </div>
-      <no-records-msg v-if="isNoRecords" />
+      <div v-if="isNoRecords" class="no-records-msg">
+        You haven't submitted any Observations, so far..
+      </div>
       <v-ons-list v-if="!isNoRecords">
         <v-ons-list-header
           v-if="isShowDeleteDetails"

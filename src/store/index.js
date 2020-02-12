@@ -12,7 +12,7 @@ import obs, {
 } from './obs'
 import activity from './activity'
 import missions from './missions'
-import { wowErrorHandler } from '@/misc/helpers'
+import { wowErrorHandler, chainedError } from '@/misc/helpers'
 import {
   neverUpload,
   persistedStateLocalStorageKey,
@@ -54,6 +54,33 @@ const store = new Vuex.Store({
     flagGlobalError({ commit }, { msg, userMsg, err }) {
       commit('ephemeral/flagGlobalError', userMsg)
       wowErrorHandler(msg, err)
+    },
+    async fetchAllPages({ dispatch }, { baseUrl, pageSize }) {
+      let isMorePages = true
+      let allRecords = []
+      let currPage = 1
+      while (isMorePages) {
+        try {
+          console.debug(`Getting page=${currPage} of ${baseUrl}`)
+          const isExistingQueryString = ~baseUrl.indexOf('?')
+          const joiner = isExistingQueryString ? '&' : '?'
+          const urlSuffix = `${baseUrl}${joiner}per_page=${pageSize}&page=${currPage}`
+          const resp = await dispatch('doApiGet', { urlSuffix })
+          const results = resp.results
+          // note: we use the per_page from the resp because if we request too
+          // many records per page, the server will ignore our page size and
+          // the following check won't work
+          isMorePages = results.length === resp.per_page
+          allRecords = allRecords.concat(results)
+          currPage += 1
+        } catch (err) {
+          throw chainedError(
+            `Failed while trying to get page=${currPage} of ${baseUrl}`,
+            err,
+          )
+        }
+      }
+      return allRecords
     },
   },
   getters: {

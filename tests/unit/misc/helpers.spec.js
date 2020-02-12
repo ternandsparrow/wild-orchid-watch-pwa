@@ -1,3 +1,4 @@
+import moment from 'moment'
 import * as objectUnderTest from '@/misc/helpers'
 
 describe('findCommonString', () => {
@@ -396,6 +397,50 @@ describe('buildStaleCheckerFn', () => {
       state.blahLastUpdated + doubleStaleMinutes * 2 * 60 * 1000
     const isStale = fnUnderTest(state)
     expect(isStale).toEqual(true)
+  })
+})
+
+describe('Mission body', () => {
+  it('should encode all supplied information in a mission body', () => {
+    const name = 'some name'
+    const endDate = '2020-02-28'
+    const goal = 'some goal'
+    const result = objectUnderTest.encodeMissionBody(name, endDate, goal)
+    const indexOfCodeStartTag = result.indexOf('<code')
+    expect(!!~indexOfCodeStartTag).toEqual(true)
+    expect(!!~result.indexOf(name, indexOfCodeStartTag)).toEqual(true)
+    expect(!!~result.indexOf('startDateRaw":', indexOfCodeStartTag)).toEqual(
+      true,
+    )
+    expect(!!~result.indexOf('endDateRaw":', indexOfCodeStartTag)).toEqual(true)
+    expect(!!~result.indexOf(goal, indexOfCodeStartTag)).toEqual(true)
+  })
+
+  it('should be able to decode something that was encoded', () => {
+    const name = 'some name'
+    const endDate = '2020-02-28'
+    const goal = 'some goal'
+    const encoded = objectUnderTest.encodeMissionBody(name, endDate, goal)
+    const result = objectUnderTest.decodeMissionBody(encoded)
+    expect(result.name).toEqual(name)
+    expect(moment(result.startDate).isBefore(moment(endDate))).toEqual(true)
+    expect(result.endDate).toEqual(endDate)
+    expect(result.goal).toEqual(goal)
+  })
+
+  it('should throw an error when the start marker is missing', () => {
+    expect(
+      objectUnderTest.decodeMissionBody.bind(null, 'blah blah blah'),
+    ).toThrow(new Error('No start marker, cannot parse'))
+  })
+
+  it('should throw an error when the end marker is missing', () => {
+    expect(
+      objectUnderTest.decodeMissionBody.bind(
+        null,
+        'blah START-OF-MISSION blah blah',
+      ),
+    ).toThrow(new Error('No end marker, cannot parse'))
   })
 })
 

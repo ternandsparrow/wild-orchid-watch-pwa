@@ -5,6 +5,8 @@ import store from '@/store'
 import Admin from '@/pages/Admin'
 import FAQ from '@/pages/faq/index'
 import HelpPage from '@/pages/HelpPage'
+import Missions from '@/pages/missions/Available'
+import MissionsNew from '@/pages/missions/New'
 import NotFound from '@/pages/NotFound'
 import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
@@ -82,6 +84,16 @@ const router = new VueRouter({
       path: '/faq',
       name: 'FAQ',
       component: FAQ,
+    },
+    {
+      path: '/missions',
+      name: 'Missions',
+      component: Missions,
+    },
+    {
+      path: '/missions/new',
+      name: 'MissionsNew',
+      component: MissionsNew,
     },
     {
       path: '/zzadmin',

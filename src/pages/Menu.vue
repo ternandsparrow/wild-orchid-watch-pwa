@@ -66,7 +66,6 @@ import { mapGetters } from 'vuex'
 
 import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
-// import Missions from '@/pages/missions/index'
 // import Dashboard from '@/pages/dashboard/index'
 import {
   appVersion,
@@ -127,11 +126,6 @@ export default {
           },
         },
         // FIXME uncomment when they have real content
-        // {
-        //   title: 'Missions',
-        //   icon: 'md-compass',
-        //   component: Missions,
-        // },
         // {
         //   title: 'Activity',
         //   icon: 'md-accounts-alt',

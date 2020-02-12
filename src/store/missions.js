@@ -1,45 +1,42 @@
+import * as constants from '@/misc/constants'
+import { decodeMissionBody, isWowMissionJournalPost } from '@/misc/helpers'
+
 const state = {
-  myMissions: [],
   availableMissions: [],
-  tabIndex: 0,
 }
 
 const mutations = {
-  setMyMissions: (state, value) => (state.myMissions = value),
   setAvailableMissions: (state, value) => (state.availableMissions = value),
-  setTab: (state, value) => (state.tabIndex = value),
 }
 
 const actions = {
-  async getMyMissions({ commit }) {
-    // FIXME remove and do it for real
-    commit('setMyMissions', [])
-    const records = []
-    records[0] = {
-      id: 0,
-      targetSpecies: 'A yellow one',
-      targetObservationCount: 5,
-      targetSearchPoint: '2123.123, 123132.31231',
-      photoUrl:
-        'https://static.inaturalist.org/photos/41817887/medium.jpeg?1560430573',
-    }
-    commit('setMyMissions', records)
-  },
-  async getAvailableMissions({ commit }) {
-    // FIXME remove and do it for real
-    commit('setAvailableMissions', [])
-    const records = []
-    records[0] = {
-      id: 1,
-      targetSpecies: 'A purple one',
-      targetObservationCount: 5,
-      targetSearchPoint: '2123.123, 123132.31231',
-      photoUrl:
-        'https://static.inaturalist.org/photos/41724201/medium.jpg?1560338158',
-    }
-    commit('setAvailableMissions', records)
+  async getAvailableMissions({ dispatch, commit }) {
+    const baseUrl = '/projects/' + constants.inatProjectSlug + '/posts/'
+    const allRawRecords = await dispatch(
+      'fetchAllPages',
+      { baseUrl, pageSize: 20 },
+      { root: true },
+    )
+    // FIXME can we use {start,stop}_time, place_id/lat/lng, radius, distance
+    // in posts for our purposes?
+    const allMappedRecords = allRawRecords
+      .map(e => {
+        try {
+          if (!isWowMissionJournalPost(e.body)) {
+            return false
+          }
+          const parsedBody = decodeMissionBody(e.body)
+          return parsedBody
+        } catch (err) {
+          console.debug('Could not parse a mission; ignoring. Error: ', err)
+          return false
+        }
+      })
+      .filter(e => !!e)
+    commit('setAvailableMissions', allMappedRecords)
   },
 }
+
 const getters = {}
 
 export default {
