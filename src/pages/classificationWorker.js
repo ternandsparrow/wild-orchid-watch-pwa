@@ -1,3 +1,4 @@
+/*
 importScripts('https://unpkg.com/comlink/dist/umd/comlink.js')
 // importScripts("../../../dist/umd/comlink.js");
 
@@ -9,3 +10,4 @@ const obj = {
 }
 
 Comlink.expose(obj)
+*/

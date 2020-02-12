@@ -227,7 +227,7 @@ import { mapGetters } from 'vuex'
 import moment from 'moment'
 import _ from 'lodash'
 import ml5 from 'ml5'
-import * as Comlink from 'comlink'
+//import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
@@ -333,11 +333,13 @@ export default {
       this.vuexDump = JSON.stringify(parsed, null, 2)
     },
     doImageClassification() {
+      /*
       const worker = new Worker("classificationWorker.js");
       const obj = Comlink.wrap(worker);
       alert(`Counter: ${await obj.counter}`);
       await obj.inc();
       alert(`Counter: ${await obj.counter}`);
+      */
       // Make a prediction with a selected image
       this.classifier.classify(
         document.getElementById('imageToClassify'),
