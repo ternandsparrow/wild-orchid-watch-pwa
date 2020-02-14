@@ -181,3 +181,11 @@ export default {
   },
 }
 </script>
+
+<style lang="scss" scoped>
+/* stops long words (like URLs) from propping elements at widths wider than the
+viewport */
+.list-item__subtitle {
+  word-break: break-word;
+}
+</style>
