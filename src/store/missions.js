@@ -26,7 +26,10 @@ const actions = {
             return false
           }
           const parsedBody = decodeMissionBody(e.body)
-          return parsedBody
+          return {
+            ...parsedBody,
+            id: e.id,
+          }
         } catch (err) {
           console.debug('Could not parse a mission; ignoring. Error: ', err)
           return false
@@ -34,6 +37,14 @@ const actions = {
       })
       .filter(e => !!e)
     commit('setAvailableMissions', allMappedRecords)
+  },
+  async deleteMission({ dispatch }, missionId) {
+    const url = '/posts/' + missionId
+    return dispatch(
+      'doApiDelete',
+      { urlSuffix: url, recordUuid: null },
+      { root: true },
+    )
   },
 }
 

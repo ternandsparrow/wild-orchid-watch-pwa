@@ -42,7 +42,7 @@ const router = new VueRouter({
       beforeEnter: resolveObsByIdOrNotFound,
     },
     {
-      path: `/obs/:id(\\d+|${uuidRegex})/edit`, // FIXME does this work?
+      path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
       beforeEnter: resolveObsByIdOrNotFound,
@@ -94,6 +94,17 @@ const router = new VueRouter({
       path: '/missions/new',
       name: 'MissionsNew',
       component: MissionsNew,
+      meta: {
+        isEdit: false,
+      },
+    },
+    {
+      path: '/missions/:id(\\d+)/edit',
+      name: 'MissionsEdit',
+      component: MissionsNew,
+      meta: {
+        isEdit: true,
+      },
     },
     {
       path: '/zzadmin',

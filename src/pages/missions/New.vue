@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable title="Mission editor">
+    <custom-toolbar cancellable :title="title">
       <template v-slot:right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
@@ -77,6 +77,36 @@ export default {
         .format('YYYY-MM-DD'),
     }
   },
+  computed: {
+    isEdit() {
+      return this.$route.matched.some(record => record.meta.isEdit)
+    },
+    title() {
+      return this.isEdit ? 'Edit mission' : 'New mission'
+    },
+    targetMissionId() {
+      return parseInt(this.$route.params.id)
+    },
+  },
+  mounted() {
+    if (!this.isEdit) {
+      return
+    }
+    const found = this.$store.state.missions.availableMissions.find(
+      e => e.id === this.targetMissionId,
+    )
+    if (!found) {
+      console.warn(
+        `Could not find mission with ID='${this.targetMissionId}' to edit`,
+      )
+      return
+    }
+    this.missionName = found.name
+    // FIXME do we need to disable editing for past missions or force edited
+    // missions to still have an endDate in the future (from now)?
+    this.endDate = found.endDate
+    this.goal = found.goal
+  },
   methods: {
     async onSave() {
       const myUserId = this.$store.getters.myUserId
@@ -84,10 +114,23 @@ export default {
       if (!projectId) {
         throw new Error('No project info available, cannot continue')
       }
+      const { handler, urlSuffix } = (() => {
+        if (this.isEdit) {
+          return {
+            handler: 'doApiPut',
+            urlSuffix: `/posts/${this.targetMissionId}`,
+          }
+        }
+        return { handler: 'doApiPost', urlSuffix: '/posts' }
+      })()
+      this.$ons.notification.toast('Saving...', {
+        timeout: 3000,
+        animation: 'ascend',
+      })
       await this.$store.dispatch(
-        'doApiPost',
+        handler,
         {
-          urlSuffix: '/posts',
+          urlSuffix,
           data: {
             commit: 'Publish',
             post: {
@@ -106,6 +149,11 @@ export default {
         },
         { root: true },
       )
+      this.$ons.notification.toast('Mission uploaded to server', {
+        timeout: 3000,
+        animation: 'ascend',
+      })
+      this.$router.push({ name: 'Missions' })
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
