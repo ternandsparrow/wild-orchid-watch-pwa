@@ -21,7 +21,7 @@
         </v-ons-toolbar-button>
       </slot>
     </div>
-    <div class="center text-center">
+    <div class="center text-center wow-toolbar-title">
       <span v-if="!networkOnLine">[Offline] </span>
       <slot>{{ title }}</slot>
     </div>
@@ -70,5 +70,9 @@ export default {
 
 .keep-title-centered {
   flex: 1 0 0;
+}
+
+.wow-toolbar-title {
+  flex-grow: 0;
 }
 </style>
