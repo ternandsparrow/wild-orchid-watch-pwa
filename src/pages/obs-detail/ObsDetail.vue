@@ -378,8 +378,6 @@ export default {
     onActionMenu() {
       const menu = {
         Delete: () => {
-          // FIXME handle when we're currently uploading this record
-          // FIXME handle (or disable for) already uploaded records
           this.$ons.notification
             .confirm('Are you sure about deleting this record?')
             .then(answer => {

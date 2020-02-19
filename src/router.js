@@ -5,6 +5,8 @@ import store from '@/store'
 import Admin from '@/pages/Admin'
 import FAQ from '@/pages/faq/index'
 import HelpPage from '@/pages/HelpPage'
+import Missions from '@/pages/missions/Available'
+import MissionsNew from '@/pages/missions/New'
 import NotFound from '@/pages/NotFound'
 import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
@@ -40,7 +42,7 @@ const router = new VueRouter({
       beforeEnter: resolveObsByIdOrNotFound,
     },
     {
-      path: `/obs/:id(\\d+|${uuidRegex})/edit`, // FIXME does this work?
+      path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
       beforeEnter: resolveObsByIdOrNotFound,
@@ -82,6 +84,27 @@ const router = new VueRouter({
       path: '/faq',
       name: 'FAQ',
       component: FAQ,
+    },
+    {
+      path: '/missions',
+      name: 'Missions',
+      component: Missions,
+    },
+    {
+      path: '/missions/new',
+      name: 'MissionsNew',
+      component: MissionsNew,
+      meta: {
+        isEdit: false,
+      },
+    },
+    {
+      path: '/missions/:id(\\d+)/edit',
+      name: 'MissionsEdit',
+      component: MissionsNew,
+      meta: {
+        isEdit: true,
+      },
     },
     {
       path: '/zzadmin',

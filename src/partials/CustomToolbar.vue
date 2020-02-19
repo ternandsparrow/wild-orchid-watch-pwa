@@ -1,8 +1,7 @@
 <template>
   <v-ons-toolbar :class="{ offline: !networkOnLine }">
-    <div class="left">
+    <div class="left keep-title-centered">
       <slot name="left">
-        <!-- FIXME can we simplify these cases? -->
         <v-ons-back-button v-if="backLabel && isHomeRoute">
           {{ backLabel }}
         </v-ons-back-button>
@@ -22,13 +21,11 @@
         </v-ons-toolbar-button>
       </slot>
     </div>
-    <!-- FIXME get the title always centered regardless of if the left/right is -->
-    <!-- present or how wide they are                                           -->
-    <div class="center text-center">
+    <div class="center text-center wow-toolbar-title">
       <span v-if="!networkOnLine">[Offline] </span>
       <slot>{{ title }}</slot>
     </div>
-    <div class="right"><slot name="right"></slot></div>
+    <div class="right keep-title-centered"><slot name="right"></slot></div>
   </v-ons-toolbar>
 </template>
 
@@ -69,5 +66,13 @@ export default {
 <style scoped>
 .offline {
   background-color: #fbd276;
+}
+
+.keep-title-centered {
+  flex: 1 0 0;
+}
+
+.wow-toolbar-title {
+  flex-grow: 0;
 }
 </style>

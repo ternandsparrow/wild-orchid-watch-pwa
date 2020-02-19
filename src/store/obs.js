@@ -16,6 +16,7 @@ import {
   buildStaleCheckerFn,
   buildUrlSuffix,
   chainedError,
+  fetchSingleRecord,
   getExifFromBlob,
   isNoSwActive,
   makeEnumValidator,
@@ -118,21 +119,22 @@ const actions = {
     })
     await dispatch('refreshRemoteObs')
   },
-  async refreshRemoteObs({ commit, dispatch }) {
+  async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
     // TODO look at only pulling "new" records to save on bandwidth
     try {
-      let isMorePages = true
-      let allRecords = []
-      let currPage = 1
-      while (isMorePages) {
-        const resp = await dispatch('_getPageOfObsFromRemote', currPage)
-        const records = resp.results.map(mapObsFromApiIntoOurDomain)
-        isMorePages = records.length === constants.obsPageSize
-        allRecords = allRecords.concat(records)
-        currPage += 1
-      }
-      commit('setAllRemoteObs', allRecords)
+      const myUserId = rootGetters.myUserId
+      const baseUrl =
+        `/observations` +
+        `?user_id=${myUserId}` +
+        `&project_id=${constants.inatProjectSlug}`
+      const allRawRecords = await dispatch(
+        'fetchAllPages',
+        { baseUrl, pageSize: constants.obsPageSize },
+        { root: true },
+      )
+      const allMappedRecords = allRawRecords.map(mapObsFromApiIntoOurDomain)
+      commit('setAllRemoteObs', allMappedRecords)
       await dispatch('cleanSuccessfulLocalRecordsRemoteHasEchoed')
     } catch (err) {
       dispatch(
@@ -147,25 +149,6 @@ const actions = {
       return false
     } finally {
       commit('setIsUpdatingRemoteObs', false)
-    }
-  },
-  async _getPageOfObsFromRemote({ rootGetters, dispatch }, pageNum) {
-    console.debug(`Getting page=${pageNum} of remote obs`)
-    try {
-      const myUserId = rootGetters.myUserId
-      const urlSuffix =
-        `/observations` +
-        `?user_id=${myUserId}` +
-        `&project_id=${constants.inatProjectSlug}` +
-        `&per_page=${constants.obsPageSize}` +
-        `&page=${pageNum}`
-      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      return resp
-    } catch (err) {
-      throw chainedError(
-        `Failed while trying to get page=${pageNum} of obs`,
-        err,
-      )
     }
   },
   async cleanSuccessfulLocalRecordsRemoteHasEchoed({
@@ -1548,24 +1531,6 @@ function isObsStateProcessing(state) {
     constants.withServiceWorkerOutcome,
   ]
   return processingStates.includes(state)
-}
-
-function fetchSingleRecord(url) {
-  return fetch(url)
-    .then(function(resp) {
-      if (!resp.ok) {
-        console.error(`Made fetch() for url='${url}' but it was not ok`)
-        return false
-      }
-      return resp.json()
-    })
-    .then(function(body) {
-      // FIXME also check for total_results > 1
-      if (!body.total_results) {
-        return null
-      }
-      return body.results[0]
-    })
 }
 
 /**

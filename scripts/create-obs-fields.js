@@ -154,7 +154,7 @@ const obsFields = [
   },
   {
     name: 'Number of individuals recorded',
-    description: 'How many individual organisms did you observe?',
+    description: 'How many individual orchids did you observe?',
     datatype: 'numeric',
     allowedValues: '',
   },

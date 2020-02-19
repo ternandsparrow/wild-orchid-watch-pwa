@@ -48,7 +48,10 @@
             >In the case of unusual or difficult species a moderator may assist
             with identification. More information in the 'identifying
             observations' tab on the iNaturalist website:
-            https://www.inaturalist.org/pages/getting+started#how_ident_work</span
+            <a
+              href="https://www.inaturalist.org/pages/getting+started#how_ident_work"
+              >https://www.inaturalist.org/pages/getting+started#how_ident_work</a
+            ></span
           >
         </div>
       </v-ons-list-item>
@@ -148,7 +151,9 @@
             coordinates. iNaturalist obscures the locations of all taxa with an
             IUCN (International Union Conservation of Nature) equivalent status
             of Near Threatened or higher. More information on iNaturalist here
-            https://www.inaturalist.org/pages/geoprivacy
+            <a href="https://www.inaturalist.org/pages/geoprivacy"
+              >https://www.inaturalist.org/pages/geoprivacy</a
+            >
           </span>
         </div>
       </v-ons-list-item>
@@ -181,3 +186,11 @@ export default {
   },
 }
 </script>
+
+<style lang="scss" scoped>
+/* stops long words (like URLs) from propping elements at widths wider than the
+viewport */
+.list-item__subtitle {
+  word-break: break-word;
+}
+</style>
