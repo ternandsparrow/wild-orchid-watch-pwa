@@ -744,9 +744,7 @@ export default {
       if (!isValidValue) {
         throw new Error(
           `Cannot set field ID='${fieldId}' ` +
-            `(name='${
-              fieldDef.name
-            }') to value='${defaultValue}' as it's not ` +
+            `(name='${fieldDef.name}') to value='${defaultValue}' as it's not ` +
             `in the allowedValues=[${allowedValues}]`,
         )
       }

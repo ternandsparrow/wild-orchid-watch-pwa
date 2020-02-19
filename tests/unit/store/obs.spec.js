@@ -1227,9 +1227,9 @@ describe('actions', () => {
               photoIdsToDelete: newPhotoIdsToDelete,
             })
             const result = await obsStore.getItem('123A')
-            expect(result.wowMeta[constants.photoIdsToDeleteFieldName]).toEqual(
-              [21, 22],
-            )
+            expect(
+              result.wowMeta[constants.photoIdsToDeleteFieldName],
+            ).toEqual([21, 22])
             expect(
               result.wowMeta[constants.blockedActionFieldName].wowMeta[
                 constants.photoIdsToDeleteFieldName

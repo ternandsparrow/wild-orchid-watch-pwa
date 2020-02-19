@@ -357,9 +357,7 @@ export default {
         if (isWrongNumberOfResults) {
           throw new Error(
             `Failed to update user details from inat API, request succeeded ` +
-              `but expected result count=1 and got total_results=${
-                resp.total_results
-              }`,
+              `but expected result count=1 and got total_results=${resp.total_results}`,
           )
         }
         commit('_saveUserDetails', resp.results[0])

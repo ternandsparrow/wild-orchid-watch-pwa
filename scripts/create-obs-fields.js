@@ -58,9 +58,7 @@ const obsFields = [
     name: 'Orchid type',
     description: '',
     datatype: 'text',
-    allowedValues: `${obsFieldConstants.terrestrial}|${
-      obsFieldConstants.epiphyte
-    }|Lithophyte`,
+    allowedValues: `${obsFieldConstants.terrestrial}|${obsFieldConstants.epiphyte}|Lithophyte`,
   },
   // Orchid photos - not an obs field
   //  - whole plant (required)
@@ -87,9 +85,7 @@ const obsFields = [
   ),
   {
     name: 'Wider landuse',
-    description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${
-      obsFieldConstants.conservationLanduse
-    }`,
+    description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
     datatype: 'text',
     allowedValues: `${commonLanduses}|Unknown`,
   },
@@ -101,17 +97,13 @@ const obsFields = [
   },
   {
     name: 'Host tree species',
-    description: `Species of the host that this orchid grows on. Only required for Orchid Type = ${
-      obsFieldConstants.epiphyte
-    }`,
+    description: `Species of the host that this orchid grows on. Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
     datatype: 'taxon',
     allowedValues: '',
   },
   {
     name: 'Epiphyte height (cm)',
-    description: `Only required for Orchid Type = ${
-      obsFieldConstants.epiphyte
-    }`,
+    description: `Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
     datatype: 'numeric',
     allowedValues: '',
   },
@@ -120,17 +112,13 @@ const obsFields = [
     name: 'Landform type',
     description: '',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.notCollected
-    }|Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression`,
+    allowedValues: `${obsFieldConstants.notCollected}|Crest|Hill (hillock)|Ridge|Slope - unspecified|Slope - simple|Slope - mid|Slope - lower|Flat|Open depression|Closed depression`,
   },
   {
     name: 'Soil structure as observed from the surface',
     description: 'Used as an indication, NO DIGGING ALLOWED!',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.notCollected
-    }|Unknown|Sand - felt or heard when pinching|Loam|Clay`,
+    allowedValues: `${obsFieldConstants.notCollected}|Unknown|Sand - felt or heard when pinching|Loam|Clay`,
   },
   ...multiselect(
     'Rock cover size',
@@ -156,9 +144,7 @@ const obsFields = [
     name: 'Accuracy of population count',
     description: 'How accurate is the count of indiviudals recorded.',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.exact
-    }|Partial count|Extrapolated/Estimate`,
+    allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
   {
     name: 'Area of exact count (m²)',
@@ -182,27 +168,21 @@ const obsFields = [
     name: 'Dominant vegetation growth form',
     description: '',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.notCollected
-    }|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Gress-tree|Cycad|Unknown`,
+    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Gress-tree|Cycad|Unknown`,
   },
   {
     name: 'Height of the most dominant growth form present (metres)',
     description:
       'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for shrublands, height of the shrub layer',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.notCollected
-    }|>30|10-30|3-10|1-3|0.5-1|<0.5`,
+    allowedValues: `${obsFieldConstants.notCollected}|>30|10-30|3-10|1-3|0.5-1|<0.5`,
   },
   {
     name: 'Cover of the most dominant stratum',
     description:
       'Foliage cover - proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
     datatype: 'text',
-    allowedValues: `${
-      obsFieldConstants.notCollected
-    }|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped)`,
+    allowedValues: `${obsFieldConstants.notCollected}|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped)`,
   },
   {
     name: 'Vegetation community notes',
@@ -239,9 +219,7 @@ const obsFields = [
 
 function multiselect(containerQuestionName, description, values) {
   return values.split('|').map(curr => ({
-    name: `${containerQuestionName}${
-      obsFieldConstants.multiselectSeparator
-    }${curr}`,
+    name: `${containerQuestionName}${obsFieldConstants.multiselectSeparator}${curr}`,
     description,
     datatype: 'text',
     allowedValues: `${obsFieldConstants.noValue}|${obsFieldConstants.yesValue}`,
