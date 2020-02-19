@@ -259,7 +259,9 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
-    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
+    const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${
+      constants.inatProjectSlug
+    }`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
       const records = resp.results.map(d => {
@@ -1064,7 +1066,9 @@ const actions = {
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${resp.status}.` +
+              ` but the status code indicates an error. Status=${
+                resp.status
+              }.` +
               ` Message=${await getBundleErrorMsg(resp)}`,
           )
         }
@@ -1483,7 +1487,9 @@ function mintObjectUrl(blobAsArrayBuffer) {
     throw chainedError(
       // Don't get distracted, the MIME has no impact. If it fails, it's due to
       // something else, the MIME will just help you debug (hopefully)
-      `Failed to mint object URL for blob with MIME='${blobAsArrayBuffer.mime}'`,
+      `Failed to mint object URL for blob with MIME='${
+        blobAsArrayBuffer.mime
+      }'`,
       err,
     )
   }

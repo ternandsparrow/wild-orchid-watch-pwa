@@ -319,16 +319,22 @@ export default {
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
-        parsed.obs._uiVisibleLocalRecords = `(excluded, ${parsed.obs._uiVisibleLocalRecords.length} item array)`
+        parsed.obs._uiVisibleLocalRecords = `(excluded, ${
+          parsed.obs._uiVisibleLocalRecords.length
+        } item array)`
       }
       if (!this.isIncludeRemoteObs) {
-        parsed.obs.allRemoteObs = `(excluded, ${parsed.obs.allRemoteObs.length} item array)`
+        parsed.obs.allRemoteObs = `(excluded, ${
+          parsed.obs.allRemoteObs.length
+        } item array)`
       }
       if (!this.isIncludeProject) {
         parsed.obs.projectInfo = '(excluded)'
       }
       if (!this.isIncludeSpeciesList) {
-        parsed.obs.mySpecies = `(excluded, ${parsed.obs.mySpecies.length} item array)`
+        parsed.obs.mySpecies = `(excluded, ${
+          parsed.obs.mySpecies.length
+        } item array)`
       }
       this.vuexDump = JSON.stringify(parsed, null, 2)
     },
