@@ -7,6 +7,7 @@ import {
   persistedStateLocalStorageKey,
   beginner,
 } from '@/misc/constants'
+import { wowErrorHandler, chainedError } from '@/misc/helpers'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
 import ephemeral from './ephemeral'
@@ -17,7 +18,6 @@ import obs, {
 } from './obs'
 import activity from './activity'
 import missions from './missions'
-import { wowErrorHandler, chainedError } from '@/misc/helpers'
 
 Vue.use(Vuex)
 

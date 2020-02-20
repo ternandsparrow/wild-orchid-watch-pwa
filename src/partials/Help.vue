@@ -86,9 +86,17 @@ function getHelpData() {
     {
       heading: 'Orchid type',
       values: [
-        ['Terrestrial', 'Growing on the land', 'orchid-type_terrestrial.png'],
-        ['Ephiphyte', 'Growing in host trees/shrubs', null],
-        ['Lithophyte', 'Growing in rocks (no soil)', null],
+        ['Terrestrial', 'Growing on the land', 'orchid-type-terrestrial.jpg'],
+        [
+          'Ephiphyte',
+          'Growing in host trees/shrubs',
+          'orchid-type-epiphyte.jpg',
+        ],
+        [
+          'Lithophyte',
+          'Growing in rocks (no soil)',
+          'orchid-type-lithophyte.jpg',
+        ],
       ],
     },
     {
