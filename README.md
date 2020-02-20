@@ -145,3 +145,14 @@ to Jest.
 
 ## Architecture
 See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built.
+
+## Why we don't eslint our web workers
+Let the story begin. When we allow linting on web worker files, we get some
+weird behaviour. The build is certainly capable of working because the webpack
+dev server successfully builds sometimes but then other times it fails with
+linting errors. The production build always seems to fail with linting errors.
+The linting errors don't line up with what you see in the source file. It seems
+that the output from the webpack processing/transpiling of our source is run
+back through the linter and the eslint is (understandably) not happy, so it
+throws errors. See my reproduction of this issue:
+https://github.com/tomsaleeba/worker-plugin-eslint-test

@@ -249,7 +249,6 @@ import _ from 'lodash'
 import {
   squareAreaValueToTitle,
   findCommonString,
-  getExifFromBlob,
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
@@ -962,26 +961,20 @@ export default {
       if (!file) {
         return
       }
+      // TODO compress and get location info here
+      // TODO can we not block user while processing?
+      const processingResult = await this.$store.dispatch(
+        'obs/compressPhotoIfRequired',
+        file,
+      )
+      // TODO use processingResult.location.{lat,lng}
+      console.log(processingResult.location)
       this.photos.push({
         type,
-        file,
+        file: processingResult.data,
         url: URL.createObjectURL(file),
         uuid: uuid(),
       })
-      const exifData = await getExifFromBlob(file)
-      if (exifData) {
-        // FIXME if we don't already have geolocation then pull lat, long,
-        // accuracy and altitude from EXIF data if present, and use it in the obs
-        console.debug(
-          `Pre-compression GPS related metadata = ` +
-            JSON.stringify(exifData, onlyGpsFieldsFrom(exifData), 2),
-        )
-      }
-      function onlyGpsFieldsFrom(exifData) {
-        return Object.keys(exifData).filter(e =>
-          e.toLowerCase().includes('gps'),
-        )
-      }
     },
     async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
