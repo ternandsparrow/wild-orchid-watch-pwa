@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import MyObs from './MyObs'
+import MyObs from './MyObs.vue'
 // import Species from './Species'
 
 export default {

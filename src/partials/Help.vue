@@ -70,7 +70,7 @@ function getHelpData() {
       heading: 'Photos',
       values: [
         ['Habit', 'A photo of the whole plant (required)', null],
-        ['Flower', 'If the plant is flowing, this is required', null],
+        ['Flower', 'If the plant is flowering, this is required', null],
       ],
     },
     {
@@ -78,7 +78,7 @@ function getHelpData() {
       values: [
         [
           'Species name',
-          'If known use the scientific or common name, or if name unknown, you can enter a descriptive name eg. purple waxy flowers',
+          'If known use the scientific or common name, or if the name is unknown, you can enter a descriptive name eg. purple waxy flowers',
           null,
         ],
       ],
@@ -86,9 +86,17 @@ function getHelpData() {
     {
       heading: 'Orchid type',
       values: [
-        ['Terrestrial', 'Growing on the land', 'orchid-type_terrestrial.png'],
-        ['Ephiphyte', 'Growing in host trees/shrubs', null],
-        ['Lithophyte', 'Growing in rocks (no soil)', null],
+        ['Terrestrial', 'Growing on the land', 'orchid-type-terrestrial.jpg'],
+        [
+          'Ephiphyte',
+          'Growing in host trees/shrubs',
+          'orchid-type-epiphyte.jpg',
+        ],
+        [
+          'Lithophyte',
+          'Growing in rocks (no soil)',
+          'orchid-type-lithophyte.jpg',
+        ],
       ],
     },
     {

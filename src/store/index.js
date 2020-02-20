@@ -2,6 +2,12 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
+import {
+  neverUpload,
+  persistedStateLocalStorageKey,
+  beginner,
+} from '@/misc/constants'
+import { wowErrorHandler, chainedError } from '@/misc/helpers'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
 import ephemeral from './ephemeral'
@@ -12,12 +18,6 @@ import obs, {
 } from './obs'
 import activity from './activity'
 import missions from './missions'
-import { wowErrorHandler, chainedError } from '@/misc/helpers'
-import {
-  neverUpload,
-  persistedStateLocalStorageKey,
-  beginner,
-} from '@/misc/constants'
 
 Vue.use(Vuex)
 
