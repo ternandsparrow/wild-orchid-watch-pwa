@@ -1038,7 +1038,7 @@ export default {
         [floralVisitorsMultiselectId]: 'floral-visitors',
         [widerLanduseObsFieldId]: 'landuse-types',
         [43]: 'litter',
-        [46]: 'landform-element',
+        [46]: 'landform-type',
         [62]: 'dominant-phenology',
         [phenologyMultiselectId]: 'phenology-occurring',
         // FIXME populate the rest
@@ -1136,7 +1136,7 @@ function getAllowedValsStrategy(field) {
 $thumbnailSize: 75px;
 
 .margin-for-photos {
-  margin: 0.1em 0;
+  margin: 0.5em 0;
 }
 
 .photo-container {
@@ -1157,6 +1157,8 @@ $thumbnailSize: 75px;
     width: 100%;
     background-size: cover;
     background-position: center;
+    border-radius: 15px;
+    box-shadow: 5px 5px 8px #888888;
   }
 
   label {
