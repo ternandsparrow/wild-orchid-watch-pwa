@@ -21,10 +21,10 @@
         <div>
           <span class="list-item__title item-header">{{ curr.name }}</span>
           <div v-if="isMissionAdmin">
-            <v-ons-button @click="onDelete(curr.id)" modifier="outline"
+            <v-ons-button modifier="outline" @click="onDelete(curr.id)"
               >Delete</v-ons-button
             >
-            <v-ons-button @click="onEdit(curr.id)" modifier="outline"
+            <v-ons-button modifier="outline" @click="onEdit(curr.id)"
               >Edit</v-ons-button
             >
           </div>

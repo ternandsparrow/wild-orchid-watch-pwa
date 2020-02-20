@@ -1,6 +1,7 @@
-/*
-importScripts('https://unpkg.com/comlink/dist/umd/comlink.js')
-// importScripts("../../../dist/umd/comlink.js");
+/* eslint-disable */
+// See https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/master/README.md#why-we-don-t-eslint-our-web-workers
+// for why we disable eslint on web workers (it's a hacky workaround)
+import * as Comlink from 'comlink'
 
 const obj = {
   counter: 0,
@@ -10,4 +11,3 @@ const obj = {
 }
 
 Comlink.expose(obj)
-*/

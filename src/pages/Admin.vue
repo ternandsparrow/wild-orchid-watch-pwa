@@ -227,7 +227,7 @@ import { mapGetters } from 'vuex'
 import moment from 'moment'
 import _ from 'lodash'
 import ml5 from 'ml5'
-//import * as Comlink from 'comlink'
+import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
@@ -256,6 +256,7 @@ export default {
       swDepsQueueStatus: 'not started',
       imageClassificationResult: 'nothing yet',
       classifier: null,
+      ourWorker: null,
     }
   },
   computed: {
@@ -275,6 +276,8 @@ export default {
   created() {
     this.computeConfigItems()
     this.classifier = ml5.imageClassifier(wowModelPath, this.modelReady)
+    const worker = new Worker('./classificationWorker.js', { type: 'module' })
+    this.ourWorker = Comlink.wrap(worker)
   },
   methods: {
     doLQP() {
@@ -332,21 +335,24 @@ export default {
       }
       this.vuexDump = JSON.stringify(parsed, null, 2)
     },
-    doImageClassification() {
-      /*
-      const worker = new Worker("classificationWorker.js");
-      const obj = Comlink.wrap(worker);
-      alert(`Counter: ${await obj.counter}`);
-      await obj.inc();
-      alert(`Counter: ${await obj.counter}`);
-      */
+    async doImageClassification() {
+      console.log(`Counter before: ${await this.ourWorker.counter}`)
+      await this.ourWorker.inc()
+      console.log(`Counter after: ${await this.ourWorker.counter}`)
       // Make a prediction with a selected image
       this.classifier.classify(
+        // FIXME how do we pass the image to the worker? ML5 seems to want
+        // references to images but web workers don't have access to the DOM.
+        // Ideally we could pass the bytes themselves but even then, we can't
+        // create HTMLImageElement, etc in the worker. OffscreenCanvas might be
+        // a solution but that doesn't have good enough browser support to be used
+        // yet
         document.getElementById('imageToClassify'),
         (err, results) => {
-          console.log('err is: ' + err)
-          console.log('classification result is: ' + JSON.stringify(results))
-          this.imageClassificationResult = JSON.stringify(results)
+          if (err) {
+            console.error('Failed to run classifier', err)
+          }
+          this.imageClassificationResult = JSON.stringify(results, null, 2)
         },
       )
     },

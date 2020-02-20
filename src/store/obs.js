@@ -1,7 +1,8 @@
 import _ from 'lodash'
 import moment from 'moment'
 import uuid from 'uuid/v1'
-import imageCompression from 'browser-image-compression'
+import { wrap as comlinkWrap } from 'comlink'
+import dms2dec from 'dms2dec'
 import {
   getRecord,
   storeRecord,
@@ -22,7 +23,7 @@ import {
   makeEnumValidator,
   now,
   verifyWowDomainPhoto,
-  wowErrorHandler,
+  wowWarnHandler,
   wowIdOf,
 } from '@/misc/helpers'
 
@@ -32,6 +33,7 @@ const recordType = makeEnumValidator(['delete', 'edit', 'new'])
 
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
+let imageCompressionWorker = null
 
 const state = {
   lat: null,
@@ -1320,6 +1322,85 @@ const actions = {
     await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
+  async compressPhotoIfRequired(_, blobish) {
+    let originalMetadata
+    try {
+      originalMetadata = await getExifFromBlob(blobish)
+    } catch (err) {
+      console.warn(
+        'Could not read EXIF data, cannot process image, leaving as is',
+        err,
+      )
+      // TODO enhancement idea: brute force image dimensions to do resizing
+      return {
+        data: blobish,
+      }
+    }
+    const originalImageSizeMb = blobish.size / 1024 / 1024
+    const { lat, lng } = extractGps(originalMetadata)
+    const maxSizeMB = 1 // TODO make config
+    const maxWidthOrHeight = 1920 // TODO make config
+    const dimensionX = originalMetadata.PixelXDimension
+    const dimensionY = originalMetadata.PixelYDimension
+    const hasDimensionsInExif = dimensionX && dimensionY
+    const isPhotoAlreadySmallEnoughDimensions =
+      hasDimensionsInExif &&
+      dimensionX < maxWidthOrHeight &&
+      dimensionY < maxWidthOrHeight
+    const isPhotoAlreadySmallEnoughStorage = originalImageSizeMb <= maxSizeMB
+    if (
+      isPhotoAlreadySmallEnoughDimensions ||
+      isPhotoAlreadySmallEnoughStorage
+    ) {
+      // don't bother compressing an image that's already small enough
+      const dimMsg = hasDimensionsInExif
+        ? `X=${dimensionX}, Y=${dimensionY}`
+        : '(No EXIF dimensions)'
+      console.debug(
+        `No compresion needed for ${dimMsg},` +
+          ` ${originalImageSizeMb.toFixed(3)} MB image`,
+      )
+      return withLocation(blobish)
+    }
+    try {
+      if (!imageCompressionWorker) {
+        // FIXME can we get SW to cache the worker?
+        const worker = new Worker('./image-compression.worker.js', {
+          type: 'module',
+        })
+        imageCompressionWorker = comlinkWrap(worker)
+      }
+      const compressedBlobish = await imageCompressionWorker.compress(
+        blobish,
+        maxWidthOrHeight,
+      )
+      const compressedBlobishSizeMb = compressedBlobish.size / 1024 / 1024
+      console.debug(
+        `Compressed ${originalImageSizeMb.toFixed(3)}MB file ` +
+          `to ${compressedBlobishSizeMb.toFixed(3)}MB (` +
+          ((compressedBlobishSizeMb / originalImageSizeMb) * 100).toFixed(1) +
+          `% of original)`,
+      )
+      return withLocation(compressedBlobish)
+    } catch (err) {
+      wowWarnHandler(
+        `Failed to compress a photo with MIME=${blobish.type}, ` +
+          `size=${blobish.size} and EXIF=${JSON.stringify(
+            originalMetadata,
+          )}. ` +
+          'Falling back to original image.',
+        err,
+      )
+      // fallback to using the fullsize image
+      return withLocation(blobish)
+    }
+    function withLocation(data) {
+      return {
+        location: { lat, lng },
+        data,
+      }
+    }
+  },
 }
 
 const getters = {
@@ -1682,8 +1763,7 @@ async function processPhotos(photos) {
   return Promise.all(
     photos.map(async (curr, $index) => {
       const tempId = -1 * ($index + 1)
-      const photoData = await compressPhotoIfRequired(curr.file)
-      const photoDataAsArrayBuffer = await blobToArrayBuffer(photoData)
+      const photoDataAsArrayBuffer = await blobToArrayBuffer(curr.file)
       const photo = {
         id: tempId,
         url: '(set at render time)',
@@ -1702,58 +1782,19 @@ async function processPhotos(photos) {
   )
 }
 
-async function compressPhotoIfRequired(blobish) {
-  const originalImageSizeMb = blobish.size / 1024 / 1024
-  const originalMetadata = await getExifFromBlob(blobish)
-  const maxSizeMB = 1
-  const maxWidthOrHeight = 1920
-  const dimensionX = originalMetadata.PixelXDimension
-  const dimensionY = originalMetadata.PixelYDimension
-  const hasDimensionsInExif = dimensionX && dimensionY
-  const isPhotoAlreadySmallEnoughDimensions =
-    hasDimensionsInExif &&
-    dimensionX < maxWidthOrHeight &&
-    dimensionY < maxWidthOrHeight
-  const isPhotoAlreadySmallEnoughStorage = originalImageSizeMb <= maxSizeMB
-  if (isPhotoAlreadySmallEnoughDimensions || isPhotoAlreadySmallEnoughStorage) {
-    // the image compression lib will try to "compress" an image that's
-    // already under the threshold, and end up making it bigger. So we'll
-    // do the check outselves.
-    const dimMsg = hasDimensionsInExif
-      ? `X=${dimensionX}, Y=${dimensionY}`
-      : '(No EXIF dimensions)'
-    console.debug(
-      `No compresion needed for ${dimMsg},` +
-        ` ${originalImageSizeMb.toFixed(3)} MB image`,
-    )
-    return blobish
+function extractGps(parsedExif) {
+  const theArgs = [
+    parsedExif.GPSLatitude,
+    parsedExif.GPSLatitudeRef,
+    parsedExif.GPSLongitude,
+    parsedExif.GPSLongitudeRef,
+  ]
+  const isAllFieldsPresent = theArgs.every(e => !!e)
+  if (!isAllFieldsPresent) {
+    return {}
   }
-  try {
-    const compressedBlobish = await imageCompression(blobish, {
-      maxSizeMB,
-      maxWidthOrHeight,
-      useWebWorker: true,
-      maxIteration: 5,
-    })
-    const compressedBlobishSizeMb = compressedBlobish.size / 1024 / 1024
-    console.debug(
-      `Compressed ${originalImageSizeMb.toFixed(3)}MB file ` +
-        `to ${compressedBlobishSizeMb.toFixed(3)}MB (` +
-        ((compressedBlobishSizeMb / originalImageSizeMb) * 100).toFixed(1) +
-        `% of original)`,
-    )
-    // FIXME compressed images seem to not have any EXIF, may be able to use
-    // https://github.com/hMatoba/piexifjs to insert EXIF again
-    return compressedBlobish
-  } catch (err) {
-    wowErrorHandler(
-      `Failed to compress a photo with MIME=${blobish.type}, ` +
-        `size=${blobish.size} and EXIF=${JSON.stringify(originalMetadata)}`,
-      err,
-    )
-    // fallback to using the fullsize image
-    return blobish
-  }
+  const [latDec, lonDec] = dms2dec(...theArgs)
+  return { lat: latDec, lng: lonDec }
 }
 
 function isAnswer(val) {
