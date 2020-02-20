@@ -208,20 +208,42 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Floral visitors',
-      values: [['FIXME', 'fill this in', null]],
-    },
-    {
       heading: 'Sign of disturbance and threats',
       values: [['FIXME', 'fill this in', null]],
     },
     {
-      heading: 'Dominant phenology',
-      values: [['FIXME', 'fill this in', null]],
+      heading: 'Phenology (Occurring)',
+      values: [
+        ['Vegetative', '<blurb>', null],
+        ['Budding', '<blurb>', null],
+        ['Flowering', '<blurb>', null],
+        ['Senescent Flower', '<blurb>', null],
+        ['Developing Friit', '<blurb>', null],
+        ['Senescent Fruit', '<blurb>', null],
+      ],
     },
     {
-      heading: 'Phenology occurring',
-      values: [['FIXME', 'fill this in', null]],
+      heading: 'Phenology (Dominant)',
+      values: [
+        ['Vegetative', '<blurb>', null],
+        ['Budding', '<blurb>', null],
+        ['Flowering', '<blurb>', null],
+        ['Senescent Flower', '<blurb>', null],
+        ['Developing Friit', '<blurb>', null],
+        ['Senescent Fruit', '<blurb>', null],
+      ],
+    },
+
+    {
+      heading: 'Floral visitors',
+      values: [
+        ['Introduced Honey Bee', '<blurb>', null],
+        ['Native wasp', '<blurb>', null],
+        ['Native fly', '<blurb>', null],
+        ['Ant', '<blurb>', null],
+        ['Unknown insect', '<blurb>', null],
+        ['None Observed', '<blurb>', null],
+      ],
     },
   ]
   return dontWantToTypeAttributeNamesOverAndOver.map(currSection => {

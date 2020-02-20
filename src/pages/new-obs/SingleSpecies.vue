@@ -263,6 +263,7 @@ import {
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
+  evidenceThreatsMultiselectId,
   failed,
   floralVisitorsMultiselectId,
   getMultiselectId,
@@ -1033,7 +1034,8 @@ export default {
         [43]: 'litter',
         [46]: 'landform-type',
         [62]: 'dominant-phenology',
-        [phenologyMultiselectId]: 'phenology-occurring',
+        [evidenceThreatsMultiselectId]: 'sign-of-disturbance-and-threats',
+        [phenologyMultiselectId]: 'phenology-(occurring)',
         // FIXME populate the rest
       }
       const key = field.id
