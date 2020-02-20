@@ -118,22 +118,22 @@ function getHelpData() {
         [
           'Production from dryland agriculture and plantations',
           'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          null,
+          'landuse-dap.jpg',
         ],
         [
           'Production from irrigated agriculture and plantations',
           'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          null,
+          'landuse-piap.jpg',
         ],
         [
           'Intensive uses',
           'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          null,
+          'landuse-intensive.jpg',
         ],
         [
           'Water',
           'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          null,
+          'landuse-water.jpg',
         ],
       ],
     },

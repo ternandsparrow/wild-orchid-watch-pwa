@@ -1151,7 +1151,7 @@ $thumbnailSize: 75px;
     background-size: cover;
     background-position: center;
     border-radius: 15px;
-    box-shadow: 5px 5px 8px #888888;
+    box-shadow: 3px 3px 4px #888888;
   }
 
   label {
