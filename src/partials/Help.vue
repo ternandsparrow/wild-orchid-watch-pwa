@@ -70,7 +70,7 @@ function getHelpData() {
       heading: 'Photos',
       values: [
         ['Habit', 'A photo of the whole plant (required)', null],
-        ['Flower', 'If the plant is flowing, this is required', null],
+        ['Flower', 'If the plant is flowering, this is required', null],
       ],
     },
     {
@@ -78,7 +78,7 @@ function getHelpData() {
       values: [
         [
           'Species name',
-          'If known use the scientific or common name, or if name unknown, you can enter a descriptive name eg. purple waxy flowers',
+          'If known use the scientific or common name, or if the name is unknown, you can enter a descriptive name eg. purple waxy flowers',
           null,
         ],
       ],
