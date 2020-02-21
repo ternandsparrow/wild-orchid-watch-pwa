@@ -132,6 +132,9 @@ function isObsWithLocalProcessor(record) {
 }
 
 export function isPossiblyStuck($store, record) {
+  if (!record) {
+    return false
+  }
   const isAllowedToSync = !$store.getters.isSyncDisabled
   const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
   return (
