@@ -1,0 +1,18 @@
+- rename {Approx=>Estimated} area searched (m2)
+- add Accuracy of search area calcuation
+- add Precise area measurements - length
+- add Precise area measurements - width
+- Epiphyte height
+  - rename to Epiphyte height on the host
+  - change from number input to dropdown list of options
+- reposition everything to match the newest spec
+- removed altitude question
+- removed Area of exact count
+
+FIXME do we remove Area of pop?
+
+
+Response to questions:
+KI1: yes, we already have a population function. Just set the count of organisms to >1 and it's a population record :D
+KI2: not sure what segregate genera is or what's required for us to support it.
+

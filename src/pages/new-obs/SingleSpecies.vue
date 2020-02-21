@@ -247,13 +247,15 @@ import uuid from 'uuid/v1'
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
-  squareAreaValueToTitle,
   findCommonString,
+  rectangleAlongPathAreaValueToTitle,
+  squareAreaValueToTitle,
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
   accuracyOfCountExact,
   accuracyOfPopulationCountObsFieldId,
+  accuracyOfSearchAreaCalcObsFieldId,
   approxAreaSearchedObsFieldId,
   areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
@@ -276,9 +278,13 @@ import {
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
   phenologyMultiselectId,
+  searchAreaCalcPreciseLengthObsFieldId,
+  searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
   yesValue,
+  accuracyOfSearchAreaCalcEstimated,
+  accuracyOfSearchAreaCalcPrecise,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
@@ -295,6 +301,7 @@ export default {
         { id: 'whole-plant', name: 'Whole plant' },
         { id: 'flower', name: 'Flower' },
         { id: 'leaf', name: 'Leaf' },
+        { id: 'fruit', name: 'Fruit' },
         { id: 'habitat', name: 'Habitat' },
         { id: 'micro-habitat', name: 'Micro-habitat' },
         { id: 'canopy', name: 'Canopy' },
@@ -326,8 +333,11 @@ export default {
       geolocationErrorMsg: null,
       obsFieldSorterFn: null,
       isExactCount: false,
+      isPreciseSearchAreaCalc: false,
+      isEstimatedSearchAreaCalc: false,
       isPopulationRecord: false,
-      extraConditionalRequiredFieldIds: [],
+      requiredFieldIdsConditionalOnNumberFields: [],
+      requiredFieldIdsConditionalAccuracyOfSearchField: [],
       otherType: 'other',
       fieldIdIsDisabled: {},
     }
@@ -390,7 +400,8 @@ export default {
           return accum
         }
         const isConditionalRequiredField = [
-          ...this.extraConditionalRequiredFieldIds,
+          ...this.requiredFieldIdsConditionalOnNumberFields,
+          ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
           areaOfExactCountObsFieldId,
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
@@ -453,6 +464,19 @@ export default {
     [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
       this.isExactCount = newVal === accuracyOfCountExact
       this.refreshVisibilityOfPopulationRecordFields()
+    },
+    [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {
+      this.requiredFieldIdsConditionalAccuracyOfSearchField = []
+      this.isPreciseSearchAreaCalc = newVal === accuracyOfSearchAreaCalcPrecise
+      if (this.isPreciseSearchAreaCalc) {
+        this.requiredFieldIdsConditionalAccuracyOfSearchField.push(
+          searchAreaCalcPreciseWidthObsFieldId,
+          searchAreaCalcPreciseLengthObsFieldId,
+        )
+      }
+      this.isEstimatedSearchAreaCalc =
+        newVal === accuracyOfSearchAreaCalcEstimated
+      this.refreshVisibilityOfSearchAreaFields()
     },
   },
   beforeMount() {
@@ -590,7 +614,7 @@ export default {
       // couldn't get it to work on number fields (the watcher never gets
       // fired) hence this hack. If you get the watcher working, delete
       // this mess.
-      this.extraConditionalRequiredFieldIds = []
+      this.requiredFieldIdsConditionalOnNumberFields = []
       const newVal = event.target.value
       switch (fieldId) {
         case countOfIndividualsObsFieldId:
@@ -598,28 +622,45 @@ export default {
             parseInt(newVal) > countOfIndividualsObsFieldDefault
           this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
-            this.extraConditionalRequiredFieldIds.push(
+            this.requiredFieldIdsConditionalOnNumberFields.push(
               approxAreaSearchedObsFieldId,
             )
-            this.extraConditionalRequiredFieldIds.push(
+            this.requiredFieldIdsConditionalOnNumberFields.push(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
+            this.requiredFieldIdsConditionalOnNumberFields.push(
               areaOfPopulationObsFieldId,
             )
-            const isSetToNotCollected =
-              this.obsFieldValues[approxAreaSearchedObsFieldId] === notCollected
-            if (isSetToNotCollected) {
-              this.obsFieldValues[approxAreaSearchedObsFieldId] = null
-            }
+            this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
+            this.handleObsFieldOptionalToRequired(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
           } else {
             // individual record
-            const isSetToNull =
-              this.obsFieldValues[approxAreaSearchedObsFieldId] === null
-            if (isSetToNull) {
-              this.obsFieldValues[approxAreaSearchedObsFieldId] = notCollected
-            }
+            this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
+            this.handleObsFieldRequiredToOptional(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
           }
           this.refreshVisibilityOfPopulationRecordFields()
+          this.refreshVisibilityOfSearchAreaFields()
           break
       }
+    },
+    handleObsFieldOptionalToRequired(obsFieldId) {
+      const isSetToNotCollected =
+        this.obsFieldValues[obsFieldId] === notCollected
+      if (!isSetToNotCollected) {
+        return
+      }
+      this.obsFieldValues[obsFieldId] = null
+    },
+    handleObsFieldRequiredToOptional(obsFieldId) {
+      const isSetToNull = this.obsFieldValues[obsFieldId] === null
+      if (!isSetToNull) {
+        return
+      }
+      this.obsFieldValues[obsFieldId] = notCollected
     },
     refreshVisibilityOfPopulationRecordFields() {
       this.obsFieldVisibility[areaOfExactCountObsFieldId] =
@@ -627,6 +668,17 @@ export default {
       this.obsFieldVisibility[
         areaOfPopulationObsFieldId
       ] = this.isPopulationRecord
+    },
+    refreshVisibilityOfSearchAreaFields() {
+      this.obsFieldVisibility[
+        searchAreaCalcPreciseWidthObsFieldId
+      ] = this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[
+        searchAreaCalcPreciseLengthObsFieldId
+      ] = this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[
+        approxAreaSearchedObsFieldId
+      ] = this.isEstimatedSearchAreaCalc
     },
     showHelp(section) {
       this.$store.commit('ephemeral/showHelpModal')
@@ -1111,8 +1163,12 @@ function getAllowedValsStrategy(field) {
     vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
       return { value: v, title: squareAreaValueToTitle(v) }
     })
+  const rectangleAlongPathAreaMapper = vals =>
+    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
+      return { value: v, title: rectangleAlongPathAreaValueToTitle(v) }
+    })
   const strats = {
-    [approxAreaSearchedObsFieldId]: squareAreaMapper,
+    [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaMapper,
     [areaOfExactCountObsFieldId]: squareAreaMapper,
     [areaOfPopulationObsFieldId]: squareAreaMapper,
   }

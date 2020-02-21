@@ -297,7 +297,6 @@ const actions = {
           commit('setLat', loc.coords.latitude)
           commit('setLng', loc.coords.longitude)
           commit('setLocAccuracy', loc.coords.accuracy)
-          // TODO should we get altitude, altitudeAccuracy and heading values?
           return resolve()
         },
         err => {

@@ -302,6 +302,14 @@ export function squareAreaValueToTitle(v) {
   return isNaN(v) ? v : `${sqrt}x${sqrt} (${v}m²)`
 }
 
+export function rectangleAlongPathAreaValueToTitle(v) {
+  const shortDimension = 2
+  const longDimension = v / shortDimension
+  return isNaN(v)
+    ? v
+    : `${longDimension}x${shortDimension} (i.e. ${v}m² or similar)`
+}
+
 /**
  * Takes an array of valid values and returns a validator function. The
  * validator function takes a single param and returns it as-is if valid,

@@ -198,11 +198,12 @@ import {
   yesValue,
 } from '@/misc/constants'
 import {
-  squareAreaValueToTitle,
   findCommonString,
   formatMetricDistance,
   humanDateString,
   isPossiblyStuck,
+  rectangleAlongPathAreaValueToTitle,
+  squareAreaValueToTitle,
   wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
@@ -238,7 +239,7 @@ export default {
     },
     nullSafeObs() {
       const valueMappers = {
-        [approxAreaSearchedObsFieldId]: squareAreaValueToTitle,
+        [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
         [areaOfExactCountObsFieldId]: squareAreaValueToTitle,
         [areaOfPopulationObsFieldId]: squareAreaValueToTitle,
       }
