@@ -5,7 +5,7 @@ import piexif from 'piexifjs'
 const defaultJpgQuality = 90 // TODO make env var config
 
 comlinkExpose({
-  async resize({ blobish, maxWidthOrHeight, quality = defaultJpgQuality }) {
+  async resize(blobish, maxWidthOrHeight, quality = defaultJpgQuality) {
     const blobType = blobish.type
     const metadata = await getMetadata(blobish)
     const buffer = await blobish.arrayBuffer()
@@ -62,7 +62,7 @@ function getMetadata(imageAsBlob) {
   })
 }
 
-function writeMetadata(imageAsArrayBuffer, blobType, metadataObj) {
+function writeMetadata(imageAsArrayBuffer, metadataObj, blobType) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = function(e) {

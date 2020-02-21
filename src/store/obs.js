@@ -1370,12 +1370,13 @@ const actions = {
     try {
       if (!imageCompressionWorker) {
         // FIXME can we get SW to cache the worker?
-        const worker = new Worker('./image-compression.worker.js', {
-          type: 'module',
-        })
-        imageCompressionWorker = comlinkWrap(worker)
+        imageCompressionWorker = comlinkWrap(
+          new Worker('./image-compression.worker.js', {
+            type: 'module',
+          }),
+        )
       }
-      const compressedBlobish = await imageCompressionWorker.compress(
+      const compressedBlobish = await imageCompressionWorker.resize(
         blobish,
         maxWidthOrHeight,
       )
