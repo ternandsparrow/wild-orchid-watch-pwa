@@ -1113,7 +1113,13 @@ const actions = {
       }
       for (const curr of apiRecords.photoPostBodyPartials) {
         const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
-        fd.append(constants.photosFieldName, photoBlob)
+        // we create a File so we can encode the type of the photo in the
+        // filename. Very sneaky ;)
+        const photoType = `wow-${curr.type}`
+        const photoFile = new File([photoBlob], photoType, {
+          type: photoBlob.type,
+        })
+        fd.append(constants.photosFieldName, photoFile)
       }
       for (const curr of apiRecords.obsFieldPostBodyPartials) {
         fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
