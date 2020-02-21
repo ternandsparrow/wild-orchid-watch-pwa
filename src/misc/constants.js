@@ -1,7 +1,6 @@
 import {
   epiphyte,
   estimated,
-  exact,
   multiselectSeparator,
   noValue,
   notCollected as notCollectedDefault,
@@ -92,10 +91,6 @@ export const conservationImmediateLanduseObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE_CONSERVATION,
 )
 
-export const areaOfExactCountObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_EXACT_COUNT,
-)
-
 export const areaOfPopulationObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_POPULATION,
 )
@@ -123,8 +118,6 @@ export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || terrestrial
-export const accuracyOfCountExact =
-  process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || exact
 export const accuracyOfSearchAreaCalcPrecise =
   process.env.VUE_APP_OBS_FIELD_ACCURACY_PRECISE || precise
 export const accuracyOfSearchAreaCalcEstimated =

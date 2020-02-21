@@ -253,11 +253,8 @@ import {
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
-  accuracyOfCountExact,
-  accuracyOfPopulationCountObsFieldId,
   accuracyOfSearchAreaCalcObsFieldId,
   approxAreaSearchedObsFieldId,
-  areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
   blocked,
   coarseFragmentsMultiselectId,
@@ -332,7 +329,6 @@ export default {
       isShowModalForceClose: false,
       geolocationErrorMsg: null,
       obsFieldSorterFn: null,
-      isExactCount: false,
       isPreciseSearchAreaCalc: false,
       isEstimatedSearchAreaCalc: false,
       isPopulationRecord: false,
@@ -402,7 +398,6 @@ export default {
         const isConditionalRequiredField = [
           ...this.requiredFieldIdsConditionalOnNumberFields,
           ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
-          areaOfExactCountObsFieldId,
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
           widerLanduseObsFieldId,
@@ -460,10 +455,6 @@ export default {
     [`obsFieldValues.${conservationImmediateLanduseObsFieldId}`](newVal) {
       const isConservation = newVal === true
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
-    },
-    [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
-      this.isExactCount = newVal === accuracyOfCountExact
-      this.refreshVisibilityOfPopulationRecordFields()
     },
     [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {
       this.requiredFieldIdsConditionalAccuracyOfSearchField = []
@@ -663,8 +654,6 @@ export default {
       this.obsFieldValues[obsFieldId] = notCollected
     },
     refreshVisibilityOfPopulationRecordFields() {
-      this.obsFieldVisibility[areaOfExactCountObsFieldId] =
-        this.isExactCount && this.isPopulationRecord
       this.obsFieldVisibility[
         areaOfPopulationObsFieldId
       ] = this.isPopulationRecord
@@ -1169,7 +1158,6 @@ function getAllowedValsStrategy(field) {
     })
   const strats = {
     [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaMapper,
-    [areaOfExactCountObsFieldId]: squareAreaMapper,
     [areaOfPopulationObsFieldId]: squareAreaMapper,
   }
   const result = strats[field.id]

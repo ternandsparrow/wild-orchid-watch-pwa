@@ -190,7 +190,6 @@ import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import {
   approxAreaSearchedObsFieldId,
-  areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
   getMultiselectId,
   noImagePlaceholderUrl,
@@ -240,7 +239,6 @@ export default {
     nullSafeObs() {
       const valueMappers = {
         [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
-        [areaOfExactCountObsFieldId]: squareAreaValueToTitle,
         [areaOfPopulationObsFieldId]: squareAreaValueToTitle,
       }
       const result = _.cloneDeep(this.observationDetail || {})
