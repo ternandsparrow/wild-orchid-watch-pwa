@@ -1345,8 +1345,7 @@ const actions = {
       console.debug('Photo compression disabled, using original photo')
       return withLocation(blobish)
     }
-    const maxSizeMB = 1 // TODO make config
-    const maxWidthOrHeight = 1920 // TODO make config
+    const maxWidthOrHeight = constants.photoCompressionThresholdPixels
     const dimensionX = originalMetadata.PixelXDimension
     const dimensionY = originalMetadata.PixelYDimension
     const hasDimensionsInExif = dimensionX && dimensionY
@@ -1354,7 +1353,8 @@ const actions = {
       hasDimensionsInExif &&
       dimensionX < maxWidthOrHeight &&
       dimensionY < maxWidthOrHeight
-    const isPhotoAlreadySmallEnoughStorage = originalImageSizeMb <= maxSizeMB
+    const isPhotoAlreadySmallEnoughStorage =
+      originalImageSizeMb <= constants.photoCompressionThresholdMb
     if (
       isPhotoAlreadySmallEnoughDimensions ||
       isPhotoAlreadySmallEnoughStorage

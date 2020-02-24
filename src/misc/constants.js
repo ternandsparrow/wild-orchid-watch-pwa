@@ -209,6 +209,14 @@ export const obsPageSize = convertAndAssertInteger(
   process.env.VUE_APP_OBS_PAGE_SIZE || 100,
 )
 
+export const photoCompressionThresholdMb = convertAndAssertInteger(
+  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_MB || 1,
+)
+
+export const photoCompressionThresholdPixels = convertAndAssertInteger(
+  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
+)
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix =
