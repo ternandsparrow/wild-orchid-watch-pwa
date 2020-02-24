@@ -18,7 +18,10 @@ Requirements:
      can override values from the `.env` file. It's worth noting that this file
      is ignored by version control. You'll probably want define at least a
      Google Maps API key so the maps work but you may also need to change the
-     OAuth client ID, something like:
+     OAuth client ID. It's *NOT* a good idea to just copy the .env because if
+     the .env file ever changes in the future, your .env.local will continue to
+     (incorrectly) override that. Only add the items you want to your .env.loca.
+     Something like:
       ```env
       VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
       VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
