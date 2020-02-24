@@ -709,8 +709,6 @@ const actions = {
           [constants.obsFieldIdsToDeleteFieldName]: [],
         },
         uuid: newRecordId,
-        // FIXME get these from UI
-        // place_guess: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA', // probably need to use a geocoding service for this
       })
       delete enhancedRecord.addedPhotos
       try {
@@ -1379,13 +1377,6 @@ const actions = {
       const compressedBlobish = await imageCompressionWorker.resize(
         blobish,
         maxWidthOrHeight,
-      )
-      const compressedBlobishSizeMb = compressedBlobish.size / 1024 / 1024
-      console.debug(
-        `Compressed ${originalImageSizeMb.toFixed(3)}MB file ` +
-          `to ${compressedBlobishSizeMb.toFixed(3)}MB (` +
-          ((compressedBlobishSizeMb / originalImageSizeMb) * 100).toFixed(1) +
-          `% of original)`,
       )
       return withLocation(compressedBlobish)
     } catch (err) {

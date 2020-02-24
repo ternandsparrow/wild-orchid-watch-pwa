@@ -123,7 +123,7 @@ const obsFields = [
     allowedValues: squareAreas,
   },
   {
-    name: 'Accuracy of search area calcuation',
+    name: 'Accuracy of search area calculation',
     description: 'How accurate is your calculation of the area searched?',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.precise}|${obsFieldConstants.estimated}`,
