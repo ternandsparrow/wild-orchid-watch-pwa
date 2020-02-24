@@ -1325,7 +1325,7 @@ const actions = {
     await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
-  async compressPhotoIfRequired(_, blobish) {
+  async compressPhotoIfRequired({ rootState }, blobish) {
     let originalMetadata
     try {
       originalMetadata = await getExifFromBlob(blobish)
@@ -1341,6 +1341,10 @@ const actions = {
     }
     const originalImageSizeMb = blobish.size / 1024 / 1024
     const { lat, lng } = extractGps(originalMetadata)
+    if (!rootState.app.isEnablePhotoCompression) {
+      console.debug('Photo compression disabled, using original photo')
+      return withLocation(blobish)
+    }
     const maxSizeMB = 1 // TODO make config
     const maxWidthOrHeight = 1920 // TODO make config
     const dimensionX = originalMetadata.PixelXDimension

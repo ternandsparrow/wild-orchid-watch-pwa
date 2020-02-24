@@ -19,6 +19,21 @@
           </div>
         </div>
       </ons-list-item>
+      <ons-list-item>
+        <label class="center" for="compressSwitch">
+          <span class="list-item__title">Compress/resize photos</span
+          ><span class="list-item__subtitle"
+            >This will use less space on your phone and data during upload</span
+          >
+        </label>
+        <div class="right">
+          <v-ons-switch
+            v-model="isEnablePhotoCompression"
+            input-id="compressSwitch"
+          >
+          </v-ons-switch>
+        </div>
+      </ons-list-item>
       <v-ons-list-header>Info</v-ons-list-header>
       <ons-list-item>
         <div class="left wow-flexcol">
@@ -142,6 +157,14 @@ export default {
       },
       set(newValue) {
         this.$store.commit('app/setWhenToSync', newValue)
+      },
+    },
+    isEnablePhotoCompression: {
+      get() {
+        return this.$store.state.app.isEnablePhotoCompression
+      },
+      set(newValue) {
+        this.$store.commit('app/setEnablePhotoCompression', newValue)
       },
     },
     userMode: {

@@ -8,6 +8,7 @@ const state = {
   whenToSync: alwaysUpload,
   userMode: beginner,
   addToHomeIosPromptLastDate: null,
+  isEnablePhotoCompression: true,
 }
 
 const mutations = {
@@ -18,6 +19,8 @@ const mutations = {
   setUserMode: (state, value) => (state.userMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
+  setEnablePhotoCompression: (state, value) =>
+    (state.isEnablePhotoCompression = value),
 }
 
 const actions = {}

@@ -54,12 +54,12 @@ function updateMetadataToMatchNewSize(metadata, resized) {
   const width = resized.bitmap.width
   const height = resized.bitmap.height
   if (metadata['0th']) {
-    metadata['0th'][piexif.ImageIFD.ImageWidth] = oriented.width
-    metadata['0th'][piexif.ImageIFD.ImageLength] = oriented.height
+    metadata['0th'][piexif.ImageIFD.ImageWidth] = width
+    metadata['0th'][piexif.ImageIFD.ImageLength] = height
   }
   if (metadata.Exif) {
-    metadata.Exif[piexif.ExifIFD.PixelXDimension] = oriented.width
-    metadata.Exif[piexif.ExifIFD.PixelYDimension] = oriented.height
+    metadata.Exif[piexif.ExifIFD.PixelXDimension] = width
+    metadata.Exif[piexif.ExifIFD.PixelYDimension] = height
   }
 }
 
