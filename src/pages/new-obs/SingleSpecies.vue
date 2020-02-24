@@ -969,19 +969,19 @@ export default {
             photoIdsToDelete: this.photoIdsToDelete,
             obsFieldIdsToDelete,
           })
-        } else {
-          await this.$store.dispatch('obs/saveNewAndScheduleUpload', record)
-        }
-        setTimeout(() => {
-          // FIXME should this say something about uploading (or not if
-          // offline)? We don't want to confuse "saved" with "uploaded to inat"
-          this.$ons.notification.toast('Successfully saved', {
-            timeout: 5000,
-            animation: 'ascend',
-            // TODO add dismiss button
+          toastSavedMsg(this.$ons)
+          this.$router.replace({
+            name: 'ObsDetail',
+            params: { id: record.uuid },
           })
-        }, 800)
-        this.$router.replace({ name: 'Home' }) // TODO not ideal because the history will probably have two 'Home' entries back to back
+        } else {
+          const newUuid = await this.$store.dispatch(
+            'obs/saveNewAndScheduleUpload',
+            record,
+          )
+          toastSavedMsg(this.$ons)
+          this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
+        }
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
           msg: 'Failed to save observation to local store',
@@ -991,6 +991,17 @@ export default {
       } finally {
         this.isSaveModalVisible = false
         clearTimeout(timeoutId)
+      }
+      function toastSavedMsg($ons) {
+        setTimeout(() => {
+          // TODO should this say something about uploading (or not if
+          // offline)? We don't want to confuse "saved" with "uploaded to inat"
+          $ons.notification.toast('Successfully saved', {
+            timeout: 5000,
+            animation: 'ascend',
+            // TODO add dismiss button
+          })
+        }, 800)
       }
     },
     getObsFieldInstance(fieldId) {
