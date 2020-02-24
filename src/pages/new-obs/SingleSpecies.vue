@@ -247,15 +247,14 @@ import uuid from 'uuid/v1'
 import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
-  squareAreaValueToTitle,
   findCommonString,
+  rectangleAlongPathAreaValueToTitle,
+  squareAreaValueToTitle,
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
-  accuracyOfCountExact,
-  accuracyOfPopulationCountObsFieldId,
+  accuracyOfSearchAreaCalcObsFieldId,
   approxAreaSearchedObsFieldId,
-  areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
   blocked,
   coarseFragmentsMultiselectId,
@@ -277,9 +276,13 @@ import {
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
   phenologyMultiselectId,
+  searchAreaCalcPreciseLengthObsFieldId,
+  searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
   yesValue,
+  accuracyOfSearchAreaCalcEstimated,
+  accuracyOfSearchAreaCalcPrecise,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
@@ -296,6 +299,7 @@ export default {
         { id: 'whole-plant', name: 'Whole plant' },
         { id: 'flower', name: 'Flower' },
         { id: 'leaf', name: 'Leaf' },
+        { id: 'fruit', name: 'Fruit' },
         { id: 'habitat', name: 'Habitat' },
         { id: 'micro-habitat', name: 'Micro-habitat' },
         { id: 'canopy', name: 'Canopy' },
@@ -326,11 +330,14 @@ export default {
       isShowModalForceClose: false,
       geolocationErrorMsg: null,
       obsFieldSorterFn: null,
-      isExactCount: false,
+      isPreciseSearchAreaCalc: false,
+      isEstimatedSearchAreaCalc: false,
       isPopulationRecord: false,
-      extraConditionalRequiredFieldIds: [],
+      requiredFieldIdsConditionalOnNumberFields: [],
+      requiredFieldIdsConditionalAccuracyOfSearchField: [],
       otherType: 'other',
       fieldIdIsDisabled: {},
+      photosStillCompressingCountdownLatch: 0,
     }
   },
   computed: {
@@ -391,8 +398,8 @@ export default {
           return accum
         }
         const isConditionalRequiredField = [
-          ...this.extraConditionalRequiredFieldIds,
-          areaOfExactCountObsFieldId,
+          ...this.requiredFieldIdsConditionalOnNumberFields,
+          ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
           widerLanduseObsFieldId,
@@ -451,9 +458,18 @@ export default {
       const isConservation = newVal === true
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
     },
-    [`obsFieldValues.${accuracyOfPopulationCountObsFieldId}`](newVal) {
-      this.isExactCount = newVal === accuracyOfCountExact
-      this.refreshVisibilityOfPopulationRecordFields()
+    [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {
+      this.requiredFieldIdsConditionalAccuracyOfSearchField = []
+      this.isPreciseSearchAreaCalc = newVal === accuracyOfSearchAreaCalcPrecise
+      if (this.isPreciseSearchAreaCalc) {
+        this.requiredFieldIdsConditionalAccuracyOfSearchField.push(
+          searchAreaCalcPreciseWidthObsFieldId,
+          searchAreaCalcPreciseLengthObsFieldId,
+        )
+      }
+      this.isEstimatedSearchAreaCalc =
+        newVal === accuracyOfSearchAreaCalcEstimated
+      this.refreshVisibilityOfSearchAreaFields()
     },
   },
   beforeMount() {
@@ -591,7 +607,7 @@ export default {
       // couldn't get it to work on number fields (the watcher never gets
       // fired) hence this hack. If you get the watcher working, delete
       // this mess.
-      this.extraConditionalRequiredFieldIds = []
+      this.requiredFieldIdsConditionalOnNumberFields = []
       const newVal = event.target.value
       switch (fieldId) {
         case countOfIndividualsObsFieldId:
@@ -599,35 +615,61 @@ export default {
             parseInt(newVal) > countOfIndividualsObsFieldDefault
           this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
-            this.extraConditionalRequiredFieldIds.push(
+            this.requiredFieldIdsConditionalOnNumberFields.push(
               approxAreaSearchedObsFieldId,
             )
-            this.extraConditionalRequiredFieldIds.push(
+            this.requiredFieldIdsConditionalOnNumberFields.push(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
+            this.requiredFieldIdsConditionalOnNumberFields.push(
               areaOfPopulationObsFieldId,
             )
-            const isSetToNotCollected =
-              this.obsFieldValues[approxAreaSearchedObsFieldId] === notCollected
-            if (isSetToNotCollected) {
-              this.obsFieldValues[approxAreaSearchedObsFieldId] = null
-            }
+            this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
+            this.handleObsFieldOptionalToRequired(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
           } else {
             // individual record
-            const isSetToNull =
-              this.obsFieldValues[approxAreaSearchedObsFieldId] === null
-            if (isSetToNull) {
-              this.obsFieldValues[approxAreaSearchedObsFieldId] = notCollected
-            }
+            this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
+            this.handleObsFieldRequiredToOptional(
+              accuracyOfSearchAreaCalcObsFieldId,
+            )
           }
           this.refreshVisibilityOfPopulationRecordFields()
+          this.refreshVisibilityOfSearchAreaFields()
           break
       }
     },
+    handleObsFieldOptionalToRequired(obsFieldId) {
+      const isSetToNotCollected =
+        this.obsFieldValues[obsFieldId] === notCollected
+      if (!isSetToNotCollected) {
+        return
+      }
+      this.obsFieldValues[obsFieldId] = null
+    },
+    handleObsFieldRequiredToOptional(obsFieldId) {
+      const isSetToNull = this.obsFieldValues[obsFieldId] === null
+      if (!isSetToNull) {
+        return
+      }
+      this.obsFieldValues[obsFieldId] = notCollected
+    },
     refreshVisibilityOfPopulationRecordFields() {
-      this.obsFieldVisibility[areaOfExactCountObsFieldId] =
-        this.isExactCount && this.isPopulationRecord
       this.obsFieldVisibility[
         areaOfPopulationObsFieldId
       ] = this.isPopulationRecord
+    },
+    refreshVisibilityOfSearchAreaFields() {
+      this.obsFieldVisibility[
+        searchAreaCalcPreciseWidthObsFieldId
+      ] = this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[
+        searchAreaCalcPreciseLengthObsFieldId
+      ] = this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[
+        approxAreaSearchedObsFieldId
+      ] = this.isEstimatedSearchAreaCalc
     },
     showHelp(section) {
       this.$store.commit('ephemeral/showHelpModal')
@@ -829,6 +871,15 @@ export default {
             value: paramToPass,
           })
         }
+        while (this.photosStillCompressingCountdownLatch > 0) {
+          await new Promise(resolve => {
+            // TODO do we need a sanity check that breaks out after N tests?
+            const waitForImageCompressionMs = 333
+            setTimeout(() => {
+              return resolve()
+            }, waitForImageCompressionMs)
+          })
+        }
         const record = {
           addedPhotos: this.photos.map(curr => ({
             type: curr.type,
@@ -962,20 +1013,36 @@ export default {
       if (!file) {
         return
       }
-      // TODO compress and get location info here
-      // TODO can we not block user while processing?
-      const processingResult = await this.$store.dispatch(
-        'obs/compressPhotoIfRequired',
-        file,
-      )
-      // TODO use processingResult.location.{lat,lng}
-      console.log(processingResult.location)
+      const theUuid = uuid()
       this.photos.push({
         type,
-        file: processingResult.data,
+        file,
         url: URL.createObjectURL(file),
-        uuid: uuid(),
+        uuid: theUuid,
       })
+      this.photosStillCompressingCountdownLatch += 1
+      // here we use the full size photo but send it for compression in the
+      // worker (background) so we don't block the UI. We make sure all
+      // compression is done during onSave.
+      this.$store
+        .dispatch('obs/compressPhotoIfRequired', file)
+        .then(compressionResult => {
+          const found = this.photos.find(e => e.uuid === theUuid)
+          if (!found) {
+            // guess the photo has already been deleted?
+            return
+          }
+          found.file = compressionResult.data
+          found.url = URL.createObjectURL(compressionResult.data)
+          // TODO use compressionResult.location.{lat,lng}
+          console.log(compressionResult.location)
+        })
+        .catch(err => {
+          console.warn('Failed to compress an image', err)
+        })
+        .finally(() => {
+          this.photosStillCompressingCountdownLatch -= 1
+        })
     },
     async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
@@ -1113,9 +1180,12 @@ function getAllowedValsStrategy(field) {
     vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
       return { value: v, title: squareAreaValueToTitle(v) }
     })
+  const rectangleAlongPathAreaMapper = vals =>
+    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
+      return { value: v, title: rectangleAlongPathAreaValueToTitle(v) }
+    })
   const strats = {
-    [approxAreaSearchedObsFieldId]: squareAreaMapper,
-    [areaOfExactCountObsFieldId]: squareAreaMapper,
+    [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaMapper,
     [areaOfPopulationObsFieldId]: squareAreaMapper,
   }
   const result = strats[field.id]

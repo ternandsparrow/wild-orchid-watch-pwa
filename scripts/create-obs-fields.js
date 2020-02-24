@@ -54,46 +54,26 @@ const phenologyValues =
   'Vegetative|Budding|Flowering|Senescent flower|Developing fruit|Senescent fruit'
 
 const obsFields = [
+  // Georeferenced location - not an obs field
+  // Date - not an obs field
+  // Time - not an obs field
+  // Orchid photos - not an obs field
+  //  - whole plant (required)
+  //  - flower
+  //  - leaf
+  //  - fruit
+  // Habitat photos - not an obs field
+  //  - habitat, site photo ~5m either side of plant (required)
+  //  - microhabitat, downward looking photo ~30cm either side of plant (required)
+  //  - canopy, looking upward from flower height (or chest)
+  // Floral visitors photo - not an obs field
+  // Host tree photo - not an obs field
+  // Species name or your descriptive field name - not an obs field
   {
     name: 'Orchid type',
     description: '',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.terrestrial}|${obsFieldConstants.epiphyte}|Lithophyte`,
-  },
-  // Orchid photos - not an obs field
-  //  - whole plant (required)
-  //  - flower
-  //  - leaf
-  // Habitat photos - not an obs field
-  //  - habitat, site photo ~5m either side of plant (required)
-  //  - microhabitat, downward looking photo ~30cm either side of plant (required)
-  //  - canopy, looking upward from flower height (or chest)
-  // Georeferenced location - not an obs field
-  // Date - not an obs field
-  // Time - not an obs field
-  {
-    name: 'Altitude metres',
-    description:
-      'Altitude (in metres), compared to sea level, that observation was made at',
-    datatype: 'numeric',
-    allowedValues: '',
-  },
-  ...multiselect(
-    'Landuse of the immediate area',
-    'Categorise the immediate area surrounding the observation',
-    `Conservation and natural environments|${commonLanduses}`,
-  ),
-  {
-    name: 'Wider landuse',
-    description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
-    datatype: 'text',
-    allowedValues: `${commonLanduses}|Unknown`,
-  },
-  {
-    name: 'Is the plant surrounded by litter',
-    description: '',
-    datatype: 'text',
-    allowedValues: 'Not collected|Yes|No',
   },
   {
     name: 'Host tree species',
@@ -102,12 +82,17 @@ const obsFields = [
     allowedValues: '',
   },
   {
-    name: 'Epiphyte height (cm)',
-    description: `Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
-    datatype: 'numeric',
-    allowedValues: '',
+    name: 'Epiphyte height on the host (m)',
+    description: `Estimate the number of metres above ground level the orchid is growing on the host plant. Only required for Orchid Type = ${obsFieldConstants.epiphyte}`,
+    datatype: 'text',
+    allowedValues: `1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|>15`,
   },
-  // Host tree photo - not an obs field
+  {
+    name: 'Is the plant surrounded by litter',
+    description: '',
+    datatype: 'text',
+    allowedValues: 'Not collected|Yes|No',
+  },
   {
     name: 'Landform type',
     description: '',
@@ -126,11 +111,41 @@ const obsFields = [
     'None|Fine gravel or small pebbles <6 mm|Medium gravel to medium pebbles 6 - 20 mm|Coarse gravel to large pebbles 20 - 60 mm|Cobbles 60 - 200 mm|Stones 200 - 600 mm|Boulders 600 - 2000 mm|Large boulders >2000 mm',
   ),
   {
-    name: 'Approx area searched (m²)',
-    description:
-      'How large is the area you searched while counting individuals? Only required when observing more than one individual',
+    name: 'Accuracy of population count',
+    description: 'How accurate is the count of indiviudals recorded.',
     datatype: 'text',
-    allowedValues: `Not collected|${squareAreas}`,
+    allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
+  },
+  {
+    name: 'Area of population (m²)',
+    description: 'Only applicable when recording >1 individual',
+    datatype: 'text',
+    allowedValues: squareAreas,
+  },
+  {
+    name: 'Accuracy of search area calcuation',
+    description: 'How accurate is your calculation of the area searched?',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.precise}|${obsFieldConstants.estimated}`,
+  },
+  {
+    name: 'Precise area measurements - length (m)',
+    description: 'Length, in metres, of your precisely measured area',
+    datatype: 'numeric',
+    allowedValues: '',
+  },
+  {
+    name: 'Precise area measurements - width (m)',
+    description: 'Width, in metres, of your precisely measured area',
+    datatype: 'numeric',
+    allowedValues: '',
+  },
+  {
+    name: 'Estimated area searched (m²)',
+    description:
+      'How large is the area you searched while counting individuals? Only required when observing more than one individual. Recommended linear searches i.e. rectangles along paths, etc',
+    datatype: 'text',
+    allowedValues: `Not collected|2|4|10|16|24|36|42|50|64|72|100|>100`,
   },
   {
     name: 'Search effort (minutes)',
@@ -141,34 +156,35 @@ const obsFields = [
       'Not collected|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+', // FIXME get these values
   },
   {
-    name: 'Accuracy of population count',
-    description: 'How accurate is the count of indiviudals recorded.',
-    datatype: 'text',
-    allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
-  },
-  {
-    name: 'Area of exact count (m²)',
-    description: 'Size of the area searched while performing an exact count',
-    datatype: 'text',
-    allowedValues: squareAreas,
-  },
-  {
     name: 'Number of individuals recorded',
     description: 'How many individual orchids did you observe?',
     datatype: 'numeric',
     allowedValues: '',
   },
+  ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
   {
-    name: 'Area of population (m²)',
-    description: 'Only applicable when recording >1 individual',
+    name: 'Phenology - dominant life stage status most occurring',
+    description:
+      'Which is the most dominant phenology amongst the individuals observed',
     datatype: 'text',
-    allowedValues: squareAreas,
+    allowedValues: `${obsFieldConstants.notCollected}|${phenologyValues}`,
   },
+  {
+    name: 'Florivory damage noted',
+    description: '',
+    datatype: 'text',
+    allowedValues: 'Not collected|Yes|No',
+  },
+  ...multiselect(
+    'Floral visitors/potential pollinators observed',
+    '',
+    'Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+  ),
   {
     name: 'Dominant vegetation growth form',
     description: '',
     datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Gress-tree|Cycad|Unknown`,
+    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Grass-tree|Cycad|Unknown`,
   },
   {
     name: 'Height of the most dominant growth form present (metres)',
@@ -191,30 +207,21 @@ const obsFields = [
     allowedValues: '',
   },
   ...multiselect(
+    'Landuse of the immediate area',
+    'Categorise the immediate area surrounding the observation',
+    `Conservation and natural environments|${commonLanduses}`,
+  ),
+  {
+    name: 'Wider landuse',
+    description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
+    datatype: 'text',
+    allowedValues: `${commonLanduses}|Unknown`,
+  },
+  ...multiselect(
     'Evidence of disturbance and threats in the immediate area',
     '',
     'Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance',
   ),
-  {
-    name: 'Florivory damage noted',
-    description: '',
-    datatype: 'text',
-    allowedValues: 'Not collected|Yes|No',
-  },
-  ...multiselect(
-    'Floral visitors/potential pollinators observed',
-    '',
-    'Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
-  ),
-  // Floral visitors photo - not an obs field
-  ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
-  {
-    name: 'Phenology - dominant life stage status most occurring',
-    description:
-      'Which is the most dominant phenology amongst the individuals observed',
-    datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|${phenologyValues}`,
-  },
 ]
 
 function multiselect(containerQuestionName, description, values) {

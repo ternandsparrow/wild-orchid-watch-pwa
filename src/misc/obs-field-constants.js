@@ -13,4 +13,7 @@ module.exports = {
 
   yesValue: 'Yes',
   noValue: 'No',
+
+  precise: 'Precise',
+  estimated: 'Estimated',
 }

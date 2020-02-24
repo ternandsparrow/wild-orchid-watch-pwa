@@ -1,10 +1,11 @@
 import {
   epiphyte,
-  exact,
+  estimated,
   multiselectSeparator,
   noValue,
   notCollected as notCollectedDefault,
   obsFieldNamePrefix,
+  precise,
   terrestrial,
   yesValue,
 } from './obs-field-constants'
@@ -90,16 +91,24 @@ export const conservationImmediateLanduseObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE_CONSERVATION,
 )
 
-export const areaOfExactCountObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_EXACT_COUNT,
-)
-
 export const areaOfPopulationObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_AREA_OF_POPULATION,
 )
 
 export const accuracyOfPopulationCountObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_ACCURACY_OF_POPULATION_COUNT,
+)
+
+export const accuracyOfSearchAreaCalcObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_ACCURACY_OF_SEARCH_AREA_CALC,
+)
+
+export const searchAreaCalcPreciseLengthObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_SEARCH_AREA_CALC_PRECISE_LENGTH,
+)
+
+export const searchAreaCalcPreciseWidthObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_SEARCH_AREA_CALC_PRECISE_WIDTH,
 )
 
 // We need to show/hide other fields based on the orchid type. Here we define
@@ -109,8 +118,10 @@ export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_TERRESTRIAL || terrestrial
-export const accuracyOfCountExact =
-  process.env.VUE_APP_OBS_FIELD_ACCURACY_EXACT || exact
+export const accuracyOfSearchAreaCalcPrecise =
+  process.env.VUE_APP_OBS_FIELD_ACCURACY_PRECISE || precise
+export const accuracyOfSearchAreaCalcEstimated =
+  process.env.VUE_APP_OBS_FIELD_ACCURACY_ESTIMATED || estimated
 
 export const notCollected =
   process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault

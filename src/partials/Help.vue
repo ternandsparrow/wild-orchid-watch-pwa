@@ -54,7 +54,14 @@ export default {
       this.$emit('close')
     },
     scrollToSection(sectionName) {
-      const theElement = this.$refs[sectionName][0].$el
+      const theRef = this.$refs[sectionName]
+      if (!theRef) {
+        console.warn(
+          `Programmer error: No help section with name='${sectionName}' found`,
+        )
+        return
+      }
+      const theElement = theRef[0].$el
       if (!theElement) {
         console.warn(
           `Programmer problem: no section with ref='${sectionName}'` +
@@ -323,5 +330,6 @@ function getHelpData() {
   border-radius: 25px;
   box-shadow: 5px 5px 8px #888888;
   margin: 20px;
+  max-width: 90vw;
 }
 </style>

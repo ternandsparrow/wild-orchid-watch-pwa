@@ -132,6 +132,9 @@ function isObsWithLocalProcessor(record) {
 }
 
 export function isPossiblyStuck($store, record) {
+  if (!record) {
+    return false
+  }
   const isAllowedToSync = !$store.getters.isSyncDisabled
   const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
   return (
@@ -300,6 +303,14 @@ export function buildStaleCheckerFn(
 export function squareAreaValueToTitle(v) {
   const sqrt = Math.sqrt(v)
   return isNaN(v) ? v : `${sqrt}x${sqrt} (${v}m²)`
+}
+
+export function rectangleAlongPathAreaValueToTitle(v) {
+  const shortDimension = 2
+  const longDimension = v / shortDimension
+  return isNaN(v)
+    ? v
+    : `${longDimension}x${shortDimension} (i.e. ${v}m² or similar)`
 }
 
 /**

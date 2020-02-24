@@ -333,6 +333,13 @@ describe('squareAreaValueToTitle', () => {
     expect(result).toEqual('5x5 (25m²)')
   })
 
+  it('should not explode when we have a number that does not fit nicely', () => {
+    const result = objectUnderTest.squareAreaValueToTitle(33)
+    // it's not pretty but it's not an error. Just configure the app correctly
+    // and it won't matter as you'll never see an ugly value like this.
+    expect(result).toEqual('5.744562646538029x5.744562646538029 (33m²)')
+  })
+
   it('should handle a stringy number', () => {
     const result = objectUnderTest.squareAreaValueToTitle('36')
     expect(result).toEqual('6x6 (36m²)')
@@ -340,6 +347,33 @@ describe('squareAreaValueToTitle', () => {
 
   it('should handle a non-number input', () => {
     const result = objectUnderTest.squareAreaValueToTitle('>100')
+    expect(result).toEqual('>100')
+  })
+})
+
+describe('rectangleAlongPathAreaValueToTitle', () => {
+  it('should handle 2', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(2)
+    expect(result).toEqual('1x2 (i.e. 2m² or similar)')
+  })
+
+  it('should handle a number that is larger than 1', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(24)
+    expect(result).toEqual('12x2 (i.e. 24m² or similar)')
+  })
+
+  it('should not explode when we have a number that does not fit nicely', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(33)
+    expect(result).toEqual('16.5x2 (i.e. 33m² or similar)')
+  })
+
+  it('should handle a stringy number', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle('36')
+    expect(result).toEqual('18x2 (i.e. 36m² or similar)')
+  })
+
+  it('should handle a non-number input', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle('>100')
     expect(result).toEqual('>100')
   })
 })
@@ -441,6 +475,20 @@ describe('Mission body', () => {
         'blah START-OF-MISSION blah blah',
       ),
     ).toThrow(new Error('No end marker, cannot parse'))
+  })
+})
+
+describe('isPossiblyStuck', () => {
+  it('should return false when no record is supplied', () => {
+    const record = null
+    const store = {
+      getters: {
+        isSyncDisabled: false,
+        'ephemeral/isLocalProcessorRunning': true,
+      },
+    }
+    const result = objectUnderTest.isPossiblyStuck(store, record)
+    expect(result).toEqual(false)
   })
 })
 

@@ -190,7 +190,6 @@ import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import {
   approxAreaSearchedObsFieldId,
-  areaOfExactCountObsFieldId,
   areaOfPopulationObsFieldId,
   getMultiselectId,
   noImagePlaceholderUrl,
@@ -198,11 +197,12 @@ import {
   yesValue,
 } from '@/misc/constants'
 import {
-  squareAreaValueToTitle,
   findCommonString,
   formatMetricDistance,
   humanDateString,
   isPossiblyStuck,
+  rectangleAlongPathAreaValueToTitle,
+  squareAreaValueToTitle,
   wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
@@ -238,8 +238,7 @@ export default {
     },
     nullSafeObs() {
       const valueMappers = {
-        [approxAreaSearchedObsFieldId]: squareAreaValueToTitle,
-        [areaOfExactCountObsFieldId]: squareAreaValueToTitle,
+        [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
         [areaOfPopulationObsFieldId]: squareAreaValueToTitle,
       }
       const result = _.cloneDeep(this.observationDetail || {})

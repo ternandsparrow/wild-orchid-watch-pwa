@@ -297,7 +297,6 @@ const actions = {
           commit('setLat', loc.coords.latitude)
           commit('setLng', loc.coords.longitude)
           commit('setLocAccuracy', loc.coords.accuracy)
-          // TODO should we get altitude, altitudeAccuracy and heading values?
           return resolve()
         },
         err => {
@@ -1114,7 +1113,13 @@ const actions = {
       }
       for (const curr of apiRecords.photoPostBodyPartials) {
         const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
-        fd.append(constants.photosFieldName, photoBlob)
+        // we create a File so we can encode the type of the photo in the
+        // filename. Very sneaky ;)
+        const photoType = `wow-${curr.type}`
+        const photoFile = new File([photoBlob], photoType, {
+          type: photoBlob.type,
+        })
+        fd.append(constants.photosFieldName, photoFile)
       }
       for (const curr of apiRecords.obsFieldPostBodyPartials) {
         fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
@@ -1365,12 +1370,13 @@ const actions = {
     try {
       if (!imageCompressionWorker) {
         // FIXME can we get SW to cache the worker?
-        const worker = new Worker('./image-compression.worker.js', {
-          type: 'module',
-        })
-        imageCompressionWorker = comlinkWrap(worker)
+        imageCompressionWorker = comlinkWrap(
+          new Worker('./image-compression.worker.js', {
+            type: 'module',
+          }),
+        )
       }
-      const compressedBlobish = await imageCompressionWorker.compress(
+      const compressedBlobish = await imageCompressionWorker.resize(
         blobish,
         maxWidthOrHeight,
       )
