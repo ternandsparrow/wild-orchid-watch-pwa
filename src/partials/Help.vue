@@ -199,11 +199,17 @@ function getHelpData() {
     },
     {
       heading: 'Accuracy of Population Count',
-      values: [['FIXME', 'fill this in', null]],
+      values: [['FIXME', 'fill this in', 'blank']],
     },
     {
       heading: 'Accuracy of Search Area Calculation',
-      values: [['FIXME', 'fill this in', null]],
+      values: [
+        [
+          'Make an estimate of the area you have searcged for this observation, in square meters.',
+          '',
+          null,
+        ],
+      ],
     },
     {
       heading: 'Landuse types',
@@ -289,7 +295,90 @@ function getHelpData() {
     },
     {
       heading: 'Dominant Vegetation growth form',
-      values: [['FIXME', 'fill this in', 'blank']],
+      values: [
+        [
+          'Tree',
+          'Woody plants, more than 2m tall with a single stem or branches well above the base.',
+          'blank',
+        ],
+        [
+          'Tree (Mallee)',
+          'Woody perennial plant usually of the genus Eucalyptus. Multi-stemmed with fewer than five trunks of which at least three exceed 100mm diameter at breast height (1.3m). Usually 8m or more.',
+          'blank',
+        ],
+        [
+          'Shrub',
+          'Woody plants multi-stemmed at the base (or within 200mm from ground level) or if single stemmed, less than 2m.',
+          'blank',
+        ],
+        [
+          'Shrub (Mallee)',
+          'Commonly less than 8m tall, usually with five or more trunks, of which at least three of the largest do not exceed 100mm in diameter at breast height (1.3 m).',
+          'blank',
+        ],
+        [
+          'Shrub (Heath)',
+          'Shrub usually less than 2m, with sclerophyllous leaves having high fibre: protein ratios and with an area of nanophyll or smaller (less than 225 sq mm). Often a member of one the following families: Ericaceae, Myrtaceae, Fabaceae and Proteaceae. Commonly occur on nutrient-poor substrates.',
+          'blank',
+        ],
+        [
+          'Shrub (Chenopod)',
+          'Single or multi-stemmed, semi-succulent shrub of the family Chenopodiaceae exhibiting drought and salt tolerance.',
+          'blank',
+        ],
+        [
+          'Shrub (Samphire)',
+          'Genera (of Tribe Salicornioideae, viz.: Halosarcia, Pachycornia, Sarcocornia, Sclerostegia, Tecticornia and Tegicornia) with articulate branches, fleshy stems and reduced flowers within the Chenopodiaceae family, succulent chenopods (Wilson 1980). Also the genus Suaeda.',
+          'blank',
+        ],
+        [
+          'Tussock Grass',
+          'Grass forming discrete but open tussocks usually with distinct individual shoots, or if not, then forming a hummock. These are the common agricultural grasses.',
+          'blank',
+        ],
+
+        [
+          'other  Grass',
+          'Member of the family Poaceae, but having neither a distinctive tussock nor hummock appearance. Examples include stoloniferous species such as Cynodon dactylon.',
+          'blank',
+        ],
+        [
+          'Sedge',
+          'Herbaceous, usually perennial erect plant generally with a tufted habit and of the families Cyperaceae (true sedges) or Restionaceae (node sedges).',
+          'blank',
+        ],
+        [
+          'Rush',
+          'Herbaceous, usually perennial erect monocot that is neither a grass nor a sedge. For the purposes of NVIS, rushes include the monocotyledon families Juncaceae, Typhaceae, Liliaceae, Iridaceae, Xyridaceae and the genus Lomandra. (i.e. "graminoid" or grass-like genera).',
+          'blank',
+        ],
+        [
+          'Forb',
+          'Herbaceous or slightly woody, annual or sometimes perennial plant. (Usually a dicotyledon).',
+          'blank',
+        ],
+        [
+          'Tree Fern',
+          'Characterised by large and usually branched leaves (fronds), arborescent and terrestrial; spores in sporangia on the leaves.',
+          'blank',
+        ],
+        [
+          'Fern',
+          'Ferns and fern allies, except tree-fern, above. Characterised by large and usually branched leaves (fronds), herbaceous and terrestrial to aquatic; spores in sporangia on the leaves.',
+          'blank',
+        ],
+        [
+          'Palm',
+          'Palms and other arborescent monocotyledons. Members of the Arecaceae family or the genus Pandanus. (Pandanus is often multi-stemmed).',
+          'blank',
+        ],
+        [
+          'Grass-Tree',
+          'Australian grass trees. Members of the Xanthorrhoeaceae family.',
+          'blank',
+        ],
+        ['Cycad', 'Members of the families Cycadaceae and Zamiaceae.', 'blank'],
+      ],
     },
     {
       heading: 'Height of the most dominant growth form present',
@@ -297,11 +386,27 @@ function getHelpData() {
     },
     {
       heading: 'Cover of the most Dominant Stratum',
-      values: [['FIXME', 'fill this in', 'blank']],
+      values: [
+        [
+          'Foliage cover',
+          'proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
+          'blank',
+        ],
+      ],
     },
     {
       heading: 'Vegetation Community Notes',
       values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Help section photo credits',
+      values: [
+        [
+          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hansch, Sally O’Neill, Katie Irvine',
+          '',
+          'blank',
+        ],
+      ],
     },
   ]
   return dontWantToTypeAttributeNamesOverAndOver.map(currSection => {
