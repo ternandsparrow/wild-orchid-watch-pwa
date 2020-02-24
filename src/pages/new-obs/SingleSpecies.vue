@@ -22,6 +22,18 @@
         Provide responses for at least all the required questions, then press
         the save button.
       </v-ons-list-item>
+      <v-ons-list-item>
+        FIXME add icon for "location is captured" FIXME if no location, show
+        link/button to capture device location FIXME add message: - no location
+        currently captured - location taken from photo - location taken form
+        device FIXME if location is captured, show button to show map (only
+        works when online)
+        <div v-if="isLocationAlreadyCaptured">
+          Map:
+          <google-map :marker-position="obsCoords" />
+        </div>
+        <div v-if="!isLocationAlreadyCaptured">No location captured...yet</div>
+      </v-ons-list-item>
       <template v-for="currMenuItem of photoMenu">
         <wow-header
           :key="currMenuItem.name + '-header'"
@@ -338,6 +350,9 @@ export default {
       otherType: 'other',
       fieldIdIsDisabled: {},
       photosStillCompressingCountdownLatch: 0,
+      obsLat: null,
+      obsLng: null,
+      obsLocAccuracy: null,
     }
   },
   computed: {
@@ -444,6 +459,12 @@ export default {
         return accum
       }, {})
     },
+    isLocationAlreadyCaptured() {
+      return !!(this.obsLat && this.obsLng)
+    },
+    obsCoords() {
+      return { lat: this.obsLat, lng: this.obsLng }
+    },
   },
   watch: {
     [`obsFieldValues.${orchidTypeObsFieldId}`](newVal) {
@@ -512,36 +533,6 @@ export default {
         this.setDefaultDisabledness()
       })
       this.geolocationErrorMsg = null
-      // FIXME show message to prime users about accepting geolocation before
-      // this next call. Once we have support for pulling location from EXIF,
-      // we could survive without geolocation access.
-      this.$store.dispatch('obs/markUserGeolocation').catch(err => {
-        console.debug('No geolocation access for us.', err)
-        // FIXME notify user that we *need* geolocation
-        this.geolocationErrorMsg = (function() {
-          if (err === notSupported) {
-            return 'Geolocation is not supported by your device'
-          }
-          if (err === blocked) {
-            // TODO add links for how to un-block location access
-            return 'You have blocked access to geolocation'
-          }
-          if (err === failed) {
-            return (
-              `Geolocation seems to be supported and not blocked but ` +
-              'something went wrong while accessing your position'
-            )
-            // TODO add message about retrying? Maybe add a button to retry?
-          }
-          wowErrorHandler(
-            'ProgrammerError: geolocation access failed but in a' +
-              ' way that we did not plan for, we should handle this. ' +
-              `err.code=${err.code}.`,
-            err,
-          )
-          return 'Something went wrong while trying to access your geolocation'
-        })()
-      })
     },
     initForEdit(obsFieldsPromise) {
       obsFieldsPromise.then(() => {
@@ -881,6 +872,9 @@ export default {
           })
         }
         const record = {
+          lat: this.obsLat,
+          lng: this.obsLng,
+          positional_accuracy: this.obsLocAccuracy,
           addedPhotos: this.photos.map(curr => ({
             type: curr.type,
             file: curr.file,
@@ -1045,8 +1039,13 @@ export default {
           }
           found.file = compressionResult.data
           found.url = URL.createObjectURL(compressionResult.data)
-          // TODO use compressionResult.location.{lat,lng}
-          console.log(compressionResult.location)
+          const locAccuracyFromPhoto = null // TODO find out if this is ever
+          // used and if so, find the EXIF tag and pull the data
+          this.handleGpsLocation(
+            compressionResult.location.lat,
+            compressionResult.location.lng,
+            locAccuracyFromPhoto,
+          )
         })
         .catch(err => {
           console.warn('Failed to compress an image', err)
@@ -1054,6 +1053,20 @@ export default {
         .finally(() => {
           this.photosStillCompressingCountdownLatch -= 1
         })
+    },
+    handleGpsLocation(lat, lng, accuracy) {
+      if (this.isLocationAlreadyCaptured) {
+        return
+      }
+      const isLocationPassed = lat && lng
+      if (!isLocationPassed) {
+        // FIXME show warning message
+        return
+      }
+      this.geolocationErrorMsg = null
+      this.obsLat = lat
+      this.obsLng = lng
+      this.obsLocAccuracy = accuracy
     },
     async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
@@ -1174,6 +1187,38 @@ export default {
       for (const curr of mutuallyExclusiveSiblingIdsToDisable) {
         this.fieldIdIsDisabled[curr] = newVal
       }
+    },
+    getDeviceGpsLocation() {
+      // FIXME show message to prime users about accepting geolocation before
+      // this next call. Once we have support for pulling location from EXIF,
+      // we could survive without geolocation access.
+      this.$store.dispatch('obs/markUserGeolocation').catch(err => {
+        console.debug('No geolocation access for us.', err)
+        // FIXME notify user that we *need* geolocation
+        this.geolocationErrorMsg = (function() {
+          if (err === notSupported) {
+            return 'Geolocation is not supported by your device'
+          }
+          if (err === blocked) {
+            // TODO add links for how to un-block location access
+            return 'You have blocked access to geolocation'
+          }
+          if (err === failed) {
+            return (
+              `Geolocation seems to be supported and not blocked but ` +
+              'something went wrong while accessing your position'
+            )
+            // TODO add message about retrying? Maybe add a button to retry?
+          }
+          wowErrorHandler(
+            'ProgrammerError: geolocation access failed but in a' +
+              ' way that we did not plan for, we should handle this. ' +
+              `err.code=${err.code}.`,
+            err,
+          )
+          return 'Something went wrong while trying to access your geolocation'
+        })()
+      })
     },
   },
 }

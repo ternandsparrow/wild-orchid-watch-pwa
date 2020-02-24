@@ -687,18 +687,15 @@ const actions = {
       )
     }
   },
-  async saveNewAndScheduleUpload({ dispatch, state }, record) {
+  async saveNewAndScheduleUpload({ dispatch }, record) {
     try {
       const newRecordId = uuid()
       const nowDate = new Date()
       const newPhotos = await processPhotos(record.addedPhotos)
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
-        lat: state.lat,
-        lng: state.lng,
         geoprivacy: 'obscured',
         observedAt: nowDate,
-        positional_accuracy: state.locAccuracy,
         photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
@@ -1397,7 +1394,7 @@ const actions = {
     }
     function withLocation(data) {
       return {
-        location: { lat, lng },
+        location: { lat, lng, isPresent: !!(lat && lng) },
         data,
       }
     }
