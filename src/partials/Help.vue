@@ -79,8 +79,18 @@ function getHelpData() {
     {
       heading: 'Photos',
       values: [
-        ['Habit', 'A photo of the whole plant (required)', null],
-        ['Flower', 'If the plant is flowering, this is required', null],
+        ['Whole Plant', 'A photo of the whole plant (required)', null],
+        [
+          'Flower',
+          'If the plant is flowering, a photo of the flowers is very important to help with identifying the orchid.',
+          null,
+        ],
+        ['Leaf', "A photo of the plant's leaves.", null],
+        ['Habitat', 'fill this in.', null],
+        ['Micro-habitat', 'fill this in.', null],
+        ['Canopy', 'fill this in.', null],
+        ['Floral visitors', 'fill this in.', null],
+        ['Epiphyte host tree', 'fill this in.', null],
       ],
     },
     {
@@ -106,41 +116,6 @@ function getHelpData() {
           'Lithophyte',
           'Growing in rocks (no soil)',
           'orchid-type-lithophyte.jpg',
-        ],
-      ],
-    },
-    {
-      heading: 'Landuse types',
-      values: [
-        [
-          'Conservation and natural environments',
-          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
-          'landuse-cne.jpg',
-        ],
-        [
-          'Production from relatively natural environments',
-          'grazed native vegetation, non-irrigated forestry excluding plantations',
-          'landuse-prne.jpg',
-        ],
-        [
-          'Production from dryland agriculture and plantations',
-          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-dap.jpg',
-        ],
-        [
-          'Production from irrigated agriculture and plantations',
-          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-piap.jpg',
-        ],
-        [
-          'Intensive uses',
-          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          'landuse-intensive.jpg',
-        ],
-        [
-          'Water',
-          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          'landuse-water.jpg',
         ],
       ],
     },
@@ -215,12 +190,8 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Sign of disturbance and threats',
-      values: [['FIXME', 'fill this in', null]],
-    },
-    {
-      heading: 'Landform Type',
-      values: [['FIXME', 'fill this in', null]],
+      heading: 'Soil structure as observed from the surface',
+      values: [['FIXME', 'fill this in', 'blank']],
     },
     {
       heading: 'Rock cover size',
@@ -232,6 +203,45 @@ function getHelpData() {
     },
     {
       heading: 'Accuracy of Search Area Calculation',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
+      heading: 'Landuse types',
+      values: [
+        [
+          'Conservation and natural environments',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'landuse-cne.jpg',
+        ],
+        [
+          'Production from relatively natural environments',
+          'grazed native vegetation, non-irrigated forestry excluding plantations',
+          'landuse-prne.jpg',
+        ],
+        [
+          'Production from dryland agriculture and plantations',
+          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-dap.jpg',
+        ],
+        [
+          'Production from irrigated agriculture and plantations',
+          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-piap.jpg',
+        ],
+        [
+          'Intensive uses',
+          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+          'landuse-intensive.jpg',
+        ],
+        [
+          'Water',
+          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+          'landuse-water.jpg',
+        ],
+      ],
+    },
+    {
+      heading: 'Sign of disturbance and threats',
       values: [['FIXME', 'fill this in', null]],
     },
     {
@@ -276,6 +286,14 @@ function getHelpData() {
           'blank',
         ],
       ],
+    },
+    {
+      heading: 'Dominant Vegetation growth form',
+      values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Height of the most dominant growth form present',
+      values: [['FIXME', 'fill this in', 'blank']],
     },
     {
       heading: 'Cover of the most Dominant Stratum',
