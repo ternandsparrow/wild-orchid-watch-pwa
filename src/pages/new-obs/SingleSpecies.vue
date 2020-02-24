@@ -262,6 +262,7 @@ import {
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
+  evidenceThreatsMultiselectId,
   failed,
   floralVisitorsMultiselectId,
   getMultiselectId,
@@ -1098,9 +1099,10 @@ export default {
         [floralVisitorsMultiselectId]: 'floral-visitors',
         [widerLanduseObsFieldId]: 'landuse-types',
         [43]: 'litter',
-        [46]: 'landform-element',
+        [46]: 'landform-type',
         [62]: 'dominant-phenology',
-        [phenologyMultiselectId]: 'phenology-occurring',
+        [evidenceThreatsMultiselectId]: 'sign-of-disturbance-and-threats',
+        [phenologyMultiselectId]: 'phenology-(occurring)',
         // FIXME populate the rest
       }
       const key = field.id
@@ -1199,7 +1201,7 @@ function getAllowedValsStrategy(field) {
 $thumbnailSize: 75px;
 
 .margin-for-photos {
-  margin: 0.1em 0;
+  margin: 0.5em 0;
 }
 
 .photo-container {
@@ -1220,6 +1222,8 @@ $thumbnailSize: 75px;
     width: 100%;
     background-size: cover;
     background-position: center;
+    border-radius: 15px;
+    box-shadow: 3px 3px 4px #888888;
   }
 
   label {

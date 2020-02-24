@@ -209,7 +209,7 @@
       </p>
       <img
         id="imageToClassify"
-        src="img/help/orchid-type_terrestrial.png"
+        src="img/help/orchid-type-terrestrial.jpg"
         alt="Onsen UI"
         style="width: 100%"
       />

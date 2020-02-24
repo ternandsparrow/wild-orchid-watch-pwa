@@ -19,9 +19,12 @@
           modifier="nodivider"
         >
           <div class="help-value-item">
-            <img v-if="currValue.imageUrl" :src="currValue.imageUrl" />
             <div v-if="!currValue.imageUrl" class="no-help-image-text">
               (No image available)
+            </div>
+            <div v-else-if="currValue.imageUrl.endsWith('blank')"></div>
+            <div v-else-if="currValue.imageUrl">
+              <img :src="currValue.imageUrl" class="help-image" />
             </div>
             <div>
               <strong>{{ currValue.value }}</strong>
@@ -78,8 +81,8 @@ function getHelpData() {
       values: [
         [
           'Species name',
-          'If known use the scientific or common name, or if the name is unknown, you can enter a descriptive name eg. purple waxy flowers',
-          null,
+          "If you think you know what the name of the Orchid is, then fill it in here.  It doesn't matter if you're wrong, because WoW experts will take your observation and do an Identification on it, to work out once and for all what species your sighting is.  If you don't know the Orchid's name, just putting a simple descriptiuve name like \"purple waxy flowers\" is fine.",
+          'blank',
         ],
       ],
     },
@@ -100,44 +103,107 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Litter',
-      values: [['FIXME', 'fill this in', null]],
-    },
-    {
-      heading: 'Landform element',
-      values: [['FIXME', 'fill this in', null]],
-    },
-    {
-      heading: 'Floral visitors',
-      values: [['FIXME', 'fill this in', null]],
-    },
-    {
       heading: 'Landuse types',
       values: [
         [
+          'Conservation and natural environments',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'landuse-cne.jpg',
+        ],
+        [
           'Production from relatively natural environments',
           'grazed native vegetation, non-irrigated forestry excluding plantations',
-          null,
+          'landuse-prne.jpg',
         ],
         [
           'Production from dryland agriculture and plantations',
           'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          null,
+          'landuse-dap.jpg',
         ],
         [
           'Production from irrigated agriculture and plantations',
           'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          null,
+          'landuse-piap.jpg',
         ],
         [
           'Intensive uses',
           'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          null,
+          'landuse-intensive.jpg',
         ],
         [
           'Water',
           'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          null,
+          'landuse-water.jpg',
+        ],
+      ],
+    },
+    {
+      heading: 'Litter',
+      values: [
+        [
+          'Yes (litter IS present)',
+          'The Orchid has litter directly surrounding it.  Typical examples of litter are gum-leaves and bark.',
+          'litter-present.jpg',
+        ],
+        [
+          'NO (litter is NOT present)',
+          'The Orchid does not have litter directly surrounding it.  In this case, it is typically surrounded by dirt, gravel or sand.',
+          'litter-not-present.jpg',
+        ],
+      ],
+    },
+    {
+      heading: 'Landform Type',
+      values: [
+        [
+          'Crest',
+          'A crest landform type stands above all, or almost all, points in the adjacent terrain.  Crests include hillcrests, summits, risecrests and dunecrests.',
+          'landform-type-overview.jpg',
+        ],
+        [
+          'Hill (hillock)',
+          'A	Hill or (hillock) is a small mound or hill.  Hills or hillocks can include: rises, hummocky dunes, parabolic dunes, barchane dunes, linear or longitudiinal dunes, cones and mounts.',
+          'blank',
+        ],
+        [
+          'Ridge',
+          'A Ridge is a chain of mountains or hills that for a continuous elevated crest. The sides of the ridge slope away on either side of a narrow top.  Examples of Ridges include dune, foredune, lunette, beach ridge, embankment and dam.',
+          'blank',
+        ],
+        [
+          'Slope (unspecified)',
+          'Use this option if you are not sure if it is a is lower, mid or simple slope.  Examples include the following landform elements: cliff, scarp, hillslope and embankment.',
+          'blank',
+        ],
+        [
+          'Slope (simple)',
+          'A simple slope is a slope element below a crest or flat and adjacent above a flat or depression.  A Slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%.',
+          'blank',
+        ],
+        [
+          'Slope (mid)',
+          'A Mid-slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%. A mid-slope is a slope element not adjacent below a crest or flat and not adjacent above a flat or depression.  Mid-slopes can include the following landform elements: breakaway, cliff-footslope, bench and berms.',
+          'blank',
+        ],
+        [
+          'Slope (lower)',
+          'A Lower-slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%.  A lower slope is a slope element not adjacent below a crest or flat but adjacent above a flat or depression.  Lower slopes can include the following landform elements: footslopes, pediment',
+          'blank',
+        ],
+        [
+          'Flat',
+          'A flat is a relatively level surface of land within a region of greater relief, such as hills or mountains. Flat is also used to describe other level geographic areas as mud flats or tidal flats.  Flats can include the following landform elements: plains, rock flats, rock platforms, scald, valley flat, terrace flat, flood-out, tidal flat and berm.',
+          'blank',
+        ],
+        [
+          'Open depression',
+          'Open depressions can include the following landform elements:  gully, drainine depression, stream channels, stream bed, tidal creeks, estuary, swamps, swales and trench.',
+          'blank',
+        ],
+        [
+          'Closed depression',
+          'Closed depressions can include the folling landform elements: lakes, swamps, lagoons, craters, pits, doline and basins.',
+          'blank',
         ],
       ],
     },
@@ -146,12 +212,38 @@ function getHelpData() {
       values: [['FIXME', 'fill this in', null]],
     },
     {
-      heading: 'Dominant phenology',
-      values: [['FIXME', 'fill this in', null]],
+      heading: 'Phenology (Occurring)',
+      values: [
+        ['Vegetative', '<blurb>', null],
+        ['Budding', '<blurb>', null],
+        ['Flowering', '<blurb>', null],
+        ['Senescent Flower', '<blurb>', null],
+        ['Developing Friit', '<blurb>', null],
+        ['Senescent Fruit', '<blurb>', null],
+      ],
     },
     {
-      heading: 'Phenology occurring',
-      values: [['FIXME', 'fill this in', null]],
+      heading: 'Phenology (Dominant)',
+      values: [
+        ['Vegetative', '<blurb>', null],
+        ['Budding', '<blurb>', null],
+        ['Flowering', '<blurb>', null],
+        ['Senescent Flower', '<blurb>', null],
+        ['Developing Friit', '<blurb>', null],
+        ['Senescent Fruit', '<blurb>', null],
+      ],
+    },
+
+    {
+      heading: 'Floral visitors',
+      values: [
+        ['Introduced Honey Bee', '<blurb>', null],
+        ['Native wasp', '<blurb>', null],
+        ['Native fly', '<blurb>', null],
+        ['Ant', '<blurb>', null],
+        ['Unknown insect', '<blurb>', null],
+        ['None Observed', '<blurb>', null],
+      ],
     },
   ]
   return dontWantToTypeAttributeNamesOverAndOver.map(currSection => {
@@ -192,5 +284,11 @@ function getHelpData() {
 
 .no-help-image-text {
   color: #666;
+}
+
+.help-image {
+  border-radius: 25px;
+  box-shadow: 5px 5px 8px #888888;
+  margin: 20px;
 }
 </style>
