@@ -79,8 +79,18 @@ function getHelpData() {
     {
       heading: 'Photos',
       values: [
-        ['Habit', 'A photo of the whole plant (required)', null],
-        ['Flower', 'If the plant is flowering, this is required', null],
+        ['Whole Plant', 'A photo of the whole plant (required)', null],
+        [
+          'Flower',
+          'If the plant is flowering, a photo of the flowers is very important to help with identifying the orchid.',
+          null,
+        ],
+        ['Leaf', "A photo of the plant's leaves.", null],
+        ['Habitat', 'fill this in.', null],
+        ['Micro-habitat', 'fill this in.', null],
+        ['Canopy', 'fill this in.', null],
+        ['Floral visitors', 'fill this in.', null],
+        ['Epiphyte host tree', 'fill this in.', null],
       ],
     },
     {
@@ -88,7 +98,7 @@ function getHelpData() {
       values: [
         [
           'Species name',
-          "If you think you know what the name of the Orchid is, then fill it in here.  It doesn't matter if you're wrong, because WoW experts will take your observation and do an Identification on it, to work out once and for all what species your sighting is.  If you don't know the Orchid's name, just putting a simple descriptiuve name like \"purple waxy flowers\" is fine.",
+          "If you think you know what the name of the Orchid is, then fill it in here.  It doesn't matter if you're wrong, because WoW experts will take your observation and do an Identification on it, to work out once and for all what species your sighting is.  If you don't know the Orchid's name, just putting a simple descriptive name like \"purple waxy flowers\" is fine.",
           'blank',
         ],
       ],
@@ -106,41 +116,6 @@ function getHelpData() {
           'Lithophyte',
           'Growing in rocks (no soil)',
           'orchid-type-lithophyte.jpg',
-        ],
-      ],
-    },
-    {
-      heading: 'Landuse types',
-      values: [
-        [
-          'Conservation and natural environments',
-          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
-          'landuse-cne.jpg',
-        ],
-        [
-          'Production from relatively natural environments',
-          'grazed native vegetation, non-irrigated forestry excluding plantations',
-          'landuse-prne.jpg',
-        ],
-        [
-          'Production from dryland agriculture and plantations',
-          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-dap.jpg',
-        ],
-        [
-          'Production from irrigated agriculture and plantations',
-          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-piap.jpg',
-        ],
-        [
-          'Intensive uses',
-          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          'landuse-intensive.jpg',
-        ],
-        [
-          'Water',
-          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          'landuse-water.jpg',
         ],
       ],
     },
@@ -215,42 +190,118 @@ function getHelpData() {
       ],
     },
     {
+      heading: 'Soil structure as observed from the surface',
+      values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Rock cover size',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
+      heading: 'Accuracy of Population Count',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
+      heading: 'Accuracy of Search Area Calculation',
+      values: [['FIXME', 'fill this in', null]],
+    },
+    {
+      heading: 'Landuse types',
+      values: [
+        [
+          'Conservation and natural environments',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'landuse-cne.jpg',
+        ],
+        [
+          'Production from relatively natural environments',
+          'grazed native vegetation, non-irrigated forestry excluding plantations',
+          'landuse-prne.jpg',
+        ],
+        [
+          'Production from dryland agriculture and plantations',
+          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-dap.jpg',
+        ],
+        [
+          'Production from irrigated agriculture and plantations',
+          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-piap.jpg',
+        ],
+        [
+          'Intensive uses',
+          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+          'landuse-intensive.jpg',
+        ],
+        [
+          'Water',
+          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+          'landuse-water.jpg',
+        ],
+      ],
+    },
+    {
       heading: 'Sign of disturbance and threats',
       values: [['FIXME', 'fill this in', null]],
     },
     {
       heading: 'Phenology (Occurring)',
       values: [
-        ['Vegetative', '<blurb>', null],
-        ['Budding', '<blurb>', null],
-        ['Flowering', '<blurb>', null],
-        ['Senescent Flower', '<blurb>', null],
-        ['Developing Friit', '<blurb>', null],
-        ['Senescent Fruit', '<blurb>', null],
+        ['Vegetative', '<blurb>', 'phenology-vegetative.jpg'],
+        ['Budding', '<blurb>', 'phenology-budding.jpg'],
+        ['Flowering', '<blurb>', 'phenology-flowering.jpg'],
+        ['Senescent Flower', '<blurb>', 'phenology-senescent-flowers.jpg'],
+        ['Developing Fruit', '<blurb>', 'phenology-developing-fruit.jpg'],
+        ['Senescent Fruit', '<blurb>', 'phenology-senescent-fruit.jpg'],
       ],
     },
     {
       heading: 'Phenology (Dominant)',
       values: [
-        ['Vegetative', '<blurb>', null],
-        ['Budding', '<blurb>', null],
-        ['Flowering', '<blurb>', null],
-        ['Senescent Flower', '<blurb>', null],
-        ['Developing Friit', '<blurb>', null],
-        ['Senescent Fruit', '<blurb>', null],
+        [
+          'Please use the same guidance as supplied above for the "Phenology (Occurring)" data item.',
+          '',
+          'blank',
+        ],
       ],
     },
 
     {
       heading: 'Floral visitors',
       values: [
-        ['Introduced Honey Bee', '<blurb>', null],
-        ['Native wasp', '<blurb>', null],
-        ['Native fly', '<blurb>', null],
-        ['Ant', '<blurb>', null],
-        ['Unknown insect', '<blurb>', null],
-        ['None Observed', '<blurb>', null],
+        ['Native bee', '<blurb>', 'visitors-native-bee.jpg'],
+        ['Introduced honey bee', '<blurb>', 'visitors-introduced-bee.jpg'],
+        ['Native wasp', '<blurb>', 'visitors-native-wasp.jpg'],
+        ['Native fly', '<blurb>', 'visitors-native-fly.jpg'],
+        ['Fungus gnat', '<blurb>', 'visitors-fungus-gnat.jpg'],
+        ['Ant', '<blurb>', 'visitors-ant.jpg'],
+        [
+          'Unknown insect',
+          '<blurb>',
+          'visitors-unknown-other-invertebrate.jpg',
+        ],
+        [
+          'None Observed',
+          'There were no insects on the orchid when the observation was made.',
+          'blank',
+        ],
       ],
+    },
+    {
+      heading: 'Dominant Vegetation growth form',
+      values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Height of the most dominant growth form present',
+      values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Cover of the most Dominant Stratum',
+      values: [['FIXME', 'fill this in', 'blank']],
+    },
+    {
+      heading: 'Vegetation Community Notes',
+      values: [['FIXME', 'fill this in', 'blank']],
     },
   ]
   return dontWantToTypeAttributeNamesOverAndOver.map(currSection => {
