@@ -144,9 +144,9 @@
           </v-ons-list-item>
         </v-ons-list>
         <div class="inat-details">
-          <div>iNat ID: {{ observationDetail.inatId }}</div>
-          <div>iNat UUID: {{ observationDetail.uuid }}</div>
-          <div>Updated at: {{ observationDetail.updatedAt }}</div>
+          <div>iNat ID: {{ nullSafeObs.inatId }}</div>
+          <div>iNat UUID: {{ nullSafeObs.uuid }}</div>
+          <div>Updated at: {{ nullSafeObs.updatedAt }}</div>
         </div>
       </div>
       <div v-if="selectedTab === 1">
