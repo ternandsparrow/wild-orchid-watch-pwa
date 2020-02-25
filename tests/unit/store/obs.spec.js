@@ -361,15 +361,9 @@ describe('actions', () => {
           speciesGuess: 'species new',
           addedPhotos: [],
         }
-        const state = {
-          lat: 138,
-          lng: 35,
-          locAccuracy: 123,
-        }
         const dispatchedStuff = {}
         const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
           {
-            state,
             dispatch: (actionName, theArg) =>
               (dispatchedStuff[actionName] = theArg),
           },
@@ -379,12 +373,9 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          lat: 138,
-          lng: 35,
           observedAt: expect.stringMatching(
             /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
           ),
-          positional_accuracy: 123,
           photos: [],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -412,15 +403,9 @@ describe('actions', () => {
             },
           ],
         }
-        const state = {
-          lat: 138,
-          lng: 35,
-          locAccuracy: 123,
-        }
         const dispatchedStuff = {}
         const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
           {
-            state,
             dispatch: (actionName, theArg) =>
               (dispatchedStuff[actionName] = theArg),
           },
@@ -452,12 +437,9 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          lat: 138,
-          lng: 35,
           observedAt: expect.stringMatching(
             /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
           ),
-          positional_accuracy: 123,
           photos: [expectedPhoto1, expectedPhoto2],
           speciesGuess: 'species new',
           uuid: newRecordId,
