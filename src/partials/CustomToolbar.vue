@@ -49,7 +49,7 @@ export default {
       this.$router.push('/')
     },
     goBack() {
-      const msg = 'Are you sure you want to cancel?'
+      const msg = 'Are you sure you want to discard the changes you have made?'
       this.$ons.notification.confirm(msg).then(isConfirmed => {
         if (!isConfirmed) {
           return
