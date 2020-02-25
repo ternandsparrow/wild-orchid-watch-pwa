@@ -136,7 +136,7 @@ export default {
           icon: 'fa-book-open',
           clickData: {
             type: routerType,
-            target: { name: 'FAQ' },
+            target: { name: 'OrchidScience' },
           },
         },
         {
