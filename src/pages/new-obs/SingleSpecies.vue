@@ -1475,6 +1475,6 @@ $thumbnailSize: 75px;
 .success-alert {
   border: 1px solid green;
   border-radius: 10px;
-  background: #afff86;
+  background: #d5ffbf;
 }
 </style>

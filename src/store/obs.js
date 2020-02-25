@@ -1368,7 +1368,6 @@ const actions = {
     }
     try {
       if (!imageCompressionWorker) {
-        // FIXME can we get SW to cache the worker?
         imageCompressionWorker = comlinkWrap(
           new Worker('./image-compression.worker.js', {
             type: 'module',
