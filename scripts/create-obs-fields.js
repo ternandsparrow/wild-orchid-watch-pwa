@@ -184,7 +184,7 @@ const obsFields = [
     name: 'Dominant vegetation growth form',
     description: '',
     datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Heath shrub|Chenopod shrub|Samphire shrub|Tussock grass|Hummock grass|Other grass|Sedge|Rush|Forb|Tree-fern|Fern|Vine|Palm|Grass-tree|Cycad|Unknown`,
+    allowedValues: `${obsFieldConstants.notCollected}|Tree|Tree mallee|Shrub|Mallee shrub|Chenopod shrub|Grass including tussock/hummock|Sedge/rush|Forb|Tree-fern/fern|Palm/cycad|Grass-tree|Other/unknown`,
   },
   {
     name: 'Height of the most dominant growth form present (metres)',
