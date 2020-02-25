@@ -1664,7 +1664,9 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.speciesGuess = obsFromApi.species_guess
   result.notes = obsFromApi.description
   commonApiToOurDomainObsMapping(result, obsFromApi)
-  const { lat, lng } = mapGeojsonToLatLng(obsFromApi.geojson)
+  const { lat, lng } = mapGeojsonToLatLng(
+    obsFromApi.private_geojson || obsFromApi.geojson,
+  )
   result.lat = lat
   result.lng = lng
   const obsFieldValues = obsFromApi.ofvs.map(o => {
