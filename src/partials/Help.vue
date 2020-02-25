@@ -279,17 +279,35 @@ function getHelpData() {
       values: [
         ['Vegetation clearance', 'FIXME', 'disturbance-veg-clearing.jpg'],
         ['Mowing/slashing', 'FIXME', 'disturbance-mowing-slashing.jpg'],
+        ['Chemical spraying', 'FIXME', 'disturbance-chemical-spraying.jpg'],
+        ['Cultivation', 'FIXME', 'disturbance-cultivation.jpg'],
       ],
     },
     {
       heading: 'Phenology (Occurring)',
       values: [
-        ['Vegetative', '<blurb>', 'phenology-vegetative.jpg'],
-        ['Budding', '<blurb>', 'phenology-budding.jpg'],
-        ['Flowering', '<blurb>', 'phenology-flowering.jpg'],
-        ['Senescent Flower', '<blurb>', 'phenology-senescent-flowers.jpg'],
-        ['Developing Fruit', '<blurb>', 'phenology-developing-fruit.jpg'],
-        ['Senescent Fruit', '<blurb>', 'phenology-senescent-fruit.jpg'],
+        [
+          'Vegetative',
+          'Only leaves and stem, no reproductive material present (ie. flowers or fruit)',
+          'phenology-vegetative.jpg',
+        ],
+        ['Budding', 'Budding – flower/s not yet open', 'phenology-budding.jpg'],
+        ['Flowering', 'Flower/s visible and open', 'phenology-flowering.jpg'],
+        [
+          'Senescent Flower',
+          'Withering, dried flowers.',
+          'phenology-senescent-flowers.jpg',
+        ],
+        [
+          'Developing Fruit',
+          'Swelling of ovary (organ containing seeds) and flower withering or absent.',
+          'phenology-developing-fruit.jpg',
+        ],
+        [
+          'Senescent Fruit',
+          'Ripe fruit or seed pods',
+          'phenology-senescent-fruit.jpg',
+        ],
       ],
     },
     {
