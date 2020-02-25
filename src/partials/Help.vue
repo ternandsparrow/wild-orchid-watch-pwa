@@ -79,18 +79,46 @@ function getHelpData() {
     {
       heading: 'Photos',
       values: [
-        ['Whole Plant', 'A photo of the whole plant (required)', null],
+        [
+          'Whole Plant',
+          'Show the plant habit; that is, its overall shape and form. Where possible please use a scale card or item such as a coin to show the height and width of the flower stem.',
+          'photo-habit.jpg',
+        ],
         [
           'Flower',
-          'If the plant is flowering, a photo of the flowers is very important to help with identifying the orchid.',
-          null,
+          'Please include photos of the individual flower from the front, side, and back. If relevant photograph whole inflorescence (complete flower head). If possible please use a scale card (see example photo) or item such as a coin for scale.',
+          'photo-flower.jpg',
         ],
-        ['Leaf', "A photo of the plant's leaves.", null],
-        ['Habitat', 'fill this in.', null],
-        ['Micro-habitat', 'fill this in.', null],
-        ['Canopy', 'fill this in.', null],
-        ['Floral visitors', 'fill this in.', null],
-        ['Epiphyte host tree', 'fill this in.', null],
+        [
+          'Leaf',
+          'Include photos of the leaf showing shape and any vein patterns, using a scale if possible.',
+          'photo-leaf.jpg',
+        ],
+        [
+          'Habitat',
+          'Habitat features to include in photo: where present try to capture dominant ground cover, shrubs and canopy vegetation. Any obvious landscape features such as water bodies or evidence of fire.',
+          'photo-habitat.jpg',
+        ],
+        [
+          'Micro-habitat',
+          'Photograph the ground directly beneath the orchid. About 20cm x 20cm.',
+          'photo-micro-habitat.jpg',
+        ],
+        [
+          'Canopy',
+          'Take a photo straight up into the canopy directly above the orchid.',
+          'photo-canopy.jpg',
+        ],
+        [
+          'Floral visitors',
+          'Photograph any potential pollinators on the orchid. May be hard to capture, but great if you can!',
+          'visitors-fungus-gnat.jpg',
+        ],
+        [
+          'Epiphyte host tree',
+          'When an orchid is growing on another plant (ie. is not terrestrial) please photograph the host tree/plant',
+          'orchid-type-epiphyte.jpg',
+        ],
       ],
     },
     {
@@ -98,7 +126,7 @@ function getHelpData() {
       values: [
         [
           'Species name',
-          "If you think you know what the name of the Orchid is, then fill it in here.  It doesn't matter if you're wrong, because WoW experts will take your observation and do an Identification on it, to work out once and for all what species your sighting is.  If you don't know the Orchid's name, just putting a simple descriptive name like \"purple waxy flowers\" is fine.",
+          'Fill in the name of the orchid here. If you know the scientific name please use it, if not a simple descriptive name such as “purple waxy flowers” is fine. The iNaturalist community will verify or add a name for you.',
           'blank',
         ],
       ],
@@ -114,7 +142,7 @@ function getHelpData() {
         ],
         [
           'Lithophyte',
-          'Growing in rocks (no soil)',
+          'Growing on rocks (no soil)',
           'orchid-type-lithophyte.jpg',
         ],
       ],
@@ -248,7 +276,10 @@ function getHelpData() {
     },
     {
       heading: 'Sign of disturbance and threats',
-      values: [['FIXME', 'fill this in', null]],
+      values: [
+        ['Vegetation clearance', 'FIXME', 'disturbance-veg-clearing.jpg'],
+        ['Mowing/slashing', 'FIXME', 'disturbance-mowing-slashing.jpg'],
+      ],
     },
     {
       heading: 'Phenology (Occurring)',
@@ -275,15 +306,15 @@ function getHelpData() {
     {
       heading: 'Floral visitors',
       values: [
-        ['Native bee', '<blurb>', 'visitors-native-bee.jpg'],
-        ['Introduced honey bee', '<blurb>', 'visitors-introduced-bee.jpg'],
-        ['Native wasp', '<blurb>', 'visitors-native-wasp.jpg'],
-        ['Native fly', '<blurb>', 'visitors-native-fly.jpg'],
-        ['Fungus gnat', '<blurb>', 'visitors-fungus-gnat.jpg'],
-        ['Ant', '<blurb>', 'visitors-ant.jpg'],
+        ['Native bee', '', 'visitors-native-bee.jpg'],
+        ['Introduced honey bee', '', 'visitors-introduced-bee.jpg'],
+        ['Native wasp', '', 'visitors-native-wasp.jpg'],
+        ['Native fly', '', 'visitors-native-fly.jpg'],
+        ['Fungus gnat', '', 'visitors-fungus-gnat.jpg'],
+        ['Ant', '', 'visitors-ant.jpg'],
         [
-          'Unknown insect',
-          '<blurb>',
+          'Unknown/other invertebrate',
+          '',
           'visitors-unknown-other-invertebrate.jpg',
         ],
         [
@@ -336,7 +367,6 @@ function getHelpData() {
           'Grass forming discrete but open tussocks usually with distinct individual shoots, or if not, then forming a hummock. These are the common agricultural grasses.',
           'blank',
         ],
-
         [
           'other  Grass',
           'Member of the family Poaceae, but having neither a distinctive tussock nor hummock appearance. Examples include stoloniferous species such as Cynodon dactylon.',
@@ -402,7 +432,7 @@ function getHelpData() {
       heading: 'Help section photo credits',
       values: [
         [
-          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hansch, Sally O’Neill, Katie Irvine',
+          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hansch, Anita Marquart, Rosalie Lawrence, Robert Lawrence, Sally O’Neill, Katie Irvine',
           '',
           'blank',
         ],
