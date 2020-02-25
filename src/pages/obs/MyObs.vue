@@ -124,6 +124,7 @@ export default {
     },
     onNewSingleSpecies() {
       this.isNewObsActionsVisible = false
+      this.$store.commit('obs/setSelectedObservationId', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
     doRefresh(done) {

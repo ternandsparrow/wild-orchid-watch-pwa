@@ -497,10 +497,6 @@ export default {
 
 .map-container {
   padding: 0;
-
-  img {
-    width: 90vw;
-  }
 }
 
 .tab-container {

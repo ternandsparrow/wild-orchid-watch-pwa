@@ -5,34 +5,49 @@
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
     </custom-toolbar>
+    <v-ons-list-item modifier="nodivider">
+      Provide responses for at least all the required questions, then press the
+      save button.
+    </v-ons-list-item>
     <v-ons-list>
       <v-ons-list-item v-show="geolocationErrorMsg" modifier="nodivider">
-        <div class="geoloc-error">
+        <div class="warning-alert">
           <p>
             <v-ons-icon
               class="warning"
               icon="fa-exclamation-circle"
             ></v-ons-icon>
-            {{ geolocationErrorMsg }}. This observation will
-            <strong>NOT</strong> have any location information.
+            {{ geolocationErrorMsg }}. This observation cannot be created
+            without geolocation details.
           </p>
         </div>
       </v-ons-list-item>
-      <v-ons-list-item modifier="nodivider">
-        Provide responses for at least all the required questions, then press
-        the save button.
-      </v-ons-list-item>
-      <v-ons-list-item>
-        FIXME add icon for "location is captured" FIXME if no location, show
-        link/button to capture device location FIXME add message: - no location
-        currently captured - location taken from photo - location taken form
-        device FIXME if location is captured, show button to show map (only
-        works when online)
-        <div v-if="isLocationAlreadyCaptured">
-          Map:
-          <google-map :marker-position="obsCoords" />
+      <v-ons-list-item v-if="isShowGeolocationSection">
+        <div v-show="isLocationAlreadyCaptured">
+          <div class="success-alert">
+            <v-ons-icon icon="fa-map-marked-alt" />
+            Geolocation successfully captured from
+            {{ obsLocSourceName }}.
+            <div>
+              <v-ons-button modifier="quiet" @click="toggleMap">
+                <span v-if="!isShowMap">View location on </span>
+                <span v-if="isShowMap">Hide </span>map</v-ons-button
+              >
+            </div>
+          </div>
+          <google-map
+            v-if="isShowMap"
+            :marker-position="obsCoords"
+            style="width: 94vw;"
+          />
         </div>
-        <div v-if="!isLocationAlreadyCaptured">No location captured...yet</div>
+        <div v-show="!isLocationAlreadyCaptured" class="warning-alert">
+          <v-ons-icon icon="fa-exclamation-circle" />
+          No geolocation captured. Attach a photo tagged with GPS coordinates or
+          <v-ons-button modifier="quiet" @click="getDeviceGpsLocation"
+            >use current device location</v-ons-button
+          >
+        </div>
       </v-ons-list-item>
       <template v-for="currMenuItem of photoMenu">
         <wow-header
@@ -190,7 +205,9 @@
               </div>
             </template>
             <div v-else style="color: red;">
-              FIXME - support '{{ currField.wowDatatype }}' field type
+              PROGRAMMER, you have work to do - support '{{
+                currField.wowDatatype
+              }}' field type
             </div>
             <wow-input-status
               v-if="isShowInputStatus(currField)"
@@ -263,6 +280,7 @@ import {
   rectangleAlongPathAreaValueToTitle,
   squareAreaValueToTitle,
   wowErrorHandler,
+  wowWarnHandler,
 } from '@/misc/helpers'
 import {
   accuracyOfSearchAreaCalcObsFieldId,
@@ -353,6 +371,8 @@ export default {
       obsLat: null,
       obsLng: null,
       obsLocAccuracy: null,
+      obsLocSourceName: null,
+      isShowMap: false,
     }
   },
   computed: {
@@ -460,10 +480,29 @@ export default {
       }, {})
     },
     isLocationAlreadyCaptured() {
+      if (
+        this.observationDetail &&
+        this.observationDetail.lat &&
+        this.observationDetail.lng
+      ) {
+        return true
+      }
       return !!(this.obsLat && this.obsLng)
     },
     obsCoords() {
       return { lat: this.obsLat, lng: this.obsLng }
+    },
+    isShowGeolocationSection() {
+      if (this.isEdit) {
+        return false
+      }
+      if (this.photos.length > 1) {
+        return true
+      }
+      if (this.photos.length === 1) {
+        return !this.photosStillCompressingCountdownLatch
+      }
+      return false
     },
   },
   watch: {
@@ -591,7 +630,6 @@ export default {
       }
       // pre-populate photos
       this.uploadedPhotos = this.observationDetail.photos
-      // FIXME support changing, or at least showing, geolocation
     },
     onNumberChange(event, fieldId) {
       // we should be able to use the Vue "watch" to achieve this but I
@@ -706,7 +744,8 @@ export default {
       this.obsFieldValues[fieldId] = data.value
     },
     onDeletePhoto(record) {
-      if (record.isRemote) {
+      const isLocalFromPreviousEdit = !!record.id
+      if (record.isRemote || isLocalFromPreviousEdit) {
         const id = record.id
         this.photoIdsToDelete.push(id)
         this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
@@ -722,6 +761,18 @@ export default {
         return
       }
       this.photos.splice(indexOfPhoto, 1)
+      const isNoLocalPhotos = !this.photos.length
+      if (isNoLocalPhotos) {
+        console.debug(
+          'No local photos after local photo delete, clearing saved coords',
+        )
+        // TODO enhancement idea: track which photo we used for coords (by
+        // UUID) and if it gets deleted, loop through remaining photos to get
+        // coords.
+        this.obsLat = null
+        this.obsLng = null
+        this.obsLocAccuracy = null
+      }
       this.closePhotoPreview()
     },
     setDefaultDisabledness() {
@@ -798,12 +849,20 @@ export default {
       return result
     },
     validateInputs() {
-      // TODO highlight the fields with error
-      // TODO validate as the user inputs values
+      // TODO Enhancement idea: highlight the fields with error and maybe scroll
+      // to the first field
       this.formErrorMsgs = []
       if (!this.speciesGuessValue) {
         this.formErrorMsgs.push(
           'You must identify this observation with a species name',
+        )
+      }
+      if (!this.isLocationAlreadyCaptured) {
+        this.formErrorMsgs.push(
+          'Observations *must* have geolocation' +
+            ' information. Either use your current location or attach a GPS' +
+            ' tagged photo. Scroll to the very top of this page for ' +
+            'more details.',
         )
       }
       const visibleRequiredObsFields = this.displayableObsFields.filter(
@@ -842,11 +901,20 @@ export default {
         this.isShowModalForceClose = true
       }, 30 * 1000)
       try {
+        this.isSaveModalVisible = true
+        this.isShowModalForceClose = false
+        while (this.photosStillCompressingCountdownLatch > 0) {
+          await new Promise(resolve => {
+            // TODO do we need a sanity check that breaks out after N tests?
+            const waitForImageCompressionMs = 333
+            setTimeout(() => {
+              return resolve()
+            }, waitForImageCompressionMs)
+          })
+        }
         if (!this.validateInputs()) {
           return
         }
-        this.isSaveModalVisible = true
-        this.isShowModalForceClose = false
         this.$store.commit('obs/addRecentlyUsedTaxa', {
           type: speciesGuessRecentTaxaKey,
           value: this.speciesGuessSelectedItem,
@@ -862,19 +930,7 @@ export default {
             value: paramToPass,
           })
         }
-        while (this.photosStillCompressingCountdownLatch > 0) {
-          await new Promise(resolve => {
-            // TODO do we need a sanity check that breaks out after N tests?
-            const waitForImageCompressionMs = 333
-            setTimeout(() => {
-              return resolve()
-            }, waitForImageCompressionMs)
-          })
-        }
         const record = {
-          lat: this.obsLat,
-          lng: this.obsLng,
-          positional_accuracy: this.obsLocAccuracy,
           addedPhotos: this.photos.map(curr => ({
             type: curr.type,
             file: curr.file,
@@ -969,6 +1025,9 @@ export default {
             params: { id: record.uuid },
           })
         } else {
+          record.lat = this.obsLat
+          record.lng = this.obsLng
+          record.positional_accuracy = this.obsLocAccuracy
           const newUuid = await this.$store.dispatch(
             'obs/saveNewAndScheduleUpload',
             record,
@@ -1026,9 +1085,9 @@ export default {
         uuid: theUuid,
       })
       this.photosStillCompressingCountdownLatch += 1
-      // here we use the full size photo but send it for compression in the
-      // worker (background) so we don't block the UI. We make sure all
-      // compression is done during onSave.
+      // here we use the full size photo but send it for compression/resizing in
+      // the worker (background) so we don't block the UI. Later, during onSave, we
+      // ensure all the photo processing is complete.
       this.$store
         .dispatch('obs/compressPhotoIfRequired', file)
         .then(compressionResult => {
@@ -1039,12 +1098,16 @@ export default {
           }
           found.file = compressionResult.data
           found.url = URL.createObjectURL(compressionResult.data)
-          const locAccuracyFromPhoto = null // TODO find out if this is ever
-          // used and if so, find the EXIF tag and pull the data
+          // TODO find out if this field is ever populated and if so, find the
+          // EXIF tag and pull the data
+          const locAccuracyFromPhoto = null
+          // Note: we don't support editing an obs location. We have logic
+          // to set the location during creation but then we don't touch it
           this.handleGpsLocation(
             compressionResult.location.lat,
             compressionResult.location.lng,
             locAccuracyFromPhoto,
+            'photo metadata',
           )
         })
         .catch(err => {
@@ -1054,19 +1117,23 @@ export default {
           this.photosStillCompressingCountdownLatch -= 1
         })
     },
-    handleGpsLocation(lat, lng, accuracy) {
+    handleGpsLocation(lat, lng, accuracy, source) {
       if (this.isLocationAlreadyCaptured) {
         return
       }
       const isLocationPassed = lat && lng
       if (!isLocationPassed) {
-        // FIXME show warning message
+        wowWarnHandler(
+          `Asked to handle GPS location but ` +
+            `did not receieve *both* lat=${lat} and lng=${lng}`,
+        )
         return
       }
       this.geolocationErrorMsg = null
       this.obsLat = lat
       this.obsLng = lng
       this.obsLocAccuracy = accuracy
+      this.obsLocSourceName = source
     },
     async _onSpeciesGuessInput(data) {
       const result = await this.doSpeciesAutocomplete(data.value)
@@ -1188,27 +1255,43 @@ export default {
         this.fieldIdIsDisabled[curr] = newVal
       }
     },
-    getDeviceGpsLocation() {
-      // FIXME show message to prime users about accepting geolocation before
-      // this next call. Once we have support for pulling location from EXIF,
-      // we could survive without geolocation access.
-      this.$store.dispatch('obs/markUserGeolocation').catch(err => {
+    async getDeviceGpsLocation() {
+      // TODO Enhancement idea: only prompt when we know we don't have access.
+      // There's no API support for this but perhaps we can store if we've been
+      // successful in the past and use that?
+      await this.$ons.notification.alert(
+        'We are about to get the current location of your device. ' +
+          'You may be prompted to allow/block this access. ' +
+          'It is important that you ' +
+          '*allow* (do not block) this access.',
+      )
+      try {
+        await this.$store.dispatch('obs/markUserGeolocation')
+        this.handleGpsLocation(
+          this.$store.state.obs.lat,
+          this.$store.state.obs.lng,
+          this.$store.state.obs.locAccuracy,
+          'device',
+        )
+      } catch (err) {
         console.debug('No geolocation access for us.', err)
-        // FIXME notify user that we *need* geolocation
         this.geolocationErrorMsg = (function() {
           if (err === notSupported) {
             return 'Geolocation is not supported by your device'
           }
           if (err === blocked) {
-            // TODO add links for how to un-block location access
-            return 'You have blocked access to geolocation'
+            return (
+              'You have blocked access to your device' +
+              ' geolocation. Google for something like "reset ' +
+              'browser geolocation permission" to find out ' +
+              'how to unblock'
+            )
           }
           if (err === failed) {
             return (
               `Geolocation seems to be supported and not blocked but ` +
               'something went wrong while accessing your position'
             )
-            // TODO add message about retrying? Maybe add a button to retry?
           }
           wowErrorHandler(
             'ProgrammerError: geolocation access failed but in a' +
@@ -1218,7 +1301,10 @@ export default {
           )
           return 'Something went wrong while trying to access your geolocation'
         })()
-      })
+      }
+    },
+    toggleMap() {
+      this.isShowMap = !this.isShowMap
     },
   },
 }
@@ -1324,13 +1410,8 @@ $thumbnailSize: 75px;
   color: black;
 }
 
-// FIXME - make these map styles global?
-.map-container {
-  padding: 2em 0;
-}
-
-.map-container img {
-  width: 90vw;
+.map-container div {
+  width: 94vw;
 }
 
 .wow-obs-field-desc {
@@ -1379,17 +1460,21 @@ $thumbnailSize: 75px;
   margin-left: 1em;
 }
 
-.warning {
-  color: #ff9900;
-  margin-right: 0.25em;
+.success-alert,
+.warning-alert {
+  padding: 1em;
+  margin: 0 auto;
 }
 
-.geoloc-error {
-  border: 1px solid #ff9900;
-  border-radius: 5px;
-  background: #ffe7a2;
-  padding-left: 1em;
-  padding-right: 1em;
-  margin: 0 auto;
+.warning-alert {
+  border: 1px solid orange;
+  border-radius: 10px;
+  background: #ffda88;
+}
+
+.success-alert {
+  border: 1px solid green;
+  border-radius: 10px;
+  background: #afff86;
 }
 </style>
