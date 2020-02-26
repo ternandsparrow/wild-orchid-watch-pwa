@@ -53,6 +53,7 @@
         <wow-header
           :key="currMenuItem.name + '-header'"
           :label="currMenuItem.name + ' photos'"
+          :required="currMenuItem.required"
           help-target="photos"
           class="margin-for-photos"
           @on-help="showHelp"
@@ -119,7 +120,7 @@
           @item-selected="onSpeciesGuessSet"
         />
         <div class="wow-obs-field-desc">
-          <span class="required">(required)</span>
+          <wow-required-chip />
           What species is this observation of?
         </div>
       </v-ons-list-item>
@@ -216,7 +217,7 @@
             ></wow-input-status>
           </div>
           <div class="wow-obs-field-desc">
-            <span v-if="currField.required" class="required">(required)</span>
+            <wow-required-chip v-if="currField.required" />
             {{ currField.description }}
           </div>
         </v-ons-list-item>
@@ -237,21 +238,18 @@
       </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
-    <v-ons-alert-dialog
-      modifier="rowfooter"
-      :visible.sync="formErrorDialogVisible"
-    >
-      <div slot="title">Invalid value(s) entered</div>
-      <p>Please correct the invalid values and try again.</p>
-      <ul class="error-msg-list">
-        <li v-for="curr of formErrorMsgs" :key="curr">{{ curr }}</li>
-      </ul>
-      <template slot="footer">
-        <v-ons-alert-dialog-button @click="onDismissFormError"
-          >Ok</v-ons-alert-dialog-button
-        >
-      </template>
-    </v-ons-alert-dialog>
+    <v-ons-dialog cancelable :visible.sync="formErrorDialogVisible">
+      <div class="form-error-dialogue">
+        <h3>Invalid value(s)</h3>
+        <p>Please correct the invalid values and try again.</p>
+        <ul class="error-msg-list">
+          <li v-for="curr of formErrorMsgs" :key="curr">{{ curr }}</li>
+        </ul>
+      </div>
+      <v-ons-alert-dialog-button @click="onDismissFormError"
+        >Ok</v-ons-alert-dialog-button
+      >
+    </v-ons-dialog>
     <v-ons-modal :visible="isSaveModalVisible">
       <p class="text-center">
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
@@ -326,12 +324,12 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole-plant', name: 'Whole plant' },
+        { id: 'whole-plant', name: 'Whole plant', required: true },
         { id: 'flower', name: 'Flower' },
         { id: 'leaf', name: 'Leaf' },
         { id: 'fruit', name: 'Fruit' },
-        { id: 'habitat', name: 'Habitat' },
-        { id: 'micro-habitat', name: 'Micro-habitat' },
+        { id: 'habitat', name: 'Habitat', required: true },
+        { id: 'micro-habitat', name: 'Micro-habitat', required: true },
         { id: 'canopy', name: 'Canopy' },
         { id: 'floral-visitors', name: 'Floral visitors' },
         { id: 'host-tree', name: 'Epiphyte host tree' },
@@ -848,6 +846,19 @@ export default {
       }
       return result
     },
+    validatePhotos() {
+      const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
+      requiredPhotoTypes.forEach(curr => {
+        const photosOfType = this.allPhotosByType[curr.id]
+        const isAtLeastOnePhotoOfType = photosOfType && photosOfType.length
+        if (isAtLeastOnePhotoOfType) {
+          return
+        }
+        this.formErrorMsgs.push(
+          `You must attach at least one ${curr.name} photo`,
+        )
+      })
+    },
     validateInputs() {
       // TODO Enhancement idea: highlight the fields with error and maybe scroll
       // to the first field
@@ -889,6 +900,7 @@ export default {
           `The "${curr.name}" field cannot be zero or negative`,
         )
       }
+      this.validatePhotos()
       if (this.formErrorMsgs.length) {
         this.formErrorDialogVisible = true
         return false
@@ -1022,7 +1034,7 @@ export default {
           toastSavedMsg(this.$ons)
           this.$router.replace({
             name: 'ObsDetail',
-            params: { id: record.uuid },
+            params: { id: this.observationDetail.inatId },
           })
         } else {
           record.lat = this.obsLat
@@ -1476,5 +1488,14 @@ $thumbnailSize: 75px;
   border: 1px solid green;
   border-radius: 10px;
   background: #d5ffbf;
+}
+
+.form-error-dialogue {
+  width: 90vw;
+  padding: 1em;
+
+  h3 {
+    margin: 0;
+  }
 }
 </style>

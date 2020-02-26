@@ -778,8 +778,6 @@ const actions = {
       throw chainedError('Failed to refresh localRecordQueue', err)
     }
   },
-  // FIXME add ability to send messages to the SW so we can manually trigger a
-  // refresh
   /**
    * Process actions (new/edit/delete) in the local queue.
    * If there are records to process, we process one then call ourselves again.

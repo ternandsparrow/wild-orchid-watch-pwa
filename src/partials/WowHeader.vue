@@ -5,6 +5,7 @@
       Help</span
     >
     {{ label }}
+    <wow-required-chip v-if="required" />
   </v-ons-list-header>
 </template>
 
@@ -14,6 +15,7 @@ export default {
   props: {
     label: String,
     helpTarget: String,
+    required: Boolean,
   },
   methods: {
     triggerHelp() {
@@ -26,5 +28,9 @@ export default {
 <style scoped lang="scss">
 .help-trigger {
   float: right;
+}
+
+.required {
+  color: red;
 }
 </style>
