@@ -95,6 +95,11 @@ function getHelpData() {
           'photo-leaf.jpg',
         ],
         [
+          'Fruit',
+          'Photos of fruit including colour and size. Include scale if possible.',
+          'photo-fruit.jpg',
+        ],
+        [
           'Habitat',
           'Habitat features to include in photo: where present try to capture dominant ground cover, shrubs and canopy vegetation. Any obvious landscape features such as water bodies or evidence of fire.',
           'photo-habitat.jpg',
@@ -137,7 +142,7 @@ function getHelpData() {
         ['Terrestrial', 'Growing on the land', 'orchid-type-terrestrial.jpg'],
         [
           'Ephiphyte',
-          'Growing in host trees/shrubs',
+          'Growing in host trees/shrubs.  Host species: If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.  Epiphyte height: Estimate the number of metres above ground level the orchid is growing on the host plant.',
           'orchid-type-epiphyte.jpg',
         ],
         [
@@ -148,52 +153,72 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Landuse types',
-      values: [
-        [
-          'Conservation and natural environments',
-          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
-          'landuse-cne.jpg',
-        ],
-        [
-          'Production from relatively natural environments',
-          'Grazed native vegetation, non-irrigated forestry excluding plantations',
-          'landuse-prne.jpg',
-        ],
-        [
-          'Production from dryland agriculture and plantations',
-          'Plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-dap.jpg',
-        ],
-        [
-          'Production from irrigated agriculture and plantations',
-          'Irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-piap.jpg',
-        ],
-        [
-          'Intensive uses',
-          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          'landuse-intensive.jpg',
-        ],
-        [
-          'Water',
-          'Lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          'landuse-water.jpg',
-        ],
-      ],
-    },
-    {
       heading: 'Litter',
       values: [
         [
           'Yes (litter IS present)',
-          'The Orchid has litter directly surrounding it.  Typical examples of litter are gum-leaves and bark.',
+          'Presence of distinct plant litter layer (i.e. leaf layer, twig debris) in vicinity of orchids (note also available via microhabitat photo)',
           'litter-present.jpg',
         ],
         [
           'NO (litter is NOT present)',
-          'The Orchid does not have litter directly surrounding it.  In this case, it is typically surrounded by dirt, gravel or sand.',
+          'Absence of distinct plant litter layer (i.e. leaf layer, twig debris) in vicinity of orchids (note also available via microhabitat photo)',
           'litter-not-present.jpg',
+        ],
+      ],
+    },
+    {
+      heading: 'Landform Type',
+      values: [
+        [
+          'Crest',
+          'A crest landform type stands above all, or almost all, points in the adjacent terrain.  Crests include hillcrests, summits, risecrests and dunecrests.',
+          'landform-type-overview.jpg',
+        ],
+        [
+          'Hill (hillock)',
+          'A	Hill or (hillock) is a small mound or hill.  Hills or hillocks can include: rises, hummocky dunes, parabolic dunes, barchane dunes, linear or longitudiinal dunes, cones and mounts.',
+          'blank',
+        ],
+        [
+          'Ridge',
+          'A Ridge is a chain of mountains or hills that for a continuous elevated crest. The sides of the ridge slope away on either side of a narrow top.  Examples of Ridges include dune, foredune, lunette, beach ridge, embankment and dam.',
+          'blank',
+        ],
+        [
+          'Slope (unspecified)',
+          'A Slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%. Use this option if you are not sure if it is a is lower, mid or simple slope.  Examples include the following landform elements: cliff, scarp, hillslope and embankment.',
+          'blank',
+        ],
+        [
+          'Slope (simple)',
+          'A simple slope is a slope element below a crest or flat and adjacent above a flat or depression',
+          'blank',
+        ],
+        [
+          'Slope (mid)',
+          'A mid-slope is a slope element not adjacent below a crest or flat and not adjacent above a flat or depression.',
+          'blank',
+        ],
+        [
+          'Slope (lower)',
+          'A lower slope is a slope element not adjacent below a crest or flat but adjacent above a flat or depression.',
+          'blank',
+        ],
+        [
+          'Flat',
+          'A flat is a relatively level surface of land within a region of greater relief, such as hills or mountains. Flat is also used to describe other level geographic areas as mud flats or tidal flats.',
+          'blank',
+        ],
+        [
+          'Open depression',
+          'Open depressions can include the following landform elements:  gully, drainine depression, stream channels, stream bed, tidal creeks, estuary, swamps, swales and trench.',
+          'blank',
+        ],
+        [
+          'Closed depression',
+          'Closed depressions can include the following landform elements: lakes, swamps, lagoons, craters, pits, doline and basins.',
+          'blank',
         ],
       ],
     },
@@ -238,65 +263,11 @@ function getHelpData() {
         ['Other human disturbance', 'FIXME - add comment', 'blank'],
       ],
     },
-
     {
-      heading: 'Landform Type',
+      heading:
+        'Soil surface structure as observed on the surface (NO DIGGING!)',
       values: [
-        [
-          'Crest',
-          'A crest landform type stands above all, or almost all, points in the adjacent terrain.  Crests include hillcrests, summits, risecrests and dunecrests.',
-          'landform-type-overview.jpg',
-        ],
-        [
-          'Hill (hillock)',
-          'A	Hill or (hillock) is a small mound or hill.  Hills or hillocks can include: rises, hummocky dunes, parabolic dunes, barchane dunes, linear or longitudiinal dunes, cones and mounts.',
-          'blank',
-        ],
-        [
-          'Ridge',
-          'A Ridge is a chain of mountains or hills that for a continuous elevated crest. The sides of the ridge slope away on either side of a narrow top.  Examples of Ridges include dune, foredune, lunette, beach ridge, embankment and dam.',
-          'blank',
-        ],
-        [
-          'Slope (unspecified)',
-          'Use this option if you are not sure if it is a is lower, mid or simple slope.  Examples include the following landform elements: cliff, scarp, hillslope and embankment.',
-          'blank',
-        ],
-        [
-          'Slope (simple)',
-          'A simple slope is a slope element below a crest or flat and adjacent above a flat or depression.  A Slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%.',
-          'blank',
-        ],
-        [
-          'Slope (mid)',
-          'A Mid-slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%. A mid-slope is a slope element not adjacent below a crest or flat and not adjacent above a flat or depression.  Mid-slopes can include the following landform elements: breakaway, cliff-footslope, bench and berms.',
-          'blank',
-        ],
-        [
-          'Slope (lower)',
-          'A Lower-slope is a planar landform element that is neither a crest nor a depression and has an inclination greater than about 1%.  A lower slope is a slope element not adjacent below a crest or flat but adjacent above a flat or depression.  Lower slopes can include the following landform elements: footslopes, pediment',
-          'blank',
-        ],
-        [
-          'Flat',
-          'A flat is a relatively level surface of land within a region of greater relief, such as hills or mountains. Flat is also used to describe other level geographic areas as mud flats or tidal flats.  Flats can include the following landform elements: plains, rock flats, rock platforms, scald, valley flat, terrace flat, flood-out, tidal flat and berm.',
-          'blank',
-        ],
-        [
-          'Open depression',
-          'Open depressions can include the following landform elements:  gully, drainine depression, stream channels, stream bed, tidal creeks, estuary, swamps, swales and trench.',
-          'blank',
-        ],
-        [
-          'Closed depression',
-          'Closed depressions can include the folling landform elements: lakes, swamps, lagoons, craters, pits, doline and basins.',
-          'blank',
-        ],
-      ],
-    },
-    {
-      heading: 'Soil surface texture',
-      values: [
+        ['Unknown', 'Not able to classify the soil structure', 'blank'],
         ['Sand', 'Loose, granular, felt or heard when pinching.', 'blank'],
         ['Loam', 'A fertile soil of clay and sand containing humus.', 'blank'],
         ['Clay', 'Sticky, cohesive or plastic feeling.', 'blank'],
@@ -306,27 +277,86 @@ function getHelpData() {
       heading: 'Rock cover size',
       values: [
         [
-          'Select one of the values, using the average size that you see as a guide.',
+          'Multiple selections possible. Please choose all rock size classes visible on the soils surface within 1m radius of the orchid.',
           '',
           'blank',
         ],
       ],
     },
     {
-      heading: 'Accuracy of Population Count',
+      heading:
+        'Accuracy of population count (how accurate is the count of individuals recorded?)',
       values: [
+        ['Exact', 'Count of individuals within the defined area.', 'blank'],
         [
-          'Did you accurately count the orchid population, or was a rough count?',
-          '',
+          'Partial count',
+          'A fertile soil of clay and sand containing humus.',
+          'blank',
+        ],
+        [
+          'Extrapolated/estimate',
+          'Spatially defined subset of the population',
           'blank',
         ],
       ],
     },
     {
-      heading: 'Accuracy of Search Area Calculation',
+      heading:
+        'Accuracy of search area calculation (how accurate is the search area recorded?)',
       values: [
         [
-          'Make an estimate of the area you have searched for this observation, in square meters.',
+          'Precise',
+          'For example transect/quadrat measured with a tape measure (assumes rectangle or square shape).',
+          'blank',
+        ],
+        ['Estimated', 'Visual guess or paced area.', 'blank'],
+      ],
+    },
+    {
+      heading: 'Precise area measurements (m2)',
+      values: [
+        [
+          'Precise',
+          'For example transect/quadrat measured with a tape measure (assumes rectangle or square shape) – select (from the drop downs) the precise area measurement widths (m) and length (m).',
+          'blank',
+        ],
+        [
+          'Estimated',
+          'Visual guess or paced area (no additional width or length data required).',
+          'blank',
+        ],
+      ],
+    },
+    {
+      heading: 'Estimated area searched and Area of Population (m2)',
+      values: [
+        [
+          'How large is the area you searched while counting individuals? Only required when observing more than one individual – recommended linear search areas (i.e. rectangles along paths)',
+          '',
+          'blank',
+        ],
+        ['', '1m2 (i.e. 1x1 or similar)', 'blank'],
+        ['', '4m2 (i.e. 2x2 or similar)', 'blank'],
+        ['', '10m2 (i.e. 5x2 or similar)', 'blank'],
+        ['', '36m2 (i.e. 18x2 or similar), etc.', 'blank'],
+      ],
+    },
+    {
+      heading: 'Search effort (minutes)',
+      values: [
+        [
+          'Time spent surveying: minutes actively searching not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
+          '',
+          'blank',
+        ],
+        ['', 'e.g. <1, A few minutes, 5, 10 , etc.', 'blank'],
+      ],
+    },
+    {
+      heading: 'Number of individuals recorded',
+      values: [
+        [
+          'Enter a full number which is the count of individuals you tallied.',
           '',
           'blank',
         ],
@@ -340,8 +370,8 @@ function getHelpData() {
           'Only leaves and stem, no reproductive material present (ie. flowers or fruit)',
           'phenology-vegetative.jpg',
         ],
-        ['Budding', 'Budding – flower/s not yet open', 'phenology-budding.jpg'],
         ['Flowering', 'Flower/s visible and open', 'phenology-flowering.jpg'],
+        ['Budding', 'Budding – flower/s not yet open', 'phenology-budding.jpg'],
         [
           'Senescent Flower',
           'Withering, dried flowers.',
@@ -369,12 +399,15 @@ function getHelpData() {
         ],
       ],
     },
-
+    {
+      heading: 'Folivory damage noted',
+      values: [['', 'FIXME - add an explanation', 'blank']],
+    },
     {
       heading: 'Floral visitors',
       values: [
         ['Native bee', '', 'visitors-native-bee.jpg'],
-        ['Introduced honey bee', '', 'visitors-introduced-bee.jpg'],
+        ['Introduced honey-bee', '', 'visitors-introduced-bee.jpg'],
         ['Native wasp', '', 'visitors-native-wasp.jpg'],
         ['Native fly', '', 'visitors-native-fly.jpg'],
         ['Fungus gnat', '', 'visitors-fungus-gnat.jpg'],
@@ -488,10 +521,10 @@ function getHelpData() {
         ['Cycad', 'Members of the families Cycadaceae and Zamiaceae.', 'blank'],
       ],
     },
-    // {
-    //   heading: 'Height of the most dominant growth form present',
-    //   values: [['FIXME', 'fill this in', 'blank']],
-    // },
+    {
+      heading: 'Height of the most dominant growth form present',
+      values: [['', 'FIXME - add a description', 'blank']],
+    },
     {
       heading: 'Cover of the most Dominant Stratum',
       values: [
@@ -502,10 +535,51 @@ function getHelpData() {
         ],
       ],
     },
-    // {
-    //   heading: 'Vegetation Community Notes',
-    //   values: [['FIXME', 'fill this in', 'blank']],
-    // },
+    {
+      heading: 'Vegetation Community Notes',
+      values: [
+        [
+          'Free-text',
+          'Here, you can enter additional information, such as genera/species of the dominant plants present.',
+          'blank',
+        ],
+      ],
+    },
+    {
+      heading: 'Landuse types',
+      values: [
+        [
+          'Conservation and natural environments',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'landuse-cne.jpg',
+        ],
+        [
+          'Production from relatively natural environments',
+          'Grazed native vegetation, non-irrigated forestry excluding plantations',
+          'landuse-prne.jpg',
+        ],
+        [
+          'Production from dryland agriculture and plantations',
+          'Plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-dap.jpg',
+        ],
+        [
+          'Production from irrigated agriculture and plantations',
+          'Irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-piap.jpg',
+        ],
+        [
+          'Intensive uses',
+          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+          'landuse-intensive.jpg',
+        ],
+        [
+          'Water',
+          'Lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+          'landuse-water.jpg',
+        ],
+      ],
+    },
     {
       heading: 'Help section Credits',
       values: [
