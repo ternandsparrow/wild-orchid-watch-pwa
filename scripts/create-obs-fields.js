@@ -49,7 +49,7 @@ const authenticityToken = requiredEnvVar('WOW_AUTHENTICITY_TOKEN')
 
 const commonLanduses =
   'Production from relatively natural environments|Production from dryland agriculture and plantations|Production from irrigated agriculture plantations|Intensive uses|Water'
-const squareAreas = '1|4|9|16|25|36|49|64|81|100|>100'
+const linearAreas = `2|4|10|16|24|36|42|50|64|72|100|>100`
 const phenologyValues =
   'Vegetative|Budding|Flowering|Senescent flower|Developing fruit|Senescent fruit'
 
@@ -120,7 +120,7 @@ const obsFields = [
     name: 'Area of population (m²)',
     description: 'Only applicable when recording >1 individual',
     datatype: 'text',
-    allowedValues: squareAreas,
+    allowedValues: linearAreas,
   },
   {
     name: 'Accuracy of search area calculation',
@@ -145,15 +145,14 @@ const obsFields = [
     description:
       'How large is the area you searched while counting individuals? Only required when observing more than one individual. Recommended linear searches i.e. rectangles along paths, etc',
     datatype: 'text',
-    allowedValues: `Not collected|2|4|10|16|24|36|42|50|64|72|100|>100`,
+    allowedValues: `${obsFieldConstants.notCollected}|${linearAreas}`,
   },
   {
     name: 'Search effort (minutes)',
     description:
       'Time spent surveying: minutes actively searching (not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
     datatype: 'text',
-    allowedValues:
-      'Not collected|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+', // FIXME get these values
+    allowedValues: `${obsFieldConstants.notCollected}|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+`,
   },
   {
     name: 'Number of individuals recorded',

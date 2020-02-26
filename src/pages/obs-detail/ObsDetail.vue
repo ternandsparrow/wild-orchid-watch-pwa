@@ -202,7 +202,6 @@ import {
   humanDateString,
   isPossiblyStuck,
   rectangleAlongPathAreaValueToTitle,
-  squareAreaValueToTitle,
   wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
@@ -239,7 +238,7 @@ export default {
     nullSafeObs() {
       const valueMappers = {
         [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
-        [areaOfPopulationObsFieldId]: squareAreaValueToTitle,
+        [areaOfPopulationObsFieldId]: rectangleAlongPathAreaValueToTitle,
       }
       const result = _.cloneDeep(this.observationDetail || {})
       if (result.obsFieldValues) {

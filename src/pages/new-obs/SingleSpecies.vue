@@ -276,7 +276,6 @@ import _ from 'lodash'
 import {
   findCommonString,
   rectangleAlongPathAreaValueToTitle,
-  squareAreaValueToTitle,
   wowErrorHandler,
   wowWarnHandler,
 } from '@/misc/helpers'
@@ -1330,17 +1329,13 @@ function isDeletedObsFieldValue(value) {
 function getAllowedValsStrategy(field) {
   const excludeNotCollectedForRequiredFilter = v =>
     !field.required || v !== notCollected
-  const squareAreaMapper = vals =>
-    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
-      return { value: v, title: squareAreaValueToTitle(v) }
-    })
   const rectangleAlongPathAreaMapper = vals =>
     vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
       return { value: v, title: rectangleAlongPathAreaValueToTitle(v) }
     })
   const strats = {
     [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaMapper,
-    [areaOfPopulationObsFieldId]: squareAreaMapper,
+    [areaOfPopulationObsFieldId]: rectangleAlongPathAreaMapper,
   }
   const result = strats[field.id]
   const defaultStrat = vals =>
