@@ -148,6 +148,41 @@ function getHelpData() {
       ],
     },
     {
+      heading: 'Landuse types',
+      values: [
+        [
+          'Conservation and natural environments',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'landuse-cne.jpg',
+        ],
+        [
+          'Production from relatively natural environments',
+          'Grazed native vegetation, non-irrigated forestry excluding plantations',
+          'landuse-prne.jpg',
+        ],
+        [
+          'Production from dryland agriculture and plantations',
+          'Plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-dap.jpg',
+        ],
+        [
+          'Production from irrigated agriculture and plantations',
+          'Irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
+          'landuse-piap.jpg',
+        ],
+        [
+          'Intensive uses',
+          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+          'landuse-intensive.jpg',
+        ],
+        [
+          'Water',
+          'Lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+          'landuse-water.jpg',
+        ],
+      ],
+    },
+    {
       heading: 'Litter',
       values: [
         [
@@ -162,6 +197,48 @@ function getHelpData() {
         ],
       ],
     },
+    {
+      heading: 'Evidence of disturbance and threats',
+      values: [
+        ['Chemical spraying', '', 'disturbance-chemical-spraying.jpg'],
+        ['Cultivation', '', 'disturbance-cultivation.jpg'],
+        ['Dieback', 'FIXME - add IMAGE', 'disturbance-dieback.jpg'],
+        ['Fire', '', 'disturbance-fire.jpg'],
+        [
+          'Firewood/coarse woody debris removal',
+          '',
+          'disturbance-firewood.jpg',
+        ],
+        [
+          'Grazing (feral, i.e. rabbits, goats)',
+          'FIXME - add IMAGE',
+          'disturbance-grazing-feral.jpg',
+        ],
+        [
+          'Grazing (stock present or scats)',
+          '',
+          'disturbance-grazing-stock.jpg',
+        ],
+        [
+          'Grazing (native species, presence of roo/possum scats)',
+          '',
+          'disturbance-grazing-native.jpg',
+        ],
+        ['Mowing/slashing', '', 'disturbance-mowing-slashing.jpg'],
+        [
+          'Rubbish dumping (excl. small litter items)',
+          'FIXME - add IMAGE',
+          'disturbance-rubbish.jpg',
+        ],
+        ['Storm damage', '', 'disturbance-storm-damage.jpg'],
+        ['Soil erosion (incl. run-off)', '', 'disturbance-erosion.jpg'],
+        ['Trampling (human)', '', 'disturbance-trampling-human.jpg'],
+        ['Vegetation clearance', '', 'disturbance-veg-clearing.jpg'],
+        ['Weed invasion', '', 'disturbance-weed.jpg'],
+        ['Other human disturbance', 'FIXME - add comment', 'blank'],
+      ],
+    },
+
     {
       heading: 'Landform Type',
       values: [
@@ -218,69 +295,41 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Soil structure as observed from the surface',
-      values: [['FIXME', 'fill this in', 'blank']],
+      heading: 'Soil surface texture',
+      values: [
+        ['Sand', 'Loose, granular, felt or heard when pinching.', 'blank'],
+        ['Loam', 'A fertile soil of clay and sand containing humus.', 'blank'],
+        ['Clay', 'Sticky, cohesive or plastic feeling.', 'blank'],
+      ],
     },
     {
       heading: 'Rock cover size',
-      values: [['FIXME', 'fill this in', null]],
+      values: [
+        [
+          'Select one of the values, using the average size that you see as a guide.',
+          '',
+          'blank',
+        ],
+      ],
     },
     {
       heading: 'Accuracy of Population Count',
-      values: [['FIXME', 'fill this in', 'blank']],
+      values: [
+        [
+          'Did you accurately count the orchid population, or was a rough count?',
+          '',
+          'blank',
+        ],
+      ],
     },
     {
       heading: 'Accuracy of Search Area Calculation',
       values: [
         [
-          'Make an estimate of the area you have searcged for this observation, in square meters.',
+          'Make an estimate of the area you have searched for this observation, in square meters.',
           '',
-          null,
+          'blank',
         ],
-      ],
-    },
-    {
-      heading: 'Landuse types',
-      values: [
-        [
-          'Conservation and natural environments',
-          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
-          'landuse-cne.jpg',
-        ],
-        [
-          'Production from relatively natural environments',
-          'grazed native vegetation, non-irrigated forestry excluding plantations',
-          'landuse-prne.jpg',
-        ],
-        [
-          'Production from dryland agriculture and plantations',
-          'plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-dap.jpg',
-        ],
-        [
-          'Production from irrigated agriculture and plantations',
-          'irrigated forestry plantations, irrigated pasture grazing, irrigated cropping/orchards/flower farms/vineyards',
-          'landuse-piap.jpg',
-        ],
-        [
-          'Intensive uses',
-          'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
-          'landuse-intensive.jpg',
-        ],
-        [
-          'Water',
-          'lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
-          'landuse-water.jpg',
-        ],
-      ],
-    },
-    {
-      heading: 'Sign of disturbance and threats',
-      values: [
-        ['Vegetation clearance', 'FIXME', 'disturbance-veg-clearing.jpg'],
-        ['Mowing/slashing', 'FIXME', 'disturbance-mowing-slashing.jpg'],
-        ['Chemical spraying', 'FIXME', 'disturbance-chemical-spraying.jpg'],
-        ['Cultivation', 'FIXME', 'disturbance-cultivation.jpg'],
       ],
     },
     {
@@ -332,7 +381,7 @@ function getHelpData() {
         ['Ant', '', 'visitors-ant.jpg'],
         [
           'Unknown/other invertebrate',
-          '',
+          "There was an invertebrate sighted, but you're unsure of what species it was, or it was an animal not in the list of options.",
           'visitors-unknown-other-invertebrate.jpg',
         ],
         [
@@ -351,18 +400,8 @@ function getHelpData() {
           'blank',
         ],
         [
-          'Tree (Mallee)',
-          'Woody perennial plant usually of the genus Eucalyptus. Multi-stemmed with fewer than five trunks of which at least three exceed 100mm diameter at breast height (1.3m). Usually 8m or more.',
-          'blank',
-        ],
-        [
           'Shrub',
           'Woody plants multi-stemmed at the base (or within 200mm from ground level) or if single stemmed, less than 2m.',
-          'blank',
-        ],
-        [
-          'Shrub (Mallee)',
-          'Commonly less than 8m tall, usually with five or more trunks, of which at least three of the largest do not exceed 100mm in diameter at breast height (1.3 m).',
           'blank',
         ],
         [
@@ -376,13 +415,8 @@ function getHelpData() {
           'blank',
         ],
         [
-          'Shrub (Samphire)',
-          'Genera (of Tribe Salicornioideae, viz.: Halosarcia, Pachycornia, Sarcocornia, Sclerostegia, Tecticornia and Tegicornia) with articulate branches, fleshy stems and reduced flowers within the Chenopodiaceae family, succulent chenopods (Wilson 1980). Also the genus Suaeda.',
-          'blank',
-        ],
-        [
-          'Tussock Grass',
-          'Grass forming discrete but open tussocks usually with distinct individual shoots, or if not, then forming a hummock. These are the common agricultural grasses.',
+          'Grass-Tree',
+          'Australian grass trees. Members of the Xanthorrhoeaceae family.',
           'blank',
         ],
         [
@@ -391,8 +425,33 @@ function getHelpData() {
           'blank',
         ],
         [
+          'Tussock Grass',
+          'Grass forming discrete but open tussocks usually with distinct individual shoots, or if not, then forming a hummock. These are the common agricultural grasses.',
+          'blank',
+        ],
+        [
+          'Hummock Grass',
+          'Coarse xeromorphic grass with a mound-like form often dead in the middle; genus is Triodia.',
+          'blank',
+        ],
+        [
+          'Tree (Mallee)',
+          'Woody perennial plant usually of the genus Eucalyptus. Multi-stemmed with fewer than five trunks of which at least three exceed 100mm diameter at breast height (1.3m). Usually 8m or more.',
+          'blank',
+        ],
+        [
+          'Shrub (Mallee)',
+          'Commonly less than 8m tall, usually with five or more trunks, of which at least three of the largest do not exceed 100mm in diameter at breast height (1.3 m).',
+          'blank',
+        ],
+        [
           'Sedge',
           'Herbaceous, usually perennial erect plant generally with a tufted habit and of the families Cyperaceae (true sedges) or Restionaceae (node sedges).',
+          'blank',
+        ],
+        [
+          'Shrub (Samphire)',
+          'Genera (of Tribe Salicornioideae, viz.: Halosarcia, Pachycornia, Sarcocornia, Sclerostegia, Tecticornia and Tegicornia) with articulate branches, fleshy stems and reduced flowers within the Chenopodiaceae family, succulent chenopods (Wilson 1980). Also the genus Suaeda.',
           'blank',
         ],
         [
@@ -416,42 +475,48 @@ function getHelpData() {
           'blank',
         ],
         [
+          'Vine',
+          'Climbing, twining, winding or sprawling plants usually with a woody stem.',
+          'blank',
+        ],
+        [
           'Palm',
           'Palms and other arborescent monocotyledons. Members of the Arecaceae family or the genus Pandanus. (Pandanus is often multi-stemmed).',
           'blank',
         ],
-        [
-          'Grass-Tree',
-          'Australian grass trees. Members of the Xanthorrhoeaceae family.',
-          'blank',
-        ],
+
         ['Cycad', 'Members of the families Cycadaceae and Zamiaceae.', 'blank'],
       ],
     },
-    {
-      heading: 'Height of the most dominant growth form present',
-      values: [['FIXME', 'fill this in', 'blank']],
-    },
+    // {
+    //   heading: 'Height of the most dominant growth form present',
+    //   values: [['FIXME', 'fill this in', 'blank']],
+    // },
     {
       heading: 'Cover of the most Dominant Stratum',
       values: [
         [
           'Foliage cover',
-          'proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
+          'The proportion of ground cover which would be shaded if sunshine came directly overhead, including branches and leaves.',
           'blank',
         ],
       ],
     },
+    // {
+    //   heading: 'Vegetation Community Notes',
+    //   values: [['FIXME', 'fill this in', 'blank']],
+    // },
     {
-      heading: 'Vegetation Community Notes',
-      values: [['FIXME', 'fill this in', 'blank']],
-    },
-    {
-      heading: 'Help section photo credits',
+      heading: 'Help section Credits',
       values: [
         [
+          'Photos',
           'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hansch, Anita Marquart, Rosalie Lawrence, Robert Lawrence, Sally O’Neill, Katie Irvine',
-          '',
+          'blank',
+        ],
+        [
+          'Source',
+          'Start with the Leaves: A simple guide to common orchids and lilies of the Adelaide Hills Robert Lawrence, Heritage Bushcare 2011',
           'blank',
         ],
       ],
