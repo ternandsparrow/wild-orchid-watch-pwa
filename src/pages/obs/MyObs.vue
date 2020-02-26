@@ -60,21 +60,9 @@
         <obs-list :records="remoteRecords" @item-click="push" />
       </v-ons-list>
     </div>
-    <v-ons-fab position="bottom right" @click="onNewObsBtn">
+    <v-ons-fab position="bottom right" @click="onNewSingleSpecies">
       <v-ons-icon icon="md-plus"></v-ons-icon>
     </v-ons-fab>
-    <v-ons-action-sheet :visible.sync="isNewObsActionsVisible" cancelable>
-      <v-ons-action-sheet-button icon="fa-seedling" @click="onNewSingleSpecies"
-        >Single species</v-ons-action-sheet-button
-      >
-      <!-- TODO support mapping records -->
-      <v-ons-action-sheet-button
-        v-if="!md"
-        icon="fa-map-marked-alt"
-        @click="isNewObsActionsVisible = false"
-        >Cancel</v-ons-action-sheet-button
-      >
-    </v-ons-action-sheet>
   </v-ons-page>
 </template>
 
@@ -84,7 +72,6 @@ import { mapState, mapGetters } from 'vuex'
 export default {
   data() {
     return {
-      isNewObsActionsVisible: false,
       pullHookState: 'initial',
     }
   },
@@ -119,11 +106,7 @@ export default {
     push(obsId) {
       this.$router.push({ name: 'ObsDetail', params: { id: obsId } })
     },
-    onNewObsBtn() {
-      this.isNewObsActionsVisible = true
-    },
     onNewSingleSpecies() {
-      this.isNewObsActionsVisible = false
       this.$store.commit('obs/setSelectedObservationId', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
