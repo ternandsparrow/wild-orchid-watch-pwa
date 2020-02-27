@@ -142,7 +142,7 @@ function getHelpData() {
         ['Terrestrial', 'Growing on the land', 'orchid-type-terrestrial.jpg'],
         [
           'Ephiphyte',
-          'Growing in host trees/shrubs.  Host species: If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.  Epiphyte height: Estimate the number of metres above ground level the orchid is growing on the host plant.',
+          'Growing in host trees/shrubs.',
           'orchid-type-epiphyte.jpg',
         ],
         [
