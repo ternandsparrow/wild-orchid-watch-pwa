@@ -629,7 +629,7 @@ export default (() => {
       values: [
         [
           'Photos',
-          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hanisch, Anita Marquart, Kerri Willmott, Rosalie Lawrence, Sally O’Neill, Katie Irvine',
+          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hanisch, Anita Marquart, Kerri Willmott, Rosalie Lawrence, Sally O’Neill, Katie Irvine, WA Parks and Wildlife service',
           'blank',
         ],
         [
