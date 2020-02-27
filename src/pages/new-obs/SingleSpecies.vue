@@ -281,7 +281,6 @@ import {
   findCommonString,
   rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
-  wowWarnHandler,
 } from '@/misc/helpers'
 import {
   accuracyOfSearchAreaCalcObsFieldId,
@@ -1135,10 +1134,7 @@ export default {
       }
       const isLocationPassed = lat && lng
       if (!isLocationPassed) {
-        wowWarnHandler(
-          `Asked to handle GPS location but ` +
-            `did not receieve *both* lat=${lat} and lng=${lng}`,
-        )
+        // must have processed a photo without location metadata
         return
       }
       this.geolocationErrorMsg = null

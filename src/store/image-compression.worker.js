@@ -1,6 +1,7 @@
 import { expose as comlinkExpose } from 'comlink'
 import Jimp from 'jimp'
 import piexif from 'piexifjs'
+import '@/misc/safari-blob-patch'
 
 const defaultJpgQuality = 90 // TODO make env var config
 
