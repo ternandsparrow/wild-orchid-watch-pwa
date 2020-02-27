@@ -561,7 +561,7 @@ export default (() => {
       values: [
         ['Chemical spraying', '', 'disturbance-chemical-spraying.jpg'],
         ['Cultivation', '', 'disturbance-cultivation.jpg'],
-        ['Dieback', 'FIXME - add IMAGE', 'disturbance-dieback.jpg'],
+        ['Dieback', '', 'disturbance-dieback.jpg'],
         ['Fire', '', 'disturbance-fire.jpg'],
         [
           'Firewood/coarse woody debris removal',
