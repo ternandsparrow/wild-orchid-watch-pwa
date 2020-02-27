@@ -394,7 +394,13 @@ function getHelpData() {
     },
     {
       heading: 'Folivory damage noted',
-      values: [['', 'FIXME - add an explanation', 'blank']],
+      values: [
+        [
+          'Please indicate if there is damage to the orchid caused by animals or insects eating it.',
+          '',
+          'blank',
+        ],
+      ],
     },
     {
       heading: 'Floral visitors / potential pollinators observed',
@@ -577,7 +583,7 @@ function getHelpData() {
       heading: 'Landuse of the wider area',
       values: [
         [
-          'Please refer to the "Landuse of the immediate area" help item for guidance',
+          'Please refer to the "Landuse of the immediate area" help item for guidance.',
           '',
           'blank',
         ],
