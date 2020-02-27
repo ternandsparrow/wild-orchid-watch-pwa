@@ -81,10 +81,6 @@ export const widerLanduseObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_WIDER_LANDUSE,
 )
 
-export const otherComments = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_OTHER_COMMENTS,
-)
-
 export const soilStructureObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_SOIL_STRUCTURE,
 )

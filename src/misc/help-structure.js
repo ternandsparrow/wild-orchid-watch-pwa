@@ -594,7 +594,22 @@ export default (() => {
         ['Trampling (human)', '', 'disturbance-trampling-human.jpg'],
         ['Vegetation clearance', '', 'disturbance-veg-clearing.jpg'],
         ['Weed invasion', '', 'disturbance-weed.jpg'],
-        ['Other human disturbance', 'FIXME - add comment', 'blank'],
+        [
+          'Other human disturbance',
+          'Please add if the disturbance type is not listed above.',
+          'blank',
+        ],
+      ],
+    },
+    {
+      id: 'notes',
+      heading: 'Notes',
+      values: [
+        [
+          'This is for personal notes only; this information will not be included in final data set and data will not be transferred from this field into the other fields.',
+          '',
+          'blank',
+        ],
       ],
     },
     {
