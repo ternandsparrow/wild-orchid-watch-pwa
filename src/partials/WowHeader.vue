@@ -14,7 +14,7 @@ export default {
   name: 'WowHeader',
   props: {
     label: String,
-    helpTarget: String,
+    helpTarget: [String, Number],
     required: Boolean,
   },
   methods: {

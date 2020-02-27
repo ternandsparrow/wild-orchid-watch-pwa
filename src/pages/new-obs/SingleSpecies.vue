@@ -128,7 +128,7 @@
         <wow-header
           :key="currField.id + '-list'"
           :label="currField.name"
-          :help-target="lookupHelpTarget(currField)"
+          :help-target="currField.id"
           @on-help="showHelp"
         />
         <v-ons-list-item
@@ -289,12 +289,9 @@ import {
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
-  evidenceThreatsMultiselectId,
   failed,
-  floralVisitorsMultiselectId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
-  immediateLanduseMultiselectId,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
@@ -302,7 +299,6 @@ import {
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
-  phenologyMultiselectId,
   searchAreaCalcPreciseLengthObsFieldId,
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
@@ -1191,24 +1187,6 @@ export default {
       this.existingRecordSnapshot = _.cloneDeep(
         this.$store.getters['obs/observationDetail'],
       )
-    },
-    lookupHelpTarget(field) {
-      // FIXME we need all obs fields IDs (that have help) defined as env var
-      // constants so we can create this mapping
-      const mapping = {
-        [orchidTypeObsFieldId]: 'orchid-type',
-        [immediateLanduseMultiselectId]: 'landuse-types',
-        [floralVisitorsMultiselectId]: 'floral-visitors',
-        [widerLanduseObsFieldId]: 'landuse-types',
-        [43]: 'litter',
-        [46]: 'landform-type',
-        [62]: 'dominant-phenology',
-        [evidenceThreatsMultiselectId]: 'sign-of-disturbance-and-threats',
-        [phenologyMultiselectId]: 'phenology-(occurring)',
-        // FIXME populate the rest
-      }
-      const key = field.id
-      return mapping[key]
     },
     computeType(photoRecord) {
       const url = photoRecord.url

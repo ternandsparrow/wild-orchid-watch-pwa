@@ -73,8 +73,6 @@ export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
 )
 
-export const countOfIndividualsObsFieldDefault = 1
-
 export const orchidTypeObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_ORCHID_TYPE,
 )
@@ -111,6 +109,42 @@ export const searchAreaCalcPreciseWidthObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_SEARCH_AREA_CALC_PRECISE_WIDTH,
 )
 
+export const searchEffortObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_SEARCH_EFFORT,
+)
+
+export const litterObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_LITTER,
+)
+
+export const landformTypeObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_LANDFORM_TYPE,
+)
+
+export const dominantPhenologyObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_DOMINANT_PHENOLOGY,
+)
+
+export const florivoryDamageObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_FLORIVORY_DAMAGE,
+)
+
+export const dominantVegObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_DOMINANT_VEG,
+)
+
+export const heightOfDominantVegObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_HEIGHT_OF_DOMINANT_VEG,
+)
+
+export const coverOfDominantStratumObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_COVER_OF_DOMINANT_STRATUM,
+)
+
+export const communityNotesObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_COMMUNITY_NOTES,
+)
+
 // We need to show/hide other fields based on the orchid type. Here we define
 // the values so we can match for them. Note: they must *exactly* match what is
 // configured in iNat!
@@ -122,6 +156,8 @@ export const accuracyOfSearchAreaCalcPrecise =
   process.env.VUE_APP_OBS_FIELD_ACCURACY_PRECISE || precise
 export const accuracyOfSearchAreaCalcEstimated =
   process.env.VUE_APP_OBS_FIELD_ACCURACY_ESTIMATED || estimated
+export const countOfIndividualsObsFieldDefault =
+  process.env.VUE_APP_OBS_FIELD_COUNT_DEFAULT || 1
 
 export const notCollected =
   process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault
