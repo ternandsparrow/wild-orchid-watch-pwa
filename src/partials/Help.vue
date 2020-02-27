@@ -146,19 +146,29 @@ function getHelpData() {
           'orchid-type-epiphyte.jpg',
         ],
         [
-          'Ephiphyte Host species',
-          'If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.  Epiphyte height: Estimate the number of metres above ground level the orchid is growing on the host plant.',
-          'blank',
-        ],
-        [
-          'Epiphyte height',
-          'Estimate the number of metres above ground level the orchid is growing on the host plant.',
-          'blank',
-        ],
-        [
           'Lithophyte',
           'Growing on rocks (no soil)',
           'orchid-type-lithophyte.jpg',
+        ],
+      ],
+    },
+    {
+      heading: 'Ephiphyte Host species',
+      values: [
+        [
+          '',
+          'If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.  Epiphyte height: Estimate the number of metres above ground level the orchid is growing on the host plant.',
+          'blank',
+        ],
+      ],
+    },
+    {
+      heading: 'Ephiphyte height',
+      values: [
+        [
+          '',
+          'Estimate the number of metres above ground level the orchid is growing on the host plant.',
+          'blank',
         ],
       ],
     },
