@@ -243,47 +243,6 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Evidence of disturbance and threats',
-      values: [
-        ['Chemical spraying', '', 'disturbance-chemical-spraying.jpg'],
-        ['Cultivation', '', 'disturbance-cultivation.jpg'],
-        ['Dieback', 'FIXME - add IMAGE', 'disturbance-dieback.jpg'],
-        ['Fire', '', 'disturbance-fire.jpg'],
-        [
-          'Firewood/coarse woody debris removal',
-          '',
-          'disturbance-firewood.jpg',
-        ],
-        [
-          'Grazing (feral, i.e. rabbits, goats)',
-          'FIXME - add IMAGE',
-          'disturbance-grazing-feral.jpg',
-        ],
-        [
-          'Grazing (stock present or scats)',
-          '',
-          'disturbance-grazing-stock.jpg',
-        ],
-        [
-          'Grazing (native species, presence of roo/possum scats)',
-          '',
-          'disturbance-grazing-native.jpg',
-        ],
-        ['Mowing/slashing', '', 'disturbance-mowing-slashing.jpg'],
-        [
-          'Rubbish dumping (excl. small litter items)',
-          'FIXME - add IMAGE',
-          'disturbance-rubbish.jpg',
-        ],
-        ['Storm damage', '', 'disturbance-storm-damage.jpg'],
-        ['Soil erosion (incl. run-off)', '', 'disturbance-erosion.jpg'],
-        ['Trampling (human)', '', 'disturbance-trampling-human.jpg'],
-        ['Vegetation clearance', '', 'disturbance-veg-clearing.jpg'],
-        ['Weed invasion', '', 'disturbance-weed.jpg'],
-        ['Other human disturbance', 'FIXME - add comment', 'blank'],
-      ],
-    },
-    {
       heading:
         'Soil surface structure as observed on the surface (NO DIGGING!)',
       values: [
@@ -348,7 +307,7 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Estimated area searched and Area of Population (m2)',
+      heading: 'Estimated area searched (m2)',
       values: [
         [
           'How large is the area you searched while counting individuals? Only required when observing more than one individual – recommended linear search areas (i.e. rectangles along paths)',
@@ -383,7 +342,21 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Phenology (Occurring)',
+      heading: 'Area of Population (m2)',
+      values: [
+        [
+          'How large is the area occupied by individual orchids in this population? Only required when observing more than one individual – recommended linear search areas (i.e. rectangles along paths)',
+          '',
+          'blank',
+        ],
+        ['', '1m2 (i.e. 1x1 or similar)', 'blank'],
+        ['', '4m2 (i.e. 2x2 or similar)', 'blank'],
+        ['', '10m2 (i.e. 5x2 or similar)', 'blank'],
+        ['', '36m2 (i.e. 18x2 or similar), etc.', 'blank'],
+      ],
+    },
+    {
+      heading: 'Phenology (Life stage occurring)',
       values: [
         [
           'Vegetative',
@@ -410,7 +383,7 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Phenology (Dominant)',
+      heading: 'Phenology (Dominant life stage status most occurring)',
       values: [
         [
           'Please use the same guidance as supplied above for the "Phenology (Occurring)" data item.',
@@ -424,10 +397,10 @@ function getHelpData() {
       values: [['', 'FIXME - add an explanation', 'blank']],
     },
     {
-      heading: 'Floral visitors',
+      heading: 'Floral visitors / potential pollinators observed',
       values: [
         ['Native bee', '', 'visitors-native-bee.jpg'],
-        ['Introduced honey-bee', '', 'visitors-introduced-bee.jpg'],
+        ['Introduced honeybee', '', 'visitors-introduced-bee.jpg'],
         ['Native wasp', '', 'visitors-native-wasp.jpg'],
         ['Native fly', '', 'visitors-native-fly.jpg'],
         ['Fungus gnat', '', 'visitors-fungus-gnat.jpg'],
@@ -546,7 +519,7 @@ function getHelpData() {
       values: [['', 'FIXME - add a description', 'blank']],
     },
     {
-      heading: 'Cover of the most Dominant Stratum',
+      heading: 'Cover of the most dominant stratum',
       values: [
         [
           'Foliage cover',
@@ -566,7 +539,7 @@ function getHelpData() {
       ],
     },
     {
-      heading: 'Landuse types',
+      heading: 'Landuse of the immediate area',
       values: [
         [
           'Conservation and natural environments',
@@ -601,16 +574,72 @@ function getHelpData() {
       ],
     },
     {
+      heading: 'Landuse of the wider area',
+      values: [
+        [
+          'Please refer to the "Landuse of the immediate area" help item for guidance',
+          '',
+          'blank',
+        ],
+      ],
+    },
+    {
+      heading: 'Evidence of disturbance and threats',
+      values: [
+        ['Chemical spraying', '', 'disturbance-chemical-spraying.jpg'],
+        ['Cultivation', '', 'disturbance-cultivation.jpg'],
+        ['Dieback', 'FIXME - add IMAGE', 'disturbance-dieback.jpg'],
+        ['Fire', '', 'disturbance-fire.jpg'],
+        [
+          'Firewood/coarse woody debris removal',
+          '',
+          'disturbance-firewood.jpg',
+        ],
+        [
+          'Grazing (feral, i.e. rabbits, goats)',
+          'FIXME - add IMAGE',
+          'disturbance-grazing-feral.jpg',
+        ],
+        [
+          'Grazing (stock present or scats)',
+          '',
+          'disturbance-grazing-stock.jpg',
+        ],
+        [
+          'Grazing (native species, presence of roo/possum scats)',
+          '',
+          'disturbance-grazing-native.jpg',
+        ],
+        ['Mowing/slashing', '', 'disturbance-mowing-slashing.jpg'],
+        [
+          'Rubbish dumping (excl. small litter items)',
+          'FIXME - add IMAGE',
+          'disturbance-rubbish.jpg',
+        ],
+        ['Storm damage', '', 'disturbance-storm-damage.jpg'],
+        ['Soil erosion (incl. run-off)', '', 'disturbance-erosion.jpg'],
+        ['Trampling (human)', '', 'disturbance-trampling-human.jpg'],
+        ['Vegetation clearance', '', 'disturbance-veg-clearing.jpg'],
+        ['Weed invasion', '', 'disturbance-weed.jpg'],
+        ['Other human disturbance', 'FIXME - add comment', 'blank'],
+      ],
+    },
+    {
       heading: 'Help section Credits',
       values: [
         [
           'Photos',
-          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hansch, Anita Marquart, Rosalie Lawrence, Robert Lawrence, Sally O’Neill, Katie Irvine',
+          'Nicola Barnes, Tali Moyle, Brian Coulter, Angelina Rowell, Samantha Bywaters, Sabine Hanisch, Anita Marquart, Kerri Willmott, Rosalie Lawrence, Sally O’Neill, Katie Irvine',
           'blank',
         ],
         [
           'Source',
           'Start with the Leaves: A simple guide to common orchids and lilies of the Adelaide Hills Robert Lawrence, Heritage Bushcare 2011',
+          'blank',
+        ],
+        [
+          'Landform Type diagram',
+          'Modified from: Indiana Soils: Evaluation and Conservation Manual. D. P. Franzmeier, G. C. Steinhardt and B. D. Lee.Purdue University. September 2009.',
           'blank',
         ],
       ],
