@@ -563,6 +563,7 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
+        this.refreshVisibilityOfPopulationRecordFields()
       })
       this.geolocationErrorMsg = null
     },
@@ -571,6 +572,7 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
+        this.refreshVisibilityOfPopulationRecordFields()
         // pre-populate obs fields
         const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
@@ -633,8 +635,7 @@ export default {
       const newVal = event.target.value
       switch (fieldId) {
         case countOfIndividualsObsFieldId:
-          this.isPopulationRecord =
-            parseInt(newVal) > countOfIndividualsObsFieldDefault
+          this.isPopulationRecord = parseInt(newVal) > 1
           this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
             this.requiredFieldIdsConditionalOnNumberFields.push(
