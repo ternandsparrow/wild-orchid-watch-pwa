@@ -222,7 +222,11 @@
           </div>
         </v-ons-list-item>
       </template>
-      <wow-header label="Notes" help-target="notes" @on-help="showHelp" />
+      <wow-header
+        label="Other comments"
+        help-target="notes"
+        @on-help="showHelp"
+      />
       <v-ons-list-item>
         <textarea
           v-model="notes"
@@ -231,8 +235,8 @@
         >
         </textarea>
         <div class="wow-obs-field-desc">
-          For personal notes only. None of this information will be read by
-          orchid researchers, and data will not be transferred from this field
+          This is for personal notes only; this information will not be included
+          in final data set and data will not be transferred from this field
           into the other fields.
         </div>
       </v-ons-list-item>

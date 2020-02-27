@@ -117,12 +117,6 @@ const obsFields = [
     allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
   {
-    name: 'Area of population (m²)',
-    description: 'Only applicable when recording >1 individual',
-    datatype: 'text',
-    allowedValues: linearAreas,
-  },
-  {
     name: 'Accuracy of search area calculation',
     description: 'How accurate is your calculation of the area searched?',
     datatype: 'text',
@@ -160,6 +154,12 @@ const obsFields = [
     datatype: 'numeric',
     allowedValues: '',
   },
+  {
+    name: 'Area of population (m²)',
+    description: 'Only applicable when recording >1 individual',
+    datatype: 'text',
+    allowedValues: linearAreas,
+  },
   ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
   {
     name: 'Phenology - dominant life stage status most occurring',
@@ -170,14 +170,15 @@ const obsFields = [
   },
   {
     name: 'Florivory damage noted',
-    description: '',
+    description:
+      'Please indicate if there is damage to the orchid caused by animals or insects eating the flower(s).',
     datatype: 'text',
     allowedValues: 'Not collected|Yes|No',
   },
   ...multiselect(
     'Floral visitors/potential pollinators observed',
     '',
-    'Native bee|Introduced honey bee|Native wasp|Native fly|Fungus Gnat|Ant|Unknown insect|None Observed',
+    'Native bee|Introduced honey bee|Native wasp|Fly|Fungus Gnat|Ant|Unknown insect|None Observed',
   ),
   {
     name: 'Dominant vegetation growth form',
@@ -215,15 +216,17 @@ const obsFields = [
     allowedValues: `${obsFieldConstants.notCollected}|>30|10-30|3-10|1-3|0.5-1|<0.5`,
   },
   {
-    name: 'Cover of the most dominant stratum',
+    name:
+      'Foliage cover of the most dominant vegetation layer (lower storey, mid storey or upper storey)',
     description:
-      'Foliage cover - proportion of ground cover which would be shaded if sunshine came directly overhead including branches and leaves.',
+      'The proportion of the ground, which would be shaded by branches and leaves, if sunshine came from directly overhead.',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.notCollected}|70-100%|30-70%|10-30%|<10%|~0% (scattered)|~0% (clumped)`,
   },
   {
     name: 'Vegetation community notes',
-    description: '',
+    description:
+      'Please add additional information, such as genera/species of the dominant plants present.',
     datatype: 'text',
     allowedValues: '',
   },
@@ -241,7 +244,24 @@ const obsFields = [
   ...multiselect(
     'Evidence of disturbance and threats in the immediate area',
     '',
-    'Chemical spray|Cultivation (incl. pasture/ag activities)|Dieback|Fire|Firewood/coarse woody debris removal|Grazing - feral (observed or scats) (i.e. rabbits, feral/escaped goats)|Grazing - native (observed or scats) (i.e. roo/possum scats)|Grazing - stock (observed or scats) (i.e. cattle, sheep, goat)|Mowing/slashing|Rubbish dumping (excluding small litter items)|Storm damage|Soil erosion (incl. run-off)|Trampling (human)|Vegetation clearance|Weed invasion|Other human disturbance',
+    [
+      'Vegetation clearance',
+      'Mowing/slashing',
+      'Rubbish dumping',
+      'Chemical spray',
+      'Cultivation ',
+      'Dieback',
+      'Soil erosion',
+      'Firewood/coarse woody debris removal',
+      'Grazing (feral, i.e.rabbits, goats)',
+      'Grazing (stock present or scats)',
+      'Grazing (native species, presence of roo/possum scats)',
+      'Fire ',
+      'Storm damage',
+      'Weed invasion',
+      'Foot trampling (human)',
+      'Other human disturbance',
+    ].join('|'),
   ),
 ]
 
