@@ -28,12 +28,12 @@ const phenologyValues = [
 const commonLanduseValues = [
   [
     'Production from relatively natural environments',
-    'Grazed native vegetation, non-irrigated forestry excluding plantations',
+    'Grazed native vegetation, non-irrigated forestry excluding plantations.',
     'landuse-prne.jpg',
   ],
   [
     'Production from dryland agriculture and plantations',
-    'Plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards',
+    'Plantation forestry, modified pasture grazing, non-irrigated cropping/orchards/flower farms/vineyards.',
     'landuse-dap.jpg',
   ],
   [
@@ -43,12 +43,12 @@ const commonLanduseValues = [
   ],
   [
     'Intensive uses',
-    'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill',
+    'intensive horticulture, stockyards, manufacturing and industrial, residential, farm buildings, commercial services and utilities (including power transmission) roads, railways, mines, effluent ponds, landfill.',
     'landuse-intensive.jpg',
   ],
   [
     'Water',
-    'Lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries',
+    'Lakes, reservoirs, rivers, channels/aqueducts, marsh/wetlands, estuaries.',
     'landuse-water.jpg',
   ],
 ]
@@ -372,7 +372,7 @@ export default (() => {
       values: [
         [
           '',
-          'Please indicate if there is damage to the orchid caused by animals or insects eating it.',
+          'Please indicate if there is damage to the orchid caused by animals or insects eating the flower/s.',
           'blank',
         ],
       ],
@@ -384,7 +384,7 @@ export default (() => {
         ['Native bee', '', 'visitors-native-bee.jpg'],
         ['Introduced honeybee', '', 'visitors-introduced-bee.jpg'],
         ['Native wasp', '', 'visitors-native-wasp.jpg'],
-        ['Native fly', '', 'visitors-native-fly.jpg'],
+        ['Fly', '', 'visitors-native-fly.jpg'],
         ['Fungus gnat', '', 'visitors-fungus-gnat.jpg'],
         ['Ant', '', 'visitors-ant.jpg'],
         [
@@ -500,15 +500,22 @@ export default (() => {
     {
       id: constants.heightOfDominantVegObsFieldId,
       heading: 'Height of the most dominant growth form present',
-      values: [['', 'FIXME - add a description', 'blank']],
+      values: [
+        [
+          '>30 m',
+          'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for scrublands, height of the shrub layer.  There are other options available for selection, as appropriate.',
+          'blank',
+        ],
+      ],
     },
     {
       id: constants.coverOfDominantStratumObsFieldId,
-      heading: 'Cover of the most dominant stratum',
+      heading:
+        'Foliage cover of the most dominant vegetation layer (i.e. lower storey, mid storey or upper storey)',
       values: [
         [
-          'Foliage cover',
-          'The proportion of ground cover which would be shaded if sunshine came directly overhead, including branches and leaves.',
+          '70-100%',
+          'The proportion of the ground, which would be shaded by branches and leaves, if sunshine came from directly overhead. Select the vegetation layer that is most dominant and estimate the foliage cover for this layer. For example, for forests and woodlands, estimate the foliage cover the trees project, but do not include the cover shrubs and grasses project. For shrublands, estimate the foliage cover the shrubs project, but do not include any scattered trees.  There are other options available for selection, as appropriate.',
           'blank',
         ],
       ],
@@ -519,7 +526,7 @@ export default (() => {
       values: [
         [
           'Free-text',
-          'Here, you can enter additional information, such as genera/species of the dominant plants present.',
+          'Please add additional information such as genera/species of the dominant plants present.',
           'blank',
         ],
       ],
@@ -530,7 +537,7 @@ export default (() => {
       values: [
         [
           'Conservation and natural environments',
-          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses)',
+          'Includes remnant patches amongst other land uses, such as roadside vegetation, crown land, cemeteries, parks, reservoir reserves, stock routes, land managed for Traditional indigenous uses.',
           'landuse-cne.jpg',
         ],
         ...commonLanduseValues,
@@ -539,7 +546,14 @@ export default (() => {
     {
       id: constants.widerLanduseObsFieldId,
       heading: 'Landuse of the wider area',
-      values: commonLanduseValues,
+      values: [
+        [
+          'If landuse of the immediate area is conservation area and natural environment, what is the wider landuse beyond the conservation area?',
+          '',
+          'blank',
+        ],
+        ...commonLanduseValues,
+      ],
     },
     {
       id: constants.evidenceThreatsMultiselectId,
@@ -556,7 +570,7 @@ export default (() => {
         ],
         [
           'Grazing (feral, i.e. rabbits, goats)',
-          'FIXME - add IMAGE',
+          '',
           'disturbance-grazing-feral.jpg',
         ],
         [
@@ -572,7 +586,7 @@ export default (() => {
         ['Mowing/slashing', '', 'disturbance-mowing-slashing.jpg'],
         [
           'Rubbish dumping (excl. small litter items)',
-          'FIXME - add IMAGE',
+          '',
           'disturbance-rubbish.jpg',
         ],
         ['Storm damage', '', 'disturbance-storm-damage.jpg'],
