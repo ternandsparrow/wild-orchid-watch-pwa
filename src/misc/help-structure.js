@@ -86,12 +86,12 @@ export default (() => {
         ],
         [
           'Micro-habitat',
-          'Photograph the ground directly beneath the orchid. About 20cm x 20cm.',
+          'Photograph the ground directly beneath the orchid, ~30cm from the orchid on either side.',
           'photo-micro-habitat.jpg',
         ],
         [
           'Canopy',
-          'Take a photo straight up into the canopy directly above the orchid.',
+          'Take a photo straight up into the canopy directly above the orchid. Please hold the phone at flower height for terrestrial, or chest height for above head height epiphytes.',
           'photo-canopy.jpg',
         ],
         [
@@ -140,7 +140,7 @@ export default (() => {
       values: [
         [
           '',
-          'If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.  Epiphyte height: Estimate the number of metres above ground level the orchid is growing on the host plant.',
+          'If the species of the host is known, use the scientific or common name, or if name unknown, you can enter a descriptive name e.g. yellow waxy flowers.',
           'blank',
         ],
       ],
@@ -308,14 +308,14 @@ export default (() => {
       heading: 'Estimated area searched (m²)',
       values: [
         [
-          'How large is the area you searched while counting individuals?',
           '',
+          'How large is the area you searched while counting individuals?',
           'blank',
         ],
-        ['', '2m² (i.e. 1x2 or similar)', 'blank'],
-        ['', '4m² (i.e. 2x2 or similar)', 'blank'],
-        ['', '10m² (i.e. 5x2 or similar)', 'blank'],
-        ['', '36m² (i.e. 18x2 or similar), etc.', 'blank'],
+        ['2m² (i.e. 1x2 or similar)', '', 'blank'],
+        ['4m² (i.e. 2x2 or similar)', '', 'blank'],
+        ['10m² (i.e. 5x2 or similar)', '', 'blank'],
+        ['36m² (i.e. 18x2 or similar), etc.', '', 'blank'],
       ],
     },
     {
@@ -323,8 +323,8 @@ export default (() => {
       heading: 'Search effort (minutes)',
       values: [
         [
-          'Time spent surveying: minutes actively searching not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
           '',
+          'Time spent surveying: minutes actively searching not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
           'blank',
         ],
         ['', 'e.g. <1, A few minutes, 5, 10 , etc.', 'blank'],
@@ -346,14 +346,14 @@ export default (() => {
       heading: 'Area of Population (m²)',
       values: [
         [
-          'How large is the area occupied by individual orchids in this population?',
           '',
+          'How large is the area occupied by individual orchids in this population?',
           'blank',
         ],
-        ['', '2m² (i.e. 1x2 or similar)', 'blank'],
-        ['', '4m² (i.e. 2x2 or similar)', 'blank'],
-        ['', '10m² (i.e. 5x2 or similar)', 'blank'],
-        ['', '36m² (i.e. 18x2 or similar), etc.', 'blank'],
+        ['2m² (i.e. 1x2 or similar)', '', 'blank'],
+        ['4m² (i.e. 2x2 or similar)', '', 'blank'],
+        ['10m² (i.e. 5x2 or similar)', '', 'blank'],
+        ['36m² (i.e. 18x2 or similar), etc.', '', 'blank'],
       ],
     },
     {
@@ -502,10 +502,16 @@ export default (() => {
       heading: 'Height of the most dominant growth form present',
       values: [
         [
-          '>30 m',
+          '',
           'Maximum height of the dominant vegetation layer, i.e. for forests/woodlands, height of the tallest trees; for scrublands, height of the shrub layer.  There are other options available for selection, as appropriate.',
           'blank',
         ],
+        ['>30m', '', 'blank'],
+        ['10-30', '', 'blank'],
+        ['3-10', '', 'blank'],
+        ['1-3', '', 'blank'],
+        ['0.5-1', '', 'blank'],
+        ['<0.5', '', 'blank'],
       ],
     },
     {
@@ -514,10 +520,16 @@ export default (() => {
         'Foliage cover of the most dominant vegetation layer (i.e. lower storey, mid storey or upper storey)',
       values: [
         [
-          '70-100%',
+          '',
           'The proportion of the ground, which would be shaded by branches and leaves, if sunshine came from directly overhead. Select the vegetation layer that is most dominant and estimate the foliage cover for this layer. For example, for forests and woodlands, estimate the foliage cover the trees project, but do not include the cover shrubs and grasses project. For shrublands, estimate the foliage cover the shrubs project, but do not include any scattered trees.  There are other options available for selection, as appropriate.',
           'blank',
         ],
+        ['70-100%', '', 'blank'],
+        ['30-70%', '', 'blank'],
+        ['10-30%', '', 'blank'],
+        ['<10%', '', 'blank'],
+        ['~0% (scattered)', '', 'blank'],
+        ['~0% (clumped)', '', 'blank'],
       ],
     },
     {
@@ -525,7 +537,7 @@ export default (() => {
       heading: 'Vegetation Community Notes',
       values: [
         [
-          'Free-text',
+          '',
           'Please add additional information such as genera/species of the dominant plants present.',
           'blank',
         ],
@@ -603,11 +615,11 @@ export default (() => {
     },
     {
       id: 'notes',
-      heading: 'Notes',
+      heading: 'Other comments',
       values: [
         [
-          'This is for personal notes only; this information will not be included in final data set and data will not be transferred from this field into the other fields.',
           '',
+          'This is for personal notes only; this information will not be included in final data set and data will not be transferred from this field into the other fields.',
           'blank',
         ],
       ],
