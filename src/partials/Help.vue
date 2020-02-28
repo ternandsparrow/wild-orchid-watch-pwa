@@ -35,7 +35,11 @@
       </template>
     </v-ons-list>
     <div class="padding-so-fab-doesnt-cover-text"></div>
-    <v-ons-fab position="bottom center" @click="doClose">
+    <v-ons-fab
+      position="bottom center"
+      :class="{ 'be-visible-on-ios': !md }"
+      @click="doClose"
+    >
       <v-ons-icon icon="fa-times"></v-ons-icon>
     </v-ons-fab>
   </div>
@@ -104,5 +108,9 @@ export default {
   box-shadow: 5px 5px 8px #888888;
   margin: 20px;
   max-width: 90vw;
+}
+
+.be-visible-on-ios {
+  bottom: 120px;
 }
 </style>
