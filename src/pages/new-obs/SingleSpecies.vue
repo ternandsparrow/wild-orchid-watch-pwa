@@ -1033,7 +1033,9 @@ export default {
           toastSavedMsg(this.$ons)
           this.$router.replace({
             name: 'ObsDetail',
-            params: { id: this.observationDetail.inatId },
+            params: {
+              id: this.observationDetail.inatId || this.observationDetail.uuid,
+            },
           })
         } else {
           record.lat = this.obsLat
