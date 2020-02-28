@@ -422,10 +422,16 @@ describe('Mission body', () => {
   })
 
   it('should be able to decode something that was encoded', () => {
+    const mockToday = moment('2020-02-10')
     const name = 'some name'
     const endDate = '2020-02-28'
     const goal = 'some goal'
-    const encoded = objectUnderTest.encodeMissionBody(name, endDate, goal)
+    const encoded = objectUnderTest.encodeMissionBody(
+      name,
+      endDate,
+      goal,
+      mockToday,
+    )
     const result = objectUnderTest.decodeMissionBody(encoded)
     expect(result.name).toEqual(name)
     expect(moment(result.startDate).isBefore(moment(endDate))).toEqual(true)

@@ -397,12 +397,13 @@ export function fetchSingleRecord(url) {
 
 const missionStartMarker = 'START-OF-MISSION'
 const missionEndMarker = 'END-OF-MISSION'
-export function encodeMissionBody(name, endDate, goal) {
-  const today = moment().format('DD-MMM-YYYY')
+export function encodeMissionBody(name, endDate, goal, todayMoment = moment()) {
+  const todayStr = todayMoment.format('DD-MMM-YYYY')
   const endDatePretty = moment(endDate).format('DD-MMM-YYYY')
+  debugger // FIXME
   return `
   ${name}
-  Start date: ${today}
+  Start date: ${todayStr}
   End date: ${endDatePretty}
   Goal: ${goal}
   <code style="display: none;">
@@ -410,7 +411,7 @@ export function encodeMissionBody(name, endDate, goal) {
   ${JSON.stringify(
     {
       name,
-      startDateRaw: moment().unix(),
+      startDateRaw: todayMoment.unix(),
       endDateRaw: moment(endDate).unix(),
       goal,
     },
