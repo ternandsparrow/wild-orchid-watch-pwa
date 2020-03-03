@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar back-label="Cancel" title="Admin (AAT)"></custom-toolbar>
+    <custom-toolbar back-label="Cancel" title="Admin"></custom-toolbar>
     <v-ons-card>
       <div class="title">
         Location test
