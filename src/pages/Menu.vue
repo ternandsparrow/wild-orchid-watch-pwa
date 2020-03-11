@@ -19,6 +19,7 @@
         v-for="item in access"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
+        class="menuitem"
         @click="handleMenuClick(item.clickData)"
       >
         <div class="left">
@@ -218,8 +219,21 @@ export default {
 
 <style scoped>
 .app-banner {
-  background-color: #fff;
+  background-color: #c5e1a5 !important;
   border-bottom: 1px solid #ccc;
+}
+
+.centered-flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  overflow: hidden; /* FIXME email addresses overflow the menu, maybe elipses
+  them? */
+  background-color: #f8ffd7;
+}
+
+.menuitem {
+  background-color: #fff3e0;
 }
 
 .app-banner img {
@@ -242,13 +256,5 @@ export default {
   color: white;
   background-color: red;
   font-family: monospace;
-}
-
-.centered-flex-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  overflow: hidden; /* FIXME email addresses overflow the menu, maybe elipses
-  them? */
 }
 </style>
