@@ -116,9 +116,13 @@
             >[#7]: Will the pictures I take be stored on my phone also, for
             me?</span
           ><span class="list-item__subtitle">
-            Yes, all of the photos ypou take will be stored as "normal" photos,
-            and you can find them on your phone in the same way you access other
-            photos you have taken.
+            By deadfult, no, the photos you take will NOT also be automatically
+            be stored as "normal" photos in your CameraRoll. To do this, you
+            will need to have or install a "Camera" App that saves the photos to
+            the CameraRoll (this is sometimes default on Android phones,
+            depending on the Phone manufacturer/model). You will then be able to
+            find them on your phone in the same way you access other photos you
+            have taken.
           </span>
         </div>
       </v-ons-list-item>
