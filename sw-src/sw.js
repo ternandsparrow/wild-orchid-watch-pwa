@@ -1,5 +1,5 @@
 import 'formdata-polyfill'
-import { Plugin as BackgroundSyncPlugin } from 'workbox-background-sync/Plugin.mjs'
+import { BackgroundSyncPlugin } from 'workbox-background-sync/BackgroundSyncPlugin.mjs'
 import { Queue } from 'workbox-background-sync/Queue.mjs'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
 import { registerRoute } from 'workbox-routing/registerRoute.mjs'
@@ -826,7 +826,7 @@ function verifyDepsRecord(depsRecord) {
 }
 
 // build process will inject manifest into the following statement.
-workboxPrecacheAndRoute([])
+workboxPrecacheAndRoute(self.__WB_MANIFEST)
 
 export const _testonly = {
   setAuthHeader(newVal) {
