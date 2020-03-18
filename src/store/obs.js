@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import base64js from 'base64-js'
 import moment from 'moment'
 import uuid from 'uuid/v1'
 import { wrap as comlinkWrap } from 'comlink'
@@ -1046,15 +1047,15 @@ const actions = {
   ) {
     const strategies = {
       [recordType('new')]: async () => {
-        const formData = generateFormData(dbRecord)
+        const payload = generatePayload(dbRecord)
         if (!(state.projectInfo || {}).id) {
           throw new Error(
             'No projectInfo stored, cannot link observation to project without ID',
           )
         }
         const projectId = state.projectInfo.id
-        formData.append(constants.projectIdFieldName, projectId)
-        const resp = await doBundleEndpointFetch(formData, 'POST')
+        payload[constants.projectIdFieldName] = projectId
+        const resp = await doBundleEndpointFetch(payload, 'POST')
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
@@ -1064,8 +1065,8 @@ const actions = {
         }
       },
       [recordType('edit')]: async () => {
-        const formData = generateFormData(dbRecord)
-        const resp = await doBundleEndpointFetch(formData, 'PUT')
+        const payload = generatePayload(dbRecord)
+        const resp = await doBundleEndpointFetch(payload, 'PUT')
         if (!resp.ok) {
           throw new Error(
             `POST to bundle endpoint worked at an HTTP level,` +
@@ -1092,45 +1093,37 @@ const actions = {
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
-    function generateFormData(dbRecordParam) {
+    function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
-      const fd = new FormData()
-      fd.append(
-        constants.obsFieldName,
-        JSON.stringify(apiRecords.observationPostBody),
+      const result = {}
+      result[constants.obsFieldName] = apiRecords.observationPostBody
+      result[constants.photoIdsToDeleteFieldName] =
+        dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName]
+      result[constants.photosFieldName] = apiRecords.photoPostBodyPartials.map(
+        curr => {
+          const photoType = `wow-${curr.type}`
+          const base64Data = base64js.fromByteArray(
+            new Uint8Array(curr.file.data),
+          )
+          return {
+            mime: curr.file.mime,
+            data: base64Data,
+            wowType: photoType,
+          }
+        },
       )
-      for (const curr of dbRecordParam.wowMeta[
-        constants.photoIdsToDeleteFieldName
-      ]) {
-        fd.append(constants.photoIdsToDeleteFieldName, curr)
-      }
-      for (const curr of apiRecords.photoPostBodyPartials) {
-        const photoBlob = arrayBufferToBlob(curr.file.data, curr.file.mime)
-        // we create a File so we can encode the type of the photo in the
-        // filename. Very sneaky ;)
-        const photoType = `wow-${curr.type}`
-        const photoFile = new File([photoBlob], photoType, {
-          type: photoBlob.type,
-        })
-        fd.append(constants.photosFieldName, photoFile)
-      }
-      for (const curr of apiRecords.obsFieldPostBodyPartials) {
-        fd.append(constants.obsFieldsFieldName, JSON.stringify(curr))
-      }
-      for (const curr of dbRecordParam.wowMeta[
-        constants.obsFieldIdsToDeleteFieldName
-      ]) {
-        fd.append(constants.obsFieldIdsToDeleteFieldName, curr)
-      }
-      return fd
+      result[constants.obsFieldsFieldName] = apiRecords.obsFieldPostBodyPartials
+      result[constants.obsFieldIdsToDeleteFieldName] =
+        dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName]
+      return result
     }
-    function doBundleEndpointFetch(fd, method) {
+    function doBundleEndpointFetch(payload, method) {
       return fetch(constants.serviceWorkerBundleMagicUrl, {
         method,
         headers: {
           Authorization: rootState.auth.apiToken,
         },
-        body: fd,
+        body: JSON.stringify(payload),
         retries: 0,
       })
     }

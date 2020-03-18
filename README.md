@@ -9,7 +9,7 @@ uploads obsversations to [iNaturalist](https://inaturalist.org/).
 
 Requirements:
   - yarn >= 1.16
-  - node >= 10
+  - node >= 12 (or at least an LTS release otherwise you'll have to compile some things as part of the dependency install - like sharp - and that will either take a long time or fail... Just use an LTS release!)
   - modern web browser (Chrome is a good choice)
 
   1. clone repo

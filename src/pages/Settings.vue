@@ -34,6 +34,19 @@
           </v-ons-switch>
         </div>
       </ons-list-item>
+      <ons-list-item>
+        <label class="center" for="advancedSwitch">
+          <span class="list-item__title">Advanced mode</span
+          ><span class="list-item__subtitle"
+            >If enabled, more questions will be asked when creating
+            observations. The extra questions are all optional.</span
+          >
+        </label>
+        <div class="right">
+          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          </v-ons-switch>
+        </div>
+      </ons-list-item>
       <v-ons-list-header>Info</v-ons-list-header>
       <ons-list-item>
         <div class="left wow-flexcol">
@@ -101,22 +114,6 @@
           <v-ons-button @click="doManualUpdateCheck">Check</v-ons-button>
         </div>
       </ons-list-item>
-      <!-- ons-list-item>
-        <label class="center">
-          User Proficiency
-        </label>
-        <div class="right">
-          <v-ons-select v-model="userMode">
-            <option
-              v-for="curr in userModeOptions"
-              :key="'um-' + curr.value"
-              :value="curr.value"
-            >
-              {{ curr.label }}
-            </option>
-          </v-ons-select>
-        </div>
-      </ons-list-item-->
     </v-ons-list>
   </v-ons-page>
 </template>
@@ -124,7 +121,7 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import { alwaysUpload, neverUpload, beginner, expert } from '@/misc/constants'
+import { alwaysUpload, neverUpload } from '@/misc/constants'
 import { formatStorageSize } from '@/misc/helpers'
 
 export default {
@@ -134,10 +131,6 @@ export default {
       whenToSyncOptions: [
         { value: alwaysUpload, label: 'Always (WiFi, mobile data)' },
         { value: neverUpload, label: 'Never' },
-      ],
-      userModeOptions: [
-        { value: beginner, label: 'Beginner' },
-        { value: expert, label: 'Expert' },
       ],
       storageQuota: 0,
       storageUsage: 0,
@@ -167,12 +160,12 @@ export default {
         this.$store.commit('app/setEnablePhotoCompression', newValue)
       },
     },
-    userMode: {
+    isAdvancedUserMode: {
       get() {
-        return this.$store.state.app.userMode
+        return this.$store.state.app.isAdvancedUserMode
       },
       set(newValue) {
-        this.$store.commit('app/setUserMode', newValue)
+        this.$store.commit('app/setIsAdvancedUserMode', newValue)
       },
     },
     storageMsg() {

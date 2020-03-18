@@ -279,9 +279,6 @@ export const lfWowObsStoreName = 'wow-obs'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 
-export const beginner = 'BEGINNER'
-export const expert = 'EXPERT'
-
 export const notSupported = 'NOT_SUPPORTED'
 export const blocked = 'BLOCKED'
 export const failed = 'FAILED'
@@ -316,6 +313,8 @@ export const serviceWorkerBundleMagicUrl =
   serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
 export const serviceWorkerIsAliveMagicUrl =
   serviceWorkerMagicUrlPrefix + '/are-you-alive'
+export const serviceWorkerHealthCheckUrl =
+  serviceWorkerMagicUrlPrefix + '/health-check'
 export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
 

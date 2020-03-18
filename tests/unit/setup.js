@@ -51,3 +51,4 @@ global.registration = {
   scope: 'testing',
   sync: { register() {} },
 }
+global.__WB_MANIFEST = []

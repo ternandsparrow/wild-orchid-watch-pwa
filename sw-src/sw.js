@@ -1,8 +1,10 @@
-import { Plugin as BackgroundSyncPlugin } from 'workbox-background-sync/Plugin.mjs'
+import 'formdata-polyfill'
+import { BackgroundSyncPlugin } from 'workbox-background-sync/BackgroundSyncPlugin.mjs'
 import { Queue } from 'workbox-background-sync/Queue.mjs'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
 import { registerRoute } from 'workbox-routing/registerRoute.mjs'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
+import base64js from 'base64-js'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import * as constants from '../src/misc/constants.js'
@@ -19,7 +21,7 @@ const obsPutPoisonPillUrl = poisonPillUrlPrefix + '/obs-put'
 let authHeaderValue = null
 
 const depsQueue = new Queue('obs-dependant-queue', {
-  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
+  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after a year, can we let it die?
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
@@ -471,16 +473,14 @@ registerRoute(
   async ({ url, event, params }) => {
     console.debug('Service worker processing POSTed bundle')
     setAuthHeaderFromReq(event.request)
-    const formData = await event.request.formData()
-    const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
+    const payload = await event.request.json()
+    const obsRecord = payload[constants.obsFieldName]
     const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
-    const projectId = formData.get(constants.projectIdFieldName)
+    const projectId = payload[constants.projectIdFieldName]
     const depsRecord = {
       obsUuid: obsUuid,
-      photos: formData.getAll(constants.photosFieldName),
-      obsFields: formData
-        .getAll(constants.obsFieldsFieldName)
-        .map(e => JSON.parse(e)),
+      photos: payload[constants.photosFieldName],
+      obsFields: payload[constants.obsFieldsFieldName],
       projectId,
     }
     try {
@@ -534,22 +534,18 @@ registerRoute(
   async ({ url, event, params }) => {
     console.debug('Service worker processing PUTed bundle')
     setAuthHeaderFromReq(event.request)
-    const formData = await event.request.formData()
-    const obsRecord = JSON.parse(formData.get(constants.obsFieldName))
+    const payload = await event.request.json()
+    const obsRecord = payload[constants.obsFieldName]
     const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
     const obsId = verifyNotImpendingDoom(obsRecord.observation.id)
     // We could queue all the deps because we have the obsId but it's easier to
     // keep them in localForage so it's easy to clean up if anything goes wrong
     const depsRecord = {
       obsUuid: obsUuid,
-      photos: formData.getAll(constants.photosFieldName),
-      obsFields: formData
-        .getAll(constants.obsFieldsFieldName)
-        .map(e => JSON.parse(e)),
-      deletedPhotoIds: formData.getAll(constants.photoIdsToDeleteFieldName),
-      deletedObsFieldIds: formData.getAll(
-        constants.obsFieldIdsToDeleteFieldName,
-      ),
+      photos: payload[constants.photosFieldName],
+      obsFields: payload[constants.obsFieldsFieldName],
+      deletedPhotoIds: payload[constants.photoIdsToDeleteFieldName],
+      deletedObsFieldIds: payload[constants.obsFieldIdsToDeleteFieldName],
     }
     await wowSwStore.setItem(updateTag + obsUuid, depsRecord)
     try {
@@ -621,6 +617,25 @@ registerRoute(
   'GET',
 )
 
+registerRoute(
+  constants.serviceWorkerHealthCheckUrl,
+  async ({ url, event, params }) => {
+    const waitingDepsBundles = await wowSwStore.length()
+    return jsonResponse({
+      depsQueueStatus: {
+        syncInProgress: depsQueue._syncInProgress || false,
+        length: (await depsQueue.getAll()).length,
+      },
+      obsQueueStatus: {
+        syncInProgress: obsQueue._syncInProgress || false,
+        length: (await obsQueue.getAll()).length,
+      },
+      waitingDepsBundles,
+    })
+  },
+  'GET',
+)
+
 // We have a separate endpoint to update the auth for the case when an obs is
 // queued for upload but the auth token that would've been supplied expires
 // before we get a chance to upload it. This way, we'll always have the most
@@ -676,9 +691,10 @@ self.addEventListener('message', function(event) {
       }
       console.debug('triggering deps queue processing at request of client')
       depsQueue
-        ._onSync()
+        ._onSync() // TODO should we be calling .registerSync()?
         .catch(err => {
           console.warn('Manually triggered depsQueue sync has failed', err)
+          event.ports[0].postMessage({ error: err })
         })
         .finally(() => {
           event.ports[0].postMessage('triggered')
@@ -695,6 +711,7 @@ self.addEventListener('message', function(event) {
         ._onSync()
         .catch(err => {
           console.warn('Manually triggered obsQueue sync has failed', err)
+          event.ports[0].postMessage({ error: err })
         })
         .finally(() => {
           event.ports[0].postMessage('triggered')
@@ -755,7 +772,11 @@ async function processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId) {
   for (const curr of depsRecord.photos) {
     const fd = new FormData()
     fd.append('observation_photo[observation_id]', obsId)
-    fd.append('file', curr)
+    const photoBuffer = base64js.toByteArray(curr.data)
+    // we create a File so we can encode the type of the photo in the
+    // filename. Very sneaky ;)
+    const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
+    fd.append('file', theFile)
     console.debug('Pushing a photo to the queue')
     await depsQueue.pushRequest({
       metadata: {
@@ -793,18 +814,19 @@ async function processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId) {
 
 function verifyDepsRecord(depsRecord) {
   for (const curr of depsRecord.photos) {
-    const isPhotoEmpty = !curr.size
+    const theSize = curr.data.length
+    const isPhotoEmpty = !theSize
     if (isPhotoEmpty) {
       throw new Error(
-        `Photo with name='${curr.name}' and type='${curr.type}' ` +
-          `has no size='${curr.size}'. This will cause a 422 if we were to continue.`,
+        `Photo with name='${curr.wowType}' and type='${curr.mime}' ` +
+          `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
       )
     }
   }
 }
 
 // build process will inject manifest into the following statement.
-workboxPrecacheAndRoute([])
+workboxPrecacheAndRoute(self.__WB_MANIFEST)
 
 export const _testonly = {
   setAuthHeader(newVal) {
