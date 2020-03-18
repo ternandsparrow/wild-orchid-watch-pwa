@@ -170,6 +170,15 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Service Worker health check
+      </div>
+      <p>
+        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
+      </p>
+      <div class="code-style">{{ swHealthCheckResult }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Manually trigger an error
       </div>
       <p>
@@ -257,6 +266,7 @@ export default {
       imageClassificationResult: 'nothing yet',
       classifier: null,
       ourWorker: null,
+      swHealthCheckResult: 'nothing yet',
     }
   },
   computed: {
@@ -318,6 +328,16 @@ export default {
         return 0
       })
       this.configItems = result
+    },
+    async doSwHealthCheck() {
+      this.swHealthCheckResult = 'nothing yet'
+      try {
+        const resp = await fetch(constants.serviceWorkerHealthCheckUrl)
+        this.swHealthCheckResult = await resp.json()
+      } catch (err) {
+        this.swHealthCheckResult = err.message
+        console.error('Failed to do health check on service worker', err)
+      }
     },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)

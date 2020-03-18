@@ -617,6 +617,25 @@ registerRoute(
   'GET',
 )
 
+registerRoute(
+  constants.serviceWorkerHealthCheckUrl,
+  async ({ url, event, params }) => {
+    const waitingDepsBundles = await wowSwStore.length()
+    return jsonResponse({
+      depsQueueStatus: {
+        syncInProgress: depsQueue._syncInProgress || false,
+        length: (await depsQueue.getAll()).length,
+      },
+      obsQueueStatus: {
+        syncInProgress: obsQueue._syncInProgress || false,
+        length: (await obsQueue.getAll()).length,
+      },
+      waitingDepsBundles,
+    })
+  },
+  'GET',
+)
+
 // We have a separate endpoint to update the auth for the case when an obs is
 // queued for upload but the auth token that would've been supplied expires
 // before we get a chance to upload it. This way, we'll always have the most
@@ -672,7 +691,7 @@ self.addEventListener('message', function(event) {
       }
       console.debug('triggering deps queue processing at request of client')
       depsQueue
-        ._onSync()
+        ._onSync() // TODO should we be calling .registerSync()?
         .catch(err => {
           console.warn('Manually triggered depsQueue sync has failed', err)
           event.ports[0].postMessage({ error: err })

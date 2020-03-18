@@ -313,6 +313,8 @@ export const serviceWorkerBundleMagicUrl =
   serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
 export const serviceWorkerIsAliveMagicUrl =
   serviceWorkerMagicUrlPrefix + '/are-you-alive'
+export const serviceWorkerHealthCheckUrl =
+  serviceWorkerMagicUrlPrefix + '/health-check'
 export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
 
