@@ -1,12 +1,13 @@
-import { alwaysUpload, appTitle, beginner } from '@/misc/constants'
+import { alwaysUpload, appTitle } from '@/misc/constants'
 
 const state = {
+  // remember we restore state from localStorage, so these are defaults
   appTitle: appTitle,
-  isFirstRun: true, // remember we restore state from localStorage, so this is default
+  isFirstRun: true,
   topTitle: 'Wild Orchid Watch',
   tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
-  userMode: beginner,
+  isAdvancedUserMode: false,
   addToHomeIosPromptLastDate: null,
   isEnablePhotoCompression: true,
 }
@@ -16,7 +17,7 @@ const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
   setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),
-  setUserMode: (state, value) => (state.userMode = value),
+  setIsAdvancedUserMode: (state, value) => (state.isAdvancedUserMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
   setEnablePhotoCompression: (state, value) =>

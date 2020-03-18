@@ -2,11 +2,7 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
-import {
-  neverUpload,
-  persistedStateLocalStorageKey,
-  beginner,
-} from '@/misc/constants'
+import { neverUpload, persistedStateLocalStorageKey } from '@/misc/constants'
 import { wowErrorHandler, chainedError } from '@/misc/helpers'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
@@ -95,9 +91,6 @@ const store = new Vuex.Store({
     },
     isSyncDisabled(state) {
       return state.app.whenToSync === neverUpload
-    },
-    isInBeginnerMode(state) {
-      return state.app.userMode === beginner
     },
   },
   modules: {

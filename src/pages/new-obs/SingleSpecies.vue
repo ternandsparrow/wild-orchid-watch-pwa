@@ -125,121 +125,125 @@
         </div>
       </v-ons-list-item>
       <template v-for="currField of displayableObsFields">
+        <template v-if="isAdvancedUserMode || !currField.isAdvancedField">
+          <wow-header
+            :key="currField.id + '-list'"
+            :label="currField.name"
+            :help-target="currField.id"
+            @on-help="showHelp"
+          />
+          <v-ons-list-item
+            :key="currField.id + '-obs-field'"
+            modifier="nodivider"
+            :data-debug-field-id="currField.id"
+          >
+            <div
+              class="wow-obs-field-input-container input-status-wrapper"
+              :class="{
+                'multiselect-container':
+                  currField.wowDatatype === multiselectFieldType,
+              }"
+            >
+              <v-ons-select
+                v-if="currField.wowDatatype === selectFieldType"
+                v-model="obsFieldValues[currField.id]"
+                class="wow-select"
+              >
+                <option v-if="currField.required" :value="null" disabled>
+                  please select
+                </option>
+                <option
+                  v-for="(currOption, $index) in currField.allowedValues"
+                  :key="currField.id + '-' + $index"
+                  :value="currOption.value"
+                >
+                  {{ currOption.title }}
+                </option>
+              </v-ons-select>
+              <v-ons-input
+                v-else-if="currField.wowDatatype === numericFieldType"
+                v-model="obsFieldValues[currField.id]"
+                float
+                placeholder="Input value"
+                type="number"
+                @change="onNumberChange($event, currField.id)"
+              >
+              </v-ons-input>
+              <textarea
+                v-else-if="currField.wowDatatype === 'text'"
+                v-model="obsFieldValues[currField.id]"
+                placeholder="Input value"
+                class="wow-textarea"
+              >
+              </textarea>
+              <wow-autocomplete
+                v-else-if="currField.wowDatatype === taxonFieldType"
+                :items="taxonQuestionAutocompleteItems[currField.id]"
+                :initial-value="obsFieldInitialValues[currField.id]"
+                placeholder-text="e.g. snail orchid"
+                :extra-callback-data="currField.id"
+                @change="debouncedOnTaxonQuestionInput"
+                @item-selected="onTaxonQuestionSet"
+              />
+              <template
+                v-else-if="currField.wowDatatype === multiselectFieldType"
+              >
+                <div
+                  v-for="currVal of currField.multiselectValues"
+                  :key="currVal.id"
+                  class="multiselect-value"
+                >
+                  <v-ons-switch
+                    v-model="obsFieldValues[currVal.id]"
+                    :input-id="currField.id + '-' + currVal.id"
+                    :disabled="fieldIdIsDisabled[currVal.id]"
+                    @change="onMultiselectChange(currField, currVal, $event)"
+                  />
+                  <label
+                    :for="currField.id + '-' + currVal.id"
+                    class="multiselect-question"
+                    >{{ currVal.label }}
+                  </label>
+                </div>
+              </template>
+              <div v-else style="color: red;">
+                PROGRAMMER, you have work to do - support '{{
+                  currField.wowDatatype
+                }}' field type
+              </div>
+              <wow-input-status
+                v-if="isShowInputStatus(currField)"
+                :is-ok="!!obsFieldValues[currField.id]"
+                class="the-input-status"
+              ></wow-input-status>
+            </div>
+            <div class="wow-obs-field-desc">
+              <wow-required-chip v-if="currField.required" />
+              {{ currField.description }}
+            </div>
+          </v-ons-list-item>
+        </template>
+      </template>
+      <template v-if="isAdvancedUserMode">
         <wow-header
-          :key="currField.id + '-list'"
-          :label="currField.name"
-          :help-target="currField.id"
+          label="Other comments"
+          help-target="notes"
           @on-help="showHelp"
         />
-        <v-ons-list-item
-          :key="currField.id + '-obs-field'"
-          modifier="nodivider"
-          :data-debug-field-id="currField.id"
-        >
-          <div
-            class="wow-obs-field-input-container input-status-wrapper"
-            :class="{
-              'multiselect-container':
-                currField.wowDatatype === multiselectFieldType,
-            }"
+        <v-ons-list-item>
+          <textarea
+            v-model="notes"
+            placeholder="anything else noteworthy"
+            class="wow-textarea"
           >
-            <v-ons-select
-              v-if="currField.wowDatatype === selectFieldType"
-              v-model="obsFieldValues[currField.id]"
-              class="wow-select"
-            >
-              <option v-if="currField.required" :value="null" disabled>
-                please select
-              </option>
-              <option
-                v-for="(currOption, $index) in currField.allowedValues"
-                :key="currField.id + '-' + $index"
-                :value="currOption.value"
-              >
-                {{ currOption.title }}
-              </option>
-            </v-ons-select>
-            <v-ons-input
-              v-else-if="currField.wowDatatype === numericFieldType"
-              v-model="obsFieldValues[currField.id]"
-              float
-              placeholder="Input value"
-              type="number"
-              @change="onNumberChange($event, currField.id)"
-            >
-            </v-ons-input>
-            <textarea
-              v-else-if="currField.wowDatatype === 'text'"
-              v-model="obsFieldValues[currField.id]"
-              placeholder="Input value"
-              class="wow-textarea"
-            >
-            </textarea>
-            <wow-autocomplete
-              v-else-if="currField.wowDatatype === taxonFieldType"
-              :items="taxonQuestionAutocompleteItems[currField.id]"
-              :initial-value="obsFieldInitialValues[currField.id]"
-              placeholder-text="e.g. snail orchid"
-              :extra-callback-data="currField.id"
-              @change="debouncedOnTaxonQuestionInput"
-              @item-selected="onTaxonQuestionSet"
-            />
-            <template
-              v-else-if="currField.wowDatatype === multiselectFieldType"
-            >
-              <div
-                v-for="currVal of currField.multiselectValues"
-                :key="currVal.id"
-                class="multiselect-value"
-              >
-                <v-ons-switch
-                  v-model="obsFieldValues[currVal.id]"
-                  :input-id="currField.id + '-' + currVal.id"
-                  :disabled="fieldIdIsDisabled[currVal.id]"
-                  @change="onMultiselectChange(currField, currVal, $event)"
-                />
-                <label
-                  :for="currField.id + '-' + currVal.id"
-                  class="multiselect-question"
-                  >{{ currVal.label }}
-                </label>
-              </div>
-            </template>
-            <div v-else style="color: red;">
-              PROGRAMMER, you have work to do - support '{{
-                currField.wowDatatype
-              }}' field type
-            </div>
-            <wow-input-status
-              v-if="isShowInputStatus(currField)"
-              :is-ok="!!obsFieldValues[currField.id]"
-              class="the-input-status"
-            ></wow-input-status>
-          </div>
+          </textarea>
           <div class="wow-obs-field-desc">
-            <wow-required-chip v-if="currField.required" />
-            {{ currField.description }}
+            This is for personal notes only; this information will not be
+            included in final data set and data will not be transferred from
+            this field into the other fields.
           </div>
         </v-ons-list-item>
       </template>
-      <wow-header
-        label="Other comments"
-        help-target="notes"
-        @on-help="showHelp"
-      />
-      <v-ons-list-item>
-        <textarea
-          v-model="notes"
-          placeholder="anything else noteworthy"
-          class="wow-textarea"
-        >
-        </textarea>
-        <div class="wow-obs-field-desc">
-          This is for personal notes only; this information will not be included
-          in final data set and data will not be transferred from this field
-          into the other fields.
-        </div>
-      </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
     <v-ons-dialog cancelable :visible.sync="formErrorDialogVisible">
@@ -374,6 +378,7 @@ export default {
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['networkOnLine', 'isHelpModalVisible']),
+    ...mapState('app', ['isAdvancedUserMode']),
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
@@ -425,12 +430,16 @@ export default {
             name: curr.name,
             wowDatatype,
             multiselectValues: [{ id: curr.id, label: curr.name }],
+            // we don't have any required multiselects so we can simply hide them
+            // all in beginner mode
+            isAdvancedField: true,
           })
           return accum
         }
         const isConditionalRequiredField = [
           ...this.requiredFieldIdsConditionalOnNumberFields,
           ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
+          // if these fields are visible, then they're required!
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
           widerLanduseObsFieldId,
@@ -440,6 +449,7 @@ export default {
           required: isConditionalRequiredField || curr.required,
           wowDatatype,
         }
+        field.isAdvancedField = !field.required
         if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
@@ -660,6 +670,9 @@ export default {
             this.handleObsFieldRequiredToOptional(
               accuracyOfSearchAreaCalcObsFieldId,
             )
+            // we need to reset this so the conditionally required field lose
+            // their required-ness without extra logic
+            this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = null
           }
           this.refreshVisibilityOfPopulationRecordFields()
           this.refreshVisibilityOfSearchAreaFields()
@@ -667,16 +680,17 @@ export default {
       }
     },
     handleObsFieldOptionalToRequired(obsFieldId) {
-      const isSetToNotCollected =
-        this.obsFieldValues[obsFieldId] === notCollected
-      if (!isSetToNotCollected) {
+      const val = this.obsFieldValues[obsFieldId]
+      const isAnythingButNotCollected = val !== notCollected
+      const isNotFalsy = !!val
+      if (isAnythingButNotCollected && isNotFalsy) {
         return
       }
       this.obsFieldValues[obsFieldId] = null
     },
     handleObsFieldRequiredToOptional(obsFieldId) {
-      const isSetToNull = this.obsFieldValues[obsFieldId] === null
-      if (!isSetToNull) {
+      const isAnythingButNull = this.obsFieldValues[obsFieldId] !== null
+      if (isAnythingButNull) {
         return
       }
       this.obsFieldValues[obsFieldId] = notCollected

@@ -26,3 +26,4 @@ firebase-debug.log
 *.sw*
 
 scripts/current-version.js
+notes

@@ -102,6 +102,9 @@ function buildWrapper() {
           enableWarnOnLeaveRoute() {},
         },
       },
+      app: {
+        namespaced: true,
+      },
     },
   })
   return shallowMount(SingleSpecies, {
