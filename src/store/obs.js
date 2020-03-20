@@ -23,6 +23,7 @@ import {
   isNoSwActive,
   makeEnumValidator,
   now,
+  triggerSwObsQueue,
   verifyWowDomainPhoto,
   wowWarnHandler,
   wowIdOf,
@@ -312,13 +313,17 @@ const actions = {
               console.debug('Geolocation is blocked')
               return reject(constants.blocked)
             case positionUnavailable:
-            // I think this could be in situations like a desktop computer
-            // tethered through a mobile hotspot. You allow access but it
-            // still fails.
+              // I think this could be in situations like a desktop computer
+              // tethered through a mobile hotspot. You allow access but it
+              // still fails.
+              console.warn(
+                'Geolocation is supported but not available. Error code=' +
+                  errCode,
+              )
+              return reject(constants.failed)
             case timeout:
               console.warn(
-                'Geolocation is supported but not available or timed out. Error code=' +
-                  errCode,
+                'Geolocation is supported but timed out. Error code=' + errCode,
               )
               return reject(constants.failed)
             default:
@@ -1098,6 +1103,7 @@ const actions = {
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
+    await triggerSwObsQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
       const result = {}

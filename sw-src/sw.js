@@ -14,8 +14,8 @@ import * as constants from '../src/misc/constants.js'
  * can't see anything from the SW). This will send all console messages to all
  * clients (there's probably only one) where we *can* see the messages.
  */
+const origConsole = {}
 function enableSwConsoleProxy() {
-  const origConsole = {}
   for (const curr of ['debug', 'info', 'warn', 'error']) {
     doProxy(curr)
   }
@@ -198,6 +198,9 @@ const obsQueue = new Queue('obs-queue', {
                 `Programmer error: we don't know how to handle method=${req.method}`,
               )
           }
+          // we don't await because we need the obs queue to finish processing
+          // even if the deps queue is still going
+          depsQueue._onSync()
         } catch (err) {
           // an error happened while *queuing* reqs. Errors from *processing*
           // the queue will not be caught here!
@@ -274,112 +277,138 @@ function isSafeToProcessQueue() {
   return true
 }
 
+function isQueueSyncingNow(queue) {
+  const isSyncEventSupported = 'sync' in self.registration
+  return (
+    (isSyncEventSupported && queue._syncInProgress) ||
+    queue.wowIsSyncInProgress ||
+    false
+  )
+}
+
 async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
-  if (!isSafeToProcessQueue()) {
+  const isSyncingAlready = isQueueSyncingNow(this)
+  if (!isSafeToProcessQueue() || isSyncingAlready) {
+    if (isSyncingAlready) {
+      console.debug(
+        `[queue=${this._name}] Refusing to sync again as a sync is already running`,
+      )
+    }
     return
   }
-  const obsIdsToIgnore = []
-  let entry
-  while ((entry = await this.shiftRequest())) {
-    let resp
-    try {
-      const obsId = entry.metadata.obsId
-      const isIgnoredObsId = obsIdsToIgnore.includes(obsId)
-      if (isIgnoredObsId) {
-        console.debug(
-          `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
-        )
-        continue
-      }
-      const isLocalOnlySyntheticRequest = entry.request.url.startsWith(
-        poisonPillUrlPrefix,
-      )
-      if (isLocalOnlySyntheticRequest) {
-        console.debug(
-          `Found req with url stating with '${poisonPillUrlPrefix}' ` +
-            `shortcircuiting straight to the success callback, no request ` +
-            `will be sent over the network`,
-        )
-        await successCb(entry, entry.request, null)
-        continue
-      }
-      const req = entry.request.clone()
-      req.headers.set('Authorization', authHeaderValue)
-      resp = await fetch(req)
-      console.debug(
-        `Request for '${entry.request.url}' ` +
-          `has been replayed in queue '${this._name}'`,
-      )
-      const statusCode = resp.status
-      if (statusCode === 401) {
-        // other queued reqs probably won't succeed (right now), wait for next sync
-        throw (() => {
-          // throwing so catch block can handle unshifting, etc
-          const result = new Error(
-            `Response indicates failed auth (status=${statusCode}), ` +
-              `stopping now but we'll retry on next sync.`,
+  try {
+    // we use our own flag in addition to the Workbox one because in browsers
+    // that don't support self.registration.sync, we can't call the built-in
+    // Workbox functions that keep that flag updated. Directly manipulating a
+    // private field is messy too.
+    this.wowIsSyncInProgress = true
+    console.debug(`[queue=${this._name}] starting onSync`)
+    const obsIdsToIgnore = []
+    let entry
+    while ((entry = await this.shiftRequest())) {
+      let resp
+      try {
+        const obsId = entry.metadata.obsId
+        const isIgnoredObsId = obsIdsToIgnore.includes(obsId)
+        if (isIgnoredObsId) {
+          console.debug(
+            `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
           )
-          result.name = 'Server401Error'
-          return result
-        })()
-      }
-      const is4xxStatusCode = statusCode >= 400 && statusCode < 500
-      if (is4xxStatusCode) {
-        console.debug(
-          `Response (status=${statusCode}) for '${resp.url}'` +
-            ` indicates client error. Calling cleanup callback, then ` +
-            `continuing processing the queue`,
-        )
-        const cbResult = await clientErrorCb(entry, resp)
-        const isIgnoreDepsForId =
-          cbResult && cbResult.flag === IGNORE_REMAINING_DEPS_FLAG
-        if (isIgnoreDepsForId) {
-          obsIdsToIgnore.push(obsId)
+          continue
         }
-        continue // other queued reqs may succeed
-      }
-      const isServerError = statusCode >= 500 && statusCode < 600
-      if (isServerError) {
-        // other queued reqs probably won't succeed (right now), wait for next sync
-        throw (() => {
-          // throwing so catch block can handle unshifting, etc
-          const result = new Error(
-            `Response indicates server error (status=${statusCode})`,
+        const isLocalOnlySyntheticRequest = entry.request.url.startsWith(
+          poisonPillUrlPrefix,
+        )
+        if (isLocalOnlySyntheticRequest) {
+          console.debug(
+            `Found req with url stating with '${poisonPillUrlPrefix}' ` +
+              `shortcircuiting straight to the success callback, no request ` +
+              `will be sent over the network`,
           )
-          result.name = 'Server5xxError'
+          await successCb(entry, entry.request, null)
+          continue
+        }
+        const req = entry.request.clone()
+        req.headers.set('Authorization', authHeaderValue)
+        resp = await fetch(req)
+        console.debug(
+          `Request for '${entry.request.url}' ` +
+            `has been replayed in queue '${this._name}'`,
+        )
+        const statusCode = resp.status
+        if (statusCode === 401) {
+          // other queued reqs probably won't succeed (right now), wait for next sync
+          throw (() => {
+            // throwing so catch block can handle unshifting, etc
+            const result = new Error(
+              `Response indicates failed auth (status=${statusCode}), ` +
+                `stopping now but we'll retry on next sync.`,
+            )
+            result.name = 'Server401Error'
+            return result
+          })()
+        }
+        const is4xxStatusCode = statusCode >= 400 && statusCode < 500
+        if (is4xxStatusCode) {
+          console.debug(
+            `Response (status=${statusCode}) for '${resp.url}'` +
+              ` indicates client error. Calling cleanup callback, then ` +
+              `continuing processing the queue`,
+          )
+          const cbResult = await clientErrorCb(entry, resp)
+          const isIgnoreDepsForId =
+            cbResult && cbResult.flag === IGNORE_REMAINING_DEPS_FLAG
+          if (isIgnoreDepsForId) {
+            obsIdsToIgnore.push(obsId)
+          }
+          continue // other queued reqs may succeed
+        }
+        const isServerError = statusCode >= 500 && statusCode < 600
+        if (isServerError) {
+          // other queued reqs probably won't succeed (right now), wait for next sync
+          throw (() => {
+            // throwing so catch block can handle unshifting, etc
+            const result = new Error(
+              `Response indicates server error (status=${statusCode})`,
+            )
+            result.name = 'Server5xxError'
+            return result
+          })()
+        }
+      } catch (err) {
+        // "Failed to fetch" lands us here. It could be a network error or a
+        // non-CORS response.
+        await this.unshiftRequest(entry)
+        console.debug(
+          `Request for '${entry.request.url}' ` +
+            `failed to replay, putting it back in queue '${this._name}'.`,
+        )
+        // Note: we *need* to throw here to stop an immediate retry on sync.
+        // Workbox does this for good reason: it needs to process items that were
+        // added to the queue during the sync. It's a bit messy because the error
+        // ends up as an "Uncaught (in promise)" but that's due to
+        // https://github.com/GoogleChrome/workbox/blob/v4.3.1/packages/workbox-background-sync/Queue.mjs#L331.
+        // Maybe should that just be a console.error/warn?
+        throw (() => {
+          const result = new Error(
+            `Failed to replay queue '${this._name}', due to: ` + err.message,
+          )
+          result.name = 'QueueReplayError'
           return result
         })()
       }
-    } catch (err) {
-      // "Failed to fetch" lands us here. It could be a network error or a
-      // non-CORS response.
-      await this.unshiftRequest(entry)
-      console.debug(
-        `Request for '${entry.request.url}' ` +
-          `failed to replay, putting it back in queue '${this._name}'.`,
-      )
-      // Note: we *need* to throw here to stop an immediate retry on sync.
-      // Workbox does this for good reason: it needs to process items that were
-      // added to the queue during the sync. It's a bit messy because the error
-      // ends up as an "Uncaught (in promise)" but that's due to
-      // https://github.com/GoogleChrome/workbox/blob/v4.3.1/packages/workbox-background-sync/Queue.mjs#L331.
-      // Maybe should that just be a console.error/warn?
-      throw (() => {
-        const result = new Error(
-          `Failed to replay queue '${this._name}', due to: ` + err.message,
-        )
-        result.name = 'QueueReplayError'
-        return result
-      })()
+      try {
+        await successCb(entry, entry.request, resp)
+      } catch (err) {
+        console.error('Failed during callback for a queue item, re-throwing...')
+        // FIXME probably shouldn't throw here. Not sure what to do. Certainly
+        // log the error and perhaps continue processing the queue
+        throw err
+      }
     }
-    try {
-      await successCb(entry, entry.request, resp)
-    } catch (err) {
-      console.error('Failed during callback for a queue item, re-throwing...')
-      // FIXME probably shouldn't throw here. Not sure what to do. Certainly
-      // log the error and perhaps continue processing the queue
-      throw err
-    }
+  } finally {
+    this.wowIsSyncInProgress = false
+    console.debug(`[queue=${this._name}] finished onSync`)
   }
 }
 
@@ -657,11 +686,11 @@ registerRoute(
     const waitingDepsBundles = await wowSwStore.length()
     return jsonResponse({
       depsQueueStatus: {
-        syncInProgress: depsQueue._syncInProgress || false,
+        syncInProgress: isQueueSyncingNow(depsQueue),
         length: (await depsQueue.getAll()).length,
       },
       obsQueueStatus: {
-        syncInProgress: obsQueue._syncInProgress || false,
+        syncInProgress: isQueueSyncingNow(obsQueue),
         length: (await obsQueue.getAll()).length,
       },
       waitingDepsBundles,
@@ -691,10 +720,16 @@ registerRoute(
 // required so things will get processed sooner.
 registerRoute(
   new RegExp(`${constants.apiUrlBase}/observations.*cache-bust.*`),
-  // TODO we could wrap the NetworkOnly strategy to do a setAuthHeaderFromReq()
-  // then defer to NetworkOnly. This will help 401'd reqs in the queue get
-  // going sooner.
-  new NetworkOnly(),
+  new NetworkOnly({
+    plugins: [
+      {
+        requestWillFetch: async ({ request }) => {
+          setAuthHeaderFromReq(request)
+          return request
+        },
+      },
+    ],
+  }),
   'GET',
 )
 
@@ -718,11 +753,6 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('message', function(event) {
   switch (event.data) {
     case constants.syncDepsQueueMsg:
-      if (depsQueue._syncInProgress) {
-        // FIXME doesn't seem to work. The flag doesn't seem reliable
-        console.debug('depsQueue already seems to be doing a sync')
-        return
-      }
       console.debug('triggering deps queue processing at request of client')
       depsQueue
         ._onSync()
@@ -735,11 +765,6 @@ self.addEventListener('message', function(event) {
         })
       return
     case constants.syncObsQueueMsg:
-      if (obsQueue._syncInProgress) {
-        // FIXME doesn't seem to work. The flag doesn't seem reliable
-        console.debug('obsQueue already seems to be doing a sync')
-        return
-      }
       console.debug('triggering obs queue processing at request of client')
       obsQueue
         ._onSync()
@@ -767,6 +792,7 @@ function sendMessageToClient(client, msg) {
       if (event.data.error) {
         return reject(event.data.error)
       }
+      // note: it's vital that at least one client responds to us so this resolves
       return resolve(event.data)
     }
     client.postMessage(msg, [msgChan.port2])
@@ -778,9 +804,11 @@ async function sendMessageToAllClients(msg) {
   for (let client of matchedClients) {
     try {
       const clientResp = await sendMessageToClient(client, msg)
-      console.debug('SW received message: ' + clientResp)
+      const noProxyConsoleDebug = origConsole.debug || console.debug
+      noProxyConsoleDebug('SW received message: ' + clientResp)
     } catch (err) {
-      console.error(`Failed to send message to client`, err)
+      const noProxyConsoleError = origConsole.error || console.error
+      noProxyConsoleError(`Failed to send message=${msg} to client`, err)
     }
   }
 }

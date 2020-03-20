@@ -101,19 +101,25 @@ new Vue({
         if (msgId) {
           console.debug(`Message received from SW with ID='${msgId}'`)
         }
-        switch (msgId) {
-          case constants.refreshObsMsg:
-            this.$store.dispatch('obs/refreshRemoteObsWithDelay').catch(err => {
-              this.$store.dispatch('flagGlobalError', {
-                msg: `Failed to refresh observations after prompt to do so from the SW`,
-                userMsg: `Error while trying to refresh your list of observations`,
-                err,
-              })
-            })
-            return
-          default:
-            console.debug('Client received message from SW: ' + event.data)
-            return
+        try {
+          switch (msgId) {
+            case constants.refreshObsMsg:
+              this.$store
+                .dispatch('obs/refreshRemoteObsWithDelay')
+                .catch(err => {
+                  this.$store.dispatch('flagGlobalError', {
+                    msg: `Failed to refresh observations after prompt to do so from the SW`,
+                    userMsg: `Error while trying to refresh your list of observations`,
+                    err,
+                  })
+                })
+              return
+            default:
+              console.debug('Client received message from SW: ' + event.data)
+              return
+          }
+        } finally {
+          event.ports[0].postMessage('ACK')
         }
       })
     },

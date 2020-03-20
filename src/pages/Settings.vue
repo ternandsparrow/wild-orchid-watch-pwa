@@ -122,7 +122,11 @@
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import { alwaysUpload, neverUpload } from '@/misc/constants'
-import { formatStorageSize } from '@/misc/helpers'
+import {
+  clearLocalStorage,
+  formatStorageSize,
+  unregisterAllServiceWorkers,
+} from '@/misc/helpers'
 
 export default {
   name: 'Settings',
@@ -278,24 +282,6 @@ export default {
       }
     },
   },
-}
-
-function clearLocalStorage() {
-  console.debug(`Clearing localStorage of ${localStorage.length} keys`)
-  localStorage.clear()
-}
-
-// thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/
-function unregisterAllServiceWorkers() {
-  if (!navigator.serviceWorker) {
-    return
-  }
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    console.debug(`Unregistering ${regs.length} service workers`)
-    for (const curr of regs) {
-      curr.unregister()
-    }
-  })
 }
 
 function twoDecimalPlaces(v) {

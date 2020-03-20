@@ -75,6 +75,18 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Clear localStorage and IDB; unregister service worker
+      </div>
+      <p>
+        Useful during dev for browsers that don't have a nice clear for a single
+        site, plus you don't have to logout
+      </p>
+      <p>
+        <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Trigger queue processing
       </div>
       <div>
@@ -253,7 +265,14 @@ import * as Comlink from 'comlink'
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
-import { isSwActive } from '@/misc/helpers'
+import {
+  clearLocalStorage,
+  isSwActive,
+  triggerSwDepsQueue,
+  triggerSwObsQueue,
+  unregisterAllServiceWorkers,
+} from '@/misc/helpers'
+import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 
 const wowModelPath = '/image-ml/v1/model.json'
 
@@ -452,7 +471,7 @@ export default {
     },
     triggerSwObsQueue() {
       this.swObsQueueStatus = 'processing'
-      this._sendMessageToSw(constants.syncObsQueueMsg)
+      triggerSwObsQueue()
         .then(() => {
           console.debug(
             'Triggering of SW obs queue processing completed successfully',
@@ -460,12 +479,12 @@ export default {
           this.swObsQueueStatus = 'finished'
         })
         .catch(err => {
-          this.swObsQueueStatus = 'error. ' + err
+          this.swObsQueueStatus = 'error. ' + err.message
         })
     },
     triggerSwDepsQueue() {
       this.swDepsQueueStatus = 'processing'
-      this._sendMessageToSw(constants.syncDepsQueueMsg)
+      triggerSwDepsQueue()
         .then(() => {
           console.debug(
             'Triggering of SW deps queue processing completed successfully',
@@ -500,6 +519,11 @@ export default {
         constants.proxySwConsoleMsg,
       )
       console.log('Message sent to SW to enable console proxying')
+    },
+    async resetDuringDev() {
+      clearLocalStorage()
+      unregisterAllServiceWorkers()
+      await deleteKnownStorageInstances()
     },
   },
 }

@@ -68,6 +68,7 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex'
+import { triggerSwObsQueue, triggerSwDepsQueue } from '@/misc/helpers'
 
 export default {
   data() {
@@ -119,6 +120,8 @@ export default {
       } else if (this.isUserLoggedIn) {
         this.$store.dispatch('obs/refreshRemoteObs')
         this.$store.dispatch('obs/processLocalQueue')
+        triggerSwObsQueue()
+        triggerSwDepsQueue()
       }
       done && done()
     },

@@ -449,6 +449,49 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
+export function triggerSwObsQueue() {
+  return _sendMessageToSw(constants.syncObsQueueMsg)
+}
+
+export function triggerSwDepsQueue() {
+  return _sendMessageToSw(constants.syncDepsQueueMsg)
+}
+
+function _sendMessageToSw(msg) {
+  return new Promise(function(resolve, reject) {
+    const msgChan = new MessageChannel()
+    msgChan.port1.onmessage = function(event) {
+      if ((event.data || {}).error) {
+        return reject(event.data.error)
+      }
+      return resolve(event.data)
+    }
+    const controller = navigator.serviceWorker.controller
+    if (!controller) {
+      return reject('No service worker active. Cannot send msg=' + msg)
+    }
+    controller.postMessage(msg, [msgChan.port2])
+  })
+}
+
+export function clearLocalStorage() {
+  console.debug(`Clearing localStorage of ${localStorage.length} keys`)
+  localStorage.clear()
+}
+
+// thanks https://love2dev.com/blog/how-to-uninstall-a-service-worker/
+export function unregisterAllServiceWorkers() {
+  if (!navigator.serviceWorker) {
+    return
+  }
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    console.debug(`Unregistering ${regs.length} service workers`)
+    for (const curr of regs) {
+      curr.unregister()
+    }
+  })
+}
+
 // Thanks for these two functions:
 // https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
 //
