@@ -306,14 +306,19 @@ const actions = {
           const permissionDenied = 1
           const positionUnavailable = 2
           const timeout = 3
-          switch (err.code) {
+          const errCode = err.code
+          switch (errCode) {
             case permissionDenied:
               console.debug('Geolocation is blocked')
               return reject(constants.blocked)
             case positionUnavailable:
+            // I think this could be in situations like a desktop computer
+            // tethered through a mobile hotspot. You allow access but it
+            // still fails.
             case timeout:
-              console.debug(
-                'Geolocation is supported but not avaible or timed out',
+              console.warn(
+                'Geolocation is supported but not available or timed out. Error code=' +
+                  errCode,
               )
               return reject(constants.failed)
             default:

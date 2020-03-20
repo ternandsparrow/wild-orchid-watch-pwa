@@ -98,7 +98,9 @@ new Vue({
       }
       navigator.serviceWorker.addEventListener('message', event => {
         const msgId = event.data.id
-        console.debug(`Message received from SW with ID='${msgId}'`)
+        if (msgId) {
+          console.debug(`Message received from SW with ID='${msgId}'`)
+        }
         switch (msgId) {
           case constants.refreshObsMsg:
             this.$store.dispatch('obs/refreshRemoteObsWithDelay').catch(err => {
@@ -111,6 +113,7 @@ new Vue({
             return
           default:
             console.debug('Client received message from SW: ' + event.data)
+            return
         }
       })
     },

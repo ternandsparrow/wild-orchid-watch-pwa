@@ -299,6 +299,7 @@ export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
 export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
+export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 
 // Record processing outcomes
 export const waitingOutcome = 'waiting' // waiting to be processed

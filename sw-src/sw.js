@@ -9,6 +9,38 @@ import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import * as constants from '../src/misc/constants.js'
 
+/**
+ * Some situations mean we can't see console messages from the SW (sometimes we
+ * can't see anything from the SW). This will send all console messages to all
+ * clients (there's probably only one) where we *can* see the messages.
+ */
+function enableSwConsoleProxy() {
+  const origConsole = {}
+  for (const curr of ['debug', 'info', 'warn', 'error']) {
+    doProxy(curr)
+  }
+  origConsole.debug(
+    'SW console has been proxied. You should see this in the *SW*',
+  )
+  console.debug(
+    'SW console has been proxied. You should see this in the *client*',
+  )
+  function doProxy(fnNameToProxy) {
+    origConsole[fnNameToProxy] = console[fnNameToProxy]
+    console[fnNameToProxy] = function(msg) {
+      sendMessageToAllClients(msg)
+        .then(() =>
+          origConsole.debug(
+            `proxied console message='${msg.substring(0, 30)}...' to clients`,
+          ),
+        )
+        .catch(err => {
+          origConsole.error('Failed to proxy console to clients', err)
+        })
+    }
+  }
+}
+
 const wowSwStore = getOrCreateInstance('wow-sw')
 const createTag = 'create:'
 const updateTag = 'update:'
@@ -610,6 +642,7 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerIsAliveMagicUrl,
   async ({ url, event, params }) => {
+    console.debug('Still alive over here!')
     return jsonResponse({
       result: 'yep',
     })
@@ -620,6 +653,7 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerHealthCheckUrl,
   async ({ url, event, params }) => {
+    console.debug('Performing a health check')
     const waitingDepsBundles = await wowSwStore.length()
     return jsonResponse({
       depsQueueStatus: {
@@ -691,7 +725,7 @@ self.addEventListener('message', function(event) {
       }
       console.debug('triggering deps queue processing at request of client')
       depsQueue
-        ._onSync() // TODO should we be calling .registerSync()?
+        ._onSync()
         .catch(err => {
           console.warn('Manually triggered depsQueue sync has failed', err)
           event.ports[0].postMessage({ error: err })
@@ -720,6 +754,9 @@ self.addEventListener('message', function(event) {
     case constants.skipWaitingMsg:
       console.debug('SW is skipping waiting')
       return self.skipWaiting()
+    case constants.proxySwConsoleMsg:
+      enableSwConsoleProxy()
+      return
   }
 })
 

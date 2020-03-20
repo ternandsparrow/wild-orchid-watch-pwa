@@ -102,6 +102,27 @@
       </div>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Service Worker health check
+      </div>
+      <p>
+        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
+      </p>
+      <div class="code-style">{{ swHealthCheckResult }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable service worker console proxy
+      </div>
+      <p>
+        For when you can't get access to the SW console. iOS Safari in
+        BrowserStack is one offender.
+      </p>
+      <p>
+        <v-ons-button @click="enableSwConsoleProxy">Enable!</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
       <div class="standalone-title">
         Configuration
       </div>
@@ -167,15 +188,6 @@
         <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
       </p>
       <div class="code-style">{{ vuexDump }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -392,8 +404,10 @@ export default {
           this.alt = loc.coords.altitude
           this.acc = loc.coords.accuracy
         },
-        () => {
-          this.locErrorMsg = 'Location access is blocked'
+        err => {
+          const msg = 'Location access is failed. '
+          console.error(msg, err)
+          this.locErrorMsg = msg + err.message
         },
       )
     },
@@ -480,6 +494,12 @@ export default {
     },
     async doProjectInfoRefresh() {
       await this.$store.dispatch('obs/getProjectInfo')
+    },
+    async enableSwConsoleProxy() {
+      this.$store.state.ephemeral.swReg.active.postMessage(
+        constants.proxySwConsoleMsg,
+      )
+      console.log('Message sent to SW to enable console proxying')
     },
   },
 }
