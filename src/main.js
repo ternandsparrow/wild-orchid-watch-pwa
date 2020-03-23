@@ -115,7 +115,7 @@ new Vue({
                 })
               return
             default:
-              console.debug('Client received message from SW: ' + event.data)
+              console.debug('[from SW] ' + event.data)
               return
           }
         } finally {

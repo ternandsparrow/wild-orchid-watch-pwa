@@ -131,7 +131,13 @@
         BrowserStack is one offender.
       </p>
       <p>
-        <v-ons-button @click="enableSwConsoleProxy">Enable!</v-ons-button>
+        <v-ons-button
+          :disabled="hasSwConsoleBeenProxied"
+          @click="enableSwConsoleProxy"
+        >
+          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
+          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
+        </v-ons-button>
       </p>
     </v-ons-card>
     <v-ons-card>
@@ -254,6 +260,40 @@
       </p>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Send requests to observation_photos endpoint on API
+      </div>
+      <p>
+        Safari is having CORS issues in the ServiceWorker. This will help
+        diagnose it
+      </p>
+      <p>
+        We never do this but it's a sanity check to make sure the endpoint is as
+        we expect. Also we're making this call from the main thread, not in the
+        SW.
+        <v-ons-button @click="doObsPhotoOptions"
+          >Send OPTIONS request</v-ons-button
+        >
+      </p>
+      <div>
+        We expect these to fail with 422 but that's good. It means we passed the
+        CORS preflight check.
+        <div class="gimme-some-space">
+          <v-ons-button @click="doObsPhotoPost"
+            >Send POST request from main thread</v-ons-button
+          >
+        </div>
+        <div class="gimme-some-space">
+          <v-ons-button @click="doSwObsPhotoPost"
+            >Send POST request from SW</v-ons-button
+          >
+        </div>
+      </div>
+      <code
+        ><pre>{{ obsPhotoReqOutcome }}</pre></code
+      >
+    </v-ons-card>
+    <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
         >Community workflow</v-ons-button
       >
@@ -326,6 +366,8 @@ export default {
       ourWorker: null,
       swHealthCheckResult: 'nothing yet',
       hasConsoleBeenProxiedToUi: false,
+      obsPhotoReqOutcome: 'nothing yet',
+      hasSwConsoleBeenProxied: false,
     }
   },
   computed: {
@@ -544,6 +586,7 @@ export default {
       await this.$store.dispatch('obs/getProjectInfo')
     },
     async enableSwConsoleProxy() {
+      this.hasSwConsoleBeenProxied = true
       this.$store.state.ephemeral.swReg.active.postMessage(
         constants.proxySwConsoleMsg,
       )
@@ -580,6 +623,35 @@ export default {
       clearLocalStorage()
       unregisterAllServiceWorkers()
       await deleteKnownStorageInstances()
+    },
+    async doObsPhotoOptions() {
+      return this._doObsPhotoRequest('OPTIONS')
+    },
+    async doObsPhotoPost() {
+      return this._doObsPhotoRequest('POST')
+    },
+    async _doObsPhotoRequest(method) {
+      this.obsPhotoReqOutcome = 'nothing yet'
+      try {
+        const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
+          method: method,
+          retries: 0,
+          headers: {
+            Authorization: this.$store.state.auth.apiToken,
+          },
+        })
+        this.obsPhotoReqOutcome = resp.ok ? 'seem ok' : 'seems NOT ok'
+        console.debug(`Obs photos ${method} req done`)
+      } catch (err) {
+        this.obsPhotoReqOutcome = 'error'
+        console.error(
+          `Failed when making ${method} request to obs photo endpoint`,
+          err,
+        )
+      }
+    },
+    doSwObsPhotoPost() {
+      this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
     },
   },
 }
@@ -624,5 +696,9 @@ export default {
 .console-warn {
   font-weight: bold;
   color: orange;
+}
+
+.gimme-some-space {
+  margin-top: 1em;
 }
 </style>

@@ -782,8 +782,28 @@ self.addEventListener('message', function(event) {
     case constants.proxySwConsoleMsg:
       enableSwConsoleProxy()
       return
+    case constants.testSendObsPhotoPostMsg:
+      doObsPhotoPostTest()
+      return
   }
 })
+
+async function doObsPhotoPostTest() {
+  try {
+    const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeaderValue,
+      },
+    })
+    const outcome = resp.ok
+      ? 'seem ok'
+      : `seems NOT ok, status=${resp.status}, statusText=${resp.statusText}`
+    console.debug(`Obs photos POST req done; ${outcome}`)
+  } catch (err) {
+    console.error(`Failed when making POST request to obs photo endpoint`, err)
+  }
+}
 
 function sendMessageToClient(client, msg) {
   return new Promise(function(resolve, reject) {
