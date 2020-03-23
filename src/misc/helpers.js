@@ -449,11 +449,17 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
-export function triggerSwObsQueue() {
+export async function triggerSwObsQueue() {
+  if (await isNoSwActive()) {
+    return Promise.resolve()
+  }
   return _sendMessageToSw(constants.syncObsQueueMsg)
 }
 
-export function triggerSwDepsQueue() {
+export async function triggerSwDepsQueue() {
+  if (await isNoSwActive()) {
+    return Promise.resolve()
+  }
   return _sendMessageToSw(constants.syncDepsQueueMsg)
 }
 
