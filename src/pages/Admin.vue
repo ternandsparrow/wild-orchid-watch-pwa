@@ -157,7 +157,7 @@
         ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
       </code>
       <p>
-        <v-ons-button @click="consoleMsgs = []">Clear console</v-ons-button>
+        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
       </p>
     </v-ons-card>
     <v-ons-card>
@@ -282,7 +282,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters, mapState } from 'vuex'
 import moment from 'moment'
 import _ from 'lodash'
 import ml5 from 'ml5'
@@ -325,13 +325,13 @@ export default {
       classifier: null,
       ourWorker: null,
       swHealthCheckResult: 'nothing yet',
-      consoleMsgs: [],
       hasConsoleBeenProxiedToUi: false,
     }
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapGetters('ephemeral', ['swStatus', 'isSwStatusActive']),
+    ...mapState('ephemeral', ['consoleMsgs']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
@@ -558,7 +558,10 @@ export default {
             accum += curr + ' ' // TODO do we need to handle Errors or objects specially?
             return accum
           }, '')
-          this.consoleMsgs.push({ level: curr, msg: simpleMsg })
+          this.$store.commit('ephemeral/pushConsoleMsg', {
+            level: curr,
+            msg: simpleMsg,
+          })
           origConsole[curr](...theArgs) // still log to the devtools console
         }
       }
@@ -569,6 +572,9 @@ export default {
       console.debug(
         'Console has been proxied to UI. You should see this in the *UI* and the console',
       )
+    },
+    clearConsole() {
+      this.$store.commit('ephemeral/clearConsoleMsgs')
     },
     async resetDuringDev() {
       clearLocalStorage()
