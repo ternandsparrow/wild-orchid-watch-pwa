@@ -177,12 +177,13 @@ export default {
   },
   methods: {
     handleMenuClick(clickData) {
-      this.$store.commit('ephemeral/toggleSplitter')
       switch (clickData.type) {
         case componentType:
+          this.$store.commit('ephemeral/toggleSplitter')
           return this.loadView(clickData.component)
         case routerType:
-          return this.$router.push(clickData.target)
+          this.safelyPushRoute(clickData.target)
+          return
         default:
           throw new Error(
             `Programmer problem: unhandled clickData=${clickData}`,
@@ -209,8 +210,17 @@ export default {
       if (this.versionClickCount < tapCountThreshold) {
         return
       }
-      this.$router.push({ name: 'Admin' })
+      this.safelyPushRoute({ name: 'Admin' })
+    },
+    async safelyPushRoute(routeTarget) {
       this.$store.commit('ephemeral/toggleSplitter')
+      await this.$nextTick()
+      // WOW-188 we need to wait for the nextTick so the DOM updates which
+      // means the splitter updates it's internal state because it sees the
+      // new value from Vuex. If you don't wait, we navigate before the
+      // splitter updates and on iOS, that means there's a class added to
+      // the body to "fix" scrolling but that means you cannot scroll
+      this.$router.push(routeTarget)
     },
   },
 }
