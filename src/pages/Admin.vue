@@ -135,6 +135,32 @@
       </p>
     </v-ons-card>
     <v-ons-card>
+      <div class="title">
+        Enable console proxying to UI
+      </div>
+      <p>
+        For when you can't get access debug tools (like on a mobile device)
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasConsoleBeenProxiedToUi"
+          @click="enableConsoleProxyToUi"
+        >
+          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
+          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
+        </v-ons-button>
+      </p>
+      <code>
+        <pre
+          v-for="curr of consoleMsgs"
+          :key="curr.msg"
+        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
+      </code>
+      <p>
+        <v-ons-button @click="consoleMsgs = []">Clear console</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
       <div class="standalone-title">
         Configuration
       </div>
@@ -277,6 +303,7 @@ import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 const wowModelPath = '/image-ml/v1/model.json'
 
 export default {
+  name: 'Admin',
   data() {
     return {
       lat: null,
@@ -298,6 +325,8 @@ export default {
       classifier: null,
       ourWorker: null,
       swHealthCheckResult: 'nothing yet',
+      consoleMsgs: [],
+      hasConsoleBeenProxiedToUi: false,
     }
   },
   computed: {
@@ -520,6 +549,27 @@ export default {
       )
       console.log('Message sent to SW to enable console proxying')
     },
+    enableConsoleProxyToUi() {
+      const origConsole = {}
+      for (const curr of ['debug', 'info', 'warn', 'error']) {
+        origConsole[curr] = console[curr]
+        console[curr] = (...theArgs) => {
+          const simpleMsg = theArgs.reduce((accum, curr) => {
+            accum += curr + ' ' // TODO do we need to handle Errors or objects specially?
+            return accum
+          }, '')
+          this.consoleMsgs.push({ level: curr, msg: simpleMsg })
+          origConsole[curr](...theArgs) // still log to the devtools console
+        }
+      }
+      this.hasConsoleBeenProxiedToUi = true
+      origConsole.debug(
+        'Console has been proxied to UI. You should see this *only* in the console, not the UI',
+      )
+      console.debug(
+        'Console has been proxied to UI. You should see this in the *UI* and the console',
+      )
+    },
     async resetDuringDev() {
       clearLocalStorage()
       unregisterAllServiceWorkers()
@@ -558,5 +608,15 @@ export default {
 
 .footer-whitespace {
   height: 100vh;
+}
+
+.console-error {
+  font-weight: bold;
+  color: red;
+}
+
+.console-warn {
+  font-weight: bold;
+  color: orange;
 }
 </style>
