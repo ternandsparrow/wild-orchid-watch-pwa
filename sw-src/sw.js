@@ -792,9 +792,11 @@ async function doObsPhotoPostTest() {
   try {
     const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
       method: 'POST',
+      mode: 'cors',
       headers: {
         Authorization: authHeaderValue,
       },
+      // TODO should probably add formdata to make it more realistic
     })
     const outcome = resp.ok
       ? 'seem ok'
@@ -871,7 +873,7 @@ async function processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId) {
       request: new Request(constants.apiUrlBase + '/observation_photos', {
         method: 'POST',
         mode: 'cors',
-        body: fd,
+        body: fd._blob ? fd._blob() : fd,
       }),
     })
   }
