@@ -117,6 +117,19 @@ const obsFields = [
     allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
   {
+    name: 'Number of individuals recorded',
+    description: 'How many individual orchids did you observe?',
+    datatype: 'numeric',
+    allowedValues: '',
+  },
+  {
+    name: 'Search effort (minutes)',
+    description:
+      'Time spent surveying: minutes actively searching (not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.notCollected}|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+`,
+  },
+  {
     name: 'Accuracy of search area calculation',
     description: 'How accurate is your calculation of the area searched?',
     datatype: 'text',
@@ -140,19 +153,6 @@ const obsFields = [
       'How large is the area you searched while counting individuals? Only required when observing more than one individual. Recommended linear searches i.e. rectangles along paths, etc',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.notCollected}|${linearAreas}`,
-  },
-  {
-    name: 'Search effort (minutes)',
-    description:
-      'Time spent surveying: minutes actively searching (not just time at the location doing other tasks) i.e. 2 people for 30 minutes = 60 minutes',
-    datatype: 'text',
-    allowedValues: `${obsFieldConstants.notCollected}|<1|a few minutes|5|10|15|20|30|45|60|90|120|120+`,
-  },
-  {
-    name: 'Number of individuals recorded',
-    description: 'How many individual orchids did you observe?',
-    datatype: 'numeric',
-    allowedValues: '',
   },
   {
     name: 'Area of population (m²)',
