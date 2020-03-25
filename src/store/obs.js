@@ -23,6 +23,7 @@ import {
   isNoSwActive,
   makeEnumValidator,
   now,
+  triggerSwObsQueue,
   verifyWowDomainPhoto,
   wowWarnHandler,
   wowIdOf,
@@ -306,14 +307,23 @@ const actions = {
           const permissionDenied = 1
           const positionUnavailable = 2
           const timeout = 3
-          switch (err.code) {
+          const errCode = err.code
+          switch (errCode) {
             case permissionDenied:
               console.debug('Geolocation is blocked')
               return reject(constants.blocked)
             case positionUnavailable:
+              // I think this could be in situations like a desktop computer
+              // tethered through a mobile hotspot. You allow access but it
+              // still fails.
+              console.warn(
+                'Geolocation is supported but not available. Error code=' +
+                  errCode,
+              )
+              return reject(constants.failed)
             case timeout:
-              console.debug(
-                'Geolocation is supported but not avaible or timed out',
+              console.warn(
+                'Geolocation is supported but timed out. Error code=' + errCode,
               )
               return reject(constants.failed)
             default:
@@ -1093,6 +1103,7 @@ const actions = {
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
+    await triggerSwObsQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
       const result = {}
@@ -1495,6 +1506,16 @@ const getters = {
       accum[curr.id] = curr.position
       return accum
     }, {})
+  },
+  advancedModeOnlyObsFieldIds(state) {
+    // this doesn't handle conditional requiredness, but we tackle that elsewhere
+    return state.projectInfo.project_observation_fields.reduce(
+      (accum, curr) => {
+        accum[curr.id] = curr.required
+        return accum
+      },
+      {},
+    )
   },
 }
 

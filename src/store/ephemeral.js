@@ -23,6 +23,7 @@ const state = {
   isWarnOnLeaveRoute: false,
   isHelpModalVisible: false,
   previewedPhoto: null,
+  consoleMsgs: [],
 }
 
 const mutations = {
@@ -59,6 +60,8 @@ const mutations = {
   previewPhoto: (state, previewedPhoto) =>
     (state.previewedPhoto = previewedPhoto),
   closePhotoPreview: state => (state.previewedPhoto = null),
+  pushConsoleMsg: (state, msg) => state.consoleMsgs.push(msg),
+  clearConsoleMsgs: state => (state.consoleMsgs = []),
 }
 
 const actions = {

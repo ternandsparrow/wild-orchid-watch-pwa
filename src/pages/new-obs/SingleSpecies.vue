@@ -244,6 +244,11 @@
           </div>
         </v-ons-list-item>
       </template>
+      <v-ons-list-item>
+        <div class="text-center be-wide">
+          <v-ons-button @click="onSave">Save</v-ons-button>
+        </div>
+      </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
     <v-ons-dialog cancelable :visible.sync="formErrorDialogVisible">
@@ -1487,5 +1492,9 @@ $thumbnailSize: 75px;
   h3 {
     margin: 0;
   }
+}
+
+.be-wide {
+  flex-grow: 1;
 }
 </style>

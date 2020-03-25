@@ -75,6 +75,18 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Clear localStorage and IDB; unregister service worker
+      </div>
+      <p>
+        Useful during dev for browsers that don't have a nice clear for a single
+        site, plus you don't have to logout
+      </p>
+      <p>
+        <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Trigger queue processing
       </div>
       <div>
@@ -100,6 +112,59 @@
           >Trigger SW deps queue processing</v-ons-button
         >
       </div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Service Worker health check
+      </div>
+      <p>
+        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
+      </p>
+      <div class="code-style">{{ swHealthCheckResult }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable service worker console proxy
+      </div>
+      <p>
+        For when you can't get access to the SW console. iOS Safari in
+        BrowserStack is one offender.
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasSwConsoleBeenProxied"
+          @click="enableSwConsoleProxy"
+        >
+          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
+          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
+        </v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable console proxying to UI
+      </div>
+      <p>
+        For when you can't get access debug tools (like on a mobile device)
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasConsoleBeenProxiedToUi"
+          @click="enableConsoleProxyToUi"
+        >
+          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
+          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
+        </v-ons-button>
+      </p>
+      <code>
+        <pre
+          v-for="curr of consoleMsgs"
+          :key="curr.msg"
+        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
+      </code>
+      <p>
+        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
+      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="standalone-title">
@@ -170,15 +235,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Manually trigger an error
       </div>
       <p>
@@ -202,6 +258,40 @@
       <p>
         <v-ons-button @click="doManualError">Trigger error</v-ons-button>
       </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Send requests to observation_photos endpoint on API
+      </div>
+      <p>
+        Safari is having CORS issues in the ServiceWorker. This will help
+        diagnose it
+      </p>
+      <p>
+        We never do this but it's a sanity check to make sure the endpoint is as
+        we expect. Also we're making this call from the main thread, not in the
+        SW.
+        <v-ons-button @click="doObsPhotoOptions"
+          >Send OPTIONS request</v-ons-button
+        >
+      </p>
+      <div>
+        We expect these to fail with 422 but that's good. It means we passed the
+        CORS preflight check.
+        <div class="gimme-some-space">
+          <v-ons-button @click="doObsPhotoPost"
+            >Send POST request from main thread</v-ons-button
+          >
+        </div>
+        <div class="gimme-some-space">
+          <v-ons-button @click="doSwObsPhotoPost"
+            >Send POST request from SW</v-ons-button
+          >
+        </div>
+      </div>
+      <code
+        ><pre>{{ obsPhotoReqOutcome }}</pre></code
+      >
     </v-ons-card>
     <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
@@ -232,7 +322,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters, mapState } from 'vuex'
 import moment from 'moment'
 import _ from 'lodash'
 import ml5 from 'ml5'
@@ -241,11 +331,19 @@ import * as Comlink from 'comlink'
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
-import { isSwActive } from '@/misc/helpers'
+import {
+  clearLocalStorage,
+  isSwActive,
+  triggerSwDepsQueue,
+  triggerSwObsQueue,
+  unregisterAllServiceWorkers,
+} from '@/misc/helpers'
+import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 
 const wowModelPath = '/image-ml/v1/model.json'
 
 export default {
+  name: 'Admin',
   data() {
     return {
       lat: null,
@@ -267,11 +365,15 @@ export default {
       classifier: null,
       ourWorker: null,
       swHealthCheckResult: 'nothing yet',
+      hasConsoleBeenProxiedToUi: false,
+      obsPhotoReqOutcome: 'nothing yet',
+      hasSwConsoleBeenProxied: false,
     }
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapGetters('ephemeral', ['swStatus', 'isSwStatusActive']),
+    ...mapState('ephemeral', ['consoleMsgs']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
@@ -392,8 +494,10 @@ export default {
           this.alt = loc.coords.altitude
           this.acc = loc.coords.accuracy
         },
-        () => {
-          this.locErrorMsg = 'Location access is blocked'
+        err => {
+          const msg = 'Location access is failed. '
+          console.error(msg, err)
+          this.locErrorMsg = msg + err.message
         },
       )
     },
@@ -438,7 +542,7 @@ export default {
     },
     triggerSwObsQueue() {
       this.swObsQueueStatus = 'processing'
-      this._sendMessageToSw(constants.syncObsQueueMsg)
+      triggerSwObsQueue()
         .then(() => {
           console.debug(
             'Triggering of SW obs queue processing completed successfully',
@@ -446,12 +550,12 @@ export default {
           this.swObsQueueStatus = 'finished'
         })
         .catch(err => {
-          this.swObsQueueStatus = 'error. ' + err
+          this.swObsQueueStatus = 'error. ' + err.message
         })
     },
     triggerSwDepsQueue() {
       this.swDepsQueueStatus = 'processing'
-      this._sendMessageToSw(constants.syncDepsQueueMsg)
+      triggerSwDepsQueue()
         .then(() => {
           console.debug(
             'Triggering of SW deps queue processing completed successfully',
@@ -480,6 +584,74 @@ export default {
     },
     async doProjectInfoRefresh() {
       await this.$store.dispatch('obs/getProjectInfo')
+    },
+    async enableSwConsoleProxy() {
+      this.hasSwConsoleBeenProxied = true
+      this.$store.state.ephemeral.swReg.active.postMessage(
+        constants.proxySwConsoleMsg,
+      )
+      console.log('Message sent to SW to enable console proxying')
+    },
+    enableConsoleProxyToUi() {
+      const origConsole = {}
+      for (const curr of ['debug', 'info', 'warn', 'error']) {
+        origConsole[curr] = console[curr]
+        console[curr] = (...theArgs) => {
+          const simpleMsg = theArgs.reduce((accum, curr) => {
+            accum += curr + ' ' // TODO do we need to handle Errors or objects specially?
+            return accum
+          }, '')
+          this.$store.commit('ephemeral/pushConsoleMsg', {
+            level: curr,
+            msg: simpleMsg,
+          })
+          origConsole[curr](...theArgs) // still log to the devtools console
+        }
+      }
+      this.hasConsoleBeenProxiedToUi = true
+      origConsole.debug(
+        'Console has been proxied to UI. You should see this *only* in the console, not the UI',
+      )
+      console.debug(
+        'Console has been proxied to UI. You should see this in the *UI* and the console',
+      )
+    },
+    clearConsole() {
+      this.$store.commit('ephemeral/clearConsoleMsgs')
+    },
+    async resetDuringDev() {
+      clearLocalStorage()
+      unregisterAllServiceWorkers()
+      await deleteKnownStorageInstances()
+    },
+    async doObsPhotoOptions() {
+      return this._doObsPhotoRequest('OPTIONS')
+    },
+    async doObsPhotoPost() {
+      return this._doObsPhotoRequest('POST')
+    },
+    async _doObsPhotoRequest(method) {
+      this.obsPhotoReqOutcome = 'nothing yet'
+      try {
+        const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
+          method: method,
+          retries: 0,
+          headers: {
+            Authorization: this.$store.state.auth.apiToken,
+          },
+        })
+        this.obsPhotoReqOutcome = resp.ok ? 'seem ok' : 'seems NOT ok'
+        console.debug(`Obs photos ${method} req done`)
+      } catch (err) {
+        this.obsPhotoReqOutcome = 'error'
+        console.error(
+          `Failed when making ${method} request to obs photo endpoint`,
+          err,
+        )
+      }
+    },
+    doSwObsPhotoPost() {
+      this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
     },
   },
 }
@@ -514,5 +686,19 @@ export default {
 
 .footer-whitespace {
   height: 100vh;
+}
+
+.console-error {
+  font-weight: bold;
+  color: red;
+}
+
+.console-warn {
+  font-weight: bold;
+  color: orange;
+}
+
+.gimme-some-space {
+  margin-top: 1em;
 }
 </style>
