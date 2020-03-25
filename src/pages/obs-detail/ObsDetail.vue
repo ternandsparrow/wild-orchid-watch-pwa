@@ -97,51 +97,55 @@
         <h3>Observation data</h3>
         <v-ons-list>
           <template v-for="curr of nullSafeObs.obsFieldValues">
-            <v-ons-list-header
-              :key="curr.fieldId + '-header'"
-              class="wow-list-header"
-              >{{ curr.name }}</v-ons-list-header
-            >
-            <v-ons-list-item
-              :key="curr.fieldId + '-value'"
-              modifier="nodivider"
-              class="wow-list-item"
-              :class="{
-                'multiselect-container': curr.multiselectId,
-              }"
-            >
-              <span v-if="!curr.multiselectId"> {{ curr.title }}</span>
-              <div v-else>
-                <div
-                  v-for="currMultiselectValue of curr.multiselectValues"
-                  :key="currMultiselectValue.name"
-                  class="multiselect-value"
-                >
-                  <div class="const-ms-width">
-                    <div v-if="currMultiselectValue.value === yesValue">
-                      <v-ons-icon icon="fa-check" class="yes"></v-ons-icon>
+            <template v-if="isAdvancedUserMode || !curr.isAdvancedField">
+              <v-ons-list-header
+                :key="curr.fieldId + '-header'"
+                class="wow-list-header"
+                >{{ curr.name }}</v-ons-list-header
+              >
+              <v-ons-list-item
+                :key="curr.fieldId + '-value'"
+                modifier="nodivider"
+                class="wow-list-item"
+                :class="{
+                  'multiselect-container': curr.multiselectId,
+                }"
+              >
+                <span v-if="!curr.multiselectId"> {{ curr.title }}</span>
+                <div v-else>
+                  <div
+                    v-for="currMultiselectValue of curr.multiselectValues"
+                    :key="currMultiselectValue.name"
+                    class="multiselect-value"
+                  >
+                    <div class="const-ms-width">
+                      <div v-if="currMultiselectValue.value === yesValue">
+                        <v-ons-icon icon="fa-check" class="yes"></v-ons-icon>
+                      </div>
+                      <div v-else-if="currMultiselectValue.value === noValue">
+                        <v-ons-icon icon="fa-times" class="no"></v-ons-icon>
+                      </div>
+                      <div v-else>{{ currMultiselectValue.value }}</div>
                     </div>
-                    <div v-else-if="currMultiselectValue.value === noValue">
-                      <v-ons-icon icon="fa-times" class="no"></v-ons-icon>
+                    <div class="multiselect-question">
+                      {{ currMultiselectValue.name }}
                     </div>
-                    <div v-else>{{ currMultiselectValue.value }}</div>
-                  </div>
-                  <div class="multiselect-question">
-                    {{ currMultiselectValue.name }}
                   </div>
                 </div>
+              </v-ons-list-item>
+            </template>
+          </template>
+          <template v-if="isAdvancedUserMode">
+            <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
+            <v-ons-list-item>
+              <div v-show="nullSafeObs.notes">
+                {{ nullSafeObs.notes }}
+              </div>
+              <div v-show="!nullSafeObs.notes" class="no-notes">
+                (no notes)
               </div>
             </v-ons-list-item>
           </template>
-          <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
-          <v-ons-list-item>
-            <div v-show="nullSafeObs.notes">
-              {{ nullSafeObs.notes }}
-            </div>
-            <div v-show="!nullSafeObs.notes" class="no-notes">
-              (no notes)
-            </div>
-          </v-ons-list-item>
         </v-ons-list>
         <div class="inat-details">
           <div>iNat ID: {{ nullSafeObs.inatId }}</div>
@@ -194,6 +198,7 @@ import {
   getMultiselectId,
   noImagePlaceholderUrl,
   noValue,
+  notCollected,
   yesValue,
 } from '@/misc/constants'
 import {
@@ -227,8 +232,13 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('obs', ['observationDetail', 'isSelectedRecordEditOfRemote']),
+    ...mapGetters('obs', [
+      'advancedModeOnlyObsFieldIds',
+      'isSelectedRecordEditOfRemote',
+      'observationDetail',
+    ]),
     ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
+    ...mapState('app', ['isAdvancedUserMode']),
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
     },
@@ -253,6 +263,18 @@ export default {
             accum.push({
               ...curr,
               title: mappedValue,
+              isAdvancedField: (() => {
+                // looking for == notCollected probably isn't the most robust
+                // check. In a perfect world we would recreate the complex rules
+                // around our conditionally required fields and use that knowledge
+                // here. But this is easy and has the same effect because required
+                // fields can't be not collected
+                const isNotCollected = curr.value === notCollected
+                const isDefinitelyAdvanced = this.advancedModeOnlyObsFieldIds[
+                  curr.fieldId
+                ]
+                return isDefinitelyAdvanced || isNotCollected
+              })(),
             })
             return accum
           }
@@ -264,6 +286,9 @@ export default {
               ...curr,
               multiselectId,
               multiselectValues: [{ name: curr.name, value: mappedValue }],
+              // we don't have any required multiselects so we can simply hide them
+              // all in beginner mode
+              isAdvancedField: true,
             })
             return accum
           }

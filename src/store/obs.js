@@ -1507,6 +1507,16 @@ const getters = {
       return accum
     }, {})
   },
+  advancedModeOnlyObsFieldIds(state) {
+    // this doesn't handle conditional requiredness, but we tackle that elsewhere
+    return state.projectInfo.project_observation_fields.reduce(
+      (accum, curr) => {
+        accum[curr.id] = curr.required
+        return accum
+      },
+      {},
+    )
+  },
 }
 
 function isErrorOutcome(outcome) {
