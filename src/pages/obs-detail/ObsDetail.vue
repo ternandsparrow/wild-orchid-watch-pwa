@@ -179,11 +179,76 @@
           </div>
         </div>
       </div>
-      <!-- <div v-if="selectedTab === 2">                -->
-      <!--   <p class="text-center" style="color: red;"> -->
-      <!--     TODO add comments and identifications     -->
-      <!--   </p>                                        -->
-      <!-- </div>                                        -->
+      <div v-if="selectedTab === 2">
+        <h3>Identifications and comments</h3>
+        <div v-if="isNoIdsOrComments" class="no-records-msg">
+          There are no identifications or comments, so far..
+        </div>
+        <v-ons-list v-if="!isNoIdsOrComments">
+          <template v-for="curr of nullSafeObs.idsAndComments">
+            <template v-if="curr.wowType === 'identification'">
+              <v-ons-list-header
+                :key="curr.uuid + '-header'"
+                class="interaction-header"
+                :class="{ withdrawn: !curr.isCurrent }"
+              >
+                <span v-if="curr.isCurrent" class="category">{{
+                  curr.category
+                }}</span>
+                <span v-if="!curr.isCurrent" class="category"
+                  >ID Withdrawn</span
+                >
+                <strong>{{ curr.userLogin }}</strong> suggested an ID
+              </v-ons-list-header>
+              <v-ons-list-item :key="curr.uuid + '-item'">
+                <div class="left">
+                  <img
+                    class="list-item__thumbnail"
+                    :src="identificationPhotoUrl(curr)"
+                  />
+                </div>
+                <div class="center">
+                  <span
+                    class="list-item__title wow-identification-title"
+                    :class="{ withdrawn: !curr.isCurrent }"
+                    >{{ curr.taxonCommonName }}</span
+                  >
+                  <span
+                    class="list-item__subtitle"
+                    :class="{ withdrawn: !curr.isCurrent }"
+                    >{{ curr.taxonLatinName }}</span
+                  >
+                  <span class="list-item__subtitle">{{
+                    dateInfo(curr.createdAt)
+                  }}</span>
+                  <p class="identification-comment">{{ curr.body }}</p>
+                </div>
+              </v-ons-list-item>
+            </template>
+            <template v-else-if="curr.wowType === 'comment'">
+              <v-ons-list-header
+                :key="curr.uuid + '-header'"
+                class="interaction-header"
+              >
+                <strong>{{ curr.userLogin }}</strong> commented
+              </v-ons-list-header>
+              <v-ons-list-item :key="curr.uuid + '-item'">
+                <div class="center">
+                  <span class="list-item__subtitle">{{
+                    dateInfo(curr.createdAt)
+                  }}</span>
+                  <p class="identification-comment">{{ curr.body }}</p>
+                </div>
+              </v-ons-list-item>
+            </template>
+            <template v-else>
+              <h1 :key="curr.uuid + '-error'" style="color: red;">
+                Programmer problem - unsupported type {{ curr.wowType }}
+              </h1>
+            </template>
+          </template>
+        </v-ons-list>
+      </div>
     </div>
     <wow-photo-preview />
   </v-ons-page>
@@ -224,7 +289,7 @@ export default {
       tabs: [
         { icon: 'fa-info' },
         { icon: 'fa-map-marked-alt' },
-        // { icon: 'fa-comments' }, FIXME uncomment when we get the content
+        { icon: 'fa-comments' },
       ],
       obsFieldSorterFn: null,
       yesValue,
@@ -360,6 +425,9 @@ export default {
     observedDateInfoText() {
       return humanDateString(this.nullSafeObs.observedAt)
     },
+    isNoIdsOrComments() {
+      return !this.nullSafeObs.idsAndComments.length
+    },
   },
   watch: {
     '$route.params.id'(val) {
@@ -490,6 +558,12 @@ export default {
         url: url.indexOf('medium') > 0 ? url.replace('medium', 'large') : url,
       })
     },
+    dateInfo(item) {
+      return humanDateString(item)
+    },
+    identificationPhotoUrl(identification) {
+      return identification.taxonPhotoUrl || noImagePlaceholderUrl
+    },
   },
 }
 </script>
@@ -595,5 +669,28 @@ table.geolocation-detail {
 
 .const-ms-width {
   flex: 0 0 1em;
+}
+
+.interaction-header {
+  text-transform: none;
+
+  .category {
+    float: right;
+    text-transform: capitalize;
+    margin-right: 1em;
+  }
+}
+
+.identification-comment {
+  order: 1;
+  white-space: pre-line;
+}
+
+.wow-identification-title {
+  font-size: 1.4em;
+}
+
+.withdrawn {
+  text-decoration: line-through;
 }
 </style>
