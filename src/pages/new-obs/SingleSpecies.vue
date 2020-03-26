@@ -249,6 +249,32 @@
           <v-ons-button @click="onSave">Save</v-ons-button>
         </div>
       </v-ons-list-item>
+      <v-ons-list-item class="advanced-switch-container">
+        <label class="center" for="advancedSwitch">
+          <span class="list-item__title">Enable advanced mode</span>
+          <span class="list-item__subtitle"
+            ><span v-if="!isAdvancedUserMode"
+              >You are currently in beginner mode. You are presented with fewer
+              questions while you get used to the process. If you'd like to
+              collect more information, use this switch to enable advanced mode
+              which will show more questions. All these questions are optional
+              and you can always switch back if you don't like it.</span
+            >
+            <span v-if="isAdvancedUserMode"
+              >You are currently in advanced mode and have the option to collect
+              more information. This extra information is <i>optional</i> but if
+              you prefer a simpler interface, you can go back to beginner
+              mode.</span
+            >
+            This configuration item is also available in the
+            <i>Settings</i> menu.
+          </span>
+        </label>
+        <div class="right">
+          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          </v-ons-switch>
+        </div>
+      </v-ons-list-item>
     </v-ons-list>
     <div class="footer-whitespace"></div>
     <v-ons-dialog cancelable :visible.sync="formErrorDialogVisible">
@@ -292,7 +318,11 @@ import {
   wowErrorHandler,
 } from '@/misc/helpers'
 import {
+  accuracyOfPopulationCountObsFieldDefault,
+  accuracyOfPopulationCountObsFieldId,
+  accuracyOfSearchAreaCalcEstimated,
   accuracyOfSearchAreaCalcObsFieldId,
+  accuracyOfSearchAreaCalcPrecise,
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
   blocked,
@@ -316,8 +346,6 @@ import {
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
   yesValue,
-  accuracyOfSearchAreaCalcEstimated,
-  accuracyOfSearchAreaCalcPrecise,
 } from '@/misc/constants'
 
 const speciesGuessRecentTaxaKey = 'speciesGuess'
@@ -383,7 +411,14 @@ export default {
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['networkOnLine', 'isHelpModalVisible']),
-    ...mapState('app', ['isAdvancedUserMode']),
+    isAdvancedUserMode: {
+      get() {
+        return this.$store.state.app.isAdvancedUserMode
+      },
+      set(newValue) {
+        this.$store.commit('app/setIsAdvancedUserMode', newValue)
+      },
+    },
     displayableObsFields() {
       const clonedObsFields = this.obsFields.slice(0)
       const result = clonedObsFields.reduce((accum, curr) => {
@@ -823,6 +858,10 @@ export default {
           countOfIndividualsObsFieldId,
           countOfIndividualsObsFieldDefault,
         )
+        this.setDefaultIfSupplied(
+          accuracyOfPopulationCountObsFieldId,
+          accuracyOfPopulationCountObsFieldDefault,
+        )
       } catch (err) {
         // FIXME the UI doesn't reflect this error, is it because we're in mounted()?
         this.$store.dispatch(
@@ -968,6 +1007,11 @@ export default {
           speciesGuess: this.speciesGuessValue,
           obsFieldValues: this.displayableObsFields.reduce(
             (accum, currField) => {
+              const isNotSavable =
+                !this.isAdvancedUserMode && currField.isAdvancedField
+              if (isNotSavable) {
+                return accum
+              }
               const isMultiselect =
                 currField.wowDatatype === multiselectFieldType
               if (isMultiselect) {
@@ -1452,7 +1496,7 @@ $thumbnailSize: 75px;
 }
 
 .footer-whitespace {
-  height: 50vh;
+  height: 20vh;
 }
 
 .error-msg-list {
@@ -1496,5 +1540,9 @@ $thumbnailSize: 75px;
 
 .be-wide {
   flex-grow: 1;
+}
+
+.advanced-switch-container {
+  margin-top: 10em;
 }
 </style>
