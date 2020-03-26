@@ -426,7 +426,7 @@ export default {
       return humanDateString(this.nullSafeObs.observedAt)
     },
     isNoIdsOrComments() {
-      return !this.nullSafeObs.idsAndComments.length
+      return !(this.nullSafeObs.idsAndComments || []).length
     },
   },
   watch: {
