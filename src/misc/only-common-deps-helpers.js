@@ -1,6 +1,26 @@
 // in an effort to keep the SW small, we need to stop an exploding number of
 // transient imports. This module is essentially the same as helpers.js but
-// with no imports.
+// with only the imports that both the SW and main code use.
+import * as Sentry from '@sentry/browser' // piggybacks on the config done in whatever thread imports us
+
+export function wowErrorHandler(msg, err) {
+  console.error(msg, err || '(no error object passed)')
+  const processedError = chainedError(msg, err)
+  Sentry.withScope(function(scope) {
+    if (err && err.httpStatus) {
+      scope.setTag('http-status', err.httpStatus)
+    }
+    Sentry.captureException(processedError)
+  })
+}
+
+export function wowWarnHandler(msg, err) {
+  console.warn(msg, err || '(no error object passed)')
+  Sentry.withScope(scope => {
+    scope.setLevel('warning')
+    Sentry.captureException(chainedError(msg, err))
+  })
+}
 
 export function chainedError(msg, err) {
   if (!err) {

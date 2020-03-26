@@ -1,6 +1,7 @@
 import {
   epiphyte,
   estimated,
+  exact,
   multiselectSeparator,
   noValue,
   notCollected as notCollectedDefault,
@@ -158,6 +159,7 @@ export const accuracyOfSearchAreaCalcEstimated =
   process.env.VUE_APP_OBS_FIELD_ACCURACY_ESTIMATED || estimated
 export const countOfIndividualsObsFieldDefault =
   process.env.VUE_APP_OBS_FIELD_COUNT_DEFAULT || 1
+export const accuracyOfPopulationCountObsFieldDefault = exact
 
 export const notCollected =
   process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault
@@ -301,6 +303,8 @@ export const refreshObsMsg = 'REFRESH_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 export const testSendObsPhotoPostMsg = 'TEST_OBS_PHOTO_POST'
+export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
+export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
 
 // Record processing outcomes
 export const waitingOutcome = 'waiting' // waiting to be processed

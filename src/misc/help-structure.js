@@ -258,12 +258,12 @@ export default (() => {
         ['Exact', 'Count of individuals within the defined area.', 'blank'],
         [
           'Partial count',
-          'A fertile soil of clay and sand containing humus.',
+          'Spatially defined subset of the population',
           'blank',
         ],
         [
           'Extrapolated/estimate',
-          'Spatially defined subset of the population',
+          'Looking around from a single point or any form of estimate',
           'blank',
         ],
       ],

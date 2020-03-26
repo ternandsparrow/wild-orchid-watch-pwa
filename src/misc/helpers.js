@@ -1,11 +1,17 @@
-import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
 import moment from 'moment'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
-import { chainedError, now } from './no-deps-helpers'
+import {
+  chainedError,
+  now,
+  // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
+  // wowErrorHandler eventually
+  wowErrorHandler,
+  wowWarnHandler,
+} from './only-common-deps-helpers'
 
-export { chainedError, now }
+export { chainedError, now, wowErrorHandler, wowWarnHandler }
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -14,27 +20,6 @@ const commonHeaders = {
 const jsonHeaders = {
   'Content-Type': 'application/json',
   ...commonHeaders,
-}
-
-// Prefer to dispatch('flagGlobalError') as that will inform the UI and call
-// this eventually
-export function wowErrorHandler(msg, err) {
-  console.error(msg, err || '(no error object passed)')
-  const processedError = chainedError(msg, err)
-  Sentry.withScope(function(scope) {
-    if (err && err.httpStatus) {
-      scope.setTag('http-status', err.httpStatus)
-    }
-    Sentry.captureException(processedError)
-  })
-}
-
-export function wowWarnHandler(msg, err) {
-  console.warn(msg, err || '(no error object passed)')
-  Sentry.withScope(scope => {
-    scope.setLevel('warning')
-    Sentry.captureException(chainedError(msg, err))
-  })
 }
 
 export function postJson(url, data = {}) {

@@ -121,6 +121,7 @@ function buildWrapper() {
       'v-ons-list-item': true,
       'v-ons-modal': true,
       'v-ons-page': true,
+      'v-ons-switch': true,
       'wow-autocomplete': true,
       'wow-header': true,
       'wow-help': true,

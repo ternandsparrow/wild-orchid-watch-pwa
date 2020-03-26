@@ -9,7 +9,7 @@ const state = {
   whenToSync: alwaysUpload,
   isAdvancedUserMode: false,
   addToHomeIosPromptLastDate: null,
-  isEnablePhotoCompression: true,
+  isEnablePhotoCompression: false,
 }
 
 const mutations = {

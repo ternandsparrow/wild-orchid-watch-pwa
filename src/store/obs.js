@@ -1680,16 +1680,43 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   )
   result.lat = lat
   result.lng = lng
-  const obsFieldValues = obsFromApi.ofvs.map(o => {
-    return {
-      relationshipId: o.id,
-      fieldId: o.field_id,
-      datatype: o.datatype,
-      name: processObsFieldName(o.name),
-      value: o.value,
-    }
+  result.obsFieldValues = obsFromApi.ofvs.map(o => ({
+    relationshipId: o.id,
+    fieldId: o.field_id,
+    datatype: o.datatype,
+    name: processObsFieldName(o.name),
+    value: o.value,
+  }))
+  result.identifications = obsFromApi.identifications.map(i => ({
+    uuid: i.uuid,
+    createdAt: i.created_at,
+    isCurrent: i.current,
+    body: i.body,
+    taxonLatinName: i.taxon.name,
+    taxonCommonName: i.taxon.preferred_common_name,
+    taxonId: i.taxon_id,
+    taxonPhotoUrl: (i.taxon.default_photo || {}).square_url,
+    userLogin: i.user.login,
+    userId: i.user.id,
+    category: i.category,
+    wowType: 'identification',
+  }))
+  result.comments = obsFromApi.comments.map(c => ({
+    uuid: c.uuid,
+    body: c.body,
+    createdAt: c.created_at,
+    isHidden: c.hidden,
+    userLogin: c.user.login,
+    userId: c.user.id,
+    wowType: 'comment',
+  }))
+  result.idsAndComments = [...result.comments, ...result.identifications]
+  result.idsAndComments.sort((a, b) => {
+    const f = 'createdAt'
+    if (moment(a[f]).isBefore(b[f])) return -1
+    if (moment(a[f]).isAfter(b[f])) return 1
+    return 0
   })
-  result.obsFieldValues = obsFieldValues
   return result
 }
 

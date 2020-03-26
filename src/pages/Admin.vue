@@ -240,7 +240,7 @@
       <p>
         <v-ons-input
           v-model="manualErrorMsg"
-          placeholder="Error message here..."
+          placeholder="Error message here... (only used for main thread)"
         >
         </v-ons-input>
       </p>
@@ -254,9 +254,15 @@
           Catch and handle error (or let bubble to the top)
         </label>
       </p>
-
       <p>
-        <v-ons-button @click="doManualError">Trigger error</v-ons-button>
+        <v-ons-button @click="doManualError"
+          >Trigger error in main thread</v-ons-button
+        >
+      </p>
+      <p>
+        <v-ons-button @click="doManualErrorSw"
+          >Trigger error in service worker</v-ons-button
+        >
       </p>
     </v-ons-card>
     <v-ons-card>
@@ -534,6 +540,13 @@ export default {
         },
         { root: true },
       )
+    },
+    doManualErrorSw() {
+      if (this.isManualErrorCaught) {
+        this._sendMessageToSw(constants.testTriggerManualCaughtErrorMsg)
+        return
+      }
+      this._sendMessageToSw(constants.testTriggerManualUncaughtErrorMsg)
     },
     fireCheckSwCall() {
       isSwActive().then(result => {
