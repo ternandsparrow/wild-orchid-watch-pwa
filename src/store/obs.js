@@ -1713,8 +1713,8 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.idsAndComments = [...result.comments, ...result.identifications]
   result.idsAndComments.sort((a, b) => {
     const f = 'createdAt'
-    if (moment(a[f]).isBefore(b[f])) return 1
-    if (moment(a[f]).isAfter(b[f])) return -1
+    if (moment(a[f]).isBefore(b[f])) return -1
+    if (moment(a[f]).isAfter(b[f])) return 1
     return 0
   })
   return result
