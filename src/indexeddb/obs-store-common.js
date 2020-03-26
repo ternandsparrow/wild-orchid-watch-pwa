@@ -1,8 +1,8 @@
-// Function related to the dealing with out observation store that are required
+// Functions related to the dealing with our observation store that are required
 // by both the client and the service worker. We don't want the SW to import
 // the vuex code hence this module
 import { getOrCreateInstance } from './storage-manager'
-import { chainedError } from '../misc/no-deps-helpers'
+import { chainedError } from '../misc/only-common-deps-helpers'
 import * as constants from '../misc/constants'
 
 const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)

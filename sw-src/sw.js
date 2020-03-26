@@ -1,4 +1,5 @@
 import 'formdata-polyfill'
+import * as Sentry from '@sentry/browser'
 import { BackgroundSyncPlugin } from 'workbox-background-sync/BackgroundSyncPlugin.mjs'
 import { Queue } from 'workbox-background-sync/Queue.mjs'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
@@ -7,7 +8,21 @@ import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
 import base64js from 'base64-js'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
+import { wowErrorHandler } from '../src/misc/only-common-deps-helpers'
 import * as constants from '../src/misc/constants.js'
+
+if (constants.deployedEnvName !== 'local-development') {
+  // don't init Sentry during (local) dev because developers make lots of errors
+  Sentry.init({
+    dsn: constants.sentryDsn,
+    release: constants.appVersion,
+  })
+  Sentry.configureScope(scope => {
+    scope.setTag('environment', constants.deployedEnvName)
+  })
+} else {
+  console.debug('Env is local dev, refusing to init Sentry in SW')
+}
 
 /**
  * Some situations mean we can't see console messages from the SW (sometimes we
@@ -209,7 +224,7 @@ const obsQueue = new Queue('obs-queue', {
           // (ie. this try block) will mean that we never queue up the deps for a
           // successful obs. Might need extra logic to scan obs on the remote and
           // check for pending deps, then trigger the queuing?
-          console.warn(
+          wowWarnHandler(
             `Failed to queue dependents of obsId=${obsId}. This is bad.` +
               ` We do not know which, if any, deps were queued. Retrying probably` +
               ` won't help either as the error is not network related.`,
@@ -387,7 +402,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         // Workbox does this for good reason: it needs to process items that were
         // added to the queue during the sync. It's a bit messy because the error
         // ends up as an "Uncaught (in promise)" but that's due to
-        // https://github.com/GoogleChrome/workbox/blob/v4.3.1/packages/workbox-background-sync/Queue.mjs#L331.
+        // https://github.com/GoogleChrome/workbox/blob/v5.0.0/packages/workbox-background-sync/src/Queue.ts#L370.
         // Maybe should that just be a console.error/warn?
         throw (() => {
           const result = new Error(
@@ -400,7 +415,10 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       try {
         await successCb(entry, entry.request, resp)
       } catch (err) {
-        console.error('Failed during callback for a queue item, re-throwing...')
+        wowErrorHandler(
+          'Failed during callback for a queue item, re-throwing...',
+          err,
+        )
         // FIXME probably shouldn't throw here. Not sure what to do. Certainly
         // log the error and perhaps continue processing the queue
         throw err
@@ -785,6 +803,12 @@ self.addEventListener('message', function(event) {
     case constants.testSendObsPhotoPostMsg:
       doObsPhotoPostTest()
       return
+    case constants.testTriggerManualCaughtErrorMsg:
+      doManualErrorTest(true)
+      return
+    case constants.testTriggerManualUncaughtErrorMsg:
+      doManualErrorTest(false)
+      return
   }
 })
 
@@ -805,6 +829,18 @@ async function doObsPhotoPostTest() {
   } catch (err) {
     console.error(`Failed when making POST request to obs photo endpoint`, err)
   }
+}
+
+function doManualErrorTest(isCaught) {
+  const err = new Error(
+    '[Manually triggered error from /admin] thrown inside service worker',
+  )
+  err.httpStatus = 418
+  err.name = 'ManuallyTriggeredErrorInSw'
+  if (!isCaught) {
+    throw err
+  }
+  wowErrorHandler(`Handling manually thrown error with our code`, err)
 }
 
 function sendMessageToClient(client, msg) {
@@ -831,6 +867,7 @@ async function sendMessageToAllClients(msg) {
     } catch (err) {
       const noProxyConsoleError = origConsole.error || console.error
       noProxyConsoleError(`Failed to send message=${msg} to client`, err)
+      // TODO notify Sentry?
     }
   }
 }
