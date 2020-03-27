@@ -1,5 +1,7 @@
 This document will describe how the app is built and why choices were made.
 
+# Techonology choices
+
 ## PWA (Progressive Web App)
 We chose to build this app as a PWA for a few reasons:
   1. we already have experience building web apps and this lets us reuse those
@@ -25,8 +27,8 @@ store presence (TODO - do more reading on that).
 We need to use the `fetch` API in order to take advantage of service workers.
 Using fetch means we don't support browsers that [don't support this API](
 https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API#Browser_compatibility
-), which is Chrome &gte;42, Edge &gte;14, Firefox &gte;39, Opera &gte;29 and
-Safari 10.1 (desktop)/10.3 (iOS).
+), which is Chrome >42, Edge >14, Firefox >39, Opera >29 and Safari 10.1
+(desktop)/10.3 (iOS).
 
 
 ## babel
@@ -177,3 +179,46 @@ if 'is existing blocked action'
   delete: replace with delete action
 else
   set value to our action
+
+## Getting photos
+We did actually had a choice here. We went with option 1.
+
+**Choice 1: defer to system camera.** With this option we just create a `<input
+type="file"...>` element and let the user agent do all the heavy lifting for us.
+The benefits are:
+  - we don't need to write any camera-related code
+  - users can use the camera app they're familiar with
+  - users have the choice to get a photo however they want: camera app, select
+      an existing photo, etc
+  - if the user's camera app supports it (not all do), photos taken will also be
+      saved to the devices gallery/camera roll
+The downsides are:
+  - there's more tapping/clicking to upload multiple photos
+  - we can't overlay any help text/guides on the camera
+  - users will have different experiences on different devices
+
+**Choice 2: all in-app.** With this option we would use the HTML API
+[navigator.getUserMedia()](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
+to get a video stream from the device's webcam. Then when the user presses the
+"capture" button, we grab a frame from the video stream as the photo.
+The benefits are:
+  - we can control the workflow by getting the user to take one photo after
+      another with fewer taps needed
+  - we can overlay text and guides on the screen to help the user take photos
+      like we need them
+The downsides of this choice are:
+  - we need to maintain all the code for the "camera"
+  - any photos taken *definitely* won't be saved to the device's gallery/camera roll
+  - the device *must* have a camera to use the app. This rules out devices without a camera (desktops) and those just wanting to upload a photo.
+  - if we do want to support both taking a photo and uploading an existing
+      photo, we need to build option 1 as well.
+
+A note on saving photos to the gallery/camera roll on mobile devices. It seems
+there's some differences with camera apps when you opt to take a photo that will
+immediately be attached for an upload. Some will save the photo to the gallery
+(LG's Android camera) whereras others (e.g. Samsung Android camera) will *not*
+save the photo to the gallery.  The rationale behind *not* saving is that the
+user is attaching a photo to be saved elsewhere so it doesn't make sense to also
+save it in gallery. In our case, this is the not the behaviour we want but being
+essentially just a web page means that we have zero control over this because
+we're sandboxed.
