@@ -224,5 +224,8 @@ essentially just a web page means that we have zero control over this because
 we're sandboxed.
 
 Known Android camera apps that *do* save to the gallery:
-  - LG Android camera (built-in to LG phones)
-  - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU) (remember to enable geotagging so photo have GPS location stored)
+  - LG Android camera (built-in to LG phones). On device it's known as
+      `com.lge.camera`, which is installed to
+      `/system/priv-app/LGCameraApp/LGCameraApp.apk`
+  - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU)
+      (remember to enable geotagging so photo have GPS location stored)

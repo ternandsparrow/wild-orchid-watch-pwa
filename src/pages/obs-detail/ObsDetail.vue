@@ -5,7 +5,7 @@
         <v-ons-toolbar-button @click="onEdit">
           Edit
         </v-ons-toolbar-button>
-        <v-ons-toolbar-button @click="onActionMenu">
+        <v-ons-toolbar-button @click="onMainActionMenu">
           <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
         ></v-ons-toolbar-button>
       </template>
@@ -182,14 +182,20 @@
       <div v-if="selectedTab === 2">
         <h3>Identifications and comments</h3>
         <div v-if="isNoIdsOrComments" class="no-records-msg">
-          There are no identifications or comments, so far..
+          <span v-if="isSelectedRecordOnRemote"
+            >There are no identifications or comments, so far...</span
+          >
+          <span v-if="!isSelectedRecordOnRemote"
+            >Identifications and comments are not available until the
+            observation has been uploaded to the server.</span
+          >
         </div>
         <v-ons-list v-if="!isNoIdsOrComments">
           <template v-for="curr of nullSafeObs.idsAndComments">
             <template v-if="curr.wowType === 'identification'">
               <v-ons-list-header
                 :key="curr.uuid + '-header'"
-                class="interaction-header"
+                class="wow-list-header interaction-header"
                 :class="{ withdrawn: !curr.isCurrent }"
               >
                 <span v-if="curr.isCurrent" class="category">{{
@@ -228,7 +234,7 @@
             <template v-else-if="curr.wowType === 'comment'">
               <v-ons-list-header
                 :key="curr.uuid + '-header'"
-                class="interaction-header"
+                class="wow-list-header interaction-header"
               >
                 <strong>{{ curr.userLogin }}</strong> commented
               </v-ons-list-header>
@@ -239,6 +245,14 @@
                   }}</span>
                   <p class="identification-comment">{{ curr.body }}</p>
                 </div>
+                <div class="right">
+                  <v-ons-button
+                    modifier="quiet"
+                    @click="onCommentActionMenu(curr)"
+                  >
+                    <v-ons-icon icon="fa-ellipsis-v" class="muted" />
+                  </v-ons-button>
+                </div>
               </v-ons-list-item>
             </template>
             <template v-else>
@@ -248,9 +262,59 @@
             </template>
           </template>
         </v-ons-list>
+        <v-ons-list
+          v-if="isSelectedRecordOnRemote"
+          class="new-comment-container"
+        >
+          <wow-header label="Leave comment" />
+          <v-ons-list-item>
+            <p class="muted">
+              <v-ons-icon icon="fa-info-circle" /> Currently you can only
+              comment when you have an internet connection, not when offline.
+            </p>
+            <textarea
+              v-model="newCommentBody"
+              :disabled="isSavingComment"
+              placeholder="Leave a comment"
+              class="wow-textarea"
+            >
+            </textarea>
+            <div class="text-right comment-button-container">
+              <v-ons-button :disabled="isSavingComment" @click="onNewComment">
+                <span v-if="isSavingComment">Saving...</span>
+                <span v-if="!isSavingComment">Done</span>
+              </v-ons-button>
+            </div>
+          </v-ons-list-item>
+        </v-ons-list>
       </div>
     </div>
     <wow-photo-preview />
+    <v-ons-alert-dialog :visible.sync="isShowCommentEditModal">
+      <span slot="title">Edit comment</span>
+      <div class="edit-modal">
+        <textarea
+          v-model="editCommentRecord.body"
+          :disabled="isSavingComment"
+          class="wow-textarea edit-textarea"
+        >
+        </textarea>
+      </div>
+      <template slot="footer">
+        <v-ons-alert-dialog-button
+          :disabled="isSavingComment"
+          @click="onCancelEditComment"
+          >Cancel</v-ons-alert-dialog-button
+        >
+        <v-ons-alert-dialog-button
+          :disabled="isSavingComment"
+          @click="onSaveEditComment"
+        >
+          <span v-if="isSavingComment">Saving...</span>
+          <span v-if="!isSavingComment">Save</span>
+        </v-ons-alert-dialog-button>
+      </template>
+    </v-ons-alert-dialog>
   </v-ons-page>
 </template>
 
@@ -294,12 +358,17 @@ export default {
       obsFieldSorterFn: null,
       yesValue,
       noValue,
+      newCommentBody: null,
+      isSavingComment: false,
+      editCommentRecord: {},
+      isShowCommentEditModal: false,
     }
   },
   computed: {
     ...mapGetters('obs', [
       'advancedModeOnlyObsFieldIds',
       'isSelectedRecordEditOfRemote',
+      'isSelectedRecordOnRemote',
       'observationDetail',
     ]),
     ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
@@ -309,6 +378,9 @@ export default {
     },
     isPossiblyStuck() {
       return isPossiblyStuck(this.$store, this.observationDetail)
+    },
+    selectedObsInatId() {
+      return this.observationDetail.inatId
     },
     nullSafeObs() {
       const valueMappers = {
@@ -466,7 +538,7 @@ export default {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
-    onActionMenu() {
+    onMainActionMenu() {
       const menu = {
         Delete: () => {
           this.$ons.notification
@@ -542,6 +614,54 @@ export default {
           selectedItemFn && selectedItemFn()
         })
     },
+    onCommentActionMenu(commentRecord) {
+      const menu = {
+        Delete: () => {
+          this.$ons.notification
+            .confirm('Are you sure about deleting this comment?')
+            .then(answer => {
+              if (!answer) {
+                return
+              }
+              this.$store
+                .dispatch('obs/deleteComment', {
+                  obsId: this.selectedObsInatId,
+                  commentRecord,
+                })
+                .then(() => {
+                  this.$ons.notification.toast('Comment deleted!', {
+                    timeout: 3000,
+                    animation: 'fall',
+                  })
+                })
+                .catch(err => {
+                  this.handleMenuError(err, {
+                    msg: 'Failed to delete comment',
+                    userMsg: 'Error while deleting comment.',
+                  })
+                })
+            })
+        },
+        Edit: () => {
+          this.isShowCommentEditModal = true
+          this.editCommentRecord = commentRecord
+        },
+      }
+      if (!this.md) {
+        menu.Cancel = () => {}
+      }
+      this.$ons
+        .openActionSheet({
+          buttons: Object.keys(menu),
+          cancelable: true,
+          destructive: 1,
+        })
+        .then(selIndex => {
+          const key = Object.keys(menu)[selIndex]
+          const selectedItemFn = menu[key]
+          selectedItemFn && selectedItemFn()
+        })
+    },
     handleMenuError(err, { msg, userMsg }) {
       this.$store.dispatch(
         'flagGlobalError',
@@ -563,6 +683,64 @@ export default {
     },
     identificationPhotoUrl(identification) {
       return identification.taxonPhotoUrl || noImagePlaceholderUrl
+    },
+    async onNewComment() {
+      try {
+        this.isSavingComment = true
+        await this.$store.dispatch('obs/createComment', {
+          obsId: this.selectedObsInatId,
+          commentBody: this.newCommentBody,
+        })
+        this.newCommentBody = null
+        this.$ons.notification.toast('Comment created', {
+          timeout: 3000,
+          animation: 'fall',
+        })
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed while POSTing new comment to the server`,
+            userMsg: 'Failed to create a new comment',
+            err,
+          },
+          { root: true },
+        )
+      } finally {
+        this.isSavingComment = false
+      }
+    },
+    async onSaveEditComment() {
+      try {
+        this.isSavingComment = true
+        await this.$store.dispatch('obs/editComment', {
+          obsId: this.selectedObsInatId,
+          commentRecord: this.editCommentRecord,
+        })
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed while PUTing edited comment to the server`,
+            userMsg: 'Failed to edit comment',
+            err,
+          },
+          { root: true },
+        )
+        return
+      } finally {
+        this.isSavingComment = false
+        this.isShowCommentEditModal = false
+      }
+      this.editCommentRecord = {}
+      this.$ons.notification.toast('Comment edited', {
+        timeout: 3000,
+        animation: 'fall',
+      })
+    },
+    onCancelEditComment() {
+      this.isShowCommentEditModal = false
+      this.editCommentRecord = {}
     },
   },
 }
@@ -692,5 +870,29 @@ table.geolocation-detail {
 
 .withdrawn {
   text-decoration: line-through;
+}
+
+.wow-textarea {
+  padding: 12px 16px 14px;
+  border-radius: 4px;
+  width: 100%;
+  height: 5em;
+}
+
+.edit-textarea {
+  width: auto;
+}
+
+.comment-button-container {
+  flex-grow: 1;
+  margin-top: 1em;
+}
+
+.new-comment-container {
+  margin-top: 2em;
+}
+
+.edit-modal {
+  /* FIXME how do we get this modal to be wider with a proportioned textarea? */
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-ons-list-item
-      v-for="curr in records"
+      v-for="curr in processedRecords"
       :key="keyPrefix + getId(curr)"
       modifier="chevron"
       @click="onClick(curr)"
@@ -26,6 +26,18 @@
           Possible problem</span
         >
       </div>
+      <div class="right">
+        <div class="obs-badges">
+          <span v-if="curr.commentCount" class="wow-badge">
+            <v-ons-icon icon="fa-comment"> </v-ons-icon>
+            {{ curr.commentCount }}
+          </span>
+          <span v-if="curr.idCount" class="wow-badge">
+            <v-ons-icon icon="fa-dna"> </v-ons-icon>
+            {{ curr.idCount }}
+          </span>
+        </div>
+      </div>
     </v-ons-list-item>
   </div>
 </template>
@@ -42,6 +54,15 @@ export default {
     keyPrefix: {
       type: String,
       default: '',
+    },
+  },
+  computed: {
+    processedRecords() {
+      return this.records.map(r => ({
+        ...r,
+        commentCount: (r.comments || []).length,
+        idCount: (r.identifications || []).length,
+      }))
     },
   },
   methods: {
@@ -86,5 +107,20 @@ export default {
 
 .warn-indicator {
   color: $wowWarnOrange;
+}
+
+.obs-badges {
+  color: #888;
+
+  .wow-badge {
+    margin-right: 0.2em;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 400px) {
+    .wow-badge {
+      display: block;
+    }
+  }
 }
 </style>
