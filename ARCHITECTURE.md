@@ -222,3 +222,7 @@ user is attaching a photo to be saved elsewhere so it doesn't make sense to also
 save it in gallery. In our case, this is the not the behaviour we want but being
 essentially just a web page means that we have zero control over this because
 we're sandboxed.
+
+Known Android camera apps that *do* save to the gallery:
+  - LG Android camera (built-in to LG phones)
+  - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU) (remember to enable geotagging so photo have GPS location stored)
