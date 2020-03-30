@@ -906,6 +906,147 @@ const actions = {
       await worker()
     }
   },
+  optimisticallyUpdateComments({ state, commit }, { obsId, commentRecord }) {
+    const existingRemoteObs = _.cloneDeep(state.allRemoteObs)
+    const targetObs = existingRemoteObs.find(e => e.inatId === obsId)
+    if (!targetObs) {
+      throw new Error(
+        `Could not find existing remote obs with ID='${obsId}' from IDs=${JSON.stringify(
+          existingRemoteObs.map(o => o.inatId),
+        )}`,
+      )
+    }
+    const obsComments = targetObs.comments || []
+    const strategy = (() => {
+      const existingCommentUuids = obsComments.map(c => c.uuid)
+      const key =
+        `${commentRecord.body ? '' : 'no-'}body|` +
+        `${existingCommentUuids.includes(commentRecord.uuid) ? 'not-' : ''}new`
+      const result = {
+        'body|new': function newStrategy() {
+          targetObs.comments.push(mapCommentFromApiToOurDomain(commentRecord))
+        },
+        'body|not-new': function editStrategy() {
+          const targetComment = obsComments.find(
+            c => c.uuid === commentRecord.uuid,
+          )
+          if (!targetComment) {
+            throw new Error(
+              `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+                `edit. Available comment UUIDs=${JSON.stringify(
+                  obsComments.map(c => c.uuid),
+                )}`,
+            )
+          }
+          for (const currKey of Object.keys(commentRecord)) {
+            targetComment[currKey] = commentRecord[currKey]
+          }
+        },
+        'no-body|not-new': function deleteStrategy() {
+          const indexOfComment = obsComments.findIndex(
+            e => e.uuid === commentRecord.uuid,
+          )
+          if (!~indexOfComment) {
+            throw new Error(
+              `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+                `delete. Available comment UUIDs=${JSON.stringify(
+                  obsComments.map(c => c.uuid),
+                )}`,
+            )
+          }
+          obsComments.splice(indexOfComment, 1)
+        },
+      }[key]
+      if (!result) {
+        throw new Error(
+          `Programmer problem: no strategy found for key='${key}'`,
+        )
+      }
+      return result
+    })()
+    console.debug(`Using strategy='${strategy.name}' to modify comments`)
+    strategy()
+    updateIdsAndCommentsFor(targetObs)
+    commit('setAllRemoteObs', existingRemoteObs)
+  },
+  async createComment({ dispatch }, { obsId, commentBody }) {
+    try {
+      // TODO support background sync with SW. Could be hard because we want
+      // the server response to optimistically insert into our local copy
+      const commentResp = await dispatch(
+        'doApiPost',
+        {
+          urlSuffix: '/comments',
+          data: {
+            comment: {
+              parent_type: 'Observation',
+              parent_id: obsId,
+              body: commentBody,
+            },
+          },
+        },
+        { root: true },
+      )
+      await dispatch('optimisticallyUpdateComments', {
+        obsId,
+        commentRecord: commentResp,
+      })
+      return commentResp.id
+    } catch (err) {
+      throw new chainedError('Failed to create new comment', err)
+    }
+  },
+  async editComment({ dispatch }, { obsId, commentRecord }) {
+    try {
+      // TODO support background sync with SW. Shouldn't need server for this
+      // one, we can guess what it'll look like
+      const commentResp = await dispatch(
+        'doApiPut',
+        {
+          urlSuffix: `/comments/${commentRecord.inatId}`,
+          data: {
+            comment: {
+              parent_type: 'Observation',
+              parent_id: obsId,
+              body: commentRecord.body,
+            },
+          },
+        },
+        { root: true },
+      )
+      await dispatch('optimisticallyUpdateComments', {
+        obsId,
+        commentRecord: commentResp,
+      })
+      return commentResp.id
+    } catch (err) {
+      throw new chainedError('Failed to create new comment', err)
+    }
+  },
+  async deleteComment({ dispatch }, { obsId, commentRecord }) {
+    const commentId = commentRecord.inatId
+    try {
+      // TODO support background sync with SW.
+      await dispatch(
+        'doApiDelete',
+        {
+          urlSuffix: `/comments/${commentId}`,
+        },
+        { root: true },
+      )
+      return dispatch('optimisticallyUpdateComments', {
+        obsId,
+        commentRecord: {
+          uuid: commentRecord.uuid,
+        },
+      })
+    } catch (err) {
+      throw new chainedError(
+        `Failed to delete comment with ID=${commentId}, owned by obsId=${obsId}`,
+        err,
+      )
+    }
+  },
   async _createObservation({ dispatch }, { obsRecord }) {
     const obsResp = await dispatch(
       'doApiPost',
@@ -1464,6 +1605,10 @@ const getters = {
       })
       .some(e => wowIdOf(e) === selectedId)
   },
+  isSelectedRecordOnRemote(_, getters) {
+    const isRemote = getters.observationDetail.inatId
+    return !!isRemote
+  },
   waitingLocalQueueSummary(state) {
     return state.localQueueSummary.filter(
       e =>
@@ -1691,7 +1836,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     uuid: i.uuid,
     createdAt: i.created_at,
     isCurrent: i.current,
-    body: i.body,
+    body: i.body, // we are trusting iNat to sanitise this
     taxonLatinName: i.taxon.name,
     taxonCommonName: i.taxon.preferred_common_name,
     taxonId: i.taxon_id,
@@ -1701,23 +1846,34 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     category: i.category,
     wowType: 'identification',
   }))
-  result.comments = obsFromApi.comments.map(c => ({
-    uuid: c.uuid,
-    body: c.body,
-    createdAt: c.created_at,
-    isHidden: c.hidden,
-    userLogin: c.user.login,
-    userId: c.user.id,
+  result.comments = obsFromApi.comments.map(c =>
+    mapCommentFromApiToOurDomain(c),
+  )
+  updateIdsAndCommentsFor(result)
+  return result
+}
+
+function mapCommentFromApiToOurDomain(apiComment) {
+  return {
+    inatId: apiComment.id,
+    uuid: apiComment.uuid,
+    body: apiComment.body, // we are trusting iNat to sanitise this
+    createdAt: apiComment.created_at,
+    isHidden: apiComment.hidden,
+    userLogin: apiComment.user.login,
+    userId: apiComment.user.id,
     wowType: 'comment',
-  }))
-  result.idsAndComments = [...result.comments, ...result.identifications]
-  result.idsAndComments.sort((a, b) => {
+  }
+}
+
+function updateIdsAndCommentsFor(obs) {
+  obs.idsAndComments = [...obs.comments, ...obs.identifications]
+  obs.idsAndComments.sort((a, b) => {
     const f = 'createdAt'
     if (moment(a[f]).isBefore(b[f])) return -1
     if (moment(a[f]).isAfter(b[f])) return 1
     return 0
   })
-  return result
 }
 
 function mapGeojsonToLatLng(geojson) {

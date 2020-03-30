@@ -23,9 +23,9 @@
         <label class="center" for="compressSwitch">
           <span class="list-item__title">Compress/resize photos</span
           ><span class="list-item__subtitle"
-            >This will use less storage space on your phone and less data during
-            upload. The tradeoff is observations will a bit longer to save while
-            we compress the photos.</span
+            >Enabling this setting will use less storage space on your phone and
+            less data during upload. The tradeoff is observations will take a
+            bit longer to save while your device makes the photos smaller.</span
           >
         </label>
         <div class="right">
