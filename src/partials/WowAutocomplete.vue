@@ -64,6 +64,10 @@
         </v-ons-list>
       </div>
     </div>
+    <div v-show="isError" class="error-alert">
+      Error while getting suggestions. You can still use your input as a
+      placeholder.
+    </div>
   </div>
 </template>
 
@@ -75,6 +79,7 @@ export default {
     initialValue: String,
     items: Array,
     extraCallbackData: Number,
+    isError: Boolean,
   },
   data() {
     return {
@@ -196,5 +201,13 @@ export default {
 
 .the-input-status {
   margin-left: 0.5em;
+}
+
+.error-alert {
+  border: 1px solid red;
+  border-radius: 5px;
+  padding: 1em;
+  margin-top: 0.5em;
+  background: pink;
 }
 </style>

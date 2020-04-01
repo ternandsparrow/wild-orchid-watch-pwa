@@ -180,8 +180,8 @@ if 'is existing blocked action'
 else
   set value to our action
 
-## Getting photos
-We did actually had a choice here. We went with option 1.
+## Getting photos from the user
+We did actually have a choice here. We went with option 1.
 
 **Choice 1: defer to system camera.** With this option we just create a `<input
 type="file"...>` element and let the user agent do all the heavy lifting for us.
@@ -229,3 +229,44 @@ Known Android camera apps that *do* save to the gallery:
       `/system/priv-app/LGCameraApp/LGCameraApp.apk`
   - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU)
       (remember to enable geotagging so photo have GPS location stored)
+
+## Taxonomy index
+The iNat API provides an endpoint to do a species autocomplete. It works but
+it's not without issues for us as we only want to query part of the taxa tree
+(orchids) and the server doesn't support that. There's also the fact that we
+want to support offline searching so needing an internet connection kills the
+option of using the iNat API.
+
+The API also offers the ability to get the taxonomy list. Thankfully you can
+set the starting point and drill down from there. Unfortunately there's a limit
+to 10k result for a query set and we hit that when we try to get everything
+under Orchidacae. So look at other descendants of the root taxa that also have
+a lot of children and try to query for them to include the other species we
+missed. This API is a bit naughty in that it returns duplicates so we have to
+clean them out too.
+
+We use the `scripts/build-taxa-index.js` script to pull data from the API and
+transform it into the format that we need in our app. This output is stored in
+the `public/` directory which means it get automatically included in the PWA
+manifest so it will be precached.
+
+We use Fuse.js to search the index with fuzzy-find style behaviour. The result
+is we have a taxa list that's available offline, only includes orchids and
+saves clients from having to do needless processing as we can do it once at
+build time.
+
+As I write this, I'm still trying to figure out how we'll roll out new versions
+of the index. I don't expect it to change often but I'm hoping that we can just
+rebuild the index, commit it to git and then the PWA will force a fresh copy to
+be pulled if needed. If that doesn't work, we'll look at using some sort of
+cache busting strategy.
+
+## Fuse.js
+We use this as the fuzzy-find index for species autocomplete. I looked at other
+options like [FlexSearch](https://github.com/nextapps-de/flexsearch) and
+[Elasticlunr](http://elasticlunr.com/). As the [benchmarks
+show](https://raw.githack.com/nextapps-de/flexsearch/master/test/benchmark.html)
+both options would have been faster but they were also more complicated and
+we're not searching that many items. Fuse allowed us to just feed the array of
+items in with config specifying the fields to search and we're off. No itering
+through to add documents to an index.

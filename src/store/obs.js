@@ -4,6 +4,7 @@ import moment from 'moment'
 import uuid from 'uuid/v1'
 import { wrap as comlinkWrap } from 'comlink'
 import dms2dec from 'dms2dec'
+import Fuse from 'fuse.js'
 import {
   getRecord,
   storeRecord,
@@ -16,7 +17,6 @@ import {
   arrayBufferToBlob,
   blobToArrayBuffer,
   buildStaleCheckerFn,
-  buildUrlSuffix,
   chainedError,
   fetchSingleRecord,
   getExifFromBlob,
@@ -28,6 +28,7 @@ import {
   wowWarnHandler,
   wowIdOf,
 } from '@/misc/helpers'
+import { deserialise } from '@/misc/taxon-s11n'
 
 const isRemotePhotoFieldName = 'isRemote'
 
@@ -36,6 +37,8 @@ const recordType = makeEnumValidator(['delete', 'edit', 'new'])
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
 let imageCompressionWorker = null
+
+let taxaIndex = null
 
 const state = {
   lat: null,
@@ -48,7 +51,6 @@ const state = {
   mySpecies: [],
   mySpeciesLastUpdated: 0,
   selectedObservationId: null,
-  speciesAutocompleteItems: [],
   tabIndex: 0,
   _uiVisibleLocalRecords: [],
   localQueueSummary: [],
@@ -82,8 +84,6 @@ const mutations = {
   setLocAccuracy: (state, value) => (state.locAccuracy = value),
   setIsGeolocationAccessible: (state, value) =>
     (state.isGeolocationAccessible = value),
-  setSpeciesAutocompleteItems: (state, value) =>
-    (state.speciesAutocompleteItems = value),
   setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isNothingSelected = !value
@@ -400,35 +400,43 @@ const actions = {
       throw chainedError('Failed to get project info', err)
     }
   },
-  async doSpeciesAutocomplete({ dispatch, getters }, partialText) {
+  async doSpeciesAutocomplete(_, partialText) {
     if (!partialText) {
       return []
     }
-    const locale = getters.myLocale
-    const placeId = getters.myPlaceId
-    const urlSuffix = buildUrlSuffix('/taxa/autocomplete', {
-      q: partialText,
-      locale: locale,
-      preferred_place_id: placeId,
-    })
-    try {
-      const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      const records = resp.results
-        .filter(d => d.ancestor_ids.find(e => e === constants.targetTaxaNodeId))
-        .map(d => ({
-          name: d.name,
-          preferredCommonName: d.preferred_common_name,
-          photoUrl: (d.default_photo || {}).square_url,
-        }))
-      // FIXME we might want bigger pages or perform paging to get enough
-      // results to fill the UI
-      return records
-    } catch (err) {
-      throw chainedError(
-        'Failed to do species autocomplete with text=' + partialText,
-        err,
-      )
+    if (!taxaIndex) {
+      // we rely on the service worker (and possibly the browser) caches to
+      // make this less expensive.
+      // TODO I don't think we need cache busting because we get that for free
+      // as part of the webpack build. Need to confirm
+      const url = constants.taxaDataUrl
+      const t1 = startTimer(`Fetching taxa index from URL=${url}`)
+      const resp = await fetch(url)
+      t1.stop()
+      const t2 = startTimer('Processing fetched taxa index')
+      try {
+        const rawData = (await resp.json()).map(e => {
+          const d = deserialise(e)
+          return {
+            ...d,
+            // the UI looks weird with no common name field
+            preferredCommonName: d.preferredCommonName || d.name,
+          }
+        })
+        taxaIndex = new Fuse(rawData, {
+          keys: ['name', 'preferredCommonName'],
+          threshold: 0.4,
+        })
+      } catch (err) {
+        throw chainedError('Failed to fetch and build taxa index', err)
+      } finally {
+        t2.stop()
+      }
     }
+    return taxaIndex
+      .search(partialText)
+      .map(e => e.item)
+      .slice(0, constants.maxSpeciesAutocompleteResultLength)
   },
   async findDbIdForWowId({ state }, wowId) {
     const result = (
@@ -2036,6 +2044,15 @@ async function getBundleErrorMsg(resp) {
     const msg = 'Bundle resp was not JSON, could not extract message'
     console.debug(msg, err)
     return `(${msg})`
+  }
+}
+
+function startTimer(task) {
+  const start = Date.now()
+  return {
+    stop() {
+      console.debug(`${task} took ${Date.now() - start}ms`)
+    },
   }
 }
 
