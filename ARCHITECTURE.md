@@ -48,7 +48,11 @@ out-of-the-box.
 
 
 ## Vue.js
-TODO
+There are a number of options in this space: Vue, Angular and React to name a
+few. This biggest reason we chose Vue.js is the team already has skills in the
+technology so we can hit the ground running. We do believe Vue is the right
+technology for the project as it's easy to work with (no need to fuss with
+Typescript or JSX), has a strong community and does everything we need.
 
 
 ## Vue-router
@@ -64,11 +68,21 @@ best of both worlds.
 
 
 ## Vuex
-TODO
-  - central state mgmt
-  - data shared between components
-  - persisted to localStorage
-  - root exports facades for impls in modules so we don't have cross module dependencies
+Vuex enforces some rigor into how you deal with application state. It helps by:
+  - centralising state management
+  - makes it easy to share data between components
+  - makes it easy to persist the state to localStorage so the app "remembers where is was" on subsequent visits
+  - makes for easier testing
+
+Where possible we've tried to export facades in the root store module to stop
+dependency hell between the child namespaced modules. For example, assume we
+have an action in the 'auth' namespaced module and it needs to be accessed by
+another namespaced module: the 'obs' module. We could just have the 'obs'
+module call the action directly on the 'auth' namespace but this tightly
+couples the 'obs' to the 'auth' module. After you've done this a bunch of
+times, maintenance can get harder so we avoid this by exporting a facade action
+in the root store that just calls into the 'auth' module. The rule is a module
+cannot call actions on its sibling, only on it's parent.
 
 
 ## localForage
@@ -81,19 +95,23 @@ work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
 
 ## iNaturalist
-**created_at, updated_at timestamps**: iNat doesn't use the values that we
-supply for these fields so we don't bother storing them locally. Brief tests
-also showed that the `updated_at` field doesn't change when we PUT the
+We need somewhere to store the observations that our users create. We could
+create our own walled garden but then we'd have to reinvent a lot of wheels and
+at the same time, we'd split the community. Neither are good for anyone. We
+assessed a number of platforms to contribute to and iNat was easily the best
+due to:
+  - large, long running community
+  - open source code base
+  - well developed platform that supports a lot of our requirements (threatened species, identifications, etc)
+  - already providing both a website and an API
+  - responsive dev team
+  - support for us to host our own project on their platform (called 'projects' in their terminology)
+
+A note about **created_at, updated_at timestamps**: iNat doesn't use the values
+that we supply for these fields so we don't bother storing them locally. Brief
+tests also showed that the `updated_at` field doesn't change when we PUT the
 observation record. So when a user edits a record, we can't even show them a
 meaningful "last updated at" date. We only have the observation date to use.
-
-TODO, talk about:
-  - strong community
-  - mature platform
-  - open source
-  - receptive dev team
-  - existing API
-  - projects to namespace our observations
 
 
 # JestJS
@@ -124,10 +142,10 @@ using vue-router.
 
 
 ## Sentry
-TODO
-  - free tier suits us
-  - lowest paid tier is most reasonable out of all competing services
-  - seems to do a good job
+We *need* some sort of error tracker and the choice came down to Rollbar,
+Airbrake and Sentry. All three are good choices but we went with Sentry as it
+has the cheapest paid tier if we decide to go paid. You can also self-host
+Sentry if that seems like a more cost-effective solution.
 
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
