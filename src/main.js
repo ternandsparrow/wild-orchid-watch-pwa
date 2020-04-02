@@ -75,9 +75,10 @@ new Vue({
 
       this.$store.dispatch('auth/sendSwUpdatedAuthToken')
 
-      // TODO WOW-136 should we delay this so it doesn't show over the
-      // onboarder?
-      initAppleInstallPrompt()
+      setTimeout(() => {
+        console.debug('Firing Apple install prompt check')
+        initAppleInstallPrompt()
+      }, 10000)
 
       this.$store.dispatch('obs/refreshLocalRecordQueue')
     } catch (err) {

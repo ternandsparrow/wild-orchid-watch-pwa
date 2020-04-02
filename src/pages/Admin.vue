@@ -18,6 +18,14 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        User agent
+      </div>
+      <div class="text-center">
+        {{ userAgent }}
+      </div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Is currently processing queue?
       </div>
       <p class="mono">
@@ -389,6 +397,10 @@ export default {
     projectInfoLastUpdatedPretty() {
       const luDate = this.$store.state.obs.projectInfoLastUpdated
       return moment(luDate || 0)
+    },
+    userAgent() {
+      return (window.navigator || { userAgent: '(no window.navigator)' })
+        .userAgent
     },
   },
   created() {

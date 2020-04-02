@@ -89,6 +89,7 @@ const actions = {
       return false
     }
     try {
+      console.debug('Triggering update check on service worker')
       await state.swReg.update()
     } catch (err) {
       // probably the server is down
