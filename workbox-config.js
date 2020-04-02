@@ -11,6 +11,16 @@ module.exports = {
   globPatterns: [
     '**/*.{css,woff,woff2,ttf,eot,svg,jpg,png,xml,ico,json,webapp,html,js,txt,thmx}',
   ],
-  globIgnores: ['sw*', 'stats.json', 'service-worker.js'],
+  globIgnores: [
+    'image-ml/**', // TODO when we start using ML5 in the main app, remove this and add 'bin' to the globPatterns above
+    'img/icons/**',
+    'manifest.json',
+    'precache-manifest.*.js',
+    'robots.txt',
+    'service-worker.js',
+    'stats.json',
+    'sw*',
+    'wow-env-vars.js',
+  ],
   maximumFileSizeToCacheInBytes: largeEnoughToIncludeOurMassiveVendorsChunk,
 }
