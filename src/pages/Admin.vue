@@ -339,7 +339,6 @@
 import { mapGetters, mapState } from 'vuex'
 import dayjs from 'dayjs'
 import _ from 'lodash'
-import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
 import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
@@ -405,9 +404,34 @@ export default {
   },
   created() {
     this.computeConfigItems()
-    this.classifier = ml5ImageClassifier(wowModelPath, this.modelReady)
-    const worker = new Worker('./classificationWorker.js', { type: 'module' })
-    this.ourWorker = Comlink.wrap(worker)
+  },
+  mounted() {
+    const src = 'https://unpkg.com/ml5@0.5.0/dist/ml5.min.js'
+    // ML5 is huge! And we're not using it in production code yet. So to keep
+    // bundle sizes down, we just pull it from CDN. When we do start using it,
+    // remove all this DOM hackery and just stick the follow line up with the
+    // other imports:
+    //   import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
+    if (!isScriptAlreadyLoaded(src)) {
+      // thanks https://stackoverflow.com/a/47002863/1410035
+      const ml5Script = document.createElement('script')
+      ml5Script.setAttribute('src', src)
+      ml5Script.async = true
+      ml5Script.onload = () => {
+        console.log('ML5 external script loaded')
+        this.classifier = window.ml5.imageClassifier(
+          wowModelPath,
+          this.modelReady,
+        )
+        const worker = new Worker('./classificationWorker.js', {
+          type: 'module',
+        })
+        this.ourWorker = Comlink.wrap(worker)
+      }
+      document.head.appendChild(ml5Script)
+    } else {
+      console.debug('ML5 already loaded')
+    }
   },
   methods: {
     doLQP() {
@@ -679,6 +703,15 @@ export default {
       this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
     },
   },
+}
+
+function isScriptAlreadyLoaded(src) {
+  for (const curr of document.head.children) {
+    if (curr.src === src) {
+      return true
+    }
+  }
+  return false
 }
 </script>
 
