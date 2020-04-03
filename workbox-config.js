@@ -9,7 +9,7 @@ module.exports = {
   swDest: 'dist/service-worker.js',
   globDirectory: 'dist/',
   globPatterns: [
-    '**/*.{css,woff,woff2,ttf,eot,svg,jpg,png,xml,ico,json,webapp,html,js,txt,thmx}',
+    '**/*.{css,woff,woff2,svg,jpg,png,xml,ico,json,webapp,html,js,txt,thmx}',
   ],
   globIgnores: [
     'image-ml/**', // TODO when we start using ML5 in the main app, remove this and add 'bin' to the globPatterns above
