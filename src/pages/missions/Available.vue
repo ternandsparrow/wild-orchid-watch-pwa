@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -97,8 +97,8 @@ export default {
       done && done()
     },
     getTimelineString(record) {
-      const duration = moment.duration(
-        moment(record.endDate).diff(moment(record.startDate)),
+      const duration = dayjs.duration(
+        dayjs(record.endDate).diff(dayjs(record.startDate)),
       )
       return `${record.startDate} until ${
         record.endDate

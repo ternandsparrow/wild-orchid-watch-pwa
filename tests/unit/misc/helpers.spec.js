@@ -1,4 +1,4 @@
-import moment from 'moment'
+import dayjs from 'dayjs'
 import * as objectUnderTest from '@/misc/helpers'
 
 describe('findCommonString', () => {
@@ -422,7 +422,7 @@ describe('Mission body', () => {
   })
 
   it('should be able to decode something that was encoded', () => {
-    const mockToday = moment('2020-02-10')
+    const mockToday = dayjs('2020-02-10')
     const name = 'some name'
     const endDate = '2020-02-28'
     const goal = 'some goal'
@@ -434,7 +434,7 @@ describe('Mission body', () => {
     )
     const result = objectUnderTest.decodeMissionBody(encoded)
     expect(result.name).toEqual(name)
-    expect(moment(result.startDate).isBefore(moment(endDate))).toEqual(true)
+    expect(dayjs(result.startDate).isBefore(dayjs(endDate))).toEqual(true)
     expect(result.endDate).toEqual(endDate)
     expect(result.goal).toEqual(goal)
   })

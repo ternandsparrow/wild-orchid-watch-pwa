@@ -306,3 +306,7 @@ both options would have been faster but they were also more complicated and
 we're not searching that many items. Fuse allowed us to just feed the array of
 items in with config specifying the fields to search and we're off. No itering
 through to add documents to an index.
+
+## DayJS
+We picked this over moment.js because it's API compatible but smaller. We don't
+need the locales from moment and that is what makes it a bloated package.

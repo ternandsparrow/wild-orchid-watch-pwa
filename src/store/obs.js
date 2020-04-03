@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import base64js from 'base64-js'
-import moment from 'moment'
+import dayjs from 'dayjs'
 import uuid from 'uuid/v1'
 import { wrap as comlinkWrap } from 'comlink'
 import dms2dec from 'dms2dec'
@@ -183,8 +183,8 @@ const actions = {
         const isUpdatedOnRemoteAfterLocalUpdate =
           currUpdatedDateOnRemote &&
           // remote times are rounded to the second
-          moment(currUpdatedDateOnRemote) >=
-            moment(localUpdatedDates[e.uuid]).startOf('second')
+          dayjs(currUpdatedDateOnRemote) >=
+            dayjs(localUpdatedDates[e.uuid]).startOf('second')
         const isNewAndPresent =
           e[constants.recordTypeFieldName] === recordType('new') &&
           uuidsOfRemoteRecords.includes(e.uuid)
@@ -1878,8 +1878,8 @@ function updateIdsAndCommentsFor(obs) {
   obs.idsAndComments = [...obs.comments, ...obs.identifications]
   obs.idsAndComments.sort((a, b) => {
     const f = 'createdAt'
-    if (moment(a[f]).isBefore(b[f])) return -1
-    if (moment(a[f]).isAfter(b[f])) return 1
+    if (dayjs(a[f]).isBefore(b[f])) return -1
+    if (dayjs(a[f]).isAfter(b[f])) return 1
     return 0
   })
 }

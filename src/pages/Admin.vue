@@ -337,7 +337,7 @@
 
 <script>
 import { mapGetters, mapState } from 'vuex'
-import moment from 'moment'
+import dayjs from 'dayjs'
 import _ from 'lodash'
 import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
 import * as Comlink from 'comlink'
@@ -396,7 +396,7 @@ export default {
     },
     projectInfoLastUpdatedPretty() {
       const luDate = this.$store.state.obs.projectInfoLastUpdated
-      return moment(luDate || 0)
+      return dayjs(luDate || 0)
     },
     userAgent() {
       return (window.navigator || { userAgent: '(no window.navigator)' })
