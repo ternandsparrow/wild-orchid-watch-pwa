@@ -5,13 +5,11 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "serve:debug": "BROWSERSLIST_ENV=debug vue-cli-service serve",
-    "serve:safari": "BROWSERSLIST_ENV=safari vue-cli-service serve",
     "build": "vue-cli-service build && rollup -c && workbox injectManifest",
     "test:unit": "vue-cli-service test:unit",
     "test:e2e": "vue-cli-service test:e2e",
     "lint": "vue-cli-service lint",
     "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 yarn build && servor dist/ index.html --no-browser",
-    "build:serve:safari": "BROWSERSLIST_ENV=safari yarn build && servor dist/ index.html --no-browser",
     "build:serve:watch": "nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
     "prettier:check": "prettier \"**/*.{vue,scss,sass,js}\" --list-different",
@@ -104,16 +102,14 @@
   },
   "browserslist": {
     "production": [
-      "ChromeAndroid >= 42",
-      "FirefoxAndroid >= 39",
-      "iOS >= 10.3"
+      "ChromeAndroid >= 60",
+      "FirefoxAndroid >= 55",
+      "iOS >= 11.3",
+      "safari >= 11.1",
+      "samsung >= 8.2"
     ],
     "debug": [
       "last 2 Chrome versions"
-    ],
-    "safari": [
-      "iOS >= 10",
-      "Safari >= 10"
     ]
   },
   "jest": {

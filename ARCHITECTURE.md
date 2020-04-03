@@ -1,5 +1,23 @@
 This document will describe how the app is built and why choices were made.
 
+# Minimum version of browsers that we support
+In an ideal world, we'd support as many browsers as possible but there are
+diminishing returns in doing that. When we started out we were basically aiming
+at the browsers that introduced service worker support. Part way through
+development that shifted as we pulled in some dependencies that were only
+available in ES6. Here's a fun fact, webpack/babel doesn't transpile your
+dependencies, just in case (like me) you though it did. You can ask it to (see
+`transpileDependencies` for the `vue-cli`) but it's horribly slow. You'd be
+better off forking the dependencies and making them transpile to ES5 and
+publishing that.
+
+So, our hand has been forced and now we support the following browsers:
+- Google Chrome 60+ (July 2017)
+- Mozilla Firefox 55+ (August 2017)
+- Apple iOS Safari 11.3+ (March 2018)
+- Samsung Internet 8.2+ (December 2018)
+- Apple macOS Safari 11.1+ (March 2018)
+
 # Techonology choices
 
 ## PWA (Progressive Web App)
