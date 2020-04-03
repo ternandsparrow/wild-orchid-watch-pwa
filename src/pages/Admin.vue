@@ -339,7 +339,7 @@
 import { mapGetters, mapState } from 'vuex'
 import moment from 'moment'
 import _ from 'lodash'
-import ml5 from 'ml5'
+import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
 import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
@@ -405,7 +405,7 @@ export default {
   },
   created() {
     this.computeConfigItems()
-    this.classifier = ml5.imageClassifier(wowModelPath, this.modelReady)
+    this.classifier = ml5ImageClassifier(wowModelPath, this.modelReady)
     const worker = new Worker('./classificationWorker.js', { type: 'module' })
     this.ourWorker = Comlink.wrap(worker)
   },

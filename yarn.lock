@@ -1897,6 +1897,11 @@
   resolved "https://registry.yarnpkg.com/@tensorflow-models/body-pix/-/body-pix-1.1.2.tgz#5dfccf0e091586b9eb63dfb88e6c15568edc7133"
   integrity sha512-moCCTlP77v20HMg1e/Hs1LehCDLAKS32e6OUeI1MA/4HrRRO1Dq9engVCLFZUMO2+mJXdQeBdzexcFg0WQox7w==
 
+"@tensorflow-models/coco-ssd@^2.0.0":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@tensorflow-models/coco-ssd/-/coco-ssd-2.0.1.tgz#99b90d18821ae42caa9c3e6c2dad912f91282287"
+  integrity sha512-+mh5eYXSK7WnQmxVbgFoClwMoQ0Vu8Ac2gyXREaNqpsLTqc2z+ZhcltEXdtHhbL8ZC6eCM7Uq3I9MXzomNsB7w==
+
 "@tensorflow-models/knn-classifier@1.2.1":
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/@tensorflow-models/knn-classifier/-/knn-classifier-1.2.1.tgz#2ef8a0d18f73b7d649628ea77c3119f66d0f4bb9"
@@ -10514,13 +10519,14 @@ mkdirp@0.5.1, mkdirp@0.5.x, mkdirp@0.x, mkdirp@^0.5.0, mkdirp@^0.5.1, mkdirp@~0.
   dependencies:
     minimist "0.0.8"
 
-ml5@0.4.3:
-  version "0.4.3"
-  resolved "https://registry.yarnpkg.com/ml5/-/ml5-0.4.3.tgz#d83c5a01dda221e7de08d1d7814c991b669c7058"
-  integrity sha512-6LVJkpTcSjAun4Q9achdESfiMs2HWjhOexXm8VM8x5elJ9SKf6P3LDv7C2/oSCfQD5qa8dD5UCP6Ejv6e8TBHQ==
+ml5@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/ml5/-/ml5-0.5.0.tgz#d1075649ced97bc5439579594ba59bcb1e15f12c"
+  integrity sha512-gSAWVzTfXOwmUGtv1jSvrG3C9KC3HxYxxDEJ9fCqyCCuIUXX92gpnanFNYqAIivpd9vqjcL+pDvxTD73K2ubVQ==
   dependencies:
     "@magenta/sketch" "0.2.0"
     "@tensorflow-models/body-pix" "1.1.2"
+    "@tensorflow-models/coco-ssd" "^2.0.0"
     "@tensorflow-models/knn-classifier" "1.2.1"
     "@tensorflow-models/mobilenet" "2.0.3"
     "@tensorflow-models/posenet" "2.1.3"
