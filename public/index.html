@@ -14,6 +14,30 @@
   </noscript>
   <div id="app"></div>
 
+  <script charset="utf-8">
+    window.onerror = function(err) {
+      // If the page fails to load, it's good UX to at least show something to the
+      // user. I don't *think* we can get here from within the Vue app.
+      var isSyntaxError = ~(err.message || err || '').indexOf('SyntaxError')
+      if (!isSyntaxError) {
+        // other errors from an otherwise working app may hit here and we don't
+        // want to interfere
+        throw err
+      }
+      console.warn(
+        'Failed to load due to a syntax error. Most likely this platform is ' +
+        'not supported (too old)',
+        err)
+      var appDiv = document.getElementById('app')
+      appDiv.innerHTML =
+        '<h1 style="font-size: 3em; font-family: monospace;">Failed to load :(</h1>' +
+        '<p style="padding: 0 1em; font-family: sans-serif;">This can happen ' +
+        'when your device is too old. We try to support devices from the ' +
+        'past 4 years</p>'
+      appDiv.style.textAlign = 'center'
+      appDiv.style.marginTop = '40vh'
+    }
+  </script>
   <!-- built files will be auto injected -->
 </body>
 
