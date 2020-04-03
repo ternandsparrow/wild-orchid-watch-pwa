@@ -8,9 +8,7 @@ module.exports = {
   swSrc: 'dist/sw-needsinjecting.js',
   swDest: 'dist/service-worker.js',
   globDirectory: 'dist/',
-  globPatterns: [
-    '**/*.{css,woff2,svg,jpg,png,xml,ico,json,webapp,html,js,txt,thmx}',
-  ],
+  globPatterns: ['**/*.{css,woff2,svg,jpg,png,xml,ico,json,html,js,thmx}'],
   globIgnores: [
     'image-ml/**', // TODO when we start using ML5 in the main app, remove this and add 'bin' to the globPatterns above
     'img/fa-*.svg', // we don't need the SVG version of fontawesome, we have WOFF2
