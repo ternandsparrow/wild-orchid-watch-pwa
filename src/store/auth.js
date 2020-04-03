@@ -1,6 +1,6 @@
 import { isNil } from 'lodash'
 import PkceGenerator from 'pkce-challenge'
-import jwt from 'jsonwebtoken'
+import jwtDecode from 'jwt-decode'
 import * as Sentry from '@sentry/browser' // piggybacks on the config done in src/main.js
 
 import * as constants from '@/misc/constants'
@@ -378,7 +378,7 @@ export default {
         await dispatch('_updateApiToken')
         return
       }
-      const decodedJwt = jwt.decode(state.apiToken)
+      const decodedJwt = jwtDecode(state.apiToken)
       const now = new Date().getTime() / 1000
       const fiveMinutes = 5 * 60
       const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
