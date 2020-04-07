@@ -902,7 +902,7 @@ const actions = {
             {
               msg: `Failed while handling error for Db record with UUID='${idToProcess}'`,
               userMsg: `Error while trying to synchronise with the server`,
-              err2,
+              err: err2,
             },
             { root: true },
           )
@@ -1447,6 +1447,7 @@ const actions = {
       validFromOutcomes: [
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
+        constants.waitingOutcome,
       ],
     })
   },
