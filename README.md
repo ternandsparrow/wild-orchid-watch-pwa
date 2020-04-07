@@ -4,6 +4,8 @@ citizen science data collection for orchids in Australia. Uses OAuth from, and
 uploads obsversations to [iNaturalist](https://inaturalist.org/).
 
 # Developers
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fternandsparrow%2Fwild-orchid-watch-pwa.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fternandsparrow%2Fwild-orchid-watch-pwa?ref=badge_shield)
+
 
 ## Quickstart
 
@@ -124,3 +126,7 @@ Unit tests use Jest. You can find the doco for `expect()` at
 
 ## Architecture
 See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fternandsparrow%2Fwild-orchid-watch-pwa.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fternandsparrow%2Fwild-orchid-watch-pwa?ref=badge_large)
