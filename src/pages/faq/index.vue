@@ -4,10 +4,17 @@
     <v-ons-list>
       <v-ons-list-item v-for="(currItem, $index) of items" :key="currItem.q">
         <div class="center">
-          <span class="list-item__title">[#{{ $index + 1 }}]: {{ currItem.q }}</span>
+          <span class="list-item__title"
+            >[#{{ $index + 1 }}]: {{ currItem.q }}</span
+          >
           <!-- eslint-disable -->
           <!-- v-html won't be an XSS risk as we control the data -->
-          <span v-for="currA of currItem.a" :key="currA" class="list-item__subtitle" v-html="currA"></span>
+          <span
+            v-for="currA of currItem.a"
+            :key="currA"
+            class="list-item__subtitle"
+            v-html="currA"
+          ></span>
           <!-- eslint-enable -->
         </div>
       </v-ons-list-item>
