@@ -1,5 +1,6 @@
 import { isNil } from 'lodash'
 import store from '@/store'
+import { isOnboarderVisible } from '@/misc/nav-stacks'
 
 export default function() {
   const ua = window.navigator.userAgent
@@ -14,7 +15,7 @@ export default function() {
 
   // We only do this for Mobile Safari - Chrome currently doesn't support the Add-to_home function
   // https://stackoverflow.com/questions/50319831/can-i-use-add-to-home-screen-in-chrome-on-an-ios-device
-  if (iOSSafari && !isInStandaloneMode) {
+  if (iOSSafari && !isInStandaloneMode && !isOnboarderVisible()) {
     const now = Date.now()
     let limitDate = null
     const addToHomeIosPromptLastDate =

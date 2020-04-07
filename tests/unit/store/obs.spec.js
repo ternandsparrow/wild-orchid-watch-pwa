@@ -1,4 +1,4 @@
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
@@ -2125,10 +2125,10 @@ function wowUpdatedAtToBeCloseToNow(record) {
   if (!updatedAtStr) {
     return false
   }
-  const updatedAtDate = moment(updatedAtStr)
-  const fiveMinutesAgo = moment().subtract(5, 'minutes')
-  const now = moment()
-  return updatedAtDate.isBetween(fiveMinutesAgo, now)
+  const updatedAtDate = dayjs(updatedAtStr)
+  const fiveMinutesAgo = dayjs().subtract(5, 'minutes')
+  const now = dayjs()
+  return updatedAtDate.isAfter(fiveMinutesAgo) && updatedAtDate.isBefore(now)
 }
 
 function getApiRecord() {

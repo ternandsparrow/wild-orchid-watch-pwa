@@ -115,6 +115,7 @@
         <wow-autocomplete
           :items="speciesGuessAutocompleteItems"
           :initial-value="speciesGuessInitialValue"
+          :is-error="speciesAutocompleteErrors['speciesGuess']"
           placeholder-text="e.g. snail orchid"
           @change="debouncedOnSpeciesGuessInput"
           @item-selected="onSpeciesGuessSet"
@@ -180,6 +181,7 @@
                 v-else-if="currField.wowDatatype === taxonFieldType"
                 :items="taxonQuestionAutocompleteItems[currField.id]"
                 :initial-value="obsFieldInitialValues[currField.id]"
+                :is-error="speciesAutocompleteErrors[currField.id]"
                 placeholder-text="e.g. snail orchid"
                 :extra-callback-data="currField.id"
                 @change="debouncedOnTaxonQuestionInput"
@@ -406,6 +408,7 @@ export default {
       obsLocAccuracy: null,
       obsLocSourceName: null,
       isShowMap: false,
+      speciesAutocompleteErrors: {},
     }
   },
   computed: {
@@ -1209,35 +1212,34 @@ export default {
       this.obsLocSourceName = source
     },
     async _onSpeciesGuessInput(data) {
-      const result = await this.doSpeciesAutocomplete(data.value)
-      this.speciesGuessAutocompleteItems = result
+      this.speciesAutocompleteErrors.speciesGuess = false
+      try {
+        this.speciesGuessAutocompleteItems = await this.$store.dispatch(
+          'obs/doSpeciesAutocomplete',
+          data.value,
+        )
+      } catch (err) {
+        wowErrorHandler(
+          `Failed to do species autocomplete for species guess`,
+          err,
+        )
+        this.speciesAutocompleteErrors.speciesGuess = true
+        this.speciesGuessAutocompleteItems = []
+      }
     },
     async _onTaxonQuestionInput(data) {
-      const result = await this.doSpeciesAutocomplete(data.value)
       const fieldId = data.extra
-      this.taxonQuestionAutocompleteItems[fieldId] = result
-    },
-    async doSpeciesAutocomplete(q) {
-      if (!this.networkOnLine) {
-        return
-      }
       try {
-        const values = await this.$store.dispatch(
-          'obs/doSpeciesAutocomplete',
-          q,
-        )
-        return values
+        this.taxonQuestionAutocompleteItems[
+          fieldId
+        ] = await this.$store.dispatch('obs/doSpeciesAutocomplete', data.value)
       } catch (err) {
-        this.$store.dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed to perform species autocomplete on text='${q}'`,
-            err,
-          },
-          { root: true },
+        wowErrorHandler(
+          `Failed to do species autocomplete for fieldId=${fieldId}`,
+          err,
         )
-        // at least give the user a chance to use their input as-is
-        return []
+        this.speciesAutocompleteErrors[fieldId] = true
+        this.taxonQuestionAutocompleteItems[fieldId] = []
       }
     },
     photoRef(e) {

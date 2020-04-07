@@ -1,4 +1,5 @@
-import moment from 'moment'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
@@ -12,6 +13,8 @@ import {
 } from './only-common-deps-helpers'
 
 export { chainedError, now, wowErrorHandler, wowWarnHandler }
+
+dayjs.extend(relativeTime)
 
 const commonHeaders = {
   Accept: 'application/json',
@@ -317,7 +320,7 @@ export function humanDateString(dateStr) {
   if (!dateStr) {
     return '(no date recorded)'
   }
-  const d = moment(dateStr)
+  const d = dayjs(dateStr)
   return `${d.fromNow()}  (${d.format('DD-MMM-YYYY HH:mm')})`
 }
 
@@ -382,9 +385,9 @@ export function fetchSingleRecord(url) {
 
 const missionStartMarker = 'START-OF-MISSION'
 const missionEndMarker = 'END-OF-MISSION'
-export function encodeMissionBody(name, endDate, goal, todayMoment = moment()) {
+export function encodeMissionBody(name, endDate, goal, todayMoment = dayjs()) {
   const todayStr = todayMoment.format('DD-MMM-YYYY')
-  const endDatePretty = moment(endDate).format('DD-MMM-YYYY')
+  const endDatePretty = dayjs(endDate).format('DD-MMM-YYYY')
   debugger // FIXME
   return `
   ${name}
@@ -397,7 +400,7 @@ export function encodeMissionBody(name, endDate, goal, todayMoment = moment()) {
     {
       name,
       startDateRaw: todayMoment.unix(),
-      endDateRaw: moment(endDate).unix(),
+      endDateRaw: dayjs(endDate).unix(),
       goal,
     },
     null,
@@ -425,8 +428,8 @@ export function decodeMissionBody(body) {
   const parsed = JSON.parse(usefulBitAsString)
   return {
     ...parsed,
-    startDate: moment.unix(parsed.startDateRaw).format('YYYY-MM-DD'),
-    endDate: moment.unix(parsed.endDateRaw).format('YYYY-MM-DD'),
+    startDate: dayjs.unix(parsed.startDateRaw).format('YYYY-MM-DD'),
+    endDate: dayjs.unix(parsed.endDateRaw).format('YYYY-MM-DD'),
   }
 }
 

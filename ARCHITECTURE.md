@@ -1,5 +1,23 @@
 This document will describe how the app is built and why choices were made.
 
+# Minimum version of browsers that we support
+In an ideal world, we'd support as many browsers as possible but there are
+diminishing returns in doing that. When we started out we were basically aiming
+at the browsers that introduced service worker support. Part way through
+development that shifted as we pulled in some dependencies that were only
+available in ES6. Here's a fun fact, webpack/babel doesn't transpile your
+dependencies, just in case (like me) you though it did. You can ask it to (see
+`transpileDependencies` for the `vue-cli`) but it's horribly slow. You'd be
+better off forking the dependencies and making them transpile to ES5 and
+publishing that.
+
+So, our hand has been forced and now we support the following browsers:
+- Google Chrome 60+ (July 2017)
+- Mozilla Firefox 55+ (August 2017)
+- Apple iOS Safari 11.3+ (March 2018)
+- Samsung Internet 8.2+ (December 2018)
+- Apple macOS Safari 11.1+ (March 2018)
+
 # Techonology choices
 
 ## PWA (Progressive Web App)
@@ -48,7 +66,11 @@ out-of-the-box.
 
 
 ## Vue.js
-TODO
+There are a number of options in this space: Vue, Angular and React to name a
+few. This biggest reason we chose Vue.js is the team already has skills in the
+technology so we can hit the ground running. We do believe Vue is the right
+technology for the project as it's easy to work with (no need to fuss with
+Typescript or JSX), has a strong community and does everything we need.
 
 
 ## Vue-router
@@ -64,11 +86,21 @@ best of both worlds.
 
 
 ## Vuex
-TODO
-  - central state mgmt
-  - data shared between components
-  - persisted to localStorage
-  - root exports facades for impls in modules so we don't have cross module dependencies
+Vuex enforces some rigor into how you deal with application state. It helps by:
+  - centralising state management
+  - makes it easy to share data between components
+  - makes it easy to persist the state to localStorage so the app "remembers where is was" on subsequent visits
+  - makes for easier testing
+
+Where possible we've tried to export facades in the root store module to stop
+dependency hell between the child namespaced modules. For example, assume we
+have an action in the 'auth' namespaced module and it needs to be accessed by
+another namespaced module: the 'obs' module. We could just have the 'obs'
+module call the action directly on the 'auth' namespace but this tightly
+couples the 'obs' to the 'auth' module. After you've done this a bunch of
+times, maintenance can get harder so we avoid this by exporting a facade action
+in the root store that just calls into the 'auth' module. The rule is a module
+cannot call actions on its sibling, only on it's parent.
 
 
 ## localForage
@@ -81,19 +113,23 @@ work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
 
 ## iNaturalist
-**created_at, updated_at timestamps**: iNat doesn't use the values that we
-supply for these fields so we don't bother storing them locally. Brief tests
-also showed that the `updated_at` field doesn't change when we PUT the
+We need somewhere to store the observations that our users create. We could
+create our own walled garden but then we'd have to reinvent a lot of wheels and
+at the same time, we'd split the community. Neither are good for anyone. We
+assessed a number of platforms to contribute to and iNat was easily the best
+due to:
+  - large, long running community
+  - open source code base
+  - well developed platform that supports a lot of our requirements (threatened species, identifications, etc)
+  - already providing both a website and an API
+  - responsive dev team
+  - support for us to host our own project on their platform (called 'projects' in their terminology)
+
+A note about **created_at, updated_at timestamps**: iNat doesn't use the values
+that we supply for these fields so we don't bother storing them locally. Brief
+tests also showed that the `updated_at` field doesn't change when we PUT the
 observation record. So when a user edits a record, we can't even show them a
 meaningful "last updated at" date. We only have the observation date to use.
-
-TODO, talk about:
-  - strong community
-  - mature platform
-  - open source
-  - receptive dev team
-  - existing API
-  - projects to namespace our observations
 
 
 # JestJS
@@ -124,10 +160,10 @@ using vue-router.
 
 
 ## Sentry
-TODO
-  - free tier suits us
-  - lowest paid tier is most reasonable out of all competing services
-  - seems to do a good job
+We *need* some sort of error tracker and the choice came down to Rollbar,
+Airbrake and Sentry. All three are good choices but we went with Sentry as it
+has the cheapest paid tier if we decide to go paid. You can also self-host
+Sentry if that seems like a more cost-effective solution.
 
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
@@ -180,8 +216,8 @@ if 'is existing blocked action'
 else
   set value to our action
 
-## Getting photos
-We did actually had a choice here. We went with option 1.
+## Getting photos from the user
+We did actually have a choice here. We went with option 1.
 
 **Choice 1: defer to system camera.** With this option we just create a `<input
 type="file"...>` element and let the user agent do all the heavy lifting for us.
@@ -229,3 +265,48 @@ Known Android camera apps that *do* save to the gallery:
       `/system/priv-app/LGCameraApp/LGCameraApp.apk`
   - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU)
       (remember to enable geotagging so photo have GPS location stored)
+
+## Taxonomy index
+The iNat API provides an endpoint to do a species autocomplete. It works but
+it's not without issues for us as we only want to query part of the taxa tree
+(orchids) and the server doesn't support that. There's also the fact that we
+want to support offline searching so needing an internet connection kills the
+option of using the iNat API.
+
+The API also offers the ability to get the taxonomy list. Thankfully you can
+set the starting point and drill down from there. Unfortunately there's a limit
+to 10k result for a query set and we hit that when we try to get everything
+under Orchidacae. So look at other descendants of the root taxa that also have
+a lot of children and try to query for them to include the other species we
+missed. This API is a bit naughty in that it returns duplicates so we have to
+clean them out too.
+
+We use the `scripts/build-taxa-index.js` script to pull data from the API and
+transform it into the format that we need in our app. This output is stored in
+the `public/` directory which means it get automatically included in the PWA
+manifest so it will be precached.
+
+We use Fuse.js to search the index with fuzzy-find style behaviour. The result
+is we have a taxa list that's available offline, only includes orchids and
+saves clients from having to do needless processing as we can do it once at
+build time.
+
+As I write this, I'm still trying to figure out how we'll roll out new versions
+of the index. I don't expect it to change often but I'm hoping that we can just
+rebuild the index, commit it to git and then the PWA will force a fresh copy to
+be pulled if needed. If that doesn't work, we'll look at using some sort of
+cache busting strategy.
+
+## Fuse.js
+We use this as the fuzzy-find index for species autocomplete. I looked at other
+options like [FlexSearch](https://github.com/nextapps-de/flexsearch) and
+[Elasticlunr](http://elasticlunr.com/). As the [benchmarks
+show](https://raw.githack.com/nextapps-de/flexsearch/master/test/benchmark.html)
+both options would have been faster but they were also more complicated and
+we're not searching that many items. Fuse allowed us to just feed the array of
+items in with config specifying the fields to search and we're off. No itering
+through to add documents to an index.
+
+## DayJS
+We picked this over moment.js because it's API compatible but smaller. We don't
+need the locales from moment and that is what makes it a bloated package.

@@ -56,13 +56,13 @@
 </template>
 
 <script>
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { encodeMissionBody } from '@/misc/helpers'
 
 export default {
   name: 'MissionsNew',
   data() {
-    const tomorrow = moment()
+    const tomorrow = dayjs()
       .add(1, 'days')
       .format('YYYY-MM-DD')
     return {
@@ -72,7 +72,7 @@ export default {
       formErrorMsgs: [],
       endDate: tomorrow,
       tomorrow,
-      oneYearInFuture: moment()
+      oneYearInFuture: dayjs()
         .add(1, 'years')
         .format('YYYY-MM-DD'),
     }

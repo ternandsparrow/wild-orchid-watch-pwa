@@ -12,7 +12,7 @@
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
           <img
-            src="@/assets/onboarder/wow-splash.png"
+            src="@/assets/onboarder/wow-splash.jpg"
             alt="Wild Orchid Watch"
             class="wow-onboarder-logo"
           />

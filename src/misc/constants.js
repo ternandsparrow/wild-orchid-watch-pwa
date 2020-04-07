@@ -61,13 +61,11 @@ export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
-const assumedIdOfLifeTaxa = 1 // everything should have "Life" as an ancestor
-// iNaturalist deals with much more taxa than what we're interested in. We only
-// want orchids so we specify an integer ID (the ID in
-// inaturalist.org/taxa/<ID>-Orchidaceae) here and we'll use it to filter species lists
-// (like autocomplete) to only include taxa that have this node as an ancestor
-export const targetTaxaNodeId = convertAndAssertInteger(
-  process.env.VUE_APP_TARGET_TAXA_ID || assumedIdOfLifeTaxa,
+export const taxaDataUrl =
+  process.env.VUE_APP_TAXA_DATA_URL || '/wow-taxa-index.json'
+
+export const maxSpeciesAutocompleteResultLength = convertAndAssertInteger(
+  process.env.VUE_APP_MAX_SPECIES_AUTOCOMPLETE_LENGTH || 50,
 )
 
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(

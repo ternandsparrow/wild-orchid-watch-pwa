@@ -3,7 +3,7 @@
 # this project in a pinch on a VM that you haven't installed npm, yarn, etc
 # onto. Check out the rsync-up.sh script too.
 set -euo pipefail
-cd `dirname "$0"/..`
+cd `dirname "$0"`/..
 
 thePort=${PORT:-8080}
 
