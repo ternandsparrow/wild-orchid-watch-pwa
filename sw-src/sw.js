@@ -554,7 +554,18 @@ registerRoute(
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
     const obsRecord = payload[constants.obsFieldName]
-    const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+    let obsUuid
+    try {
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+    } catch (err) {
+      return jsonResponse(
+        {
+          result: 'failed',
+          msg: 'Required parameters are missing' + err.toString(),
+        },
+        400,
+      )
+    }
     const projectId = payload[constants.projectIdFieldName]
     const depsRecord = {
       obsUuid: obsUuid,
@@ -615,8 +626,20 @@ registerRoute(
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
     const obsRecord = payload[constants.obsFieldName]
-    const obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
-    const obsId = verifyNotImpendingDoom(obsRecord.observation.id)
+    let obsUuid
+    let obsId
+    try {
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+      obsId = verifyNotImpendingDoom(obsRecord.observation.id)
+    } catch (err) {
+      return jsonResponse(
+        {
+          result: 'failed',
+          msg: 'Required parameters are missing' + err.toString(),
+        },
+        400,
+      )
+    }
     // We could queue all the deps because we have the obsId but it's easier to
     // keep them in localForage so it's easy to clean up if anything goes wrong
     const depsRecord = {

@@ -1228,7 +1228,7 @@ const actions = {
         const resp = await doBundleEndpointFetch(payload, 'PUT')
         if (!resp.ok) {
           throw new Error(
-            `POST to bundle endpoint worked at an HTTP level,` +
+            `PUT to bundle endpoint worked at an HTTP level,` +
               ` but the status code indicates an error. Status=${resp.status}` +
               ` Message=${await getBundleErrorMsg(resp)}`,
           )
