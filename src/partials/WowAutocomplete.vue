@@ -55,10 +55,12 @@
               </div>
             </div>
             <div class="center">
-              <span class="list-item__title">{{
-                curr.preferredCommonName
-              }}</span>
-              <span class="list-item__subtitle">{{ curr.name }}</span>
+              <a>
+                <span class="list-item__title">{{
+                  curr.preferredCommonName
+                }}</span>
+                <span class="list-item__subtitle">{{ curr.name }}</span></a
+              >
             </div>
           </v-ons-list-item>
         </v-ons-list>
