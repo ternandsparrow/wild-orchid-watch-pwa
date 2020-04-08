@@ -205,7 +205,7 @@
                   <label
                     :for="currField.id + '-' + currVal.id"
                     class="multiselect-question"
-                    >{{ currVal.label }}
+                    ><a>{{ currVal.label }}</a>
                   </label>
                 </div>
               </template>
