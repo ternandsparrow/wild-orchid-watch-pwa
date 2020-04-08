@@ -1550,6 +1550,23 @@ const actions = {
       }
     }
   },
+  findObsInatIdForUuid({ state }, uuid) {
+    const found = state.allRemoteObs.find(e => e.uuid === uuid)
+    if (!found) {
+      const allUuids = (state.allRemoteObs || []).map(e => e.uuid)
+      throw new Error(
+        `Could not find obs with UUID='${uuid}' from UUIDs=${allUuids}`,
+      )
+    }
+    const result = found.inatId
+    if (!result) {
+      throw new Error(
+        `Found obs matched UUID=${uuid} but it did not have an ` +
+          `inatId=${result}. This should never happen!`,
+      )
+    }
+    return result
+  },
 }
 
 const getters = {
