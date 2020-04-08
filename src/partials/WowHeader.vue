@@ -1,8 +1,7 @@
 <template>
   <v-ons-list-header class="wow-list-header">
     <span v-if="helpTarget" class="help-trigger" @click="triggerHelp">
-      <v-ons-icon icon="fa-question-circle"></v-ons-icon>
-      Help</span
+      <a><v-ons-icon icon="fa-question-circle"></v-ons-icon> Help</a></span
     >
     {{ label }}
     <wow-required-chip v-if="required" />

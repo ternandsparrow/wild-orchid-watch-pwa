@@ -6,7 +6,7 @@
       style="cursor: pointer"
       @click="onClick(dotIndex)"
     >
-      {{ carouselIndex === dotIndex ? '\u25CF' : '\u25CB' }}
+      <a>{{ carouselIndex === dotIndex ? '\u25CF' : '\u25CB' }}</a>
     </span>
   </div>
 </template>

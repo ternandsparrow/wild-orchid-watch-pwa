@@ -40,7 +40,7 @@
       :class="{ 'be-visible-on-ios': !md }"
       @click="doClose"
     >
-      <v-ons-icon icon="fa-times"></v-ons-icon>
+      <a><v-ons-icon icon="fa-times"></v-ons-icon></a>
     </v-ons-fab>
   </div>
 </template>

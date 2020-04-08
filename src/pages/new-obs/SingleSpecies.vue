@@ -81,11 +81,12 @@
             :key="currPhoto.uuid"
             class="photo-item"
           >
-            <div
+            <a
               :style="{ 'background-image': `url('${currPhoto.url}')` }"
-              class="wow-thumbnail"
+              class="wow-thumbnail faux-div"
               @click="showPhotoPreview(currPhoto)"
-            ></div>
+            >
+            </a>
           </div>
         </div>
       </template>
@@ -253,24 +254,27 @@
       </v-ons-list-item>
       <v-ons-list-item class="advanced-switch-container">
         <label class="center" for="advancedSwitch">
-          <span class="list-item__title">Enable advanced mode</span>
-          <span class="list-item__subtitle"
-            ><span v-if="!isAdvancedUserMode"
-              >You are currently in beginner mode. You are presented with fewer
-              questions while you get used to the process. If you'd like to
-              collect more information, use this switch to enable advanced mode
-              which will show more questions. All these questions are optional
-              and you can always switch back if you don't like it.</span
-            >
-            <span v-if="isAdvancedUserMode"
-              >You are currently in advanced mode and have the option to collect
-              more information. This extra information is <i>optional</i> but if
-              you prefer a simpler interface, you can go back to beginner
-              mode.</span
-            >
-            This configuration item is also available in the
-            <i>Settings</i> menu.
-          </span>
+          <a>
+            <span class="list-item__title">Enable advanced mode</span>
+            <span class="list-item__subtitle"
+              ><span v-if="!isAdvancedUserMode"
+                >You are currently in beginner mode. You are presented with
+                fewer questions while you get used to the process. If you'd like
+                to collect more information, use this switch to enable advanced
+                mode which will show more questions. All these questions are
+                optional and you can always switch back if you don't like
+                it.</span
+              >
+              <span v-if="isAdvancedUserMode"
+                >You are currently in advanced mode and have the option to
+                collect more information. This extra information is
+                <i>optional</i> but if you prefer a simpler interface, you can
+                go back to beginner mode.</span
+              >
+              This configuration item is also available in the
+              <i>Settings</i> menu.
+            </span>
+          </a>
         </label>
         <div class="right">
           <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
@@ -1440,6 +1444,10 @@ $thumbnailSize: 75px;
       overflow: hidden;
       position: absolute;
     }
+  }
+
+  .faux-div {
+    display: block;
   }
 }
 

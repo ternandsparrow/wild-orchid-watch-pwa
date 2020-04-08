@@ -21,11 +21,14 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center" for="compressSwitch">
-          <span class="list-item__title">Compress/resize photos</span
-          ><span class="list-item__subtitle"
-            >Enabling this setting will use less storage space on your phone and
-            less data during upload. The tradeoff is observations will take a
-            bit longer to save while your device makes the photos smaller.</span
+          <a>
+            <span class="list-item__title">Compress/resize photos</span
+            ><span class="list-item__subtitle"
+              >Enabling this setting will use less storage space on your phone
+              and less data during upload. The tradeoff is observations will
+              take a bit longer to save while your device makes the photos
+              smaller.</span
+            ></a
           >
         </label>
         <div class="right">
@@ -38,10 +41,12 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center" for="advancedSwitch">
-          <span class="list-item__title">Advanced mode</span
-          ><span class="list-item__subtitle"
-            >If enabled, more questions will be asked when creating
-            observations. The extra questions are all optional.</span
+          <a
+            ><span class="list-item__title">Advanced mode</span
+            ><span class="list-item__subtitle"
+              >If enabled, more questions will be asked when creating
+              observations. The extra questions are all optional.</span
+            ></a
           >
         </label>
         <div class="right">

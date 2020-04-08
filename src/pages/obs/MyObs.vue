@@ -61,7 +61,7 @@
       </v-ons-list>
     </div>
     <v-ons-fab position="bottom right" @click="onNewSingleSpecies">
-      <v-ons-icon icon="md-plus"></v-ons-icon>
+      <a><v-ons-icon icon="md-plus"></v-ons-icon></a>
     </v-ons-fab>
   </v-ons-page>
 </template>

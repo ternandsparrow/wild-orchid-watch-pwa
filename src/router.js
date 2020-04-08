@@ -14,7 +14,7 @@ import Onboarder from '@/pages/Onboarder'
 import OrchidScience from '@/pages/orchid-science/index'
 import Settings from '@/pages/Settings'
 import SingleSpecies from '@/pages/new-obs/SingleSpecies'
-import WowHeader from '@/pages/WowHeader'
+import WowPageHeader from '@/pages/WowPageHeader'
 import { mainStackReplace } from '@/misc/nav-stacks'
 
 const uuidRegex =
@@ -28,7 +28,7 @@ const router = new VueRouter({
     {
       path: '/',
       name: 'Home',
-      component: WowHeader,
+      component: WowPageHeader,
     },
     {
       path: '/oauth-callback',
