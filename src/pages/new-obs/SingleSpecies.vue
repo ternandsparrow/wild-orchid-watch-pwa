@@ -107,6 +107,7 @@
         </div>
       </template>
       <wow-header
+        ref="speciesGuessRef"
         label="Species name or your descriptive field name"
         help-target="field-name"
         class="margin-for-photos"
@@ -581,6 +582,11 @@ export default {
         newVal === accuracyOfSearchAreaCalcEstimated
       this.refreshVisibilityOfSearchAreaFields()
     },
+    isAdvancedUserMode() {
+      setTimeout(() => {
+        this.scrollToSpeciesGuess()
+      }, 300)
+    },
   },
   beforeMount() {
     this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
@@ -754,6 +760,14 @@ export default {
       this.obsFieldVisibility[
         approxAreaSearchedObsFieldId
       ] = this.isEstimatedSearchAreaCalc
+    },
+    scrollToSpeciesGuess() {
+      const el = (this.$refs.speciesGuessRef || {}).$el
+      if (!el) {
+        wowErrorHandler('Failed to find species guess ref to scroll to')
+        return
+      }
+      el.scrollIntoView({ behavior: 'smooth' })
     },
     showHelp(section) {
       this.$store.commit('ephemeral/showHelpModal')
