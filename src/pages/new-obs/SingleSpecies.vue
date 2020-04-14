@@ -81,11 +81,12 @@
             :key="currPhoto.uuid"
             class="photo-item"
           >
-            <div
+            <a
               :style="{ 'background-image': `url('${currPhoto.url}')` }"
-              class="wow-thumbnail"
+              class="wow-thumbnail faux-div"
               @click="showPhotoPreview(currPhoto)"
-            ></div>
+            >
+            </a>
           </div>
         </div>
       </template>
@@ -106,6 +107,7 @@
         </div>
       </template>
       <wow-header
+        ref="speciesGuessRef"
         label="Species name or your descriptive field name"
         help-target="field-name"
         class="margin-for-photos"
@@ -204,7 +206,7 @@
                   <label
                     :for="currField.id + '-' + currVal.id"
                     class="multiselect-question"
-                    >{{ currVal.label }}
+                    ><a>{{ currVal.label }}</a>
                   </label>
                 </div>
               </template>
@@ -253,7 +255,7 @@
       </v-ons-list-item>
       <v-ons-list-item class="advanced-switch-container">
         <label class="center" for="advancedSwitch">
-          <span class="list-item__title">Enable advanced mode</span>
+          <span class="list-item__title"><a>Enable advanced mode</a></span>
           <span class="list-item__subtitle"
             ><span v-if="!isAdvancedUserMode"
               >You are currently in beginner mode. You are presented with fewer
@@ -580,6 +582,11 @@ export default {
         newVal === accuracyOfSearchAreaCalcEstimated
       this.refreshVisibilityOfSearchAreaFields()
     },
+    isAdvancedUserMode() {
+      setTimeout(() => {
+        this.scrollToSpeciesGuess()
+      }, 300)
+    },
   },
   beforeMount() {
     this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
@@ -753,6 +760,14 @@ export default {
       this.obsFieldVisibility[
         approxAreaSearchedObsFieldId
       ] = this.isEstimatedSearchAreaCalc
+    },
+    scrollToSpeciesGuess() {
+      const el = (this.$refs.speciesGuessRef || {}).$el
+      if (!el) {
+        wowErrorHandler('Failed to find species guess ref to scroll to')
+        return
+      }
+      el.scrollIntoView({ behavior: 'smooth' })
     },
     showHelp(section) {
       this.$store.commit('ephemeral/showHelpModal')
@@ -1440,6 +1455,10 @@ $thumbnailSize: 75px;
       overflow: hidden;
       position: absolute;
     }
+  }
+
+  .faux-div {
+    display: block;
   }
 }
 

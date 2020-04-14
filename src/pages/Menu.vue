@@ -30,7 +30,7 @@
           ></v-ons-icon>
         </div>
         <div class="center">
-          {{ item.title }}
+          <a>{{ item.title }}</a>
         </div>
       </v-ons-list-item>
     </v-ons-list>
@@ -51,7 +51,7 @@
           ></v-ons-icon>
         </div>
         <div class="center">
-          {{ item.title }}
+          <a>{{ item.title }}</a>
         </div>
         <div class="right">
           <v-ons-icon icon="fa-external-link"></v-ons-icon>

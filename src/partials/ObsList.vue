@@ -10,7 +10,8 @@
         <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
       </div>
       <div class="center">
-        <span class="list-item__title">{{ speciesGuess(curr) }}</span
+        <span class="list-item__title"
+          ><a>{{ speciesGuess(curr) }}</a></span
         ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
         <span class="list-item__subtitle">{{ dateInfo(curr) }}</span>
         <span

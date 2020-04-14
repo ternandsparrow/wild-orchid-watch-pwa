@@ -336,6 +336,7 @@ import {
   humanDateString,
   isPossiblyStuck,
   rectangleAlongPathAreaValueToTitle,
+  wowErrorHandler,
   wowIdOf,
 } from '@/misc/helpers'
 import { isObsSystemError } from '@/store/obs'
@@ -506,6 +507,14 @@ export default {
       // should be able to use beforeRouteUpdate() instead, but couldn't get it to work
       this.$store.commit('obs/setSelectedObservationId', val)
     },
+    observationDetail(newVal, oldVal) {
+      if (newVal) {
+        // only act when it was deleted
+        return
+      }
+      const uuid = oldVal.uuid
+      this.navigateToNewDetailPage(uuid)
+    },
   },
   async created() {
     this.obsFieldSorterFn = await this.$store.dispatch(
@@ -513,6 +522,31 @@ export default {
     )
   },
   methods: {
+    async navigateToNewDetailPage(uuid) {
+      // the record to be deleted doesn't have the iNat ID and we don't have
+      // access to the new record that will replace it so we need to look up the
+      // ID
+      try {
+        const inatId = await this.$store.dispatch(
+          'obs/findObsInatIdForUuid',
+          uuid,
+        )
+        this.$router.replace({
+          name: 'ObsDetail',
+          params: { id: inatId },
+        })
+      } catch (err) {
+        wowErrorHandler(
+          `Failed to look up iNatID from a UUID where the local record was ` +
+            `deleted out from underneath us`,
+          err,
+        )
+        // we can't leave the user on this page, there's nothing there.
+        this.$router.replace({
+          name: 'Home',
+        })
+      }
+    },
     resetProcessingOutcome() {
       this.$store
         .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
@@ -567,10 +601,6 @@ export default {
       }
       if (this.isSelectedRecordEditOfRemote) {
         menu['Delete only local edit'] = () => {
-          // FIXME handle when we're currently uploading this record. Perhaps
-          // we should dispatch a normal delete and inside that action is the
-          // logic to determine if it's still local-only or if it's being
-          // processed.
           this.$ons.notification
             .confirm(
               'This record has an edit that has NOT yet been ' +

@@ -35,7 +35,7 @@ import MenuPage from '@/pages/Menu'
 import { innerPageStack } from '@/misc/nav-stacks'
 
 export default {
-  name: 'WowHeader',
+  name: 'WowPageHeader',
   components: { MenuPage },
   data() {
     return {

@@ -902,7 +902,7 @@ const actions = {
             {
               msg: `Failed while handling error for Db record with UUID='${idToProcess}'`,
               userMsg: `Error while trying to synchronise with the server`,
-              err2,
+              err: err2,
             },
             { root: true },
           )
@@ -1228,7 +1228,7 @@ const actions = {
         const resp = await doBundleEndpointFetch(payload, 'PUT')
         if (!resp.ok) {
           throw new Error(
-            `POST to bundle endpoint worked at an HTTP level,` +
+            `PUT to bundle endpoint worked at an HTTP level,` +
               ` but the status code indicates an error. Status=${resp.status}` +
               ` Message=${await getBundleErrorMsg(resp)}`,
           )
@@ -1447,6 +1447,7 @@ const actions = {
       validFromOutcomes: [
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
+        constants.waitingOutcome,
       ],
     })
   },
@@ -1548,6 +1549,23 @@ const actions = {
         data,
       }
     }
+  },
+  findObsInatIdForUuid({ state }, uuid) {
+    const found = state.allRemoteObs.find(e => e.uuid === uuid)
+    if (!found) {
+      const allUuids = (state.allRemoteObs || []).map(e => e.uuid)
+      throw new Error(
+        `Could not find obs with UUID='${uuid}' from UUIDs=${allUuids}`,
+      )
+    }
+    const result = found.inatId
+    if (!result) {
+      throw new Error(
+        `Found obs matched UUID=${uuid} but it did not have an ` +
+          `inatId=${result}. This should never happen!`,
+      )
+    }
+    return result
   },
 }
 

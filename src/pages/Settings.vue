@@ -21,7 +21,7 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center" for="compressSwitch">
-          <span class="list-item__title">Compress/resize photos</span
+          <span class="list-item__title"><a>Compress/resize photos</a></span
           ><span class="list-item__subtitle"
             >Enabling this setting will use less storage space on your phone and
             less data during upload. The tradeoff is observations will take a
@@ -38,7 +38,7 @@
       </ons-list-item>
       <ons-list-item>
         <label class="center" for="advancedSwitch">
-          <span class="list-item__title">Advanced mode</span
+          <span class="list-item__title"><a>Advanced mode</a></span
           ><span class="list-item__subtitle"
             >If enabled, more questions will be asked when creating
             observations. The extra questions are all optional.</span
