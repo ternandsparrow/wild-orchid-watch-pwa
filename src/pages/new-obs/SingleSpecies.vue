@@ -170,6 +170,7 @@
                 placeholder="Input value"
                 type="number"
                 @change="onNumberChange($event, currField.id)"
+                @keyup.enter="onNumberInput($event)"
               >
               </v-ons-input>
               <textarea
@@ -1377,6 +1378,9 @@ export default {
     },
     toggleMap() {
       this.isShowMap = !this.isShowMap
+    },
+    onNumberInput(event) {
+      event.target.blur()
     },
   },
 }

@@ -21,5 +21,6 @@ rsync \
   --exclude=.git/ \
   --exclude=node_modules/ \
   --exclude=dist/ \
+  --exclude=tags \
   --delete \
   $sshTargetSpec

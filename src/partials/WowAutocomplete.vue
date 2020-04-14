@@ -7,8 +7,7 @@
         float
         :placeholder="placeholderText"
         type="text"
-        @keyup="onKeyup"
-        @keyup.enter="onSelectPlaceholder"
+        @keyup="onKeyup($event)"
         @focus="scrollSoAutocompleteItemsAreVisible"
       >
       </v-ons-search-input>
@@ -125,7 +124,24 @@ export default {
         this.isItemSelected = true
       }
     },
-    async onKeyup() {
+    async onKeyup(event) {
+      const theKey = event.key.toLowerCase()
+      if (theKey === 'enter') {
+        if (event.shiftKey) {
+          // a useful shortcut for powerusers
+          this.onSelectPlaceholder()
+          return
+        } else {
+          // shift-less Enter
+          event.target.blur()
+          return
+        }
+      }
+      const codesToSwallow = ['shift', 'alt', 'control']
+      const isArrow = theKey.startsWith('arrow')
+      if (codesToSwallow.includes(theKey) || isArrow) {
+        return
+      }
       this.$emit('change', {
         value: this.theValue,
         extra: this.extraCallbackData,
