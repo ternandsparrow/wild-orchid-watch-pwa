@@ -147,8 +147,32 @@
                   currField.wowDatatype === multiselectFieldType,
               }"
             >
+              <v-ons-list v-if="currField.isWideSelect">
+                <v-ons-list-item
+                  v-for="(currOption, $index) in currField.allowedValues"
+                  :key="currField.id + '-' + $index"
+                  tappable
+                >
+                  <label class="left">
+                    <v-ons-radio
+                      v-model="obsFieldValues[currField.id]"
+                      :input-id="'radio-' + currField.id + '-' + $index"
+                      :value="currOption.value"
+                      modifier="material"
+                    >
+                    </v-ons-radio>
+                  </label>
+                  <label
+                    :for="'radio-' + currField.id + '-' + $index"
+                    class="center"
+                  >
+                    {{ currOption.title }}
+                  </label>
+                </v-ons-list-item>
+              </v-ons-list>
+
               <v-ons-select
-                v-if="currField.wowDatatype === selectFieldType"
+                v-else-if="currField.wowDatatype === selectFieldType"
                 v-model="obsFieldValues[currField.id]"
                 class="wow-select"
               >
@@ -350,6 +374,7 @@ import {
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
+  wideSelectObsFieldIds,
   yesValue,
 } from '@/misc/constants'
 
@@ -499,6 +524,7 @@ export default {
         if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
+          field.isWideSelect = wideSelectObsFieldIds.includes(curr.id)
         }
         accum.push(field)
         return accum
