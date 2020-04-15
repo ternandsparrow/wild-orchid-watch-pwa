@@ -662,7 +662,6 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
-        this.refreshVisibilityOfPopulationRecordFields()
         // pre-populate obs fields
         const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
@@ -704,6 +703,13 @@ export default {
             })
           }
         }
+        this.observationDetail.obsFieldValues
+          .filter(e => e.datatype === numericFieldType)
+          .forEach(currNumericField => {
+            const fieldId = currNumericField.fieldId
+            const val = this.obsFieldValues[fieldId]
+            this._onNumberChange(fieldId, val)
+          })
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -721,12 +727,14 @@ export default {
       // couldn't get it to work on number fields (the watcher never gets
       // fired) hence this hack. If you get the watcher working, delete
       // this mess.
-      this.requiredFieldIdsConditionalOnNumberFields = []
       const newVal = event.target.value
+      this._onNumberChange(fieldId, newVal)
+    },
+    _onNumberChange(fieldId, newVal) {
+      this.requiredFieldIdsConditionalOnNumberFields = []
       switch (fieldId) {
         case countOfIndividualsObsFieldId:
           this.isPopulationRecord = parseInt(newVal) > 1
-          this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
             this.requiredFieldIdsConditionalOnNumberFields.push(
               approxAreaSearchedObsFieldId,
@@ -747,7 +755,7 @@ export default {
             this.handleObsFieldRequiredToOptional(
               accuracyOfSearchAreaCalcObsFieldId,
             )
-            // we need to reset this so the conditionally required field lose
+            // we need to reset this so the conditionally required fields lose
             // their required-ness without extra logic
             this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = null
           }
