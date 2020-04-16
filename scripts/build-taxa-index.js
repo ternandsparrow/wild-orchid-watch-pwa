@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Pulls the specified taxa record and all its children from iNat, then
-// transforms it to the format that we need in the app for species autocomplete
+// transforms it to the format that we need in the app for species
+// autocomplete. See the ARCHITECTURE.md doc for more details.
 
 const fs = require('fs')
 const path = require('path')
@@ -55,6 +56,14 @@ const args = require('yargs')
       'When computing other branches of the taxa tree to explore, what lower ' +
       'threshold on "times seen" should be used',
   })
+  .option('australia-inat-place-id', {
+    alias: 'p',
+    type: 'number',
+    default: 6744,
+    description:
+      'Numeric ID that iNaturalist uses for Australia, or more generally the ' +
+      'place ID you want to build a species list for',
+  })
   .option('verbose', {
     alias: 'v',
     type: 'boolean',
@@ -76,22 +85,6 @@ const transformStats = {
   duplicateNames: {},
 }
 
-// FIXME the rough idea is
-//  - build this script to see how long it takes and how much space it uses
-//  - make the API URL, page size and starting taxa ID configurable
-//  - try building it into the app shell
-//  - if we have it here we don't need to set up any other API facade or cron
-//    job that uploads to some server. Sure it'll be a bit stale between builds
-//    but it'll save a lot of needless processing on client devices
-//  - if it's fast enough, we could run this as part of the build
-//  - as for keeping up to date, we could always periodically run a build. Or
-//    run the script, diff the new result and only if there's something that's
-//    changed then we make a new commit. This can run elsewhere and won't be part
-//    of the critical path if it dies
-//  - or we could write a script that runs this, does the diff, and if required
-//    sends a PR (or direct commits) to this repo. Then that will trigger a build
-//    and the app can pull the data directly from GitHub. A little brittle but
-//    works.
 ;(async function main() {
   console.info(`Running with config:
   API base URL: ${args.apiBaseUrl}
@@ -114,9 +107,28 @@ const transformStats = {
 async function doPullStage() {
   const stageStartMs = Date.now()
   console.info('Running the pull stage')
+  console.info('Getting taxa records')
+  const taxaRecords = await doTaxaPullStage()
+  console.info('Getting species list')
+  const speciesListRecords = await doAussieOrchidsSpeciesListPullStage()
+  const thePath = args.cacheFile
+  debug(
+    `Writing ${taxaRecords.length} raw taxa records and ` +
+      `${speciesListRecords.length} raw species list records to cache file ` +
+      `${thePath}`,
+  )
+  const data = {
+    taxaRecords,
+    speciesListRecords,
+  }
+  fs.writeFileSync(thePath, JSON.stringify(data, null, 2))
+}
+
+async function doTaxaPullStage() {
+  const stageStartMs = Date.now()
   let allResults = []
   const targetApiEndpoint = `${args.apiBaseUrl}/v1/taxa?per_page=${args.pageSize}`
-  debug(`Using API endpoint=${targetApiEndpoint}`)
+  debug(`Using taxa API endpoint=${targetApiEndpoint}`)
   const records = await exploreTaxonId(args.taxonId, targetApiEndpoint)
   allResults = allResults.concat(records)
   const extraBranchIds = computeChildBranchesToExplore()
@@ -136,45 +148,89 @@ async function doPullStage() {
       1000} seconds`,
   )
   ponderPullStats()
-  const thePath = args.cacheFile
-  debug(`Writing ${allResults.length} raw records to cache file ${thePath}`)
-  fs.writeFileSync(thePath, JSON.stringify(allResults, null, 2))
+  return allResults
+}
+
+async function doAussieOrchidsSpeciesListPullStage() {
+  const stageStartMs = Date.now()
+  const targetApiEndpoint =
+    `${args.apiBaseUrl}/v1/observations/species_counts` +
+    `?per_page=${args.pageSize}` +
+    `&place_id=${args.australiaInatPlaceId}` +
+    `&taxon_id=${args.taxonId}`
+  const result = await getAllPages(targetApiEndpoint)
+  debug(
+    `All pages for species list retrieved in ${(Date.now() - stageStartMs) /
+      1000} seconds`,
+  )
+  return result
 }
 
 async function doTransformStage() {
   const startMs = Date.now()
   console.info('Running the transform stage')
   const rawData = readCacheFile()
-  const transformedData = []
-  const desiredRanks = ['species']
-  rawData
-    .filter(r => desiredRanks.includes(r.rank))
+  const { ancestorIds, speciesRecords } = rawData.speciesListRecords.reduce(
+    (accum, currEntry) => {
+      const currTaxon = currEntry.taxon
+      transformStats.namesSeen.add(currTaxon.name)
+      // assuming we won't get dupes here as these didn't come from the naughty
+      // taxa endpoint
+      ;(currTaxon.ancestor_ids || []).forEach(currAncestor =>
+        accum.ancestorIds.add(currAncestor),
+      )
+      accum.speciesRecords.push(transformSingleRecord(currTaxon))
+      return accum
+    },
+    {
+      ancestorIds: new Set(),
+      speciesRecords: [],
+    },
+  )
+  const ancestorRecords = []
+  const desiredRanks = ['genus']
+  rawData.taxaRecords
+    .filter(r => {
+      const onlyDesiredRanks = desiredRanks.includes(r.rank)
+      return onlyDesiredRanks
+    })
+    .filter(r => {
+      const onlyAncestorsOfOurSpeciesList = ancestorIds.has(r.id)
+      return onlyAncestorsOfOurSpeciesList
+    })
+    .filter(r => {
+      // observations in the species list might be identified to a level higher
+      // than rank=species
+      const notRecordsWeAlreadyHave = !transformStats.namesSeen.has(r.name)
+      return notRecordsWeAlreadyHave
+    })
     .forEach(r => {
       const name = r.name
       if (transformStats.namesSeen.has(name)) {
+        // we're checking for duplicates *within* the list of taxaRecords
         console.warn(`[WARNING] Duplicate name found=${name}`)
         transformStats.duplicateNames[name] =
           (transformStats.duplicateNames[name] || 0) + 1
       }
       transformStats.namesSeen.add(name)
-      transformedData.push(
-        serialise({
-          // id: r.id,
-          preferredCommonName: r.preferred_common_name,
-          name,
-          // observationCount: r.observation_count,
-          // rank: r.rank,
-          photoUrl: (r.default_photo || {}).square_url,
-        }),
-      )
+      ancestorRecords.push(transformSingleRecord(r))
     })
+  const allRecords = [...speciesRecords, ...ancestorRecords]
   const thePath = args.outputFile
   console.info(
-    `Writing ${transformedData.length} records to output file at ${thePath}`,
+    `Writing ${allRecords.length} records to output file at ${thePath}`,
   )
-  fs.writeFileSync(thePath, JSON.stringify(transformedData))
+  fs.writeFileSync(thePath, JSON.stringify(allRecords))
   debug(`Transform stage run in ${Date.now() - startMs}ms`)
   ponderTransformStats()
+}
+
+function transformSingleRecord(record) {
+  return serialise({
+    preferredCommonName: record.preferred_common_name,
+    name: record.name,
+    photoUrl: (record.default_photo || {}).square_url,
+  })
 }
 
 function debug(msg) {
@@ -251,6 +307,27 @@ async function exploreTaxonId(targetTaxonId, targetApiEndpoint) {
   console.info(`Exploring branch for taxonId=${targetTaxonId}`)
   const branchStartMs = Date.now()
   const baseUrl = `${targetApiEndpoint}&taxon_id=${targetTaxonId}`
+  let result = await getAllPages(baseUrl)
+  const countFromServer = result.length
+  result = deduplicate(result)
+  const countAfterDedupeResultSet = result.length
+  result = result.filter(e => !pullStats.idsSeen.has(e.id))
+  const countAfterRemovingAlreadySeen = result.length
+  console.info(
+    `Summary for taxonId=${targetTaxonId}:
+    All pages retrieved in ${(Date.now() - branchStartMs) / 1000} seconds
+    ${countFromServer} records pulled from server
+    ${countFromServer -
+      countAfterDedupeResultSet} dropped as duplicates within the result set
+    ${countAfterDedupeResultSet -
+      countAfterRemovingAlreadySeen} dropped as we've already seen them
+    ${countAfterRemovingAlreadySeen} added to collection`,
+  )
+  updatePullStats(result)
+  return result
+}
+
+async function getAllPages(baseUrl) {
   let currPage = 1
   let isMore = true
   let result = []
@@ -281,22 +358,6 @@ async function exploreTaxonId(targetTaxonId, targetApiEndpoint) {
       return true
     })()
   }
-  const countFromServer = result.length
-  result = deduplicate(result)
-  const countAfterDedupeResultSet = result.length
-  result = result.filter(e => !pullStats.idsSeen.has(e.id))
-  const countAfterRemovingAlreadySeen = result.length
-  console.info(
-    `Summary for taxonId=${targetTaxonId}:
-    All pages retrieved in ${(Date.now() - branchStartMs) / 1000} seconds
-    ${countFromServer} records pulled from server
-    ${countFromServer -
-      countAfterDedupeResultSet} dropped as duplicates within the result set
-    ${countAfterDedupeResultSet -
-      countAfterRemovingAlreadySeen} dropped as we've already seen them
-    ${countAfterRemovingAlreadySeen} added to collection`,
-  )
-  updatePullStats(result)
   return result
 }
 
@@ -359,7 +420,6 @@ function deduplicate(records) {
   const diff = records.length - result.length
   if (diff !== 0) {
     console.debug(`Removed ${diff} duplicates from the result set`)
-    debugger // FIXME delete line
   }
   return result
 }

@@ -22,5 +22,8 @@ rsync \
   --exclude=node_modules/ \
   --exclude=dist/ \
   --exclude=tags \
+  --exclude=scripts/inat-taxa-cache* \
+  --exclude=scripts/transform* \
+  --exclude=public/wow-taxa-index.json \
   --delete \
   $sshTargetSpec
