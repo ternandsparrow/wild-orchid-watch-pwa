@@ -148,9 +148,14 @@
           </template>
         </v-ons-list>
         <div class="inat-details">
-          <div>iNat ID: {{ nullSafeObs.inatId }}</div>
           <div>iNat UUID: {{ nullSafeObs.uuid }}</div>
-          <div>Updated at: {{ nullSafeObs.updatedAt }}</div>
+          <template v-if="isSelectedRecordOnRemote">
+            <div>iNat ID: {{ nullSafeObs.inatId }}</div>
+            <div>Updated at: {{ nullSafeObs.updatedAt }}</div>
+            <div>
+              <a :href="obsOnInatUrl" target="_blank">View on iNaturalist</a>
+            </div>
+          </template>
         </div>
       </div>
       <div v-if="selectedTab === 1">
@@ -325,6 +330,7 @@ import {
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
   getMultiselectId,
+  inatUrlBase,
   noImagePlaceholderUrl,
   noValue,
   notCollected,
@@ -500,6 +506,9 @@ export default {
     },
     isNoIdsOrComments() {
       return !(this.nullSafeObs.idsAndComments || []).length
+    },
+    obsOnInatUrl() {
+      return `${inatUrlBase}/observations/${this.nullSafeObs.inatId}`
     },
   },
   watch: {
