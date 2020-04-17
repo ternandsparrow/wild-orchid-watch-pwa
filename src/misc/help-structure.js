@@ -234,7 +234,11 @@ export default (() => {
         'Soil surface structure as observed on the surface (NO DIGGING!)',
       values: [
         ['Unknown', 'Not able to classify the soil structure', 'blank'],
-        ['Sand', 'Loose, granular, felt or heard when pinching.', 'blank'],
+        [
+          'Sand',
+          'Loose, granular texture, finer than gravel, coarser than clay or silt',
+          'blank',
+        ],
         ['Loam', 'A fertile soil of clay and sand containing humus.', 'blank'],
         ['Clay', 'Sticky, cohesive or plastic feeling.', 'blank'],
       ],
