@@ -4,9 +4,11 @@ import VueRouter from 'vue-router'
 import store from '@/store'
 import Admin from '@/pages/Admin'
 import FAQ from '@/pages/faq/index'
+import Gallery from '@/pages/obs/Gallery'
 import HelpPage from '@/pages/HelpPage'
 import Missions from '@/pages/missions/Available'
 import MissionsNew from '@/pages/missions/New'
+import MyObs from '@/pages/obs/MyObs'
 import NotFound from '@/pages/NotFound'
 import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
@@ -14,11 +16,12 @@ import Onboarder from '@/pages/Onboarder'
 import OrchidScience from '@/pages/orchid-science/index'
 import Settings from '@/pages/Settings'
 import SingleSpecies from '@/pages/new-obs/SingleSpecies'
-import WowPageHeader from '@/pages/WowPageHeader'
+import Species from '@/pages/obs/Species'
 import { mainStackReplace } from '@/misc/nav-stacks'
 
 const uuidRegex =
   '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+const homeComponent = MyObs
 
 Vue.use(VueRouter)
 
@@ -28,7 +31,17 @@ const router = new VueRouter({
     {
       path: '/',
       name: 'Home',
-      component: WowPageHeader,
+      component: homeComponent,
+    },
+    {
+      path: '/obs/gallery',
+      name: 'Gallery',
+      component: Gallery,
+    },
+    {
+      path: '/obs/species',
+      name: 'Species',
+      component: Species,
     },
     {
       path: '/oauth-callback',
@@ -144,8 +157,21 @@ router.beforeEach((to, from, next) => {
       return next(false)
     }
   }
-  // Reset pageStack to the new route
+  // We're doing this stack replace song and dance for the sake of sane nested
+  // routing. For example, assume a user lands directly on (or refreshes the
+  // page of) the url /foo/bar. When they press the back button, we want them
+  // to go somewhere that makes sense. That's up the tree, so we want to go to
+  // /foo. The matchedComponents will be an array of all the matches down the
+  // routing tree.
   const matchedComponents = to.matched.map(m => m.components.default)
+  const isNoMatches = !matchedComponents.length
+  if (isNoMatches) {
+    console.error(
+      `Tried to navigate to route (name=${to.name}, path=${to.path}) that ` +
+        `does not exist, defaulting to home`,
+    )
+    matchedComponents.push(homeComponent)
+  }
   mainStackReplace(matchedComponents)
   next()
 })

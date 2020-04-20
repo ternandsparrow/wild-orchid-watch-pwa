@@ -529,6 +529,7 @@ export default {
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
+    // TODO when landing from gallery, could preselect the referrer photo
   },
   methods: {
     async navigateToNewDetailPage(uuid) {

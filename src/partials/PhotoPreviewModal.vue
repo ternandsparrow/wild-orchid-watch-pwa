@@ -11,6 +11,12 @@
           ><v-ons-icon icon="fa-trash"></v-ons-icon> Delete</v-ons-button
         >
       </div>
+      <div v-if="showJump">
+        <v-ons-button class="jump-btn" @click="onJump"
+          ><v-ons-icon icon="fa-eye"></v-ons-icon> View
+          observation</v-ons-button
+        >
+      </div>
       <div>
         <v-ons-button @click="closePhotoPreview"
           ><v-ons-icon icon="fa-times-circle"></v-ons-icon> Close</v-ons-button
@@ -43,6 +49,12 @@ export default {
     isVisible() {
       return !!this.previewedPhoto
     },
+    parentWowId() {
+      return (this.previewedPhoto || {}).wowId
+    },
+    showJump() {
+      return !!this.parentWowId
+    },
   },
   beforeMount() {
     // thanks https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
@@ -63,6 +75,9 @@ export default {
     },
     closePhotoPreview() {
       this.$store.commit('ephemeral/closePhotoPreview')
+    },
+    onJump() {
+      this.$emit('jump', this.parentWowId)
     },
   },
 }
@@ -89,6 +104,10 @@ export default {
 
   .delete-btn {
     background-color: red;
+  }
+
+  .jump-btn {
+    background-color: green;
   }
 }
 </style>

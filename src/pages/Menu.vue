@@ -19,7 +19,7 @@
         v-for="item in access"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
-        @click="handleMenuClick(item.clickData)"
+        @click="handleMenuClick(item.target)"
       >
         <div class="left">
           <v-ons-icon
@@ -40,7 +40,6 @@
         v-for="item in links"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
-        @click="loadLink(item.url)"
       >
         <div class="left">
           <v-ons-icon
@@ -50,7 +49,7 @@
           ></v-ons-icon>
         </div>
         <div class="center">
-          <a>{{ item.title }}</a>
+          <a :href="item.url" target="_blank">{{ item.title }}</a>
         </div>
         <div class="right">
           <v-ons-icon icon="fa-external-link"></v-ons-icon>
@@ -64,7 +63,6 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import Observations from '@/pages/obs/index'
 // import Activity from '@/pages/activity/index'
 // import Dashboard from '@/pages/dashboard/index'
 import {
@@ -73,10 +71,6 @@ import {
   inatUrlBase,
   inatProjectSlug,
 } from '@/misc/constants'
-import { innerPageStackReplace } from '@/misc/nav-stacks'
-
-const componentType = 'COMPONENT'
-const routerType = 'ROUTER'
 
 export default {
   data() {
@@ -120,10 +114,17 @@ export default {
         {
           title: 'My Observations',
           icon: 'fa-microscope',
-          clickData: {
-            type: componentType,
-            component: Observations,
-          },
+          target: { name: 'Home' },
+        },
+        {
+          title: 'My Gallery',
+          icon: 'fa-images',
+          target: { name: 'Gallery' },
+        },
+        {
+          title: 'My Species',
+          icon: 'fa-leaf',
+          target: { name: 'Species' },
         },
         // FIXME uncomment when they have real content
         // {
@@ -134,34 +135,22 @@ export default {
         {
           title: 'Orchid Science',
           icon: 'fa-book-open',
-          clickData: {
-            type: routerType,
-            target: { name: 'OrchidScience' },
-          },
+          target: { name: 'OrchidScience' },
         },
         {
           title: 'FAQ',
           icon: 'fa-info',
-          clickData: {
-            type: routerType,
-            target: { name: 'FAQ' },
-          },
+          target: { name: 'FAQ' },
         },
         {
           title: 'Help',
           icon: 'fa-question-circle',
-          clickData: {
-            type: routerType,
-            target: { name: 'HelpPage' },
-          },
+          target: { name: 'HelpPage' },
         },
         {
           title: 'Settings',
           icon: 'md-settings',
-          clickData: {
-            type: routerType,
-            target: { name: 'Settings' },
-          },
+          target: { name: 'Settings' },
         },
       ],
     }
@@ -176,25 +165,8 @@ export default {
     },
   },
   methods: {
-    handleMenuClick(clickData) {
-      switch (clickData.type) {
-        case componentType:
-          this.$store.commit('ephemeral/toggleSplitter')
-          return this.loadView(clickData.component)
-        case routerType:
-          this.safelyPushRoute(clickData.target)
-          return
-        default:
-          throw new Error(
-            `Programmer problem: unhandled clickData=${clickData}`,
-          )
-      }
-    },
-    loadView(component) {
-      innerPageStackReplace(component) // TODO are we happy with no back for these pages?
-    },
-    loadLink(url) {
-      window.open(url, '_blank')
+    handleMenuClick(target) {
+      this.safelyPushRoute(target)
     },
     onVersionClick() {
       // like Android's easter egg, tap the version N times

@@ -1,5 +1,5 @@
 <template>
-  <v-ons-page>
+  <menu-wrapper title="My Observations">
     <v-ons-pull-hook
       :action="doRefresh"
       @changestate="pullHookState = $event.state"
@@ -12,9 +12,10 @@
       <div v-if="isDoingSync" class="updating-msg text-center">
         Synchronising with server
       </div>
-      <div v-if="isNoRecords" class="no-records-msg">
-        You haven't submitted any Observations, so far..
-      </div>
+      <no-records-msg
+        v-if="isNoRecords"
+        fragment="You haven't submitted any Observations"
+      />
       <v-ons-list v-if="!isNoRecords">
         <v-ons-list-header
           v-if="isShowDeleteDetails"
@@ -63,7 +64,7 @@
     <v-ons-fab position="bottom right" @click="onNewSingleSpecies">
       <a><v-ons-icon icon="md-plus"></v-ons-icon></a>
     </v-ons-fab>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
@@ -71,6 +72,7 @@ import { mapState, mapGetters } from 'vuex'
 import { triggerSwObsQueue, triggerSwDepsQueue } from '@/misc/helpers'
 
 export default {
+  name: 'MyObs',
   data() {
     return {
       pullHookState: 'initial',
