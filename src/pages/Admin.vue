@@ -1,6 +1,5 @@
 <template>
-  <v-ons-page>
-    <custom-toolbar back-label="Cancel" title="Admin robin"></custom-toolbar>
+  <menu-wrapper title="Admin">
     <v-ons-card>
       <div class="title">
         Location test
@@ -92,6 +91,39 @@
       <p>
         <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
       </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Clone an obs N times
+      </div>
+      <p>
+        Ever wondered if 30 local observations will bring a device to its knees?
+        Find out. You might want to turn off syncing before cloning.
+      </p>
+      <div>
+        <v-ons-button @click="prepCloneList"
+          >Get list of cloneable obs</v-ons-button
+        >
+      </div>
+      <div>
+        Obs to clone
+        <select v-model="cloneSubjectUuid">
+          <option
+            v-for="curr of cloneList"
+            :key="curr.uuid"
+            :value="curr.uuid"
+            >{{ curr.title }}</option
+          >
+        </select>
+      </div>
+      <div>
+        Number of times to clone
+        <input v-model="cloneCount" type="number" />
+      </div>
+      <div>
+        <v-ons-button @click="doClone">Clone</v-ons-button>
+      </div>
+      <div>Status = {{ cloneStatus }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -332,11 +364,12 @@
       <div class="code-style">{{ imageClassificationResult }}</div>
     </v-ons-card>
     <div class="footer-whitespace"></div>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
 import { mapGetters, mapState } from 'vuex'
+import uuid from 'uuid/v1'
 import dayjs from 'dayjs'
 import _ from 'lodash'
 import * as Comlink from 'comlink'
@@ -352,6 +385,7 @@ import {
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
+import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
 
 const wowModelPath = '/image-ml/v1/model.json'
 
@@ -381,6 +415,10 @@ export default {
       hasConsoleBeenProxiedToUi: false,
       obsPhotoReqOutcome: 'nothing yet',
       hasSwConsoleBeenProxied: false,
+      cloneList: [],
+      cloneCount: 30,
+      cloneSubjectUuid: null,
+      cloneStatus: 'not started',
     }
   },
   computed: {
@@ -701,6 +739,34 @@ export default {
     },
     doSwObsPhotoPost() {
       this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
+    },
+    async doClone() {
+      this.cloneStatus = 'Starting'
+      console.debug(
+        `Cloning obs UUID=${this.cloneSubjectUuid} a count of ${this.cloneCount} times`,
+      )
+      const cloneSubject = await getRecord(this.cloneSubjectUuid)
+      let counter = 0
+      while (counter < this.cloneCount) {
+        counter++
+        const msg = `Making clone #${counter}`
+        console.debug(msg)
+        this.cloneStatus = msg
+        const cloned = Object.assign({}, cloneSubject, {
+          speciesGuess: `[Clone ${counter}] ${cloneSubject.speciesGuess}`,
+          uuid: uuid(),
+          observedAt: new Date(),
+        })
+        await storeRecord(cloned)
+      }
+      await this.$store.dispatch('obs/refreshLocalRecordQueue')
+      this.cloneStatus = 'Done :D'
+    },
+    prepCloneList() {
+      this.cloneList = this.$store.state.obs._uiVisibleLocalRecords.map(e => ({
+        title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
+        uuid: e.uuid,
+      }))
     },
   },
 }

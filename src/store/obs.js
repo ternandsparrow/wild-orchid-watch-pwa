@@ -566,7 +566,7 @@ const actions = {
         // existingLocalRecord is the UI version that has a blob URL for the
         // photos. We need the raw photo data itself so we go to the DB record
         // for photos.
-        const existingRemotePhotos = (existingRemoteRecord || []).photos || []
+        const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
         const existingLocalPhotos = existingDbRecord.photos
         const photosWithDeletesApplied = [
           ...(existingLocalPhotos || existingRemotePhotos),
@@ -685,7 +685,7 @@ const actions = {
         })
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
-          photos: enhancedRecord.photos.map(p => ({
+          photos: (enhancedRecord.photos || []).map(p => ({
             ...p,
             file: '(removed for logging)',
           })),
@@ -731,7 +731,7 @@ const actions = {
         await storeRecord(enhancedRecord)
       } catch (err) {
         const loggingSafeRecord = Object.assign({}, enhancedRecord, {
-          photos: enhancedRecord.photos.map(p => ({
+          photos: (enhancedRecord.photos || []).map(p => ({
             ...p,
             file: '(removed for logging)',
           })),
@@ -1600,6 +1600,7 @@ const getters = {
     return getters.deletesWithErrorDbIds.length
   },
   localRecords(state) {
+    // TODO refactor this nested loops stuff to be more efficient
     return state._uiVisibleLocalRecords.map(currLocal => {
       const existingValues =
         state.allRemoteObs.find(
@@ -1699,18 +1700,27 @@ function isErrorOutcome(outcome) {
 function resolveLocalRecordUuids(ids) {
   photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
   photoObjectUrlsInUse = []
-  return Promise.all(
-    ids.map(async currId => {
+  const promises = ids
+    .map(async currId => {
       const currRecord = await getRecord(currId)
-      const photos = currRecord.photos.map(mapPhotoFromDbToUi)
+      if (!currRecord) {
+        const msg =
+          `Could resolve ID=${currId} to a DB record.` +
+          ' Assuming it was deleted while we were busy processing.'
+        wowWarnHandler(msg)
+        const nothingToDoFilterMeOut = null
+        return nothingToDoFilterMeOut
+      }
+      const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
       const result = {
         ...currRecord,
         photos,
       }
       commonApiToOurDomainObsMapping(result, currRecord)
       return result
-    }),
-  )
+    })
+    .filter(e => !!e)
+  return Promise.all(promises)
 }
 
 function mapPhotoFromDbToUi(p) {
