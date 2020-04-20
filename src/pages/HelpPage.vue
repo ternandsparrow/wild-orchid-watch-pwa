@@ -1,18 +1,11 @@
 <template>
-  <v-ons-page>
-    <wow-help @close="goHome" />
-  </v-ons-page>
+  <menu-wrapper title="Help">
+    <wow-help hide-close-btn />
+  </menu-wrapper>
 </template>
 
 <script>
 export default {
   name: 'HelpPage',
-  methods: {
-    goHome() {
-      this.$router.push({ name: 'Home' })
-    },
-  },
 }
 </script>
-
-<style lang="scss" scoped></style>

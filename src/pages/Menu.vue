@@ -49,7 +49,9 @@
           ></v-ons-icon>
         </div>
         <div class="center">
-          <a :href="item.url" target="_blank">{{ item.title }}</a>
+          <a :href="item.url" target="_blank" class="external-link">{{
+            item.title
+          }}</a>
         </div>
         <div class="right">
           <v-ons-icon icon="fa-external-link"></v-ons-icon>
@@ -64,7 +66,6 @@
 import { mapGetters } from 'vuex'
 
 // import Activity from '@/pages/activity/index'
-// import Dashboard from '@/pages/dashboard/index'
 import {
   appVersion,
   deployedEnvName,
@@ -106,11 +107,6 @@ export default {
         },
       ],
       access: [
-        // {
-        //   title: 'Dashboard',
-        //   icon: 'fa-tachometer-alt',
-        //   component: Dashboard,
-        // },
         {
           title: 'My Observations',
           icon: 'fa-microscope',
@@ -232,5 +228,10 @@ export default {
   align-items: center;
   overflow: hidden; /* FIXME email addresses overflow the menu, maybe elipses
   them? */
+}
+
+.external-link {
+  color: inherit;
+  text-decoration: none;
 }
 </style>

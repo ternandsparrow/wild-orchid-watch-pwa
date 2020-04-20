@@ -1,6 +1,5 @@
 <template>
-  <v-ons-page>
-    <custom-toolbar back-label="Home" title="Settings" />
+  <menu-wrapper title="Settings">
     <v-ons-list>
       <ons-list-item>
         <div class="center">
@@ -117,7 +116,7 @@
         </div>
       </ons-list-item>
     </v-ons-list>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
@@ -179,9 +178,6 @@ export default {
       const usage = formatStorageSize(this.storageUsage)
       return `Used ${usage} of ${quota} (${this.storageUsedPercent}%)`
     },
-  },
-  mounted() {
-    this.$store.commit('app/setTopTitle', 'Settings')
   },
   created() {
     this.updateStorageStats()

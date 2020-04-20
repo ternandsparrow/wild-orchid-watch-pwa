@@ -1,6 +1,5 @@
 <template>
-  <v-ons-page>
-    <custom-toolbar back-label="Home" title="FAQ" />
+  <menu-wrapper title="FAQ">
     <v-ons-list>
       <v-ons-list-item v-for="(currItem, $index) of items" :key="currItem.q">
         <div class="center">
@@ -19,7 +18,7 @@
         </div>
       </v-ons-list-item>
     </v-ons-list>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
