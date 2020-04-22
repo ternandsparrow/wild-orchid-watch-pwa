@@ -9,57 +9,181 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div v-if="isDoingSync" class="updating-msg text-center">
-        Synchronising with server
-      </div>
+      <v-ons-list>
+        <v-ons-list-item expandable
+          ><div class="center summary-bar">
+            <div class="summary-item">
+              <img src="@/assets/img/cloud-wait.svg" class="wow-icon" />
+              {{ localRecords.length }}
+              <span class="md-detail">Pending</span>
+              <span class="lg-detail">Pending upload</span>
+            </div>
+            <div class="summary-item">
+              <v-ons-icon
+                v-if="isDoingSync"
+                icon="fa-spinner"
+                class="sync-spinner"
+              ></v-ons-icon>
+              <v-ons-icon v-else icon="fa-check-double"></v-ons-icon>
+              <span class="sm-detail">
+                {{ isDoingSync ? 'Sync' : 'Done' }}
+              </span>
+              <span class="md-detail">
+                {{ isDoingSync ? 'Sync-ing' : 'Sync done' }}
+              </span>
+              <span class="lg-detail">
+                Sync {{ isDoingSync ? 'in progress' : 'all done' }}
+              </span>
+            </div>
+            <div class="summary-item">
+              <v-ons-icon
+                :class="{ red: !networkOnLine }"
+                icon="fa-wifi"
+              ></v-ons-icon>
+              <span class="sm-detail">
+                {{ networkOnLine ? 'Yes' : 'No' }}
+              </span>
+              <span class="md-detail">
+                {{ networkOnLine ? 'Online' : 'Offline' }}
+              </span>
+              <span class="lg-detail">
+                Network {{ networkOnLine ? 'Online' : 'Offline' }}
+              </span>
+            </div>
+            <div class="summary-item">
+              <v-ons-icon
+                v-if="isSyncDisabled"
+                icon="fa-ban"
+                class="red"
+              ></v-ons-icon>
+              <v-ons-icon v-else icon="fa-cloud-upload-alt"></v-ons-icon>
+              <span class="sm-detail">
+                {{ isSyncDisabled ? 'Off' : 'On' }}
+              </span>
+              <span class="md-detail">
+                Sync {{ isSyncDisabled ? 'Off' : 'On' }}
+              </span>
+              <span class="lg-detail">
+                Synchronising {{ isSyncDisabled ? 'Off' : 'On' }}
+              </span>
+            </div>
+            <div v-if="deletesWithErrorCount" class="delete-error-container">
+              <div>
+                <span class="red">Error</span> while deleting
+                <strong>{{ deletesWithErrorCount }}</strong> record(s) on
+                server.
+              </div>
+              <div class="delete-fail-button-container">
+                <v-ons-button @click="retryFailedDeletes">Retry</v-ons-button>
+                <v-ons-button modifier="outline " @click="cancelFailedDeletes"
+                  >Cancel deletes</v-ons-button
+                >
+              </div>
+            </div>
+          </div>
+          <div class="expandable-content">
+            <div class="expand-item">
+              <img src="@/assets/img/cloud-wait.svg" class="wow-icon" />
+              {{ localRecords.length }} observations queued for sync
+              <div v-if="waitingForDeleteCount">
+                <strong>{{ waitingForDeleteCount }}</strong> pending observation
+                delete(s).
+              </div>
+            </div>
+            <div class="expand-item">
+              <template v-if="isDoingSync">
+                <v-ons-icon icon="fa-spinner" class="sync-spinner" />
+                Synchronising observations with iNaturalist
+              </template>
+              <template v-else>
+                <v-ons-icon icon="fa-check-double"></v-ons-icon>
+                Synchronised with iNaturalist ({{ humanLastSyncDate }})
+              </template>
+            </div>
+            <div class="expand-item">
+              <v-ons-icon
+                :class="{ red: !networkOnLine }"
+                icon="fa-wifi"
+              ></v-ons-icon>
+              <span v-if="networkOnLine"> Network online</span>
+              <span v-else> Network offline</span>
+            </div>
+            <div class="expand-item">
+              <v-ons-icon
+                v-if="isSyncDisabled"
+                icon="fa-ban"
+                class="red"
+              ></v-ons-icon>
+              <v-ons-icon v-else icon="fa-cloud-upload-alt"></v-ons-icon>
+              <span v-if="isSyncDisabled">
+                Sync with iNaturalist is <span class="red">disabled</span> (in
+                Settings menu)
+              </span>
+              <span v-else> Sync with iNaturalist enabled</span>
+            </div>
+            <div class="expand-item">
+              {{ allRecords.length }} total observations
+            </div>
+            <div class="exapnd-item">
+              <v-ons-icon icon="fa-comment"> </v-ons-icon>
+              count of comments on observation
+            </div>
+            <div class="exapnd-item">
+              <v-ons-icon icon="fa-dna"> </v-ons-icon>
+              count of IDs on observation
+            </div>
+          </div>
+        </v-ons-list-item>
+        <template v-if="!isNoRecords">
+          <v-ons-list-item
+            v-for="curr in allRecords"
+            :key="(curr.isWaiting ? 'waiting-' : '') + curr._key"
+            modifier="chevron"
+            @click="push(curr)"
+          >
+            <div class="left">
+              <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
+            </div>
+            <div class="center">
+              <span class="list-item__title"
+                ><a>{{ speciesGuess(curr) }}</a></span
+              ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
+              <span class="list-item__subtitle">{{ dateInfo(curr) }}</span>
+              <span
+                v-show="isSystemError(curr)"
+                class="list-item__subtitle error-indicator"
+                >Error uploading record</span
+              >
+              <span
+                v-show="isPossiblyStuck(curr)"
+                class="list-item__subtitle warn-indicator"
+              >
+                <v-ons-icon icon="fa-exclamation-triangle"></v-ons-icon>
+                Possible problem</span
+              >
+              <div class="obs-badges">
+                <img
+                  v-if="curr.isWaiting"
+                  src="@/assets/img/cloud-wait.svg"
+                  class="wow-icon"
+                />
+                <span v-if="curr.commentCount" class="wow-badge">
+                  <v-ons-icon icon="fa-comment"> </v-ons-icon>
+                  {{ curr.commentCount }}
+                </span>
+                <span v-if="curr.idCount" class="wow-badge">
+                  <v-ons-icon icon="fa-dna"> </v-ons-icon>
+                  {{ curr.idCount }}
+                </span>
+              </div>
+            </div>
+          </v-ons-list-item>
+        </template>
+      </v-ons-list>
       <no-records-msg
         v-if="isNoRecords"
-        fragment="You haven't submitted any Observations"
+        fragment="You haven't created any observations"
       />
-      <v-ons-list v-if="!isNoRecords">
-        <v-ons-list-header
-          v-if="isShowDeleteDetails"
-          class="waiting-for-delete-header"
-        >
-          <span v-if="waitingForDeleteCount"
-            ><strong>{{ waitingForDeleteCount }}</strong> pending record
-            delete(s).</span
-          >
-          <div v-if="isSyncDisabled">
-            (Sync <span class="red">disabled</span> in settings)
-          </div>
-          <div v-if="deletesWithErrorCount">
-            <div>
-              <span class="red">Error</span> while deleting
-              <strong>{{ deletesWithErrorCount }}</strong> record(s) on server.
-            </div>
-            <div class="delete-fail-button-container">
-              <v-ons-button @click="retryFailedDeletes">Retry</v-ons-button>
-              <v-ons-button modifier="outline " @click="cancelFailedDeletes"
-                >Cancel deletes</v-ons-button
-              >
-            </div>
-          </div>
-        </v-ons-list-header>
-        <v-ons-list-header v-if="isWaitingForUpload"
-          >Waiting to upload
-          <span v-if="isSyncDisabled"
-            >(Sync <span class="red">disabled</span> in settings)</span
-          >
-          <span v-if="!networkOnLine && !isSyncDisabled"
-            >(Will retry when we're back online)</span
-          ></v-ons-list-header
-        >
-        <obs-list
-          :records="localRecords"
-          key-prefix="waiting-"
-          @item-click="push"
-        />
-        <v-ons-list-header v-if="isWaitingForUpload"
-          >Uploaded</v-ons-list-header
-        >
-        <obs-list :records="remoteRecords" @item-click="push" />
-      </v-ons-list>
     </div>
     <v-ons-fab position="bottom right" @click="onNewSingleSpecies">
       <a><v-ons-icon icon="md-plus"></v-ons-icon></a>
@@ -69,7 +193,16 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex'
-import { triggerSwObsQueue, triggerSwDepsQueue } from '@/misc/helpers'
+import dayjs from 'dayjs'
+import {
+  humanDateString,
+  isPossiblyStuck,
+  triggerSwDepsQueue,
+  triggerSwObsQueue,
+  wowIdOf,
+} from '@/misc/helpers'
+import { noImagePlaceholderUrl } from '@/misc/constants'
+import { isObsSystemError, extractGeolocationText } from '@/store/obs'
 
 export default {
   name: 'MyObs',
@@ -82,6 +215,7 @@ export default {
     ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('ephemeral', ['networkOnLine']),
+    ...mapState('obs', ['allRemoteObsLastUpdated']),
     ...mapGetters('obs', [
       'deletesWithErrorCount',
       'isDoingSync',
@@ -90,14 +224,30 @@ export default {
       'remoteRecords',
       'waitingForDeleteCount',
     ]),
-    isWaitingForUpload() {
-      return (this.localRecords || []).length
+    humanLastSyncDate() {
+      return dayjs(this.allRemoteObsLastUpdated).format('DD-MMM-YYYY HH:mm')
     },
     isNoRecords() {
-      return (this.remoteRecords || []).length === 0 && !this.isWaitingForUpload
+      return (this.allRecords || []).length === 0
     },
     isShowDeleteDetails() {
       return this.waitingForDeleteCount || this.deletesWithErrorCount
+    },
+    allRecords() {
+      return [
+        ...this.localRecords.map(r => ({
+          ...r,
+          isWaiting: true,
+        })),
+        ...this.remoteRecords.map(r => ({
+          ...r,
+          commentCount: (r.comments || []).length,
+          idCount: (r.identifications || []).length,
+        })),
+      ].map(e => ({
+        ...e,
+        _key: wowIdOf(e),
+      }))
     },
   },
   mounted() {
@@ -106,7 +256,8 @@ export default {
     }
   },
   methods: {
-    push(obsId) {
+    push(record) {
+      const obsId = wowIdOf(record)
       this.$router.push({ name: 'ObsDetail', params: { id: obsId } })
     },
     onNewSingleSpecies() {
@@ -135,34 +286,115 @@ export default {
     cancelFailedDeletes() {
       this.$store.dispatch('obs/cancelFailedDeletes')
     },
+    firstPhoto(record) {
+      if (!record || !record.photos || !record.photos.length) {
+        return noImagePlaceholderUrl
+      }
+      return record.photos[0].url
+    },
+    speciesGuess(record) {
+      return record.speciesGuess || '(No species name)'
+    },
+    placeGuess(record) {
+      return extractGeolocationText(record)
+    },
+    isSystemError(record) {
+      return isObsSystemError(record)
+    },
+    dateInfo(r) {
+      return humanDateString(r.observedAt)
+    },
+    isPossiblyStuck(record) {
+      return isPossiblyStuck(this.$store, record)
+    },
   },
 }
 </script>
 
 <style lang="scss" scoped>
 @import '@/theme/variables.scss';
-.wow-list-item {
-  background-color: $wowLightLightBlue;
-}
-
-.updating-msg {
-  background-color: #98ffc1;
-  color: #555;
-  padding: 0.25em;
-  font-size: 0.9em;
-}
-
 .red {
   color: red;
 }
 
-.waiting-for-delete-header {
-  background-color: #ffd384;
+.delete-error-container {
+  border: 1px solid red;
+  border-radius: 10px;
+  padding: 1em;
+  margin-top: 1em;
+  background-color: #ffe9ed;
+
+  .delete-fail-button-container {
+    display: flex;
+    justify-content: space-around;
+  }
 }
 
-.delete-fail-button-container {
-  display: flex;
-  justify-content: space-around;
-  padding-bottom: 1em;
+.error-indicator {
+  color: red;
+}
+
+.warn-indicator {
+  color: $wowWarnOrange;
+}
+
+.obs-badges {
+  color: #888;
+
+  .wow-badge {
+    margin-right: 0.2em;
+    white-space: nowrap;
+  }
+}
+
+.wow-icon {
+  width: 26px;
+  vertical-align: bottom;
+}
+
+.summary-bar {
+  .summary-item {
+    flex: 1 1 0;
+
+    .sm-detail,
+    .md-detail,
+    .lg-detail {
+      display: none;
+    }
+
+    @media only screen and (max-width: 459px) {
+      .sm-detail {
+        display: inline;
+      }
+    }
+
+    @media only screen and (min-width: 460px) and (max-width: 699px) {
+      .md-detail {
+        display: inline;
+      }
+    }
+
+    @media only screen and (min-width: 700px) {
+      .lg-detail {
+        display: inline;
+      }
+    }
+  }
+}
+
+.sync-spinner {
+  animation: spin 4s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+
+.expand-item {
+  padding: 0.5em 0;
+  border-bottom: 1px solid #ddd;
 }
 </style>

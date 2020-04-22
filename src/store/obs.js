@@ -1633,7 +1633,7 @@ const getters = {
       .some(e => wowIdOf(e) === selectedId)
   },
   isSelectedRecordOnRemote(_, getters) {
-    const isRemote = getters.observationDetail.inatId
+    const isRemote = (getters.observationDetail || {}).inatId
     return !!isRemote
   },
   waitingLocalQueueSummary(state) {

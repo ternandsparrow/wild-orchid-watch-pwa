@@ -3,8 +3,11 @@
     <v-ons-list>
       <ons-list-item>
         <div class="center">
-          <span class="list-item__title">When to sync with server</span
-          ><span class="list-item__subtitle">Control your data usage</span>
+          <span class="list-item__title">When to sync with iNaturalist</span
+          ><span class="list-item__subtitle"
+            >Control your data usage. You could turn sync off while you're in
+            the field then re-enable it once you're back in range of WiFi.</span
+          >
           <div class="wow-options-container">
             <v-ons-select v-model="whenToSync">
               <option
