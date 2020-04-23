@@ -323,6 +323,18 @@ describe('formatStorageSize', () => {
 })
 
 describe('rectangleAlongPathAreaValueToTitle', () => {
+  it('should handle value < 1', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(
+      'less than 1',
+    )
+    expect(result).toEqual('less than 1m² (i.e. 0.5x0.5 or similar)')
+  })
+
+  it('should handle 1 <= value < "fixed side"', () => {
+    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(1)
+    expect(result).toEqual('1m² (i.e. 1x1 or similar)')
+  })
+
   it('should handle 2', () => {
     const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(2)
     expect(result).toEqual('2m² (i.e. 1x2 or similar)')

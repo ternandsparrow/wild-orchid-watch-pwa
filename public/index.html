@@ -16,31 +16,55 @@
 
   <script charset="utf-8">
     window.onerror = function(err) {
-      // If the page fails to load, it's good UX to at least show something to the
-      // user. I don't *think* we can get here from within the Vue app.
-      var isSyntaxError = ~(err.message || err || '').indexOf('SyntaxError')
-      if (!isSyntaxError) {
-        // other errors from an otherwise working app may hit here and we don't
-        // want to interfere
-        throw err
-      }
-      console.warn(
-        'Failed to load due to a syntax error. Most likely this platform is ' +
-        'not supported (too old)',
-        err)
+      var errMsg = (err.message || (typeof err === 'string' && err) || '')
+      var strategies = [{
+        condition: function isWowError() {
+          return errMsg.includes('WowError')
+        },
+        action: function(div) {
+          div.innerHTML =
+            '<h1 style="font-size: 3em; font-family: monospace;">WOW config error!</h1>' +
+            '<p style="padding: 0 1em; font-family: sans-serif;">Check console</p>'
+        }
+      }, {
+        condition: function isSyntaxError() {
+          return errMsg.includes('SyntaxError')
+        },
+        action: function(div) {
+          console.warn(
+            'Failed to load due to a syntax error. Most likely this platform is ' +
+            'not supported (too old)',
+            err)
+          div.innerHTML =
+            '<h1 style="font-size: 3em; font-family: monospace;">Failed to load :(</h1>' +
+            '<p style="padding: 0 1em; font-family: sans-serif;">This can happen ' +
+            'when your device is too old. We currently aim to support:</p>' +
+            '<ul>' +
+            '<li>Google Chrome 60+ (July 2017)</li>' +
+            '<li>Mozilla Firefox 55+ (August 2017)</li>' +
+            '<li>Apple iOS Safari 11.3+ (March 2018)</li>' +
+            '<li>Samsung Internet 8.2+ (December 2018)</li>' +
+            '</ul>'
+        }
+      }, {
+        condition: function catchAll() {
+          return true
+        },
+        action: function() {
+          // other errors from an otherwise working app may hit here and we don't
+          // want to interfere
+          throw err
+        }
+      }]
+      // filter has better support among old browsers than find
+      var strategy = strategies.filter(function(e) {
+        return e.condition()
+      })[0]
+      // If the page fails to load, it's good UX to show something to the user.
       var appDiv = document.getElementById('app')
-      appDiv.innerHTML =
-        '<h1 style="font-size: 3em; font-family: monospace;">Failed to load :(</h1>' +
-        '<p style="padding: 0 1em; font-family: sans-serif;">This can happen ' +
-        'when your device is too old. We currently aim to support:</p>' +
-        '<ul>' +
-        '<li>Google Chrome 60+ (July 2017)</li>' +
-        '<li>Mozilla Firefox 55+ (August 2017)</li>' +
-        '<li>Apple iOS Safari 11.3+ (March 2018)</li>' +
-        '<li>Samsung Internet 8.2+ (December 2018)</li>' +
-        '</ul>'
       appDiv.style.textAlign = 'center'
       appDiv.style.marginTop = '40vh'
+      strategy.action(appDiv)
     }
   </script>
   <!-- built files will be auto injected -->

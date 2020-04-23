@@ -16,12 +16,12 @@
       <v-ons-splitter-content>
         <v-ons-page>
           <custom-toolbar>
-            {{ topTitle }}
+            {{ title }}
             <v-ons-toolbar-button slot="left" @click="onMenuClick">
               <v-ons-icon icon="md-menu"></v-ons-icon>
             </v-ons-toolbar-button>
           </custom-toolbar>
-          <v-ons-navigator :page-stack="innerPageStack"></v-ons-navigator>
+          <slot></slot>
         </v-ons-page>
       </v-ons-splitter-content>
     </v-ons-splitter>
@@ -29,21 +29,18 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
-
 import MenuPage from '@/pages/Menu'
-import { innerPageStack } from '@/misc/nav-stacks'
 
 export default {
-  name: 'WowPageHeader',
+  name: 'MenuWrapper',
   components: { MenuPage },
-  data() {
-    return {
-      innerPageStack,
-    }
+  props: {
+    title: {
+      type: String,
+      required: true,
+    },
   },
   computed: {
-    ...mapState('app', ['topTitle', 'isFirstRun']),
     isOpen: {
       get() {
         return this.$store.state.ephemeral.isSplitterOpen
@@ -52,12 +49,6 @@ export default {
         this.$store.commit('ephemeral/toggleSplitter', newValue)
       },
     },
-  },
-  mounted() {
-    // Check for onboarding
-    if (this.isFirstRun) {
-      this.$router.replace({ name: 'Onboarder' })
-    }
   },
   methods: {
     onMenuClick() {

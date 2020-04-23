@@ -147,8 +147,32 @@
                   currField.wowDatatype === multiselectFieldType,
               }"
             >
+              <v-ons-list v-if="currField.isWideSelect">
+                <v-ons-list-item
+                  v-for="(currOption, $index) in currField.allowedValues"
+                  :key="currField.id + '-' + $index"
+                  tappable
+                >
+                  <label class="left">
+                    <v-ons-radio
+                      v-model="obsFieldValues[currField.id]"
+                      :input-id="'radio-' + currField.id + '-' + $index"
+                      :value="currOption.value"
+                      modifier="material"
+                    >
+                    </v-ons-radio>
+                  </label>
+                  <label
+                    :for="'radio-' + currField.id + '-' + $index"
+                    class="center"
+                  >
+                    {{ currOption.title }}
+                  </label>
+                </v-ons-list-item>
+              </v-ons-list>
+
               <v-ons-select
-                v-if="currField.wowDatatype === selectFieldType"
+                v-else-if="currField.wowDatatype === selectFieldType"
                 v-model="obsFieldValues[currField.id]"
                 class="wow-select"
               >
@@ -170,6 +194,7 @@
                 placeholder="Input value"
                 type="number"
                 @change="onNumberChange($event, currField.id)"
+                @keyup.enter="onNumberInput($event)"
               >
               </v-ons-input>
               <textarea
@@ -349,6 +374,7 @@ import {
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
   widerLanduseObsFieldId,
+  wideSelectObsFieldIds,
   yesValue,
 } from '@/misc/constants'
 
@@ -498,6 +524,7 @@ export default {
         if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
+          field.isWideSelect = wideSelectObsFieldIds.includes(curr.id)
         }
         accum.push(field)
         return accum
@@ -635,7 +662,6 @@ export default {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
-        this.refreshVisibilityOfPopulationRecordFields()
         // pre-populate obs fields
         const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
           (accum, curr) => {
@@ -677,6 +703,13 @@ export default {
             })
           }
         }
+        this.observationDetail.obsFieldValues
+          .filter(e => e.datatype === numericFieldType)
+          .forEach(currNumericField => {
+            const fieldId = currNumericField.fieldId
+            const val = this.obsFieldValues[fieldId]
+            this._onNumberChange(fieldId, val)
+          })
       })
       if (this.observationDetail.speciesGuess) {
         const val = this.observationDetail.speciesGuess
@@ -694,12 +727,14 @@ export default {
       // couldn't get it to work on number fields (the watcher never gets
       // fired) hence this hack. If you get the watcher working, delete
       // this mess.
-      this.requiredFieldIdsConditionalOnNumberFields = []
       const newVal = event.target.value
+      this._onNumberChange(fieldId, newVal)
+    },
+    _onNumberChange(fieldId, newVal) {
+      this.requiredFieldIdsConditionalOnNumberFields = []
       switch (fieldId) {
         case countOfIndividualsObsFieldId:
           this.isPopulationRecord = parseInt(newVal) > 1
-          this.obsFieldValues[areaOfPopulationObsFieldId] = null
           if (this.isPopulationRecord) {
             this.requiredFieldIdsConditionalOnNumberFields.push(
               approxAreaSearchedObsFieldId,
@@ -720,8 +755,8 @@ export default {
             this.handleObsFieldRequiredToOptional(
               accuracyOfSearchAreaCalcObsFieldId,
             )
-            // we need to reset this so the conditionally required field lose
-            // their required-ness without extra logic
+            // we need to reset this so the conditionally required fields lose
+            // their required-ness (and hide) without extra logic
             this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = null
           }
           this.refreshVisibilityOfPopulationRecordFields()
@@ -867,7 +902,14 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            accum[curr.id] = curr.required ? null : curr.allowedValues[0].value
+            const isConditionallyRequired = [
+              accuracyOfSearchAreaCalcObsFieldId,
+              areaOfPopulationObsFieldId,
+            ].includes(curr.id)
+            accum[curr.id] =
+              curr.required || isConditionallyRequired
+                ? null
+                : curr.allowedValues[0].value
             return accum
           },
           {},
@@ -1377,6 +1419,9 @@ export default {
     },
     toggleMap() {
       this.isShowMap = !this.isShowMap
+    },
+    onNumberInput(event) {
+      event.target.blur()
     },
   },
 }

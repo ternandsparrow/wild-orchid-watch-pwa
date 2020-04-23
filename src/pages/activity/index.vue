@@ -47,8 +47,5 @@ export default {
       },
     },
   },
-  mounted() {
-    this.$store.commit('app/setTopTitle', 'Activity')
-  },
 }
 </script>

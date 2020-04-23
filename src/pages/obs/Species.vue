@@ -1,5 +1,5 @@
 <template>
-  <v-ons-page>
+  <menu-wrapper title="My Species">
     <v-ons-pull-hook
       :action="doRefresh"
       @changestate="pullHookState = $event.state"
@@ -8,31 +8,41 @@
       <span v-show="pullHookState === 'preaction'"> Release </span>
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
-    <no-records-msg v-show="isNoRecords" />
-    <v-ons-list v-show="!isNoRecords">
-      <v-ons-list-item
-        v-for="curr in mySpecies"
-        :key="curr.id"
-        @click="push(curr.id)"
-      >
+    <no-records-msg
+      v-if="isNoRecords"
+      fragment="You have no identified species"
+    />
+    <v-ons-list v-if="!isNoRecords">
+      <v-ons-list-item v-for="curr in tidyMySpecies" :key="curr.id" expandable>
         <div class="left">
           <img class="list-item__thumbnail" :src="defaultPhoto(curr)" />
         </div>
         <div class="center">
-          <span class="list-item__title">{{ curr.commonName }}</span
+          <span class="list-item__title"
+            ><a>{{ curr.commonName }}</a></span
           ><span class="list-item__subtitle">{{ curr.scientificName }}</span>
+        </div>
+        <div class="right">{{ curr.observationCount }}</div>
+        <div class="expandable-content">
+          <div>
+            <a :href="makeLinkToInat(curr)" target="_blank">
+              View taxonomy record on iNaturalist
+            </a>
+          </div>
+          <!-- TODO add link to taxon info page (and build that page) -->
         </div>
       </v-ons-list-item>
     </v-ons-list>
-    <!-- FIXME do we want a "More species" button like iNat? -->
-  </v-ons-page>
+    <!-- TODO do we want a "More species" button like iNat? -->
+  </menu-wrapper>
 </template>
 
 <script>
 import { mapState, mapGetters } from 'vuex'
-import { noImagePlaceholderUrl } from '@/misc/constants'
+import { inatUrlBase, noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
+  name: 'SpeciesList',
   data() {
     return {
       pullHookState: 'initial',
@@ -43,7 +53,21 @@ export default {
     ...mapGetters('obs', ['isMySpeciesStale']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     isNoRecords() {
-      return !this.mySpecies || this.mySpecies.length === 0
+      return (this.tidyMySpecies || []).length === 0
+    },
+    tidyMySpecies() {
+      return (this.mySpecies || [])
+        .map(e => ({
+          ...e,
+          commonName: e.commonName || e.scientificName,
+        }))
+        .sort((a, b) => {
+          const aName = a.commonName.toLowerCase()
+          const bName = b.commonName.toLowerCase()
+          if (aName > bName) return 1
+          if (aName < bName) return -1
+          return 0
+        })
     },
   },
   mounted() {
@@ -52,11 +76,6 @@ export default {
     }
   },
   methods: {
-    push(speciesId) {
-      // FIXME navigate to species detail page
-      this.$ons.notification.alert('FIXME - implement this')
-      console.debug(speciesId)
-    },
     defaultPhoto(record) {
       if (!record || !record.defaultPhoto) {
         return noImagePlaceholderUrl
@@ -69,6 +88,9 @@ export default {
         await this.$store.dispatch('obs/getMySpecies')
       }
       done && done()
+    },
+    makeLinkToInat(record) {
+      return `${inatUrlBase}/taxa/${record.id}`
     },
   },
 }

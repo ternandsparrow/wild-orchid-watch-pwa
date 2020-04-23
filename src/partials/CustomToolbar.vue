@@ -1,5 +1,5 @@
 <template>
-  <v-ons-toolbar :class="{ offline: !networkOnLine }">
+  <v-ons-toolbar>
     <div class="left keep-title-centered">
       <slot name="left">
         <v-ons-back-button v-if="backLabel && isHomeRoute">
@@ -22,7 +22,6 @@
       </slot>
     </div>
     <div class="center text-center wow-toolbar-title">
-      <span v-if="!networkOnLine">[Offline] </span>
       <slot>{{ title }}</slot>
     </div>
     <div class="right keep-title-centered"><slot name="right"></slot></div>
@@ -64,10 +63,6 @@ export default {
 </script>
 
 <style scoped>
-.offline {
-  background-color: #fbd276;
-}
-
 .keep-title-centered {
   flex: 1 0 0;
 }

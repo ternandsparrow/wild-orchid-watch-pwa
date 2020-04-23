@@ -158,7 +158,7 @@ const obsFields = [
     name: 'Area of population (m²)',
     description: 'Only applicable when recording >1 individual',
     datatype: 'text',
-    allowedValues: linearAreas,
+    allowedValues: `less than 1|1|${linearAreas}`,
   },
   ...multiselect('Phenology; life stage status occurring', '', phenologyValues),
   {

@@ -36,6 +36,7 @@
     </v-ons-list>
     <div class="padding-so-fab-doesnt-cover-text"></div>
     <v-ons-fab
+      v-if="!hideCloseBtn"
       position="bottom center"
       :class="{ 'be-visible-on-ios': !md }"
       @click="doClose"
@@ -50,6 +51,12 @@ import helpData from '@/misc/help-structure'
 
 export default {
   name: 'Help',
+  props: {
+    hideCloseBtn: {
+      type: Boolean,
+      default: false,
+    },
+  },
   data() {
     return {
       sections: helpData,

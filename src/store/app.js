@@ -4,7 +4,6 @@ const state = {
   // remember we restore state from localStorage, so these are defaults
   appTitle: appTitle,
   isFirstRun: true,
-  topTitle: 'Wild Orchid Watch',
   tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
   isAdvancedUserMode: false,
@@ -13,7 +12,6 @@ const state = {
 }
 
 const mutations = {
-  setTopTitle: (state, value) => (state.topTitle = value),
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
   setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),

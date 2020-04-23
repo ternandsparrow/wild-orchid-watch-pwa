@@ -1,6 +1,5 @@
 <template>
-  <v-ons-page>
-    <custom-toolbar back-label="Home" title="Orchid Science" />
+  <menu-wrapper title="Orchid Science">
     <v-ons-list>
       <v-ons-list-header
         >This page will contain information on the science which is enabled by
@@ -45,17 +44,11 @@
         </label>
       </ons-list-item>
     </v-ons-list>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
 export default {
-  name: 'Dashboard',
-  data() {
-    return {}
-  },
-  mounted() {
-    this.$store.commit('app/setTopTitle', 'Orchid Science')
-  },
+  name: 'OrchidScience',
 }
 </script>

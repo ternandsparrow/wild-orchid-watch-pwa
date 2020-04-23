@@ -289,11 +289,26 @@ export function buildStaleCheckerFn(
 }
 
 export function rectangleAlongPathAreaValueToTitle(v) {
-  const shortDimension = 2
-  const longDimension = v / shortDimension
-  return isNaN(v)
-    ? v
-    : `${v}m² (i.e. ${longDimension}x${shortDimension} or similar)`
+  if (isNaN(v)) {
+    const ltPrefix = 'less than'
+    const isLessThanTypedArea = v.startsWith(ltPrefix)
+    if (isLessThanTypedArea) {
+      const halfV = parseInt(v.replace(ltPrefix, '')) / 2
+      return doFormat(v, halfV, halfV)
+    }
+    return v
+  }
+  const fixedDimension = 2
+  const isSmallArea = v < fixedDimension
+  if (isSmallArea) {
+    const onlyDimension = Math.sqrt(v)
+    return doFormat(v, onlyDimension, onlyDimension)
+  }
+  const varyingDimension = v / fixedDimension
+  return doFormat(v, varyingDimension, fixedDimension)
+  function doFormat(val, x, y) {
+    return `${val}m² (i.e. ${x}x${y} or similar)`
+  }
 }
 
 /**

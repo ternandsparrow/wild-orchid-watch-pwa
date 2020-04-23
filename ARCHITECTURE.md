@@ -275,27 +275,58 @@ option of using the iNat API.
 
 The API also offers the ability to get the taxonomy list. Thankfully you can
 set the starting point and drill down from there. Unfortunately there's a limit
-to 10k result for a query set and we hit that when we try to get everything
-under Orchidacae. So look at other descendants of the root taxa that also have
-a lot of children and try to query for them to include the other species we
-missed. This API is a bit naughty in that it returns duplicates so we have to
-clean them out too.
+of 10k results for a query set and we hit that when we try to get everything
+under Orchidacae. To workaround this, we start with the "everything under
+Orchidacae" query and get as much as we can. Then we look in our result set for
+descendants of Orchidacae that also have a lot of children ("a lot" is
+configurable). For each of these descendants, we run another query and discard
+anything we've already seen. We could keep going like this but after two
+iterations, it's likely that we already have everything.  This API is a bit
+naughty too in that it returns duplicates so we have to clean them out too.
+
+The problem with the taxonomy list that we've gotten so far is that it's
+*everything*. We have no (good) way to filter this down to only Australian
+orchids, which ultimately are the only ones it makes sense to suggest to our
+users. To solve this, we pull a species list that can be confined by a place:
+Australia, and a taxon: the same one we used for the taxonomy list. Now we use
+all the records from the species list and add any rank=genus records from the
+taxa list that we don't already have and that's our result.
+
+You might have noticed that building the list of suggestions from observations
+has the drawback that we only suggest things that have already been seen. That
+means if a user is the first to spot a species (on iNat) then we won't provide
+that as a suggestion. It's not a huge deal because they are only suggestions
+and the user can input whatever they like.
 
 We use the `scripts/build-taxa-index.js` script to pull data from the API and
 transform it into the format that we need in our app. This output is stored in
 the `public/` directory which means it get automatically included in the PWA
-manifest so it will be precached.
+manifest so it will be precached. We include it in source control too because
+it easier than always regenerating it.
 
 We use Fuse.js to search the index with fuzzy-find style behaviour. The result
 is we have a taxa list that's available offline, only includes orchids and
 saves clients from having to do needless processing as we can do it once at
 build time.
 
-As I write this, I'm still trying to figure out how we'll roll out new versions
-of the index. I don't expect it to change often but I'm hoping that we can just
-rebuild the index, commit it to git and then the PWA will force a fresh copy to
-be pulled if needed. If that doesn't work, we'll look at using some sort of
-cache busting strategy.
+When it comes time to roll out a new version, we get the cache busting for free from workbox because it's part of the manifest.
+
+Currently it's a manual job to periodically re-run the script to build a new
+list and if it's changed, commit it to git. This could be automated by
+periodically running a cron job somewhere and if a diff shows there's new data,
+then poking a human by email, sending a pull request to the git repo, etc.
+
+We chose to bake the list into the app for a number of reasons:
+  1. we don't need to run anything extra in the way of hosting
+  1. it allows offline support
+  1. the processing only needs to be done once and all users can use it. In
+     theory it could be run on-device but that's wasteful as all users would
+     need their device to repeat work that's been done elsewhere
+  1. a developer is around when it's running so it can have an eye kept on it
+  1. everything comes from iNat, which promotes people to make any required
+     changes *in* iNat (or Wikipedia, etc). If we maintained our own list
+     somehow, it would fragment to community and mean more effort for us to
+     maintain and parse the list
 
 ## Fuse.js
 We use this as the fuzzy-find index for species autocomplete. I looked at other

@@ -12,6 +12,7 @@ import {
 } from './obs-field-constants'
 
 export { noValue, yesValue, multiselectSeparator }
+
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
 
@@ -196,12 +197,19 @@ export const mutuallyExclusiveMultiselectObsFieldIds = parseFieldIdList(
   'mutually exclusive',
 )
 
+export const wideSelectObsFieldIds = parseFieldIdList(
+  'VUE_APP_OBS_FIELD_IDS_WIDE_SELECTS',
+  'wide select fields',
+)
+
 function parseFieldIdList(envVarKey, msgFragment) {
   const ids = process.env[envVarKey]
   if (!ids) {
-    throw new Error(
+    const err = new Error(
       `Runtime config problem: no ${msgFragment} multiselect obs field IDs provided`,
     )
+    err.name = 'WowError'
+    throw err
   }
   try {
     return JSON.parse(`[${ids}]`)
