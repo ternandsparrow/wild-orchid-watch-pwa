@@ -558,29 +558,29 @@ export default {
       }, {})
     },
     isLocationAlreadyCaptured() {
-      if (
-        this.observationDetail &&
-        this.observationDetail.lat &&
-        this.observationDetail.lng
-      ) {
-        return true
-      }
-      return !!(this.obsLat && this.obsLng)
+      const isForm1Present = (() => {
+        const o = this.observationDetail || {}
+        return !!(o.lat && o.lng)
+      })()
+      const isForm2Present = (() => {
+        return !!(this.obsLat && this.obsLng)
+      })()
+      return isForm1Present || isForm2Present
     },
     obsCoords() {
       return { lat: this.obsLat, lng: this.obsLng }
     },
     isShowGeolocationSection() {
       if (this.isEdit) {
-        return false
-      }
-      if (this.photos.length > 1) {
         return true
       }
-      if (this.photos.length === 1) {
-        return !this.photosStillCompressingCountdownLatch
+      if (this.isLocationAlreadyCaptured) {
+        return true
       }
-      return false
+      const firstPhotoHasFinishedProcessing =
+        this.photos.length === 1 &&
+        this.photosStillCompressingCountdownLatch === 0
+      return firstPhotoHasFinishedProcessing
     },
   },
   watch: {
@@ -1225,7 +1225,7 @@ export default {
       // the worker (background) so we don't block the UI. Later, during onSave, we
       // ensure all the photo processing is complete.
       this.$store
-        .dispatch('obs/compressPhotoIfRequired', file)
+        .dispatch('obs/processPhoto', file)
         .then(compressionResult => {
           const found = this.photos.find(e => e.uuid === theUuid)
           if (!found) {

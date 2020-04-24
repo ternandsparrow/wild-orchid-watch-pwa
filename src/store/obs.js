@@ -330,6 +330,9 @@ const actions = {
               return reject(err)
           }
         },
+        {
+          timeout: 5000, // milliseconds
+        },
       )
     })
   },
@@ -1474,7 +1477,7 @@ const actions = {
     await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
-  async compressPhotoIfRequired({ rootState }, blobish) {
+  async processPhoto({ rootState }, blobish) {
     let originalMetadata
     try {
       originalMetadata = await getExifFromBlob(blobish)

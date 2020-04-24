@@ -579,6 +579,9 @@ export default {
           console.error(msg, err)
           this.locErrorMsg = msg + err.message
         },
+        {
+          timeout: 5000, // milliseconds
+        },
       )
     },
     doLogin() {
