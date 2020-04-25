@@ -609,6 +609,7 @@ export default {
       if (!this.isManualErrorCaught) {
         throw err
       }
+      this.$wow.uiTrace('Admin', 'manual error trigger')
       this.$store.dispatch(
         'flagGlobalError',
         {

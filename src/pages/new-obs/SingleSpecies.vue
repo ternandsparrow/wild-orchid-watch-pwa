@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable :title="title">
+    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
@@ -447,6 +447,8 @@ export default {
         return this.$store.state.app.isAdvancedUserMode
       },
       set(newValue) {
+        const newModeName = newValue ? 'advanced' : 'beginner'
+        this.$wow.uiTrace('SingleSpecies', `switch to ${newModeName} mode`)
         this.$store.commit('app/setIsAdvancedUserMode', newValue)
       },
     },
@@ -805,6 +807,7 @@ export default {
       el.scrollIntoView({ behavior: 'smooth' })
     },
     showHelp(section) {
+      this.$wow.uiTrace('SingleSpecies', `show help for section ${section}`)
       this.$store.commit('ephemeral/showHelpModal')
       this.targetHelpSection = section
     },
@@ -848,6 +851,7 @@ export default {
       this.obsFieldValues[fieldId] = data.value
     },
     onDeletePhoto(record) {
+      this.$wow.uiTrace('SingleSpecies', `delete photo`)
       const isLocalFromPreviousEdit = !!record.id
       if (record.isRemote || isLocalFromPreviousEdit) {
         const id = record.id
@@ -1025,6 +1029,7 @@ export default {
       return true
     },
     async onSave() {
+      this.$wow.uiTrace('SingleSpecies', `save`)
       this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
         this.isShowModalForceClose = true
@@ -1042,6 +1047,7 @@ export default {
           })
         }
         if (!this.validateInputs()) {
+          this.$wow.uiTrace('SingleSpecies', `validation failure`)
           return
         }
         this.$store.commit('obs/addRecentlyUsedTaxa', {
@@ -1208,6 +1214,7 @@ export default {
       return result
     },
     async onPhotoChanged(photoDefObj) {
+      this.$wow.uiTrace('SingleSpecies', `photo attached`)
       const type = photoDefObj.id
       const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
       if (!file) {
@@ -1325,6 +1332,7 @@ export default {
       return matchingType || { name: 'unknown' }
     },
     showPhotoPreview(photoRecord) {
+      this.$wow.uiTrace('SingleSpecies', `preview photo`)
       const url = photoRecord.url
       // TODO enhancement idea: if we aren't online, then don't do the replace
       // on the URL. Just show the small photo rather than a broken image
@@ -1370,6 +1378,7 @@ export default {
       }
     },
     async getDeviceGpsLocation() {
+      this.$wow.uiTrace('SingleSpecies', `get device GPS location`)
       // TODO Enhancement idea: only prompt when we know we don't have access.
       // There's no API support for this but perhaps we can store if we've been
       // successful in the past and use that?
@@ -1418,10 +1427,15 @@ export default {
       }
     },
     toggleMap() {
+      this.$wow.uiTrace('SingleSpecies', `show map`)
       this.isShowMap = !this.isShowMap
     },
     onNumberInput(event) {
       event.target.blur()
+    },
+    onCancel() {
+      const modeName = this.isEdit ? 'edit' : 'create'
+      this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
     },
   },
 }

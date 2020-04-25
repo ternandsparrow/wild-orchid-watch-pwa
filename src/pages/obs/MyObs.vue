@@ -261,10 +261,12 @@ export default {
       this.$router.push({ name: 'ObsDetail', params: { id: obsId } })
     },
     onNewSingleSpecies() {
+      this.$wow.uiTrace('MyObs', 'new single species')
       this.$store.commit('obs/setSelectedObservationId', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
     doRefresh(done) {
+      this.$wow.uiTrace('MyObs', 'pull refresh')
       if (!this.networkOnLine) {
         this.$ons.notification.toast('Cannot refresh while offline', {
           timeout: 3000,
@@ -281,9 +283,11 @@ export default {
     // TODO it might be nice to be able to retry/cancel failed deletes
     // individually rather than all at once.
     retryFailedDeletes() {
+      this.$wow.uiTrace('MyObs', 'retry failed deletes')
       this.$store.dispatch('obs/retryFailedDeletes')
     },
     cancelFailedDeletes() {
+      this.$wow.uiTrace('MyObs', 'cancel failed deletes')
       this.$store.dispatch('obs/cancelFailedDeletes')
     },
     firstPhoto(record) {

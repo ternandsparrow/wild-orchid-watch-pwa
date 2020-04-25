@@ -60,6 +60,20 @@ new Vue({
       // Shortcut for Material Design
       Vue.prototype.md = this.$ons.platform.isAndroid()
 
+      // Saves us having to import sentry everywhere
+      Vue.prototype.$sentry = Sentry
+
+      Vue.prototype.$wow = {
+        uiTrace: (category, action) => {
+          this.$sentry.addBreadcrumb({
+            category: 'ui',
+            level: 'info',
+            message: `"${category}" had "${action}" occur`,
+          })
+          this.$ga.event(category, action)
+        },
+      }
+
       // Set iPhoneX flag based on URL
       if (window.location.search.match(/iphonex/i)) {
         document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
@@ -74,6 +88,7 @@ new Vue({
       })
 
       this.$store.dispatch('auth/sendSwUpdatedAuthToken')
+      this.$store.dispatch('auth/setUsernameOnSentry')
 
       setTimeout(() => {
         console.debug('Firing Apple install prompt check')

@@ -350,7 +350,7 @@ export default {
      * Will be called everytime we refresh the API token, which at the time
      * of writing is every 24hrs.
      */
-    async updateUserDetails({ commit, dispatch, getters }) {
+    async updateUserDetails({ commit, dispatch }) {
       try {
         const resp = await dispatch('doApiGet', { urlSuffix: '/users/me' })
         const isWrongNumberOfResults = resp.total_results !== 1
@@ -361,9 +361,7 @@ export default {
           )
         }
         commit('_saveUserDetails', resp.results[0])
-        Sentry.configureScope(scope => {
-          scope.setUser({ username: getters.myUsername })
-        })
+        this.dispatch('setUsernameOnSentry')
       } catch (err) {
         dispatch(
           'flagGlobalError',
@@ -371,6 +369,15 @@ export default {
           { root: true },
         )
       }
+    },
+    setUsernameOnSentry({ getters }) {
+      const username = getters.myUsername
+      if (!username) {
+        return
+      }
+      Sentry.configureScope(scope => {
+        scope.setUser({ username: username })
+      })
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {
       if (!state.apiToken) {
