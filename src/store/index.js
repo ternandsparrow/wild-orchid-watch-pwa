@@ -78,6 +78,9 @@ const store = new Vuex.Store({
       }
       return allRecords
     },
+    healthcheck({ dispatch }) {
+      return dispatch('obs/healthcheck')
+    },
   },
   getters: {
     myUserId(state, getters) {

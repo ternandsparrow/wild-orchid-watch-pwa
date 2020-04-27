@@ -17,15 +17,6 @@ export function getOrCreateInstance(name) {
     lfConfig.driver = lfDriver
   }
   const instance = localForage.createInstance(lfConfig)
-  instance.ready().catch(err => {
-    console.error('Failed to initialise LocalForage', err)
-    alert(
-      // TODO might be nicer to use an Onsen notification but they're hard to access from here
-      'Failed to set up local database. This app will not work properly. ' +
-        'To fix this, make sure your browser is up to date. ' +
-        'Private/Incognito mode in some browsers will also cause this.',
-    )
-  })
   knownInstances[name] = instance
   return instance
 }

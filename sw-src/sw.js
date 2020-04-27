@@ -57,6 +57,9 @@ function enableSwConsoleProxy() {
 }
 
 const wowSwStore = getOrCreateInstance('wow-sw')
+wowSwStore.ready().catch(err => {
+  wowErrorHandler('Failed to init a localForage instance', err)
+})
 const createTag = 'create:'
 const updateTag = 'update:'
 const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'

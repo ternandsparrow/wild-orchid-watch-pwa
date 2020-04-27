@@ -105,6 +105,7 @@ new Vue({
   },
   mounted() {
     this.registerForSwMessages()
+    this.healthcheck()
   },
   methods: {
     registerForSwMessages() {
@@ -138,6 +139,20 @@ new Vue({
           event.ports[0].postMessage('ACK')
         }
       })
+    },
+    async healthcheck() {
+      try {
+        await this.$store.dispatch('healthcheck')
+      } catch (err) {
+        this.$store.dispatch('flagGlobalError', {
+          msg: 'Vuex store failed startup healthcheck',
+          userMsg:
+            'Failed to set up local app database. This app will not work properly. ' +
+            'To fix this, make sure your browser is up to date. ' +
+            'Private/Incognito/Secret mode in some browsers will also cause this.',
+          err,
+        })
+      }
     },
   },
   render: h => h(AppNavigator),

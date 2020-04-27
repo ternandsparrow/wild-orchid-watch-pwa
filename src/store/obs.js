@@ -6,11 +6,12 @@ import { wrap as comlinkWrap } from 'comlink'
 import dms2dec from 'dms2dec'
 import Fuse from 'fuse.js'
 import {
-  getRecord,
-  storeRecord,
   deleteDbRecordById,
+  getRecord,
+  healthcheckStore,
   mapOverObsStore,
   setRecordProcessingOutcome,
+  storeRecord,
 } from '@/indexeddb/obs-store-common'
 import * as constants from '@/misc/constants'
 import {
@@ -1607,6 +1608,13 @@ const actions = {
       )
     }
     return result
+  },
+  async healthcheck() {
+    try {
+      await healthcheckStore()
+    } catch (err) {
+      throw chainedError('Failed to init localForage instance', err)
+    }
   },
 }
 
