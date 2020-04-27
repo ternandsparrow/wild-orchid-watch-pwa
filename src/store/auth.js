@@ -361,7 +361,7 @@ export default {
           )
         }
         commit('_saveUserDetails', resp.results[0])
-        this.dispatch('setUsernameOnSentry')
+        dispatch('setUsernameOnSentry')
       } catch (err) {
         dispatch(
           'flagGlobalError',
@@ -373,8 +373,10 @@ export default {
     setUsernameOnSentry({ getters }) {
       const username = getters.myUsername
       if (!username) {
+        console.debug('No username present, cannot set on Sentry')
         return
       }
+      console.debug(`Setting username=${username} on Sentry`)
       Sentry.configureScope(scope => {
         scope.setUser({ username: username })
       })
