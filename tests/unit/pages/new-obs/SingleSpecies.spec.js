@@ -8,6 +8,7 @@ const localVue = createLocalVue()
 localVue.use(VueRouter)
 localVue.use(Vuex)
 // localVue.use(VueOnsen) // TODO including this causes an "Invalid state" error on test start
+localVue.prototype.$wow = { uiTrace: function() {} }
 const router = new VueRouter()
 
 describe('SingleSpecies', () => {
