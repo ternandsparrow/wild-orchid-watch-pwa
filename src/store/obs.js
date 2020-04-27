@@ -1482,15 +1482,39 @@ const actions = {
     try {
       originalMetadata = await getExifFromBlob(blobish)
     } catch (err) {
-      console.warn(
-        'Could not read EXIF data, cannot process image, leaving as is',
+      const safeBlobish = blobish || {} // gotta be careful in a catch
+      const blobSize = safeBlobish.size
+      const blobType = safeBlobish.type
+      wowWarnHandler(
+        `Could not read EXIF data from blob with size=${blobSize} bytes and ` +
+          `type=${blobType}. Cannot process image, using original image as-is. ` +
+          `Error:`,
         err,
       )
       // TODO enhancement idea: brute force image dimensions to do resizing
       return {
         data: blobish,
+        location: { isPresent: false },
+        debugInfo: {
+          message: '(error reading EXIF from photo)',
+          blobSizeBytes: blobSize,
+          blobType,
+        },
       }
     }
+    ;(function debugMetadata() {
+      const slightlyTerserMetadata = Object.assign({}, originalMetadata)
+      if (slightlyTerserMetadata.UserComment) {
+        slightlyTerserMetadata.UserComment = `(hidden ${slightlyTerserMetadata.UserComment.length} bytes)`
+      }
+      if (slightlyTerserMetadata.MakerNote) {
+        slightlyTerserMetadata.MakerNote = `(hidden ${slightlyTerserMetadata.MakerNote.length} bytes)`
+      }
+      console.debug(
+        `Metadata from photo (before resizing)`,
+        JSON.stringify(slightlyTerserMetadata, null, 2),
+      )
+    })()
     const originalImageSizeMb = blobish.size / 1024 / 1024
     const { lat, lng } = extractGps(originalMetadata)
     if (!rootState.app.isEnablePhotoCompression) {
@@ -1550,6 +1574,20 @@ const actions = {
       return {
         location: { lat, lng, isPresent: !!(lat && lng) },
         data,
+        debugInfo: {
+          gpsFields: Object.keys(originalMetadata)
+            .filter(k => k.startsWith('GPS'))
+            .reduce((accum, currKey) => {
+              accum[currKey] = originalMetadata[currKey]
+              return accum
+            }, {}),
+          make: originalMetadata.Make,
+          model: originalMetadata.Model,
+          xDimension: originalMetadata.PixelXDimension,
+          yDimension: originalMetadata.PixelYDimension,
+          blobSizeBytes: blobish.size,
+          blobType: blobish.type,
+        },
       }
     }
   },

@@ -14,11 +14,21 @@ export function wowErrorHandler(msg, err) {
   })
 }
 
+// for errors that are only warnings
 export function wowWarnHandler(msg, err) {
   console.warn(msg, err || '(no error object passed)')
   Sentry.withScope(scope => {
     scope.setLevel('warning')
     Sentry.captureException(chainedError(msg, err))
+  })
+}
+
+// for warn messages, send errors to wowWarnHandler
+export function wowWarnMessage(msg) {
+  console.warn(msg)
+  Sentry.withScope(function(scope) {
+    scope.setLevel('warning')
+    Sentry.captureMessage(msg)
   })
 }
 

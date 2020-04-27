@@ -345,6 +345,7 @@ import {
   findCommonString,
   rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
+  wowWarnMessage,
 } from '@/misc/helpers'
 import {
   accuracyOfPopulationCountObsFieldDefault,
@@ -1252,6 +1253,19 @@ export default {
             locAccuracyFromPhoto,
             'photo metadata',
           )
+          if (!compressionResult.location.isPresent) {
+            this.$wow.uiTrace(
+              'SingleSpecies',
+              `attached photo is missing GPS coords`,
+            )
+            wowWarnMessage(
+              `Attached photo is missing GPS coords, summary: ${JSON.stringify(
+                compressionResult.debugInfo,
+                null,
+                2,
+              )}`,
+            )
+          }
         })
         .catch(err => {
           console.warn('Failed to compress an image', err)

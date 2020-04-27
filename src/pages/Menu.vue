@@ -178,6 +178,7 @@ export default {
       if (this.versionClickCount < tapCountThreshold) {
         return
       }
+      this.$wow.uiTrace('Admin', `open via easter egg`)
       this.safelyPushRoute({ name: 'Admin' })
     },
     async safelyPushRoute(routeTarget) {

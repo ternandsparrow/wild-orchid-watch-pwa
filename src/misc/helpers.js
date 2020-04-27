@@ -10,9 +10,10 @@ import {
   // wowErrorHandler eventually
   wowErrorHandler,
   wowWarnHandler,
+  wowWarnMessage,
 } from './only-common-deps-helpers'
 
-export { chainedError, now, wowErrorHandler, wowWarnHandler }
+export { chainedError, now, wowErrorHandler, wowWarnHandler, wowWarnMessage }
 
 dayjs.extend(relativeTime)
 
