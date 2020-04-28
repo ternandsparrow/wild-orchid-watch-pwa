@@ -56,6 +56,17 @@ const commonLanduseValues = [
 export default (() => {
   const theData = [
     {
+      id: 'geolocation',
+      heading: 'Geolocation (GPS coordinates)',
+      values: [
+        [
+          '',
+          'All observations require GPS coordinates. We offer three methods for gathering this data, in order of preference: 1) using the coordinates from attached photos, 2) using the coordinates from your device, 3) manually inputting coordinates.',
+          '',
+        ],
+      ],
+    },
+    {
       id: 'photos',
       heading: 'Photos',
       values: [

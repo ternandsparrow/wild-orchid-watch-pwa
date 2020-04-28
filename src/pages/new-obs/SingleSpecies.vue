@@ -33,7 +33,14 @@
                 <span v-if="!isShowMap">View location on </span>
                 <span v-if="isShowMap">Hide </span>map</v-ons-button
               >
+              <v-ons-button
+                v-if="obsLocSourceName === 'manual input'"
+                @click="editManualCoords"
+              >
+                Edit manual coordinates</v-ons-button
+              >
             </div>
+            <div v-if="isShowMap">Coordinates= {{ obsLat }},{{ obsLng }}</div>
           </div>
           <google-map
             v-if="isShowMap"
@@ -41,12 +48,56 @@
             style="width: 94vw;"
           />
         </div>
-        <div v-show="!isLocationAlreadyCaptured" class="warning-alert">
+        <div
+          v-show="!isLocationAlreadyCaptured"
+          :class="{
+            'warning-alert': isValidatedAtLeastOnce,
+            'info-alert': !isValidatedAtLeastOnce,
+          }"
+        >
           <v-ons-icon icon="fa-exclamation-circle" />
-          No geolocation captured. Attach a photo tagged with GPS coordinates or
-          <v-ons-button modifier="quiet" @click="getDeviceGpsLocation"
-            >use current device location</v-ons-button
-          >
+          Hey, none of your photos seem to have GPS metadata. We need
+          coordinates for observations. Your options are:
+          <ol class="coord-list">
+            <li>
+              You can attach a photo tagged with GPS coordinates
+            </li>
+            <li>
+              <v-ons-button @click="getDeviceGpsLocation"
+                >use current device location</v-ons-button
+              >
+            </li>
+            <li>
+              Manually input decimal GPS coordinates
+              <div>
+                <label for="manual-lat">Latitude, e.g. -33.123456 </label>
+              </div>
+              <div>
+                <v-ons-input
+                  v-model="manualLat"
+                  html-id="manual-lat"
+                  type="number"
+                  placeholder="Lat"
+                ></v-ons-input>
+              </div>
+              <div>
+                <label for="manual-lon">Longitude, e.g. 150.123456 </label>
+              </div>
+              <div>
+                <v-ons-input
+                  v-model="manualLon"
+                  html-id="manual-lon"
+                  type="number"
+                  placeholder="Lon"
+                ></v-ons-input>
+              </div>
+              <div>
+                <v-ons-button @click="useManualGpsCoords"
+                  >use manual coordinates</v-ons-button
+                >
+              </div>
+            </li>
+          </ol>
         </div>
       </v-ons-list-item>
       <template v-for="currMenuItem of photoMenu">
@@ -438,6 +489,9 @@ export default {
       obsLocSourceName: null,
       isShowMap: false,
       speciesAutocompleteErrors: {},
+      isValidatedAtLeastOnce: false,
+      manualLat: null,
+      manualLon: null,
     }
   },
   computed: {
@@ -580,10 +634,9 @@ export default {
       if (this.isLocationAlreadyCaptured) {
         return true
       }
-      const firstPhotoHasFinishedProcessing =
-        this.photos.length === 1 &&
-        this.photosStillCompressingCountdownLatch === 0
-      return firstPhotoHasFinishedProcessing
+      const atLeastOnePhotoHasFinishedProcessing =
+        this.photosStillCompressingCountdownLatch < this.photos.length
+      return atLeastOnePhotoHasFinishedProcessing
     },
   },
   watch: {
@@ -982,6 +1035,7 @@ export default {
       })
     },
     validateInputs() {
+      this.isValidatedAtLeastOnce = true
       // TODO Enhancement idea: highlight the fields with error and maybe scroll
       // to the first field
       this.formErrorMsgs = []
@@ -1451,6 +1505,22 @@ export default {
       const modeName = this.isEdit ? 'edit' : 'create'
       this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
     },
+    useManualGpsCoords() {
+      const accuracy = null // TODO should we ask the user for this?
+      this.handleGpsLocation(
+        parseFloat(this.manualLat),
+        parseFloat(this.manualLon),
+        accuracy,
+        'manual input',
+      )
+    },
+    editManualCoords() {
+      this.geolocationErrorMsg = null
+      this.obsLat = null
+      this.obsLng = null
+      this.obsLocAccuracy = null
+      this.obsLocSourceName = null
+    },
   },
 }
 
@@ -1606,21 +1676,26 @@ $thumbnailSize: 75px;
 }
 
 .success-alert,
+.info-alert,
 .warning-alert {
   padding: 1em;
+  border-radius: 10px;
   margin: 0 auto;
 }
 
 .warning-alert {
   border: 1px solid orange;
-  border-radius: 10px;
-  background: #ffda88;
+  background: #ffeabb;
 }
 
 .success-alert {
   border: 1px solid green;
-  border-radius: 10px;
   background: #d5ffbf;
+}
+
+.info-alert {
+  border: 1px solid blue;
+  background: #e9f5ff;
 }
 
 .form-error-dialogue {
@@ -1638,5 +1713,11 @@ $thumbnailSize: 75px;
 
 .advanced-switch-container {
   margin-top: 10em;
+}
+
+.coord-list {
+  li {
+    margin-top: 0.5em;
+  }
 }
 </style>

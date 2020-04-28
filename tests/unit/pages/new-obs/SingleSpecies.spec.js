@@ -118,6 +118,7 @@ function buildWrapper() {
       'v-ons-alert-dialog-button': true,
       'v-ons-button': true,
       'v-ons-icon': true,
+      'v-ons-input': true,
       'v-ons-list': true,
       'v-ons-list-item': true,
       'v-ons-modal': true,
