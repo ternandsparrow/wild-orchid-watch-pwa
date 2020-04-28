@@ -394,6 +394,7 @@ import { mapState, mapGetters } from 'vuex'
 import _ from 'lodash'
 import {
   findCommonString,
+  isInBoundingBox,
   rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
   wowWarnMessage,
@@ -1299,14 +1300,6 @@ export default {
           // TODO find out if this field is ever populated and if so, find the
           // EXIF tag and pull the data
           const locAccuracyFromPhoto = null
-          // Note: we don't support editing an obs location. We have logic
-          // to set the location during creation but then we don't touch it
-          this.handleGpsLocation(
-            compressionResult.location.lat,
-            compressionResult.location.lng,
-            locAccuracyFromPhoto,
-            'photo metadata',
-          )
           if (!compressionResult.location.isPresent) {
             this.$wow.uiTrace(
               'SingleSpecies',
@@ -1320,6 +1313,27 @@ export default {
               )}`,
             )
           }
+          const lat = compressionResult.location.lat
+          const lng = compressionResult.location.lng
+          if (!isInBoundingBox(lat, lng)) {
+            this.$ons.notification.alert(
+              `<img style="width: 230px;" src="${found.url}"><br />` +
+                `This photo has GPS coordinates (${lat},${lng}) but they look ` +
+                `like they're outside Australia so we can't use them. You can ` +
+                `still use the photo though.`,
+            )
+            wowWarnMessage(
+              `User tried to use photo metadata coords (${lat},${lng}) that are ` +
+                `outside of Australia.`,
+            )
+            return
+          }
+          this.handleGpsLocation(
+            lat,
+            lng,
+            locAccuracyFromPhoto,
+            'photo metadata',
+          )
         })
         .catch(err => {
           console.warn('Failed to compress an image', err)
@@ -1337,6 +1351,7 @@ export default {
         // must have processed a photo without location metadata
         return
       }
+      // FIXME validate coords are within bounding box
       this.geolocationErrorMsg = null
       this.obsLat = lat
       this.obsLng = lng
@@ -1458,9 +1473,22 @@ export default {
       )
       try {
         await this.$store.dispatch('obs/markUserGeolocation')
+        const lat = this.$store.state.obs.lat
+        const lng = this.$store.state.obs.lng
+        if (!isInBoundingBox(lat, lng)) {
+          await this.$ons.notification.alert(
+            `Your coordinates (${lat},${lng}) look like they're outside Australia. ` +
+              `This app is only for observations made in Australia, sorry.`,
+          )
+          wowWarnMessage(
+            `User tried to use device coords (${lat},${lng}) that are ` +
+              `outside of Australia.`,
+          )
+          return
+        }
         this.handleGpsLocation(
-          this.$store.state.obs.lat,
-          this.$store.state.obs.lng,
+          lat,
+          lng,
           this.$store.state.obs.locAccuracy,
           'device',
         )
@@ -1507,12 +1535,20 @@ export default {
     },
     useManualGpsCoords() {
       const accuracy = null // TODO should we ask the user for this?
-      this.handleGpsLocation(
-        parseFloat(this.manualLat),
-        parseFloat(this.manualLon),
-        accuracy,
-        'manual input',
-      )
+      const lat = parseFloat(this.manualLat)
+      const lng = parseFloat(this.manualLon)
+      if (!isInBoundingBox(lat, lng)) {
+        this.$ons.notification.alert(
+          `Your coordinates (${lat},${lng}) look like they're outside Australia. ` +
+            `This app is only for observations made in Australia, sorry.`,
+        )
+        wowWarnMessage(
+          `User tried to use manual coords (${lat},${lng}) that are ` +
+            `outside of Australia.`,
+        )
+        return
+      }
+      this.handleGpsLocation(lat, lng, accuracy, 'manual input')
     },
     editManualCoords() {
       this.geolocationErrorMsg = null

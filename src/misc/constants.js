@@ -261,6 +261,22 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
   process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
 )
 
+export const bboxLatMin = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LAT_MIN || -10.6681857235,
+)
+
+export const bboxLatMax = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LAT_MAX || -43.6345972634,
+)
+
+export const bboxLonMin = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LON_MIN || 113.338953078,
+)
+
+export const bboxLonMax = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LON_MAX || 153.569469029,
+)
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix =
@@ -337,6 +353,16 @@ function convertAndAssertInteger(val) {
   if (isNaN(result)) {
     throw new Error(
       `Runtime config problem: expected integer is not a number='${val}'`,
+    )
+  }
+  return result
+}
+
+function convertAndAssertFloat(val) {
+  const result = parseFloat(val)
+  if (isNaN(result)) {
+    throw new Error(
+      `Runtime config problem: expected float is not a number='${val}'`,
     )
   }
   return result

@@ -214,7 +214,7 @@
         <template v-for="curr of configItems">
           <v-ons-list-header
             :key="curr.label + '-header'"
-            class="wow-list-header"
+            class="wow-list-header wow-admin-list-header"
           >
             {{ curr.label }}
           </v-ons-list-header>
@@ -478,6 +478,10 @@ export default {
     computeConfigItems() {
       const nonSecretKeys = [
         'appVersion',
+        'bboxLatMax',
+        'bboxLatMin',
+        'bboxLonMax',
+        'bboxLonMin',
         'deployedEnvName',
         'inatProjectSlug',
         'inatStaticUrlBase',
@@ -828,5 +832,9 @@ function isScriptAlreadyLoaded(src) {
 
 .gimme-some-space {
   margin-top: 1em;
+}
+
+.wow-admin-list-header {
+  text-transform: none;
 }
 </style>

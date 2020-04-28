@@ -26,6 +26,78 @@ describe('findCommonString', () => {
   })
 })
 
+describe('isInBoundingBoxImpl', () => {
+  const bboxPartial = {
+    minLat: -43.1234,
+    maxLat: -10.1234,
+    minLon: 113.1234,
+    maxLon: 153.1234,
+  }
+
+  it('should handle coords *in* the box', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -22.1234,
+      userLon: 120.1234,
+    })
+    expect(result).toEqual(true)
+  })
+
+  it('should handle lat less than min', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -8.1234,
+      userLon: 120.1234,
+    })
+    expect(result).toEqual(false)
+  })
+
+  it('should handle lat greater than max', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -58.1234,
+      userLon: 120.1234,
+    })
+    expect(result).toEqual(false)
+  })
+
+  it('should handle lon less than min', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -22.1234,
+      userLon: 33.1234,
+    })
+    expect(result).toEqual(false)
+  })
+
+  it('should handle lat greater than max', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -22.1234,
+      userLon: 170.1234,
+    })
+    expect(result).toEqual(false)
+  })
+
+  it('should falsy input for lat', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: null,
+      userLon: 170.1234,
+    })
+    expect(result).toEqual(false)
+  })
+
+  it('should falsy input for lon', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -22,
+      userLon: null,
+    })
+    expect(result).toEqual(false)
+  })
+})
+
 describe('makeEnumValidator', () => {
   it('should handle valid enum array and valid input to Fn', () => {
     const fooStatuses = ['aaa', 'bbb', 'ccc']

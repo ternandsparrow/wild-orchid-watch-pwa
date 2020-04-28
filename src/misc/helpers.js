@@ -523,6 +523,31 @@ export function blobToArrayBuffer(blob) {
   })
 }
 
+export function isInBoundingBox(lat, lon) {
+  return isInBoundingBoxImpl({
+    userLat: lat,
+    userLon: lon,
+    minLat: constants.bboxLatMin,
+    maxLat: constants.bboxLatMax,
+    minLon: constants.bboxLonMin,
+    maxLon: constants.bboxLonMax,
+  })
+}
+
+function isInBoundingBoxImpl({
+  userLat,
+  userLon,
+  minLat,
+  maxLat,
+  minLon,
+  maxLon,
+}) {
+  const isLatInBox = minLat < userLat && userLat < maxLat
+  const isLonInBox = minLon < userLon && userLon < maxLon
+  return isLatInBox && isLonInBox
+}
+
 export const _testonly = {
   isRespJson,
+  isInBoundingBoxImpl,
 }

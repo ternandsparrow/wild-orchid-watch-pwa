@@ -121,6 +121,11 @@ jobs:
             VUE_APP_DEPLOYED_ENV_NAME=production
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            # optional items
+            VUE_APP_BBOX_LAT_MIN=$PROD_BBOX_LAT_MIN
+            VUE_APP_BBOX_LAT_MAX=$PROD_BBOX_LAT_MAX
+            VUE_APP_BBOX_LON_MIN=$PROD_BBOX_LON_MIN
+            VUE_APP_BBOX_LON_MAX=$PROD_BBOX_LON_MAX
             EOF
             # now some optional items
             [ ! -z $PROD_OBS_FIELD_DEFAULT_ACCURACY ] && {
@@ -191,6 +196,11 @@ jobs:
             VUE_APP_DEPLOYED_ENV_NAME=beta
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            # optional items
+            VUE_APP_BBOX_LAT_MIN=$BETA_BBOX_LAT_MIN
+            VUE_APP_BBOX_LAT_MAX=$BETA_BBOX_LAT_MAX
+            VUE_APP_BBOX_LON_MIN=$BETA_BBOX_LON_MIN
+            VUE_APP_BBOX_LON_MAX=$BETA_BBOX_LON_MAX
             EOF
             # now some optional items
             [ ! -z $BETA_OBS_FIELD_DEFAULT_ACCURACY ] && {
@@ -261,6 +271,11 @@ jobs:
             VUE_APP_DEPLOYED_ENV_NAME=development
             VUE_APP_GMAPS_API_KEY=${GMAPS_API_KEY:?}
             VUE_APP_SENTRY_DSN=${SENTRY_DSN:?}
+            # optional items
+            VUE_APP_BBOX_LAT_MIN=$DEV_BBOX_LAT_MIN
+            VUE_APP_BBOX_LAT_MAX=$DEV_BBOX_LAT_MAX
+            VUE_APP_BBOX_LON_MIN=$DEV_BBOX_LON_MIN
+            VUE_APP_BBOX_LON_MAX=$DEV_BBOX_LON_MAX
             EOF
             # now some optional items
             [ ! -z $DEV_OBS_FIELD_DEFAULT_ACCURACY ] && {
