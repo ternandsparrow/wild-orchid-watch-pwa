@@ -43,6 +43,15 @@ describe('isInBoundingBoxImpl', () => {
     expect(result).toEqual(true)
   })
 
+  it('should handle other coords *in* the box', () => {
+    const result = objectUnderTest._testonly.isInBoundingBoxImpl({
+      ...bboxPartial,
+      userLat: -35.156095,
+      userLon: 138.54721833333332,
+    })
+    expect(result).toEqual(true)
+  })
+
   it('should handle lat less than min', () => {
     const result = objectUnderTest._testonly.isInBoundingBoxImpl({
       ...bboxPartial,
@@ -79,7 +88,7 @@ describe('isInBoundingBoxImpl', () => {
     expect(result).toEqual(false)
   })
 
-  it('should falsy input for lat', () => {
+  it('should handle falsy input for lat', () => {
     const result = objectUnderTest._testonly.isInBoundingBoxImpl({
       ...bboxPartial,
       userLat: null,
@@ -88,7 +97,7 @@ describe('isInBoundingBoxImpl', () => {
     expect(result).toEqual(false)
   })
 
-  it('should falsy input for lon', () => {
+  it('should handle falsy input for lon', () => {
     const result = objectUnderTest._testonly.isInBoundingBoxImpl({
       ...bboxPartial,
       userLat: -22,

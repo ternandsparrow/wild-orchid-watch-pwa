@@ -262,12 +262,20 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
 )
 
 export const bboxLatMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MIN || -10.6681857235,
+  process.env.VUE_APP_BBOX_LAT_MIN || -43.6345972634,
 )
 
 export const bboxLatMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MAX || -43.6345972634,
+  process.env.VUE_APP_BBOX_LAT_MAX || -10.6681857235,
 )
+
+if (bboxLatMin >= bboxLatMax) {
+  const msg =
+    `Config problem: bboxLatMin=${bboxLatMin} is NOT less than ` +
+    `bboxLatMax=${bboxLatMax}`
+  alert(msg)
+  throw new Error(msg)
+}
 
 export const bboxLonMin = convertAndAssertFloat(
   process.env.VUE_APP_BBOX_LON_MIN || 113.338953078,
@@ -276,6 +284,14 @@ export const bboxLonMin = convertAndAssertFloat(
 export const bboxLonMax = convertAndAssertFloat(
   process.env.VUE_APP_BBOX_LON_MAX || 153.569469029,
 )
+
+if (bboxLonMin >= bboxLonMax) {
+  const msg =
+    `Config problem: bboxLonMin=${bboxLonMin} is NOT less than ` +
+    `bboxLonMax=${bboxLonMax}`
+  alert(msg)
+  throw new Error(msg)
+}
 
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
