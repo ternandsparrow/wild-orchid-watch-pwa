@@ -56,17 +56,6 @@ const commonLanduseValues = [
 export default (() => {
   const theData = [
     {
-      id: 'geolocation',
-      heading: 'Geolocation (GPS coordinates)',
-      values: [
-        [
-          '',
-          `All observations require GPS coordinates. We offer three methods for gathering this data, in order of preference: 1) using the coordinates from attached photos, 2) using the coordinates from your device, 3) manually inputting coordinates. Your observations must be in Australia, which means ${constants.bboxLatMin} < latitude < ${constants.bboxLatMax} and ${constants.bboxLonMin} < longitude < ${constants.bboxLonMax}.`,
-          '',
-        ],
-      ],
-    },
-    {
       id: 'photos',
       heading: 'Photos',
       values: [
@@ -125,6 +114,17 @@ export default (() => {
           'Species name',
           'Fill in the name of the orchid here. If you know the scientific name please use it, if not a simple descriptive name such as “purple waxy flowers” is fine. The iNaturalist community will verify or add a name for you.',
           'blank',
+        ],
+      ],
+    },
+    {
+      id: 'geolocation',
+      heading: 'Geolocation (GPS coordinates)',
+      values: [
+        [
+          '',
+          `All observations require GPS coordinates. We offer three methods for gathering this data, in order of preference: 1) using the coordinates from the metadata of attached photos, 2) using the coordinates from your device, 3) manually inputting coordinates. Your observations must be in Australia, which means ${constants.bboxLatMin} < latitude < ${constants.bboxLatMax} and ${constants.bboxLonMin} < longitude < ${constants.bboxLonMax}.`,
+          '',
         ],
       ],
     },

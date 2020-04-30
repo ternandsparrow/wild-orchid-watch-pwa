@@ -17,12 +17,6 @@ describe('SingleSpecies', () => {
     expect(wrapper.vm.$data.photos.length).toBe(0)
   })
 
-  it('should toggle map visibility', () => {
-    const wrapper = buildWrapper()
-    wrapper.vm.toggleMap()
-    expect(wrapper.vm.$data.isShowMap).toBe(true)
-  })
-
   describe('validatePhotos', () => {
     it('should fail when no photos are supplied', () => {
       const wrapper = buildWrapper()
@@ -125,6 +119,7 @@ function buildWrapper() {
       'v-ons-page': true,
       'v-ons-switch': true,
       'wow-autocomplete': true,
+      'wow-collect-geolocation': true,
       'wow-header': true,
       'wow-help': true,
       'wow-photo-preview': true,

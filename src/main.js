@@ -60,17 +60,13 @@ new Vue({
       // Shortcut for Material Design
       Vue.prototype.md = this.$ons.platform.isAndroid()
 
-      // Saves us having to import sentry everywhere
-      Vue.prototype.$sentry = Sentry
-
+      this.$store.commit('ephemeral/setUiTraceTools', {
+        ga: this.$ga,
+        sentry: Sentry,
+      })
       Vue.prototype.$wow = {
         uiTrace: (category, action) => {
-          this.$sentry.addBreadcrumb({
-            category: 'ui',
-            level: 'info',
-            message: `"${category}" had "${action}" occur`,
-          })
-          this.$ga.event(category, action)
+          this.$store.dispatch('ephemeral/uiTrace', { category, action })
         },
       }
 

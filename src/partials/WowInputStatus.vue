@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="not-too-close">
     <v-ons-icon v-if="isOk" class="success" icon="fa-check-circle"></v-ons-icon>
     <v-ons-icon
       v-if="!isOk"
@@ -25,5 +25,9 @@ export default {
 
 .warning {
   color: red;
+}
+
+.not-too-close {
+  margin-left: 1em;
 }
 </style>
