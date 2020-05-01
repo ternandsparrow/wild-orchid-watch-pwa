@@ -41,23 +41,25 @@ export default {
       },
     }
   },
+  computed: {
+    ...mapState('ephemeral', ['networkOnLine']),
+  },
   watch: {
     markerPosition() {
       this.centerPosition()
     },
-  },
-  computed: {
-    ...mapState('ephemeral', ['networkOnLine']),
   },
   mounted() {
     this.centerPosition()
   },
   methods: {
     centerPosition() {
-      this.center = {
-        lat: this.markerPosition.lat,
-        lng: this.markerPosition.lng,
+      const lat = this.markerPosition.lat
+      const lng = this.markerPosition.lng
+      if (!lat || !lng) {
+        return
       }
+      this.center = { lat, lng }
     },
   },
 }
