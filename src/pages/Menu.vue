@@ -16,7 +16,7 @@
     </div>
     <v-ons-list>
       <v-ons-list-item
-        v-for="item in access"
+        v-for="item in enabledAccess"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
         @click="handleMenuClick(item.target)"
@@ -58,7 +58,6 @@
         </div>
       </v-ons-list-item>
     </v-ons-list>
-    <!-- FIXME could add "New observation" at bottom like iNat -->
   </v-ons-page>
 </template>
 
@@ -71,6 +70,7 @@ import {
   deployedEnvName,
   inatUrlBase,
   inatProjectSlug,
+  isMissionsFeatureEnabled,
 } from '@/misc/constants'
 
 export default {
@@ -129,6 +129,12 @@ export default {
         //   component: Activity,
         // },
         {
+          title: 'Missions',
+          icon: 'fa-search-location',
+          target: { name: 'Missions' },
+          isDisabled: !isMissionsFeatureEnabled,
+        },
+        {
           title: 'Orchid Science',
           icon: 'fa-book-open',
           target: { name: 'OrchidScience' },
@@ -158,6 +164,9 @@ export default {
         return ''
       }
       return `[${deployedEnvName} build]`
+    },
+    enabledAccess() {
+      return this.access.filter(e => !e.isDisabled)
     },
   },
   methods: {

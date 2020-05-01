@@ -1,6 +1,5 @@
 <template>
-  <v-ons-page>
-    <custom-toolbar back-label="Home" title="Missions" />
+  <menu-wrapper title="Missions">
     <v-ons-pull-hook
       :action="doRefresh"
       @changestate="pullHookState = $event.state"
@@ -36,12 +35,15 @@
     <v-ons-fab v-if="isMissionAdmin" position="bottom right" @click="onNew">
       <v-ons-icon icon="md-plus"></v-ons-icon>
     </v-ons-fab>
-  </v-ons-page>
+  </menu-wrapper>
 </template>
 
 <script>
 import dayjs from 'dayjs'
+import duration from 'dayjs/plugin/duration'
 import { mapState, mapGetters } from 'vuex'
+
+dayjs.extend(duration)
 
 export default {
   data() {

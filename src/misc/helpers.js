@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
@@ -15,6 +16,7 @@ import {
 
 export { chainedError, now, wowErrorHandler, wowWarnHandler, wowWarnMessage }
 
+dayjs.extend(duration)
 dayjs.extend(relativeTime)
 
 const commonHeaders = {

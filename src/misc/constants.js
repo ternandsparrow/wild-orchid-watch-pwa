@@ -69,6 +69,9 @@ export const maxSpeciesAutocompleteResultLength = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SPECIES_AUTOCOMPLETE_LENGTH || 50,
 )
 
+export const isMissionsFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
+
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
 )
