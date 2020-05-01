@@ -44,6 +44,7 @@ const state = {
   geolocationMethod: 'photo',
   photoOutsideBboxErrorMsg: null,
   photoProcessingTasks: [],
+  hadSuccessfulDeviceLocReq: false, // in ephemeral so we only remember it for a session
 }
 
 const mutations = {
@@ -135,6 +136,8 @@ const mutations = {
     }
     found.isDone = true
   },
+  recordSuccessfulDeviceLocReq: state =>
+    (state.hadSuccessfulDeviceLocReq = true),
 }
 
 const actions = {
@@ -347,6 +350,7 @@ const actions = {
             lng: loc.coords.longitude,
             accuracy: loc.coords.accuracy,
           })
+          commit('recordSuccessfulDeviceLocReq')
           return resolve()
         },
         err => {

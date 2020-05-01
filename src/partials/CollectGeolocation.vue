@@ -135,12 +135,27 @@
                   @keyup.enter="$event.target.blur()"
                 ></v-ons-input>
               </div>
-              <div>
-                <v-ons-button
-                  :disabled="!manualLat || !manualLon"
-                  @click="useManualGpsCoords"
-                  >Use manual coordinates</v-ons-button
+              <div class="stop-touching-my-head">
+                <div
+                  v-if="geolocationFromManualState === 'incomplete'"
+                  class="info-alert"
                 >
+                  Enter both lat and lon values
+                </div>
+                <div
+                  v-if="geolocationFromManualState === 'outside-bbox'"
+                  class="warning-alert"
+                >
+                  Your coordinates ({{ manualLat }},{{ manualLon }}) look like
+                  they're outside Australia. This app is only for observations
+                  made in Australia, sorry.
+                </div>
+                <div
+                  v-if="geolocationFromManualState === 'success'"
+                  class="success-alert"
+                >
+                  Success
+                </div>
               </div>
             </div>
           </v-ons-list-item>
@@ -250,6 +265,38 @@ export default {
       }
       return 'photos-done-no-capture'
     },
+    geolocationFromManualState() {
+      if (this.geolocationMethod !== 'manual') {
+        return 'nothing'
+      }
+      if (!this.isManualLatAndLon) {
+        return 'incomplete'
+      }
+      const lat = parseFloat(this.manualLat)
+      const lng = parseFloat(this.manualLon)
+      const isInBbox = isInBoundingBox(lat, lng)
+      if (isInBbox) {
+        return 'success'
+      }
+      return 'outside-bbox'
+    },
+    isManualLatAndLon() {
+      return this.manualLat && this.manualLon
+    },
+    proposedManualCoordsObj() {
+      // we need to construct this obj so we can watch something that changes
+      // on each input. If we just watched the geolocationFromManualState, it
+      // would NOT change when going from one valid input to another, so we
+      // wouldn't emit the change
+      const lat = parseFloat(this.manualLat)
+      const lng = parseFloat(this.manualLon)
+      const accuracy = null // TODO should we ask the user for this?
+      return {
+        lat,
+        lng,
+        accuracy,
+      }
+    },
   },
   watch: {
     geolocationMethod(newVal) {
@@ -272,6 +319,13 @@ export default {
     oldestPhotoCoords() {
       this.pokeParentToReadCoords()
     },
+    proposedManualCoordsObj(newVal) {
+      if (this.geolocationFromManualState !== 'success') {
+        return
+      }
+      this.$store.commit('ephemeral/setManualCoords', newVal)
+      this.pokeParentToReadCoords()
+    },
   },
   beforeMount() {
     this.$store.commit('ephemeral/resetCoordsState')
@@ -285,15 +339,19 @@ export default {
     },
     async getDeviceGpsLocation() {
       this.$wow.uiTrace('CollectGeolocation', `get device GPS location`)
-      // TODO Enhancement idea: only prompt when we know we don't have access.
-      // There's no API support for this but perhaps we can store if we've been
-      // successful in the past and use that?
-      await this.$ons.notification.alert(
-        'We are about to get the current location of your device. ' +
-          'You may be prompted to allow/block this access. ' +
-          'It is important that you ' +
-          '*allow* (do not block) this access.',
-      )
+      if (!this.$store.state.ephemeral.hadSuccessfulDeviceLocReq) {
+        // there's no API to check if we have geolocation access without
+        // actually asking for the permission. To streamline things a bit, we
+        // assume if we've been successful in this session, we'll continue to
+        // be. We only store it in ephemeral so it's forgetten for the next
+        // session
+        await this.$ons.notification.alert(
+          'We are about to get the current location of your device. ' +
+            'You may be prompted to allow/block this access. ' +
+            'It is important that you ' +
+            '*allow* (do not block) this access.',
+        )
+      }
       try {
         await this.$store.dispatch('ephemeral/markUserGeolocation')
         const coords = this.$store.state.ephemeral.deviceCoords
@@ -351,32 +409,6 @@ export default {
       this.$wow.uiTrace('CollectGeolocation', `show map`)
       this.isShowMap = !this.isShowMap
     },
-    useManualGpsCoords() {
-      const accuracy = null // TODO should we ask the user for this?
-      const lat = parseFloat(this.manualLat)
-      const lng = parseFloat(this.manualLon)
-      this.$store.commit('ephemeral/setManualCoords', {
-        lat,
-        lng,
-        accuracy,
-      })
-      // FIXME change manual inputs to validate as you type with debouncing.
-      // Failures should be shows as red-ish alerts on the page, not popups
-      if (!isInBoundingBox(lat, lng)) {
-        this.$ons.notification.alert(
-          `Your coordinates (${lat},${lng}) look like they're outside Australia. ` +
-            `This app is only for observations made in Australia, sorry.`,
-        )
-        wowWarnMessage(
-          `User tried to use manual coords (${lat},${lng}) that are ` +
-            `outside of Australia.`,
-        )
-        return
-      }
-      this.pokeParentToReadCoords()
-    },
-    // FIXME when manualLat or manualLng are changed, clear value in store and
-    // poke parent so the button must be pressed again to pass validation
     selectManualGeolocationMethod() {
       this.geolocationMethod = 'manual'
     },
