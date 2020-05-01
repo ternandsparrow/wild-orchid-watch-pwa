@@ -326,6 +326,12 @@ export default {
       this.$store.commit('ephemeral/setManualCoords', newVal)
       this.pokeParentToReadCoords()
     },
+    isAdvancedUserMode(newVal) {
+      const isSwappedToBeginner = !newVal
+      if (isSwappedToBeginner && this.geolocationMethod === 'manual') {
+        this.geolocationMethod = 'photo'
+      }
+    },
   },
   beforeMount() {
     this.$store.commit('ephemeral/resetCoordsState')
