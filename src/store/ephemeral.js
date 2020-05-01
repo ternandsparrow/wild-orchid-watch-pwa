@@ -294,7 +294,7 @@ const actions = {
         blobSizeBytes: photoObj.file.size,
         blobType: photoObj.file.type,
       }
-      wowWarnMessage(
+      console.debug(
         `Attached photo is missing GPS coords, summary: ${JSON.stringify(
           debugInfo,
           null,
