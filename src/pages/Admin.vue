@@ -486,6 +486,9 @@ export default {
         'inatProjectSlug',
         'inatStaticUrlBase',
         'inatUrlBase',
+        'isMissionsFeatureEnabled',
+        'isNewsFeatureEnabled',
+        'isSearchFeatureEnabled',
         'obsFieldSeparatorChar',
         'redirectUri',
       ]

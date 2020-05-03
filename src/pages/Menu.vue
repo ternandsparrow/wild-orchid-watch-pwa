@@ -1,6 +1,12 @@
 <template>
   <v-ons-page modifier="white">
-    <div class="is-dev-warning">{{ deployedEnvName }}</div>
+    <div
+      class="is-dev-warning"
+      :class="{ 'force-hide': isForceHideDevWarning }"
+      @click="onDevWarningClick"
+    >
+      {{ deployedEnvName }}
+    </div>
     <div class="app-banner centered-flex-row">
       <img src="../assets/wow-logo.png" />
       <div>
@@ -64,19 +70,21 @@
 <script>
 import { mapGetters } from 'vuex'
 
-// import Activity from '@/pages/activity/index'
 import {
   appVersion,
   deployedEnvName,
   inatUrlBase,
   inatProjectSlug,
   isMissionsFeatureEnabled,
+  isNewsFeatureEnabled,
+  isSearchFeatureEnabled,
 } from '@/misc/constants'
 
 export default {
   data() {
     return {
       appVersion,
+      isForceHideDevWarning: false,
       versionClickCount: 0,
       versionClickEasterEggTimeout: null,
       links: [
@@ -122,12 +130,18 @@ export default {
           icon: 'fa-leaf',
           target: { name: 'Species' },
         },
-        // FIXME uncomment when they have real content
-        // {
-        //   title: 'Activity',
-        //   icon: 'md-accounts-alt',
-        //   component: Activity,
-        // },
+        {
+          title: 'News',
+          icon: 'fa-newspaper',
+          target: { name: 'News' },
+          isDisabled: !isNewsFeatureEnabled,
+        },
+        {
+          title: 'Search',
+          icon: 'fa-search',
+          target: { name: 'Search' },
+          isDisabled: !isSearchFeatureEnabled,
+        },
         {
           title: 'Missions',
           icon: 'fa-search-location',
@@ -172,6 +186,9 @@ export default {
   methods: {
     handleMenuClick(target) {
       this.safelyPushRoute(target)
+    },
+    onDevWarningClick() {
+      this.isForceHideDevWarning = true
     },
     onVersionClick() {
       // like Android's easter egg, tap the version N times
@@ -243,5 +260,9 @@ export default {
 .external-link {
   color: inherit;
   text-decoration: none;
+}
+
+.force-hide {
+  display: none;
 }
 </style>
