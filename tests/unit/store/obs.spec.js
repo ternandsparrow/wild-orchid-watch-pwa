@@ -2123,19 +2123,19 @@ describe('getters', () => {
 function wowUpdatedAtToBeCloseToNow(record) {
   const updatedAtStr = record.wowMeta.wowUpdatedAt
   if (!updatedAtStr) {
-    return failReallyLoudly(`updateAtStr was falsy '${updateAtStr}'`)
+    return failReallyLoudly(`updateAtStr was falsy '${updatedAtStr}'`)
   }
   const updatedAtDate = dayjs(updatedAtStr)
   const fiveMinutesAgo = dayjs().subtract(5, 'minutes')
   const now = dayjs()
   if (updatedAtDate.isBefore(fiveMinutesAgo)) {
     return failReallyLoudly(
-      `updateAtDate='${updateAtDate}' is before 5 minutes ago from now=${fiveMinutesAgo}`,
+      `updatedAtDate='${updatedAtDate}' is before 5 minutes ago from now=${fiveMinutesAgo}`,
     )
   }
   if (updatedAtDate.isAfter(now)) {
     return failReallyLoudly(
-      `updateAtDate='${updateAtDate}' is after now='${now}`,
+      `updatedAtDate='${updatedAtDate}' is after now='${now}`,
     )
   }
   return true
