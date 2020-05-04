@@ -89,11 +89,13 @@
         </div>
       </v-ons-list-item>
       <wow-header
+        v-if="!isEdit"
         label="Geolocation / GPS coordinates"
         help-target="geolocation"
         @on-help="showHelp"
       />
       <wow-collect-geolocation
+        v-if="!isEdit"
         :photo-count="photos.length"
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"
