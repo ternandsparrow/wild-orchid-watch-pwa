@@ -129,9 +129,13 @@ const depsQueue = new Queue('obs-dependant-queue', {
         const obsUuid = entry.metadata.obsUuid
         const obsId = entry.metadata.obsId
         const respStatus = resp.status
-        // at this point we have a choice: press on and accept that we'll be
-        // missing some of the data on the remote, or rollback everything on
-        // the remote and do whatever is necessary to fix it up.
+        // at this point we have three choices:
+        //   1. press on and accept that we'll be missing some of the data on
+        //      the remote,
+        //   2. rollback everything on the remote and do whatever is necessary
+        //       to fix it up, or
+        //   3. give up and leave things in a mess
+        // Right now we're just giving up because rolling back is complex
         switch (entry.request.method) {
           case 'POST':
             await setRecordProcessingOutcome(
@@ -139,22 +143,15 @@ const depsQueue = new Queue('obs-dependant-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
-            console.debug('Handling POST client error by rolling back obs')
-            await obsQueue.unshiftRequest({
-              metadata: {
-                obsId: obsId,
-                obsUuid: obsUuid,
-              },
-              request: new Request(
-                `${constants.apiUrlBase}/observations/${obsId}`,
-                {
-                  method: 'DELETE',
-                  mode: 'cors',
-                },
-              ),
-            })
+            // now we have a problem. If the partial record was a "create" then
+            // we could just delete it, but that doesn't work for an edit. And
+            // we don't know what was done at this point. So we'll do nothing.
+            // iNat has some magic to recognise duplicate requests to create an
+            // obs and will return the existing instance and obsField are
+            // idempotent as they clober. It's only the photos that we'll
+            // duplicate but it's better than losing them.
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'PUT': // we don't update deps, we just clobber with POST
             await setRecordProcessingOutcome(
@@ -162,7 +159,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'DELETE':
@@ -247,7 +244,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             await wowSwStore.removeItem(createTag + obsUuid)
             break
@@ -260,7 +257,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             break
           case 'PUT':
@@ -269,7 +266,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             await wowSwStore.removeItem(updateTag + obsUuid)
             break
@@ -332,6 +329,10 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
           console.debug(
             `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
           )
+          console.debug(
+            `Discarding '${entry.request.method} ${entry.request.url}' ` +
+              `request as it's parent obs=${obsId} is in the ignore list`,
+          )
           continue
         }
         const isLocalOnlySyntheticRequest = entry.request.url.startsWith(
@@ -350,7 +351,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         req.headers.set('Authorization', authHeaderValue)
         resp = await fetch(req)
         console.debug(
-          `Request for '${entry.request.url}' ` +
+          `Request for '${entry.request.method} ${entry.request.url}' ` +
             `has been replayed in queue '${this._name}'`,
         )
         const statusCode = resp.status
@@ -383,15 +384,19 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         }
         const isServerError = statusCode >= 500 && statusCode < 600
         if (isServerError) {
-          // other queued reqs probably won't succeed (right now), wait for next sync
-          throw (() => {
-            // throwing so catch block can handle unshifting, etc
-            const result = new Error(
-              `Response indicates server error (status=${statusCode})`,
-            )
-            result.name = 'Server5xxError'
-            return result
-          })()
+          await setRecordProcessingOutcome(
+            entry.metadata.obsUuid,
+            constants.systemErrorOutcome,
+          )
+          await sendMessageToAllClients({
+            id: constants.refreshLocalQueueMsg,
+          })
+          // you'd think a 500 means the server is having a really bad day but
+          // that's not always the case. Sending a photo it doesn't like will
+          // make it explode but it'll happily accept "good" photos. So let's
+          // push on!
+          obsIdsToIgnore.push(obsId)
+          continue
         }
       } catch (err) {
         // "Failed to fetch" lands us here. It could be a network error or a

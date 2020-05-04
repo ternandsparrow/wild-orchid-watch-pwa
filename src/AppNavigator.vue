@@ -54,6 +54,7 @@
       :visible.sync="globalErrorDialogVisible"
     >
       <div slot="title">Something broke</div>
+      <p v-if="globalErrorImgUrl"><img :src="globalErrorImgUrl" /></p>
       <p v-if="globalErrorUserMsg">{{ globalErrorUserMsg }}</p>
       <p>Sorry about that, try restarting the app or refreshing the webpage</p>
       <template slot="footer">
@@ -106,6 +107,7 @@ export default {
     ...mapState('auth', ['isUpdatingApiToken']),
     ...mapGetters('ephemeral', ['newContentAvailable']),
     ...mapState('ephemeral', [
+      'globalErrorImgUrl',
       'globalErrorUserMsg',
       'isForceShowLoginToast',
       'isGlobalErrorState',

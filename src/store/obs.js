@@ -98,7 +98,8 @@ const actions = {
     // it short-ish so it doesn't look like we're taking forever to process the
     // record. If we're still too fast, then the user will just have to wait
     // until the next refresh.
-    const delayToLetServerPerformIndexingMs = 10 * 1000
+    const delayToLetServerPerformIndexingMs =
+      constants.waitBeforeRefreshSeconds * 1000
     console.debug(
       `Sleeping for ${delayToLetServerPerformIndexingMs}ms before refreshing remote`,
     )
@@ -823,13 +824,42 @@ const actions = {
             // error, maybe halt as it might affect others?
             // FIXME do we need to be atomic and rollback?
             await dispatch('transitionToSystemErrorOutcome', idToProcess)
+            const userValues = (() => {
+              const fallbackMsg = {
+                userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+              }
+              // let's try to build a nicer message for the user
+              try {
+                const found = getters.localRecords.find(
+                  e => e.uuid === idToProcess,
+                )
+                if (!found) {
+                  return fallbackMsg
+                }
+                const firstPhotoUrl = ((found.photos || [])[0] || {}).url
+                if (!firstPhotoUrl) {
+                  return fallbackMsg
+                }
+                return {
+                  imgUrl: firstPhotoUrl,
+                  userMsg: `Failed to process record: ${found.speciesGuess}`,
+                }
+              } catch (err) {
+                wowWarnHandler(
+                  'While handling failed processing of a record, we tried to ' +
+                    'create a nice error message for the user and had another ' +
+                    'error',
+                  err,
+                )
+                return fallbackMsg
+              }
+            })()
             dispatch(
               'flagGlobalError',
               {
                 msg: `Failed to process Db record with ID='${idToProcess}'`,
-                // FIXME use something more user friendly than the ID
-                userMsg: `Error while trying upload record with ID='${idToProcess}'`,
                 err,
+                ...userValues,
               },
               { root: true },
             )

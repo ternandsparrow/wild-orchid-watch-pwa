@@ -22,6 +22,10 @@ import '@/global-components'
 import * as constants from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 
+if (constants.isForceVueDevtools) {
+  Vue.config.devtools = true
+}
+
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
@@ -126,6 +130,15 @@ new Vue({
                     err,
                   })
                 })
+              return
+            case constants.refreshLocalQueueMsg:
+              this.$store.dispatch('obs/refreshLocalRecordQueue').catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to refresh local observation queue after prompt to do so from the SW`,
+                  userMsg: `Error while trying to refresh your list of observations`,
+                  err,
+                })
+              })
               return
             default:
               console.debug('[from SW] ' + event.data)

@@ -21,7 +21,10 @@ module.exports = class DumpVueEnvVarsWebpackPlugin {
   }
 
   apply(compiler) {
-    if (process.env.NODE_ENV === 'development') {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      !process.env.FORCE_ENV_VAR_DUMP
+    ) {
       return
     }
     const fileContent = Object.keys(process.env)
