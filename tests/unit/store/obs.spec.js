@@ -2123,12 +2123,25 @@ describe('getters', () => {
 function wowUpdatedAtToBeCloseToNow(record) {
   const updatedAtStr = record.wowMeta.wowUpdatedAt
   if (!updatedAtStr) {
-    return false
+    return failReallyLoudly(`updateAtStr was falsy '${updatedAtStr}'`)
   }
   const updatedAtDate = dayjs(updatedAtStr)
   const fiveMinutesAgo = dayjs().subtract(5, 'minutes')
   const now = dayjs()
-  return updatedAtDate.isAfter(fiveMinutesAgo) && updatedAtDate.isBefore(now)
+  if (updatedAtDate.isBefore(fiveMinutesAgo)) {
+    return failReallyLoudly(
+      `updatedAtDate='${updatedAtDate}' is before 5 minutes ago from now=${fiveMinutesAgo}`,
+    )
+  }
+  if (updatedAtDate.isAfter(now)) {
+    return failReallyLoudly(
+      `updatedAtDate='${updatedAtDate}' is after now='${now}`,
+    )
+  }
+  return true
+  function failReallyLoudly(msg) {
+    throw new Error(`AssertionFail: ${msg}`)
+  }
 }
 
 function getApiRecord() {

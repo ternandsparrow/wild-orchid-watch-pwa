@@ -126,10 +126,6 @@
 
 <script>
 import { onboarderComponentName, appVersion } from '@/misc/constants'
-// FIXME can't use this local import method until we get a fix for
-// https://github.com/OnsenUI/OnsenUI/issues/2662. Using global
-// components in main.js in the interim.
-// import CarouselDots from '@/partials/CarouselDots'
 
 export default {
   name: onboarderComponentName,
@@ -169,9 +165,9 @@ export default {
     }
     this.$router.replace({ name: 'Home' })
   },
-  // components: { CarouselDots },
   methods: {
     handleDoneClick() {
+      this.$wow.uiTrace('Onboarder', 'done')
       this.$store.commit('app/setIsFirstRun', false)
       this.$store.dispatch('auth/doLogin')
     },
@@ -179,9 +175,11 @@ export default {
       this.carouselIndex = carouselIndex
     },
     showTAndCs() {
+      this.$wow.uiTrace('Onboarder', 'T&C open')
       this.tsAndCsModalVisible = true
     },
     onTAndCsCloseClick() {
+      this.$wow.uiTrace('Onboarder', 'T&C close')
       this.tsAndCsModalVisible = false
     },
   },

@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable :title="title">
+    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
@@ -10,45 +10,6 @@
       save button.
     </v-ons-list-item>
     <v-ons-list>
-      <v-ons-list-item v-show="geolocationErrorMsg" modifier="nodivider">
-        <div class="warning-alert">
-          <p>
-            <v-ons-icon
-              class="warning"
-              icon="fa-exclamation-circle"
-            ></v-ons-icon>
-            {{ geolocationErrorMsg }}. This observation cannot be created
-            without geolocation details.
-          </p>
-        </div>
-      </v-ons-list-item>
-      <v-ons-list-item v-if="isShowGeolocationSection">
-        <div v-show="isLocationAlreadyCaptured">
-          <div class="success-alert">
-            <v-ons-icon icon="fa-map-marked-alt" />
-            Geolocation successfully captured from
-            {{ obsLocSourceName }}.
-            <div>
-              <v-ons-button modifier="quiet" @click="toggleMap">
-                <span v-if="!isShowMap">View location on </span>
-                <span v-if="isShowMap">Hide </span>map</v-ons-button
-              >
-            </div>
-          </div>
-          <google-map
-            v-if="isShowMap"
-            :marker-position="obsCoords"
-            style="width: 94vw;"
-          />
-        </div>
-        <div v-show="!isLocationAlreadyCaptured" class="warning-alert">
-          <v-ons-icon icon="fa-exclamation-circle" />
-          No geolocation captured. Attach a photo tagged with GPS coordinates or
-          <v-ons-button modifier="quiet" @click="getDeviceGpsLocation"
-            >use current device location</v-ons-button
-          >
-        </div>
-      </v-ons-list-item>
       <template v-for="currMenuItem of photoMenu">
         <wow-header
           :key="currMenuItem.name + '-header'"
@@ -127,6 +88,16 @@
           What species is this observation of?
         </div>
       </v-ons-list-item>
+      <wow-header
+        label="Geolocation / GPS coordinates"
+        help-target="geolocation"
+        @on-help="showHelp"
+      />
+      <wow-collect-geolocation
+        :photo-count="photos.length"
+        :is-extra-emphasis="isValidatedAtLeastOnce"
+        @read-coords="rereadCoords"
+      />
       <template v-for="currField of displayableObsFields">
         <template v-if="isAdvancedUserMode || !currField.isAdvancedField">
           <wow-header
@@ -243,7 +214,6 @@
               <wow-input-status
                 v-if="isShowInputStatus(currField)"
                 :is-ok="!!obsFieldValues[currField.id]"
-                class="the-input-status"
               ></wow-input-status>
             </div>
             <div class="wow-obs-field-desc">
@@ -330,7 +300,7 @@
         >
       </p>
     </v-ons-modal>
-    <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModelPostShow">
+    <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModalPostShow">
       <wow-help ref="wowHelp" @close="closeHelpModal" />
     </v-ons-modal>
     <wow-photo-preview :show-delete="true" @on-delete="onDeletePhoto" />
@@ -345,6 +315,7 @@ import {
   findCommonString,
   rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
+  wowWarnHandler,
 } from '@/misc/helpers'
 import {
   accuracyOfPopulationCountObsFieldDefault,
@@ -354,19 +325,16 @@ import {
   accuracyOfSearchAreaCalcPrecise,
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
-  blocked,
   coarseFragmentsMultiselectId,
   conservationImmediateLanduseObsFieldId,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
-  failed,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
-  notSupported,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
@@ -421,7 +389,6 @@ export default {
       targetHelpSection: null,
       isSaveModalVisible: false,
       isShowModalForceClose: false,
-      geolocationErrorMsg: null,
       obsFieldSorterFn: null,
       isPreciseSearchAreaCalc: false,
       isEstimatedSearchAreaCalc: false,
@@ -430,23 +397,24 @@ export default {
       requiredFieldIdsConditionalAccuracyOfSearchField: [],
       otherType: 'other',
       fieldIdIsDisabled: {},
-      photosStillCompressingCountdownLatch: 0,
+      speciesAutocompleteErrors: {},
       obsLat: null,
       obsLng: null,
       obsLocAccuracy: null,
-      obsLocSourceName: null,
-      isShowMap: false,
-      speciesAutocompleteErrors: {},
+      isValidatedAtLeastOnce: false,
     }
   },
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
-    ...mapState('ephemeral', ['networkOnLine', 'isHelpModalVisible']),
+    ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
+    ...mapGetters('ephemeral', ['photosStillCompressingCount']),
     isAdvancedUserMode: {
       get() {
         return this.$store.state.app.isAdvancedUserMode
       },
       set(newValue) {
+        const newModeName = newValue ? 'advanced' : 'beginner'
+        this.$wow.uiTrace('SingleSpecies', `switch to ${newModeName} mode`)
         this.$store.commit('app/setIsAdvancedUserMode', newValue)
       },
     },
@@ -558,29 +526,14 @@ export default {
       }, {})
     },
     isLocationAlreadyCaptured() {
-      if (
-        this.observationDetail &&
-        this.observationDetail.lat &&
-        this.observationDetail.lng
-      ) {
-        return true
-      }
-      return !!(this.obsLat && this.obsLng)
-    },
-    obsCoords() {
-      return { lat: this.obsLat, lng: this.obsLng }
-    },
-    isShowGeolocationSection() {
-      if (this.isEdit) {
-        return false
-      }
-      if (this.photos.length > 1) {
-        return true
-      }
-      if (this.photos.length === 1) {
-        return !this.photosStillCompressingCountdownLatch
-      }
-      return false
+      const isForm1Present = (() => {
+        const o = this.observationDetail || {}
+        return !!(o.lat && o.lng)
+      })()
+      const isForm2Present = (() => {
+        return !!(this.obsLat && this.obsLng)
+      })()
+      return isForm1Present || isForm2Present
     },
   },
   watch: {
@@ -805,10 +758,11 @@ export default {
       el.scrollIntoView({ behavior: 'smooth' })
     },
     showHelp(section) {
+      this.$wow.uiTrace('SingleSpecies', `show help for section ${section}`)
       this.$store.commit('ephemeral/showHelpModal')
       this.targetHelpSection = section
     },
-    helpModelPostShow() {
+    helpModalPostShow() {
       this.$refs.wowHelp.scrollToSection(this.targetHelpSection)
     },
     closeHelpModal() {
@@ -848,6 +802,7 @@ export default {
       this.obsFieldValues[fieldId] = data.value
     },
     onDeletePhoto(record) {
+      this.$wow.uiTrace('SingleSpecies', `delete photo`)
       const isLocalFromPreviousEdit = !!record.id
       if (record.isRemote || isLocalFromPreviousEdit) {
         const id = record.id
@@ -856,27 +811,18 @@ export default {
         this.closePhotoPreview()
         return
       }
-      const indexOfPhoto = this.photos.findIndex(e => e.uuid == record.uuid)
+      const thisPhotoUuid = record.uuid
+      this.$store.commit('ephemeral/popCoordsForPhoto', thisPhotoUuid)
+      const indexOfPhoto = this.photos.findIndex(e => e.uuid == thisPhotoUuid)
       if (indexOfPhoto < 0) {
         // why can't we find the photo?
-        console.warn(`Data problem: could not find photo with
-          UUID='${record.uuid}'`)
+        console.warn(
+          `Data problem: could not find photo with UUID='${thisPhotoUuid}'`,
+        )
         this.closePhotoPreview()
         return
       }
       this.photos.splice(indexOfPhoto, 1)
-      const isNoLocalPhotos = !this.photos.length
-      if (isNoLocalPhotos) {
-        console.debug(
-          'No local photos after local photo delete, clearing saved coords',
-        )
-        // TODO enhancement idea: track which photo we used for coords (by
-        // UUID) and if it gets deleted, loop through remaining photos to get
-        // coords.
-        this.obsLat = null
-        this.obsLng = null
-        this.obsLocAccuracy = null
-      }
       this.closePhotoPreview()
     },
     setDefaultDisabledness() {
@@ -977,6 +923,7 @@ export default {
       })
     },
     validateInputs() {
+      this.isValidatedAtLeastOnce = true
       // TODO Enhancement idea: highlight the fields with error and maybe scroll
       // to the first field
       this.formErrorMsgs = []
@@ -986,12 +933,7 @@ export default {
         )
       }
       if (!this.isLocationAlreadyCaptured) {
-        this.formErrorMsgs.push(
-          'Observations *must* have geolocation' +
-            ' information. Either use your current location or attach a GPS' +
-            ' tagged photo. Scroll to the very top of this page for ' +
-            'more details.',
-        )
+        this.formErrorMsgs.push('No geolocation/GPS coordinates recorded.')
       }
       const visibleRequiredObsFields = this.displayableObsFields.filter(
         f => f.required,
@@ -1025,6 +967,7 @@ export default {
       return true
     },
     async onSave() {
+      this.$wow.uiTrace('SingleSpecies', `save`)
       this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
         this.isShowModalForceClose = true
@@ -1032,7 +975,7 @@ export default {
       try {
         this.isSaveModalVisible = true
         this.isShowModalForceClose = false
-        while (this.photosStillCompressingCountdownLatch > 0) {
+        while (this.photosStillCompressingCount > 0) {
           await new Promise(resolve => {
             // TODO do we need a sanity check that breaks out after N tests?
             const waitForImageCompressionMs = 333
@@ -1042,6 +985,7 @@ export default {
           })
         }
         if (!this.validateInputs()) {
+          this.$wow.uiTrace('SingleSpecies', `validation failure`)
           return
         }
         this.$store.commit('obs/addRecentlyUsedTaxa', {
@@ -1208,65 +1152,49 @@ export default {
       return result
     },
     async onPhotoChanged(photoDefObj) {
+      this.$wow.uiTrace('SingleSpecies', `photo attached`)
       const type = photoDefObj.id
       const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
       if (!file) {
         return
       }
       const theUuid = uuid()
-      this.photos.push({
+      const photoObj = {
         type,
         file,
         url: URL.createObjectURL(file),
         uuid: theUuid,
-      })
-      this.photosStillCompressingCountdownLatch += 1
+      }
+      this.photos.push(photoObj)
       // here we use the full size photo but send it for compression/resizing in
-      // the worker (background) so we don't block the UI. Later, during onSave, we
-      // ensure all the photo processing is complete.
+      // the worker (background) so we don't block the UI.
       this.$store
-        .dispatch('obs/compressPhotoIfRequired', file)
-        .then(compressionResult => {
+        .dispatch('ephemeral/processPhoto', photoObj)
+        .then(photoBlobish => {
           const found = this.photos.find(e => e.uuid === theUuid)
           if (!found) {
             // guess the photo has already been deleted?
             return
           }
-          found.file = compressionResult.data
-          found.url = URL.createObjectURL(compressionResult.data)
-          // TODO find out if this field is ever populated and if so, find the
-          // EXIF tag and pull the data
-          const locAccuracyFromPhoto = null
-          // Note: we don't support editing an obs location. We have logic
-          // to set the location during creation but then we don't touch it
-          this.handleGpsLocation(
-            compressionResult.location.lat,
-            compressionResult.location.lng,
-            locAccuracyFromPhoto,
-            'photo metadata',
-          )
+          found.file = photoBlobish
+          const oldUrl = found.url
+          const newUrl = URL.createObjectURL(photoBlobish)
+          if (oldUrl === newUrl) {
+            // createObjectURL seems to always generate a new URL, but just to
+            // be safe, we'll check. Don't wanna revoke the one we're using.
+            return
+          }
+          found.url = newUrl
+          // we don't want our thumbnail to be using a revoked blob URL
+          this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
+            uuid: photoObj.uuid,
+            newUrl,
+          })
+          URL.revokeObjectURL(oldUrl)
         })
         .catch(err => {
-          console.warn('Failed to compress an image', err)
+          wowWarnHandler('Failed to compress/resize an image', err)
         })
-        .finally(() => {
-          this.photosStillCompressingCountdownLatch -= 1
-        })
-    },
-    handleGpsLocation(lat, lng, accuracy, source) {
-      if (this.isLocationAlreadyCaptured) {
-        return
-      }
-      const isLocationPassed = lat && lng
-      if (!isLocationPassed) {
-        // must have processed a photo without location metadata
-        return
-      }
-      this.geolocationErrorMsg = null
-      this.obsLat = lat
-      this.obsLng = lng
-      this.obsLocAccuracy = accuracy
-      this.obsLocSourceName = source
     },
     async _onSpeciesGuessInput(data) {
       this.speciesAutocompleteErrors.speciesGuess = false
@@ -1325,6 +1253,7 @@ export default {
       return matchingType || { name: 'unknown' }
     },
     showPhotoPreview(photoRecord) {
+      this.$wow.uiTrace('SingleSpecies', `preview photo`)
       const url = photoRecord.url
       // TODO enhancement idea: if we aren't online, then don't do the replace
       // on the URL. Just show the small photo rather than a broken image
@@ -1369,59 +1298,28 @@ export default {
         this.fieldIdIsDisabled[curr] = newVal
       }
     },
-    async getDeviceGpsLocation() {
-      // TODO Enhancement idea: only prompt when we know we don't have access.
-      // There's no API support for this but perhaps we can store if we've been
-      // successful in the past and use that?
-      await this.$ons.notification.alert(
-        'We are about to get the current location of your device. ' +
-          'You may be prompted to allow/block this access. ' +
-          'It is important that you ' +
-          '*allow* (do not block) this access.',
-      )
-      try {
-        await this.$store.dispatch('obs/markUserGeolocation')
-        this.handleGpsLocation(
-          this.$store.state.obs.lat,
-          this.$store.state.obs.lng,
-          this.$store.state.obs.locAccuracy,
-          'device',
-        )
-      } catch (err) {
-        console.debug('No geolocation access for us.', err)
-        this.geolocationErrorMsg = (function() {
-          if (err === notSupported) {
-            return 'Geolocation is not supported by your device'
-          }
-          if (err === blocked) {
-            return (
-              'You have blocked access to your device' +
-              ' geolocation. Google for something like "reset ' +
-              'browser geolocation permission" to find out ' +
-              'how to unblock'
-            )
-          }
-          if (err === failed) {
-            return (
-              `Geolocation seems to be supported and not blocked but ` +
-              'something went wrong while accessing your position'
-            )
-          }
-          wowErrorHandler(
-            'ProgrammerError: geolocation access failed but in a' +
-              ' way that we did not plan for, we should handle this. ' +
-              `err.code=${err.code}.`,
-            err,
-          )
-          return 'Something went wrong while trying to access your geolocation'
-        })()
-      }
-    },
-    toggleMap() {
-      this.isShowMap = !this.isShowMap
-    },
     onNumberInput(event) {
       event.target.blur()
+    },
+    onCancel() {
+      const modeName = this.isEdit ? 'edit' : 'create'
+      this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
+    },
+    rereadCoords() {
+      const newCoords = this.$store.getters[
+        'ephemeral/coordsForCurrentlyEditingObs'
+      ]
+      if (!newCoords) {
+        this.obsLat = null
+        this.obsLng = null
+        this.obsLocAccuracy = null
+        console.debug('cleared coords triggered by a poke')
+        return
+      }
+      this.obsLat = newCoords.lat
+      this.obsLng = newCoords.lng
+      this.obsLocAccuracy = newCoords.accuracy
+      console.debug('updated coords triggered by a poke')
     },
   },
 }
@@ -1531,12 +1429,6 @@ $thumbnailSize: 75px;
   width: 94vw;
 }
 
-.wow-obs-field-desc {
-  color: #888;
-  font-size: 0.7em;
-  margin-top: 0.5em;
-}
-
 .wow-obs-field-input-container {
   width: 100%;
 }
@@ -1571,28 +1463,6 @@ $thumbnailSize: 75px;
 
 .wow-select {
   width: 80%;
-}
-
-.the-input-status {
-  margin-left: 1em;
-}
-
-.success-alert,
-.warning-alert {
-  padding: 1em;
-  margin: 0 auto;
-}
-
-.warning-alert {
-  border: 1px solid orange;
-  border-radius: 10px;
-  background: #ffda88;
-}
-
-.success-alert {
-  border: 1px solid green;
-  border-radius: 10px;
-  background: #d5ffbf;
 }
 
 .form-error-dialogue {

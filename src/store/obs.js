@@ -2,15 +2,14 @@ import _ from 'lodash'
 import base64js from 'base64-js'
 import dayjs from 'dayjs'
 import uuid from 'uuid/v1'
-import { wrap as comlinkWrap } from 'comlink'
-import dms2dec from 'dms2dec'
 import Fuse from 'fuse.js'
 import {
-  getRecord,
-  storeRecord,
   deleteDbRecordById,
+  getRecord,
+  healthcheckStore,
   mapOverObsStore,
   setRecordProcessingOutcome,
+  storeRecord,
 } from '@/indexeddb/obs-store-common'
 import * as constants from '@/misc/constants'
 import {
@@ -19,7 +18,6 @@ import {
   buildStaleCheckerFn,
   chainedError,
   fetchSingleRecord,
-  getExifFromBlob,
   isNoSwActive,
   makeEnumValidator,
   now,
@@ -36,22 +34,16 @@ const recordType = makeEnumValidator(['delete', 'edit', 'new'])
 
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
-let imageCompressionWorker = null
 
 let taxaIndex = null
 
 const state = {
-  lat: null,
-  lng: null,
-  isGeolocationAccessible: true,
-  locAccuracy: null,
   allRemoteObs: [],
   allRemoteObsLastUpdated: 0,
   isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
   selectedObservationId: null,
-  tabIndex: 0,
   _uiVisibleLocalRecords: [],
   localQueueSummary: [],
   projectInfo: null,
@@ -74,16 +66,10 @@ const mutations = {
     state.projectInfo = value
     state.projectInfoLastUpdated = now()
   },
-  setTab: (state, value) => (state.tabIndex = value),
   setIsUpdatingRemoteObs: (state, value) => (state.isUpdatingRemoteObs = value),
   setUiVisibleLocalRecords: (state, value) =>
     (state._uiVisibleLocalRecords = value),
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
-  setLat: (state, value) => (state.lat = value),
-  setLng: (state, value) => (state.lng = value),
-  setLocAccuracy: (state, value) => (state.locAccuracy = value),
-  setIsGeolocationAccessible: (state, value) =>
-    (state.isGeolocationAccessible = value),
   setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isNothingSelected = !value
@@ -285,53 +271,6 @@ const actions = {
       )
       return false
     }
-  },
-  markUserGeolocation({ commit }) {
-    commit('setIsGeolocationAccessible', true)
-    if (!navigator.geolocation) {
-      console.debug('Geolocation is not supported by user agent')
-      commit('setIsGeolocationAccessible', false)
-      return Promise.reject(constants.notSupported)
-    }
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        loc => {
-          commit('setLat', loc.coords.latitude)
-          commit('setLng', loc.coords.longitude)
-          commit('setLocAccuracy', loc.coords.accuracy)
-          return resolve()
-        },
-        err => {
-          commit('setIsGeolocationAccessible', false)
-          // enum from https://developer.mozilla.org/en-US/docs/Web/API/PositionError
-          const permissionDenied = 1
-          const positionUnavailable = 2
-          const timeout = 3
-          const errCode = err.code
-          switch (errCode) {
-            case permissionDenied:
-              console.debug('Geolocation is blocked')
-              return reject(constants.blocked)
-            case positionUnavailable:
-              // I think this could be in situations like a desktop computer
-              // tethered through a mobile hotspot. You allow access but it
-              // still fails.
-              console.warn(
-                'Geolocation is supported but not available. Error code=' +
-                  errCode,
-              )
-              return reject(constants.failed)
-            case timeout:
-              console.warn(
-                'Geolocation is supported but timed out. Error code=' + errCode,
-              )
-              return reject(constants.failed)
-            default:
-              return reject(err)
-          }
-        },
-      )
-    })
   },
   async buildObsFieldSorter({ dispatch }) {
     await dispatch('waitForProjectInfo')
@@ -1474,82 +1413,6 @@ const actions = {
     await setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
-  async compressPhotoIfRequired({ rootState }, blobish) {
-    let originalMetadata
-    try {
-      originalMetadata = await getExifFromBlob(blobish)
-    } catch (err) {
-      console.warn(
-        'Could not read EXIF data, cannot process image, leaving as is',
-        err,
-      )
-      // TODO enhancement idea: brute force image dimensions to do resizing
-      return {
-        data: blobish,
-      }
-    }
-    const originalImageSizeMb = blobish.size / 1024 / 1024
-    const { lat, lng } = extractGps(originalMetadata)
-    if (!rootState.app.isEnablePhotoCompression) {
-      console.debug('Photo compression disabled, using original photo')
-      return withLocation(blobish)
-    }
-    const maxWidthOrHeight = constants.photoCompressionThresholdPixels
-    const dimensionX = originalMetadata.PixelXDimension
-    const dimensionY = originalMetadata.PixelYDimension
-    const hasDimensionsInExif = dimensionX && dimensionY
-    const isPhotoAlreadySmallEnoughDimensions =
-      hasDimensionsInExif &&
-      dimensionX < maxWidthOrHeight &&
-      dimensionY < maxWidthOrHeight
-    const isPhotoAlreadySmallEnoughStorage =
-      originalImageSizeMb <= constants.photoCompressionThresholdMb
-    if (
-      isPhotoAlreadySmallEnoughDimensions ||
-      isPhotoAlreadySmallEnoughStorage
-    ) {
-      // don't bother compressing an image that's already small enough
-      const dimMsg = hasDimensionsInExif
-        ? `X=${dimensionX}, Y=${dimensionY}`
-        : '(No EXIF dimensions)'
-      console.debug(
-        `No compresion needed for ${dimMsg},` +
-          ` ${originalImageSizeMb.toFixed(3)} MB image`,
-      )
-      return withLocation(blobish)
-    }
-    try {
-      if (!imageCompressionWorker) {
-        imageCompressionWorker = comlinkWrap(
-          new Worker('./image-compression.worker.js', {
-            type: 'module',
-          }),
-        )
-      }
-      const compressedBlobish = await imageCompressionWorker.resize(
-        blobish,
-        maxWidthOrHeight,
-      )
-      return withLocation(compressedBlobish)
-    } catch (err) {
-      wowWarnHandler(
-        `Failed to compress a photo with MIME=${blobish.type}, ` +
-          `size=${blobish.size} and EXIF=${JSON.stringify(
-            originalMetadata,
-          )}. ` +
-          'Falling back to original image.',
-        err,
-      )
-      // fallback to using the fullsize image
-      return withLocation(blobish)
-    }
-    function withLocation(data) {
-      return {
-        location: { lat, lng, isPresent: !!(lat && lng) },
-        data,
-      }
-    }
-  },
   findObsInatIdForUuid({ state }, uuid) {
     const found = state.allRemoteObs.find(e => e.uuid === uuid)
     if (!found) {
@@ -1566,6 +1429,13 @@ const actions = {
       )
     }
     return result
+  },
+  async healthcheck() {
+    try {
+      await healthcheckStore()
+    } catch (err) {
+      throw chainedError('Failed to init localForage instance', err)
+    }
   },
 }
 
@@ -2010,21 +1880,6 @@ async function processPhotos(photos) {
       return photo
     }),
   )
-}
-
-function extractGps(parsedExif) {
-  const theArgs = [
-    parsedExif.GPSLatitude,
-    parsedExif.GPSLatitudeRef,
-    parsedExif.GPSLongitude,
-    parsedExif.GPSLongitudeRef,
-  ]
-  const isAllFieldsPresent = theArgs.every(e => !!e)
-  if (!isAllFieldsPresent) {
-    return {}
-  }
-  const [latDec, lonDec] = dms2dec(...theArgs)
-  return { lat: latDec, lng: lonDec }
 }
 
 function isAnswer(val) {

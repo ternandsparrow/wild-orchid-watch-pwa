@@ -2,7 +2,7 @@ import objectUnderTest from '@/store/ephemeral'
 
 const mutations = objectUnderTest.mutations
 
-describe('app module mutation', () => {
+describe('ephemeral module mutations', () => {
   describe('setNetworkOnline', () => {
     it('should set network online state to the value given in parameter', () => {
       const state = {
@@ -19,6 +19,64 @@ describe('app module mutation', () => {
         SWRegistrationForNewContent: null,
         showAddToHomeScreenModalForApple: false,
         refreshingApp: false,
+      })
+    })
+  })
+
+  describe('pushPhotoCoords', () => {
+    it('should add coords to empty array', () => {
+      const state = {
+        photoCoords: [],
+      }
+      mutations.pushPhotoCoords(state, { photoUuid: 'AAA111' })
+      expect(state).toEqual({
+        photoCoords: [{ photoUuid: 'AAA111' }],
+      })
+    })
+
+    it('should add coords to end of populated array', () => {
+      const state = {
+        photoCoords: [{ photoUuid: 'AAA111' }, { photoUuid: 'BBB222' }],
+      }
+      mutations.pushPhotoCoords(state, { photoUuid: 'CCC333' })
+      expect(state).toEqual({
+        photoCoords: [
+          { photoUuid: 'AAA111' },
+          { photoUuid: 'BBB222' },
+          { photoUuid: 'CCC333' },
+        ],
+      })
+    })
+  })
+
+  describe('popCoordsForPhoto', () => {
+    it('should remove coords when we find a match', () => {
+      const state = {
+        photoCoords: [{ photoUuid: 'AAA111' }, { photoUuid: 'BBB222' }],
+      }
+      mutations.popCoordsForPhoto(state, 'AAA111')
+      expect(state).toEqual({
+        photoCoords: [{ photoUuid: 'BBB222' }],
+      })
+    })
+
+    it('should not explode when we do not find a match', () => {
+      const state = {
+        photoCoords: [{ photoUuid: 'AAA111' }, { photoUuid: 'BBB222' }],
+      }
+      mutations.popCoordsForPhoto(state, 'CCC333')
+      expect(state).toEqual({
+        photoCoords: [{ photoUuid: 'AAA111' }, { photoUuid: 'BBB222' }],
+      })
+    })
+
+    it('should not explode when there are no coords', () => {
+      const state = {
+        photoCoords: [],
+      }
+      mutations.popCoordsForPhoto(state, 'CCC333')
+      expect(state).toEqual({
+        photoCoords: [],
       })
     })
   })

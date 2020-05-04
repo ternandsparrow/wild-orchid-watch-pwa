@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { isNil } from 'lodash'
 import EXIF from 'exif-js'
@@ -10,10 +11,12 @@ import {
   // wowErrorHandler eventually
   wowErrorHandler,
   wowWarnHandler,
+  wowWarnMessage,
 } from './only-common-deps-helpers'
 
-export { chainedError, now, wowErrorHandler, wowWarnHandler }
+export { chainedError, now, wowErrorHandler, wowWarnHandler, wowWarnMessage }
 
+dayjs.extend(duration)
 dayjs.extend(relativeTime)
 
 const commonHeaders = {
@@ -522,6 +525,31 @@ export function blobToArrayBuffer(blob) {
   })
 }
 
+export function isInBoundingBox(lat, lon) {
+  return isInBoundingBoxImpl({
+    userLat: lat,
+    userLon: lon,
+    minLat: constants.bboxLatMin,
+    maxLat: constants.bboxLatMax,
+    minLon: constants.bboxLonMin,
+    maxLon: constants.bboxLonMax,
+  })
+}
+
+function isInBoundingBoxImpl({
+  userLat,
+  userLon,
+  minLat,
+  maxLat,
+  minLon,
+  maxLon,
+}) {
+  const isLatInBox = minLat < userLat && userLat < maxLat
+  const isLonInBox = minLon < userLon && userLon < maxLon
+  return isLatInBox && isLonInBox
+}
+
 export const _testonly = {
   isRespJson,
+  isInBoundingBoxImpl,
 }

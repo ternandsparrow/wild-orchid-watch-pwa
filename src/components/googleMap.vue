@@ -8,10 +8,8 @@
         :options="mapOptions"
       >
         <gmap-marker
-          v-for="(m, index) in markers"
-          :key="index"
-          :position="m.position"
-          @click="center = m.position"
+          :position="markerPosition"
+          @click="center = markerPosition"
         ></gmap-marker>
       </gmap-map>
     </div>
@@ -27,14 +25,16 @@ import { mapState } from 'vuex'
 export default {
   name: 'GoogleMap',
   props: {
-    markerPosition: Object,
+    markerPosition: {
+      type: Object /* {lat: Number, lng: Number} */,
+      required: true,
+    },
   },
   data() {
     return {
       // default to Montreal to avoid null object warnings
       center: { lat: 45.508, lng: -73.587 },
       markers: [],
-      // you can adjust the zoom here
       mapZoom: 16,
       mapOptions: {
         gestureHandling: 'cooperative',
@@ -44,20 +44,22 @@ export default {
   computed: {
     ...mapState('ephemeral', ['networkOnLine']),
   },
+  watch: {
+    markerPosition() {
+      this.centerPosition()
+    },
+  },
   mounted() {
-    // adding marker using the position passed to the component
-    this.markers.push({
-      position: this.markerPosition,
-    })
-    // centering the map
     this.centerPosition()
   },
   methods: {
-    centerPosition: function() {
-      this.center = {
-        lat: this.markerPosition.lat,
-        lng: this.markerPosition.lng,
+    centerPosition() {
+      const lat = this.markerPosition.lat
+      const lng = this.markerPosition.lng
+      if (!lat || !lng) {
+        return
       }
+      this.center = { lat, lng }
     },
   },
 }

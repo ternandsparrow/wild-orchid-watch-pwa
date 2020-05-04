@@ -12,7 +12,7 @@ import obs, {
   migrate as obsMigrate,
   networkHooks as obsNetworkHooks,
 } from './obs'
-import activity from './activity'
+import news from './news'
 import missions from './missions'
 
 Vue.use(Vuex)
@@ -78,6 +78,9 @@ const store = new Vuex.Store({
       }
       return allRecords
     },
+    healthcheck({ dispatch }) {
+      return dispatch('obs/healthcheck')
+    },
   },
   getters: {
     myUserId(state, getters) {
@@ -94,11 +97,11 @@ const store = new Vuex.Store({
     },
   },
   modules: {
-    activity,
     app,
     auth,
     ephemeral,
     missions,
+    news,
     obs,
   },
 })

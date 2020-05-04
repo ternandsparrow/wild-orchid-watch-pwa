@@ -61,3 +61,7 @@ export async function setRecordProcessingOutcome(dbId, targetOutcome) {
   record.wowMeta[constants.recordProcessingOutcomeFieldName] = targetOutcome
   return storeRecord(record)
 }
+
+export function healthcheckStore() {
+  return obsStore.ready()
+}

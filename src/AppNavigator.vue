@@ -186,10 +186,11 @@ export default {
         return
       }
       this.godModeForceLoginToastDismiss = true
+      const twoMinutes = 2 * 60 * 1000
       setTimeout(() => {
         // nag again in the near future
         this.godModeForceLoginToastDismiss = false
-      }, 30000)
+      }, twoMinutes)
     },
   },
 }

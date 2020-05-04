@@ -8,18 +8,13 @@ const localVue = createLocalVue()
 localVue.use(VueRouter)
 localVue.use(Vuex)
 // localVue.use(VueOnsen) // TODO including this causes an "Invalid state" error on test start
+localVue.prototype.$wow = { uiTrace: function() {} }
 const router = new VueRouter()
 
 describe('SingleSpecies', () => {
   it('should be able to do everything required to even run a unit test', () => {
     const wrapper = buildWrapper()
     expect(wrapper.vm.$data.photos.length).toBe(0)
-  })
-
-  it('should toggle map visibility', () => {
-    const wrapper = buildWrapper()
-    wrapper.vm.toggleMap()
-    expect(wrapper.vm.$data.isShowMap).toBe(true)
   })
 
   describe('validatePhotos', () => {
@@ -117,12 +112,14 @@ function buildWrapper() {
       'v-ons-alert-dialog-button': true,
       'v-ons-button': true,
       'v-ons-icon': true,
+      'v-ons-input': true,
       'v-ons-list': true,
       'v-ons-list-item': true,
       'v-ons-modal': true,
       'v-ons-page': true,
       'v-ons-switch': true,
       'wow-autocomplete': true,
+      'wow-collect-geolocation': true,
       'wow-header': true,
       'wow-help': true,
       'wow-photo-preview': true,

@@ -1,6 +1,12 @@
 <template>
   <v-ons-page modifier="white">
-    <div class="is-dev-warning">{{ deployedEnvName }}</div>
+    <div
+      class="is-dev-warning"
+      :class="{ 'force-hide': isForceHideDevWarning }"
+      @click="onDevWarningClick"
+    >
+      {{ deployedEnvName }}
+    </div>
     <div class="app-banner centered-flex-row">
       <img src="../assets/wow-logo.png" />
       <div>
@@ -16,7 +22,7 @@
     </div>
     <v-ons-list>
       <v-ons-list-item
-        v-for="item in access"
+        v-for="item in enabledAccess"
         :key="item.title"
         :modifier="md ? 'nodivider' : ''"
         @click="handleMenuClick(item.target)"
@@ -58,25 +64,27 @@
         </div>
       </v-ons-list-item>
     </v-ons-list>
-    <!-- FIXME could add "New observation" at bottom like iNat -->
   </v-ons-page>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
 
-// import Activity from '@/pages/activity/index'
 import {
   appVersion,
   deployedEnvName,
   inatUrlBase,
   inatProjectSlug,
+  isMissionsFeatureEnabled,
+  isNewsFeatureEnabled,
+  isSearchFeatureEnabled,
 } from '@/misc/constants'
 
 export default {
   data() {
     return {
       appVersion,
+      isForceHideDevWarning: false,
       versionClickCount: 0,
       versionClickEasterEggTimeout: null,
       links: [
@@ -122,12 +130,24 @@ export default {
           icon: 'fa-leaf',
           target: { name: 'Species' },
         },
-        // FIXME uncomment when they have real content
-        // {
-        //   title: 'Activity',
-        //   icon: 'md-accounts-alt',
-        //   component: Activity,
-        // },
+        {
+          title: 'News',
+          icon: 'fa-newspaper',
+          target: { name: 'News' },
+          isDisabled: !isNewsFeatureEnabled,
+        },
+        {
+          title: 'Search',
+          icon: 'fa-search',
+          target: { name: 'Search' },
+          isDisabled: !isSearchFeatureEnabled,
+        },
+        {
+          title: 'Missions',
+          icon: 'fa-search-location',
+          target: { name: 'Missions' },
+          isDisabled: !isMissionsFeatureEnabled,
+        },
         {
           title: 'Orchid Science',
           icon: 'fa-book-open',
@@ -159,10 +179,16 @@ export default {
       }
       return `[${deployedEnvName} build]`
     },
+    enabledAccess() {
+      return this.access.filter(e => !e.isDisabled)
+    },
   },
   methods: {
     handleMenuClick(target) {
       this.safelyPushRoute(target)
+    },
+    onDevWarningClick() {
+      this.isForceHideDevWarning = true
     },
     onVersionClick() {
       // like Android's easter egg, tap the version N times
@@ -178,6 +204,7 @@ export default {
       if (this.versionClickCount < tapCountThreshold) {
         return
       }
+      this.$wow.uiTrace('Admin', `open via easter egg`)
       this.safelyPushRoute({ name: 'Admin' })
     },
     async safelyPushRoute(routeTarget) {
@@ -246,5 +273,9 @@ export default {
 .external-link {
   color: inherit;
   text-decoration: none;
+}
+
+.force-hide {
+  display: none;
 }
 </style>

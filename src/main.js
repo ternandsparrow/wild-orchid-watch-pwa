@@ -60,6 +60,16 @@ new Vue({
       // Shortcut for Material Design
       Vue.prototype.md = this.$ons.platform.isAndroid()
 
+      this.$store.commit('ephemeral/setUiTraceTools', {
+        ga: this.$ga,
+        sentry: Sentry,
+      })
+      Vue.prototype.$wow = {
+        uiTrace: (category, action) => {
+          this.$store.dispatch('ephemeral/uiTrace', { category, action })
+        },
+      }
+
       // Set iPhoneX flag based on URL
       if (window.location.search.match(/iphonex/i)) {
         document.documentElement.setAttribute('onsflag-iphonex-portrait', '')
@@ -74,6 +84,7 @@ new Vue({
       })
 
       this.$store.dispatch('auth/sendSwUpdatedAuthToken')
+      this.$store.dispatch('auth/setUsernameOnSentry')
 
       setTimeout(() => {
         console.debug('Firing Apple install prompt check')
@@ -90,6 +101,7 @@ new Vue({
   },
   mounted() {
     this.registerForSwMessages()
+    this.healthcheck()
   },
   methods: {
     registerForSwMessages() {
@@ -123,6 +135,20 @@ new Vue({
           event.ports[0].postMessage('ACK')
         }
       })
+    },
+    async healthcheck() {
+      try {
+        await this.$store.dispatch('healthcheck')
+      } catch (err) {
+        this.$store.dispatch('flagGlobalError', {
+          msg: 'Vuex store failed startup healthcheck',
+          userMsg:
+            'Failed to set up local app database. This app will not work properly. ' +
+            'To fix this, make sure your browser is up to date. ' +
+            'Private/Incognito/Secret mode in some browsers will also cause this.',
+          err,
+        })
+      }
     },
   },
   render: h => h(AppNavigator),

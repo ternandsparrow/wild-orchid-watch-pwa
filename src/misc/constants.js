@@ -69,6 +69,15 @@ export const maxSpeciesAutocompleteResultLength = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SPECIES_AUTOCOMPLETE_LENGTH || 50,
 )
 
+export const isMissionsFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
+
+export const isNewsFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_NEWS || false
+
+export const isSearchFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_SEARCH || false
+
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
 )
@@ -261,6 +270,38 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
   process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
 )
 
+export const bboxLatMin = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LAT_MIN || -43.6345972634,
+)
+
+export const bboxLatMax = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LAT_MAX || -10.6681857235,
+)
+
+if (bboxLatMin >= bboxLatMax) {
+  const msg =
+    `Config problem: bboxLatMin=${bboxLatMin} is NOT less than ` +
+    `bboxLatMax=${bboxLatMax}`
+  alert(msg)
+  throw new Error(msg)
+}
+
+export const bboxLonMin = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LON_MIN || 113.338953078,
+)
+
+export const bboxLonMax = convertAndAssertFloat(
+  process.env.VUE_APP_BBOX_LON_MAX || 153.569469029,
+)
+
+if (bboxLonMin >= bboxLonMax) {
+  const msg =
+    `Config problem: bboxLonMin=${bboxLonMin} is NOT less than ` +
+    `bboxLonMax=${bboxLonMax}`
+  alert(msg)
+  throw new Error(msg)
+}
+
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const obsFieldPrefix =
@@ -337,6 +378,16 @@ function convertAndAssertInteger(val) {
   if (isNaN(result)) {
     throw new Error(
       `Runtime config problem: expected integer is not a number='${val}'`,
+    )
+  }
+  return result
+}
+
+function convertAndAssertFloat(val) {
+  const result = parseFloat(val)
+  if (isNaN(result)) {
+    throw new Error(
+      `Runtime config problem: expected float is not a number='${val}'`,
     )
   }
   return result

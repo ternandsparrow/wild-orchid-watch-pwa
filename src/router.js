@@ -2,6 +2,8 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 
 import store from '@/store'
+import { mainStackReplace } from '@/misc/nav-stacks'
+
 import Admin from '@/pages/Admin'
 import FAQ from '@/pages/faq/index'
 import Gallery from '@/pages/obs/Gallery'
@@ -9,15 +11,16 @@ import HelpPage from '@/pages/HelpPage'
 import Missions from '@/pages/missions/Available'
 import MissionsNew from '@/pages/missions/New'
 import MyObs from '@/pages/obs/MyObs'
+import News from '@/pages/News'
 import NotFound from '@/pages/NotFound'
 import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
 import Onboarder from '@/pages/Onboarder'
 import OrchidScience from '@/pages/orchid-science/index'
+import Search from '@/pages/Search'
 import Settings from '@/pages/Settings'
 import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Species from '@/pages/obs/Species'
-import { mainStackReplace } from '@/misc/nav-stacks'
 
 const uuidRegex =
   '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
@@ -42,6 +45,11 @@ const router = new VueRouter({
       path: '/obs/species',
       name: 'Species',
       component: Species,
+    },
+    {
+      path: '/news',
+      name: 'News',
+      component: News,
     },
     {
       path: '/oauth-callback',
@@ -97,6 +105,11 @@ const router = new VueRouter({
       path: '/faq',
       name: 'FAQ',
       component: FAQ,
+    },
+    {
+      path: '/search',
+      name: 'Search',
+      component: Search,
     },
     {
       path: '/missions',
