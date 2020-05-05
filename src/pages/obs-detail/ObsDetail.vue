@@ -148,7 +148,7 @@
           </template>
         </v-ons-list>
         <div class="inat-details">
-          <div>iNat UUID: {{ nullSafeObs.uuid }}</div>
+          <div>Record UUID: {{ nullSafeObs.uuid }}</div>
           <template v-if="isSelectedRecordOnRemote">
             <div>iNat ID: {{ nullSafeObs.inatId }}</div>
             <div>Updated at: {{ nullSafeObs.updatedAt }}</div>
