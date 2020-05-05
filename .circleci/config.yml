@@ -135,6 +135,7 @@ jobs:
             VUE_APP_FEATURE_FLAG_MISSIONS=$PROD_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$PROD_FEATURE_FLAG_NEWS
             VUE_APP_FEATURE_FLAG_SEARCH=$PROD_FEATURE_FLAG_SEARCH
+            VUE_APP_MAX_SW_REQ_FAIL_COUNT=$PROD_MAX_SW_REQ_FAIL_COUNT
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -212,6 +213,7 @@ jobs:
             VUE_APP_FEATURE_FLAG_MISSIONS=$BETA_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$BETA_FEATURE_FLAG_NEWS
             VUE_APP_FEATURE_FLAG_SEARCH=$BETA_FEATURE_FLAG_SEARCH
+            VUE_APP_MAX_SW_REQ_FAIL_COUNT=$BETA_MAX_SW_REQ_FAIL_COUNT
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -289,6 +291,7 @@ jobs:
             VUE_APP_FEATURE_FLAG_MISSIONS=$DEV_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$DEV_FEATURE_FLAG_NEWS
             VUE_APP_FEATURE_FLAG_SEARCH=$DEV_FEATURE_FLAG_SEARCH
+            VUE_APP_MAX_SW_REQ_FAIL_COUNT=$DEV_MAX_SW_REQ_FAIL_COUNT
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
