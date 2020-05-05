@@ -112,6 +112,32 @@ running on webkit. On this last point, related to blobs on webkit, it seems to
 work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
 
+## Strategy for databases in IndexedDB
+Currently we run two databases:
+  1. one for storing observations, the `obsStore`
+  1. one just for the Service Worker, the `swStore`
+
+The `obsStore` is really the main store you should worry about. It stores the
+observations locally until we've uploaded them to iNat. The main (UI) thread
+does most of the manipulation of these records. Be aware that the SW will also
+touch the records by setting the recordProcessingOutcome. It would have been
+good to only have one thread writing to the DB but the SW can continue to run
+in the background after the clients are closed, suspended, etc (think someone
+turning their phone screen off). This means we need the SW to be able to write
+as it's the only one around to do it.
+
+The `swStore` is used as a persistent working area for the SW while in
+processes an observation. The SW first tries to create the observation on iNat,
+and while that's happening it stores the data for the dependent requests
+(photos and obs fields) in its DB. Once the request for the observation itself
+has succeeded, the requests for the dependents are generated and the record is
+removed from the DB. This is why this DB will be empty most of the time.
+
+There is also one other DB that you'll see, but it's not ours. It's the DB
+that's managed by Workbox's queue. (At the time of writing) Each of the records
+in this DB will be a single request that Workbox is waiting to make.
+
+
 ## iNaturalist
 We need somewhere to store the observations that our users create. We could
 create our own walled garden but then we'd have to reinvent a lot of wheels and
@@ -341,3 +367,17 @@ through to add documents to an index.
 ## DayJS
 We picked this over moment.js because it's API compatible but smaller. We don't
 need the locales from moment and that is what makes it a bloated package.
+
+## Gathering geolocation
+Creating observations that have GPS coordinates is essential for them to be
+useful at the other end when scientists use them. For this reason we make
+geolocation mandatory and offer three ways to collect that data:
+  1. extracted from the EXIF of attached photos (also mandatory)
+  1. using the location of the device
+  1. (in advanced mode) manually entered
+This is also in the order that we prefer as more automated options are more
+reliable. We've seen some devices that don't work as well as we'd hope. A
+Samsung A8 that we tested on often wouldn't geo-tag photos taken with the
+Samsung camera but would immediately give an accurate device location to the
+browser. Using a different camera app, like MX Camera, would fix the problem
+but we can't expect users to install a seperate camera app.
