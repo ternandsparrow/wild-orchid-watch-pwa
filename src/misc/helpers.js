@@ -549,6 +549,15 @@ function isInBoundingBoxImpl({
   return isLatInBox && isLonInBox
 }
 
+// Creates a named error
+// The problem with this is the stack trace will point to here, no the calling
+// function. So maybe it's not a great idea to use this. I'm undecided.
+export function namedError(name, msg) {
+  const result = new Error(msg)
+  result.name = name
+  return result
+}
+
 export const _testonly = {
   isRespJson,
   isInBoundingBoxImpl,

@@ -18,7 +18,7 @@
         is to try to upload the record again and see if that works.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcome"
+        <v-ons-button @click="resetProcessingOutcomeFromSystemError"
           >Retry upload</v-ons-button
         >
       </p>
@@ -35,7 +35,7 @@
         This option will remain available as long as we think it's stuck.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcome"
+        <v-ons-button @click="resetProcessingOutcomeFromStuck"
           >Retry upload</v-ons-button
         >
       </p>
@@ -557,7 +557,17 @@ export default {
         })
       }
     },
-    resetProcessingOutcome() {
+    resetProcessingOutcomeFromSystemError() {
+      this._resetProcessingOutcome(
+        'Failed to reset processing outcome after error',
+      )
+    },
+    resetProcessingOutcomeFromStuck() {
+      this._resetProcessingOutcome(
+        'Failed to reset processing outcome from a possibly stuck record',
+      )
+    },
+    _resetProcessingOutcome(errMsg) {
       this.$store
         .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
         .then(() => {
@@ -570,7 +580,7 @@ export default {
           this.$store.dispatch(
             'flagGlobalError',
             {
-              msg: 'Failed to reset processing outcome after error',
+              msg: errMsg,
               userMsg: 'Error while retrying upload',
               err,
             },

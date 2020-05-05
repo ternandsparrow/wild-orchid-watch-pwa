@@ -1919,6 +1919,125 @@ describe('actions', () => {
       })
     })
   })
+
+  describe('findDbIdForWowId', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    it('should find the ID when we provide an inatId', async () => {
+      const state = {
+        localQueueSummary: [
+          { uuid: '123A', inatId: 111 },
+          { uuid: '468A', inatId: 333 },
+        ],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: () => {},
+        },
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the ID when we provide a db record ID', async () => {
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+      })
+      const state = {
+        localQueueSummary: [
+          { uuid: '123A', inatId: 111 },
+          { uuid: '468A', inatId: 333 },
+        ],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: () => {},
+        },
+        '123A',
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the ID on second try when we provide a db record ID', async () => {
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+      })
+      const state = {
+        localQueueSummary: [
+          { uuid: '123A', inatId: 111 },
+          { uuid: '468A', inatId: 333 },
+        ],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: actionName => {
+            if (actionName !== 'refreshLocalRecordQueue') {
+              throw new Error(`Unhandled action name=${actionName}`)
+            }
+            state.localQueueSummary = [
+              { uuid: '123A', inatId: 111 },
+              { uuid: '468A', inatId: 333 },
+            ]
+          },
+        },
+        '123A',
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should throw the expected error when we ask for a non-existant ID', async () => {
+      const state = {
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.findDbIdForWowId(
+          {
+            state,
+            dispatch: () => {},
+          },
+          '123A',
+        )
+      } catch (err) {
+        if (err.name === 'DbRecordNotFoundError') {
+          // success
+          return
+        }
+        throw err
+      }
+      throw new Error('Fail, expected error')
+    })
+
+    it('should not try to lookup a DB record by "number" typed ID', async () => {
+      const state = {
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.findDbIdForWowId(
+          {
+            state,
+            dispatch: () => {
+              throw new Error('Should not be called')
+            },
+          },
+          3337,
+        )
+      } catch (err) {
+        if (err.name === 'DbRecordNotFoundError') {
+          // success
+          return
+        }
+        throw err
+      }
+      throw new Error('Fail, expected error')
+    })
+  })
 })
 
 describe('extractGeolocationText', () => {

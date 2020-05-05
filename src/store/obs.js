@@ -20,6 +20,7 @@ import {
   fetchSingleRecord,
   isNoSwActive,
   makeEnumValidator,
+  namedError,
   now,
   triggerSwObsQueue,
   verifyWowDomainPhoto,
@@ -378,22 +379,32 @@ const actions = {
       .map(e => e.item)
       .slice(0, constants.maxSpeciesAutocompleteResultLength)
   },
-  async findDbIdForWowId({ state }, wowId) {
+  async findDbIdForWowId({ dispatch, state }, wowId) {
     const result = (
       state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
     ).uuid
     if (result) {
       return result
     }
-    // For a record that hasn't yet been uploaded to iNat, we rely on the UUID
-    // and use that as the DB ID. The ID that is passed in will therefore
-    // already be a DB ID but we're confirming.
-    const possibleDbId = wowId
-    const record = await getRecord(possibleDbId)
-    if (record) {
-      return possibleDbId
+    // not allowed to use numbers as keys, so we can shortcircuit
+    // see https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Basic_Concepts_Behind_IndexedDB#gloss_key
+    const isValidIndexedDbKey = typeof wowId !== 'number'
+    if (isValidIndexedDbKey) {
+      // For a record that hasn't yet been uploaded to iNat, we rely on the UUID
+      // and use that as the DB ID. The ID that is passed in will therefore
+      // already be a DB ID but we're confirming.
+      const possibleDbId = wowId
+      if (await getRecord(possibleDbId)) {
+        return possibleDbId
+      }
+      // maybe if we refresh it'll appear
+      await dispatch('refreshLocalRecordQueue')
+      if (await getRecord(possibleDbId)) {
+        return possibleDbId
+      }
     }
-    throw new Error(
+    throw namedError(
+      'DbRecordNotFoundError',
       `Could not resolve wowId='${wowId}' (typeof=${typeof wowId}) to a DB ID ` +
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
@@ -689,9 +700,6 @@ const actions = {
     }
   },
   async onLocalRecordEvent({ dispatch }) {
-    // TODO do we need to call this refresh or can we rely on the processor to
-    // do it?
-    await dispatch('refreshLocalRecordQueue')
     dispatch('processLocalQueue').catch(err => {
       dispatch(
         'flagGlobalError',
@@ -1345,8 +1353,7 @@ const actions = {
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
     const selectedId = state.selectedObservationId
-    const dbId = await dispatch('findDbIdForWowId', selectedId)
-    await dispatch('transitionToWaitingOutcome', dbId)
+    await dispatch('transitionToWaitingOutcome', selectedId)
     return dispatch('onLocalRecordEvent')
   },
   async retryFailedDeletes({ getters, dispatch }) {
