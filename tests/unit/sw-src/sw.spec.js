@@ -215,6 +215,7 @@ describe('serviceWorker', () => {
         expect(global.clients.messagesSentToClients).toEqual([
           { id: constants.refreshLocalQueueMsg },
         ])
+        expect(idSuppliedToClientSuccessCb).toEqual(4)
         const record = await getRecord(failingObsUuid)
         expect(
           record.wowMeta[constants.recordProcessingOutcomeFieldName],
