@@ -73,6 +73,10 @@ export const waitBeforeRefreshSeconds = convertAndAssertInteger(
   process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 10,
 )
 
+export const maxReqFailureCountInSw = convertAndAssertInteger(
+  process.env.VUE_APP_MAX_SW_REQ_FAIL_COUNT || 3,
+)
+
 // useful for enabling devtools in "production mode" while debugging with a
 // service worker
 export const isForceVueDevtools = !!parseInt(

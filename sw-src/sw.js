@@ -8,7 +8,11 @@ import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
 import base64js from 'base64-js'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
-import { wowErrorHandler } from '../src/misc/only-common-deps-helpers'
+import {
+  wowErrorHandler,
+  wowWarnHandler,
+  wowWarnMessage,
+} from '../src/misc/only-common-deps-helpers'
 import * as constants from '../src/misc/constants.js'
 
 if (constants.deployedEnvName !== 'local-development') {
@@ -322,8 +326,8 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
     let entry
     while ((entry = await this.shiftRequest())) {
       let resp
+      const obsId = entry.metadata.obsId
       try {
-        const obsId = entry.metadata.obsId
         const isIgnoredObsId = obsIdsToIgnore.includes(obsId)
         if (isIgnoredObsId) {
           console.debug(
@@ -401,10 +405,36 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       } catch (err) {
         // "Failed to fetch" lands us here. It could be a network error or a
         // non-CORS response.
+        if (!entry.metadata.failureCount) {
+          entry.metadata.failureCount = 0
+        }
+        entry.metadata.failureCount += 1
+        if (entry.metadata.failureCount > constants.maxReqFailureCountInSw) {
+          wowWarnMessage(
+            `Request for '${entry.request.url}' from queue '${this._name}' ` +
+              `failed to replay for the ${entry.metadata.failureCount} time. ` +
+              `This is over the ${constants.maxReqFailureCountInSw} threshold ` +
+              `so we're giving up on this whole obsId=${obsId}. Most recent ` +
+              `error: (name=${err.name}) message=${err.message}`,
+          )
+          await setRecordProcessingOutcome(
+            entry.metadata.obsUuid,
+            constants.systemErrorOutcome,
+          )
+          await sendMessageToAllClients({
+            id: constants.refreshLocalQueueMsg,
+          })
+          obsIdsToIgnore.push(obsId)
+          continue
+        }
+        // we have to put it back at the start of the queue as we may have
+        // order dependent requests and it's hard to move them all to the end
+        // of the queue
         await this.unshiftRequest(entry)
         console.debug(
-          `Request for '${entry.request.url}' ` +
-            `failed to replay, putting it back in queue '${this._name}'.`,
+          `Request for '${entry.request.url}' failed to replay for the ` +
+            `${entry.metadata.failureCount} time, putting it back at front of ` +
+            `the queue '${this._name}' and stopping queue processing.`,
         )
         // Note: we *need* to throw here to stop an immediate retry on sync.
         // Workbox does this for good reason: it needs to process items that were
@@ -898,7 +928,7 @@ async function sendMessageToAllClients(msg) {
     } catch (err) {
       const noProxyConsoleError = origConsole.error || console.error
       noProxyConsoleError(`Failed to send message=${msg} to client`, err)
-      // TODO notify Sentry?
+      Sentry.captureException(err)
     }
   }
 }
