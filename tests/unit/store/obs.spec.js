@@ -1969,10 +1969,7 @@ describe('actions', () => {
         uuid: '123A',
       })
       const state = {
-        localQueueSummary: [
-          { uuid: '123A', inatId: 111 },
-          { uuid: '468A', inatId: 333 },
-        ],
+        localQueueSummary: [{ uuid: '468A', inatId: 333 }],
       }
       const result = await objectUnderTest.actions.findDbIdForWowId(
         {
@@ -2014,28 +2011,32 @@ describe('actions', () => {
       throw new Error('Fail, expected error')
     })
 
-    it('should not try to lookup a DB record by "number" typed ID', async () => {
+    it('should not try to lookup a DB record in IndexedDB by "number" typed ID', async () => {
+      const wowId = 3337
+      const origConsoleWarn = console.warn
+      console.warn = () => {}
+      await obsStore.setItem(wowId, {
+        uuid:
+          'A temping fake. Real LocalForage will not allow numbers ' +
+          'as keys, but our test DB will',
+      })
+      console.warn = origConsoleWarn
       const state = {
         localQueueSummary: [],
       }
-      try {
-        await objectUnderTest.actions.findDbIdForWowId(
-          {
-            state,
-            dispatch: () => {
-              throw new Error('Should not be called')
-            },
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: actionName => {
+            if (actionName !== 'refreshLocalRecordQueue') {
+              throw new Error(`Unhandled action name=${actionName}`)
+            }
+            state.localQueueSummary = [{ uuid: 'WINNER', inatId: wowId }]
           },
-          3337,
-        )
-      } catch (err) {
-        if (err.name === 'DbRecordNotFoundError') {
-          // success
-          return
-        }
-        throw err
-      }
-      throw new Error('Fail, expected error')
+        },
+        wowId,
+      )
+      expect(result).toEqual('WINNER')
     })
   })
 })

@@ -380,11 +380,9 @@ const actions = {
       .slice(0, constants.maxSpeciesAutocompleteResultLength)
   },
   async findDbIdForWowId({ dispatch, state }, wowId) {
-    const result = (
-      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
-    ).uuid
-    if (result) {
-      return result
+    const result1 = findInLocalQueueSummary()
+    if (result1) {
+      return result1
     }
     // not allowed to use numbers as keys, so we can shortcircuit
     // see https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Basic_Concepts_Behind_IndexedDB#gloss_key
@@ -397,17 +395,22 @@ const actions = {
       if (await getRecord(possibleDbId)) {
         return possibleDbId
       }
-      // maybe if we refresh it'll appear
-      await dispatch('refreshLocalRecordQueue')
-      if (await getRecord(possibleDbId)) {
-        return possibleDbId
-      }
+    }
+    await dispatch('refreshLocalRecordQueue')
+    // maybe if we refresh it'll appear
+    const result2 = findInLocalQueueSummary()
+    if (result2) {
+      return result2
     }
     throw namedError(
       'DbRecordNotFoundError',
       `Could not resolve wowId='${wowId}' (typeof=${typeof wowId}) to a DB ID ` +
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
+    function findInLocalQueueSummary() {
+      return (state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {})
+        .uuid
+    }
   },
   async upsertQueuedAction(
     _,
