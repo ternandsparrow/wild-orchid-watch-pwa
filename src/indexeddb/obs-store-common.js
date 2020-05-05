@@ -5,44 +5,54 @@ import { getOrCreateInstance } from './storage-manager'
 import { chainedError } from '../misc/only-common-deps-helpers'
 import * as constants from '../misc/constants'
 
-const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+async function storeRecordImpl(store, record) {
+  const key = record.uuid
+  try {
+    if (!key) {
+      throw new Error('Record has no key, cannot continue')
+    }
+    return store.setItem(key, record)
+  } catch (err) {
+    throw chainedError(`Failed to store db record with ID='${key}'`, err)
+  }
+}
+
+async function getRecordImpl(store, recordId) {
+  try {
+    if (!recordId) {
+      throw new Error(`No record ID='${recordId}' supplied, cannot continue`)
+    }
+    return store.getItem(recordId)
+  } catch (err) {
+    throw chainedError(`Failed to get db record with ID='${recordId}'`, err)
+  }
+}
 
 export async function deleteDbRecordById(id) {
+  const store = getOrCreateInstance(constants.lfWowObsStoreName)
   try {
-    return obsStore.removeItem(id)
+    return store.removeItem(id)
   } catch (err) {
     throw chainedError(`Failed to delete db record with ID='${id}'`, err)
   }
 }
 
 export async function storeRecord(record) {
-  const key = record.uuid
-  try {
-    if (!key) {
-      throw new Error('Record has no key, cannot continue')
-    }
-    return obsStore.setItem(key, record)
-  } catch (err) {
-    throw chainedError(`Failed to store db record with ID='${key}'`, err)
-  }
+  const store = getOrCreateInstance(constants.lfWowObsStoreName)
+  return storeRecordImpl(store, record)
 }
 
 export async function getRecord(recordId) {
-  try {
-    if (!recordId) {
-      throw new Error(`No record ID='${recordId}' supplied, cannot continue`)
-    }
-    return obsStore.getItem(recordId)
-  } catch (err) {
-    throw chainedError(`Failed to get db record with ID='${recordId}'`, err)
-  }
+  const store = getOrCreateInstance(constants.lfWowObsStoreName)
+  return getRecordImpl(store, recordId)
 }
 
 export function mapOverObsStore(mapperFn) {
+  const store = getOrCreateInstance(constants.lfWowObsStoreName)
   return new Promise(async (resolve, reject) => {
     try {
       const result = []
-      await obsStore.iterate(r => {
+      await store.iterate(r => {
         result.push(mapperFn(r))
       })
       return resolve(result)
@@ -63,5 +73,11 @@ export async function setRecordProcessingOutcome(dbId, targetOutcome) {
 }
 
 export function healthcheckStore() {
-  return obsStore.ready()
+  const store = getOrCreateInstance(constants.lfWowObsStoreName)
+  return store.ready()
+}
+
+export const _testonly = {
+  getRecordImpl,
+  storeRecordImpl,
 }
