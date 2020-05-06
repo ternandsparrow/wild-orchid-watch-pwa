@@ -703,6 +703,7 @@ const actions = {
     }
   },
   async onLocalRecordEvent({ dispatch }) {
+    await dispatch('refreshLocalRecordQueue')
     dispatch('processLocalQueue').catch(err => {
       dispatch(
         'flagGlobalError',
