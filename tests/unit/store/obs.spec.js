@@ -116,18 +116,18 @@ describe('mutations', () => {
 })
 
 describe('actions', () => {
+  let origConsoleDebug
+
+  beforeAll(function() {
+    origConsoleDebug = console.debug
+    console.debug = () => {}
+  })
+
+  afterAll(function() {
+    console.debug = origConsoleDebug
+  })
+
   describe('waitForProjectInfo', () => {
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
-
     it('should succeed when we have projectInfo that is NOT stale', async () => {
       const state = { projectInfo: { id: 1 } }
       const rootState = {
@@ -345,17 +345,6 @@ describe('actions', () => {
     })
 
     describe('saveNewAndScheduleUpload', () => {
-      let origConsoleDebug
-
-      beforeAll(function() {
-        origConsoleDebug = console.debug
-        console.debug = () => {}
-      })
-
-      afterAll(function() {
-        console.debug = origConsoleDebug
-      })
-
       it('should save a new record without photos', async () => {
         const record = {
           speciesGuess: 'species new',
@@ -455,17 +444,6 @@ describe('actions', () => {
     })
 
     describe('saveEditAndScheduleUpdate', () => {
-      let origConsoleDebug
-
-      beforeAll(function() {
-        origConsoleDebug = console.debug
-        console.debug = () => {}
-      })
-
-      afterAll(function() {
-        console.debug = origConsoleDebug
-      })
-
       it('should save an edit that changes the speciesGuess on an existing local edit', async () => {
         const record = {
           uuid: '123A',
@@ -1419,16 +1397,6 @@ describe('actions', () => {
 
   describe('deleteSelectedRecord', () => {
     const obsStore = getOrCreateInstance('wow-obs')
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -1698,16 +1666,6 @@ describe('actions', () => {
 
   describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
     const obsStore = getOrCreateInstance('wow-obs')
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
 
     beforeEach(async () => {
       await obsStore.clear()

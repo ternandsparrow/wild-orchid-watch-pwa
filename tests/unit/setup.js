@@ -1,5 +1,18 @@
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
+import { _testonly as obsStoreTestOnly } from '@/store/obs'
+import { _testonly as ephemeralStoreTestOnly } from '@/store/ephemeral'
+
+// Enjoy this glorious piece of hackery! JS modules are singletons so we can
+// modify them and it will affect all others that use them too. Comlink has
+// dependencies that make it hard to run in Node so we just replace the
+// function that uses Comlink completely in tests.
+obsStoreTestOnly.interceptableFns.buildWorker = function() {
+  return require('@/store/map-over-obs-store.worker.js')._testonly
+}
+ephemeralStoreTestOnly.interceptableFns.buildWorker = function() {
+  return require('@/store/image-compression.worker.js')._testonly
+}
 
 // we stub indexedDB below, which is required for workbox, but we don't want
 // localForage to try to use it because it's just a stub

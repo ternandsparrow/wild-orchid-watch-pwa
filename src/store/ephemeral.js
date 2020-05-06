@@ -252,11 +252,7 @@ const actions = {
       }
       try {
         if (!imageCompressionWorker) {
-          imageCompressionWorker = comlinkWrap(
-            new Worker('./image-compression.worker.js', {
-              type: 'module',
-            }),
-          )
+          imageCompressionWorker = interceptableFns.buildWorker()
         }
         const compressedBlobish = await imageCompressionWorker.resize(
           blobish,
@@ -453,4 +449,18 @@ function extractGps(parsedExif) {
   }
   const [latDec, lonDec] = dms2dec(...theArgs)
   return { lat: latDec, lng: lonDec }
+}
+
+const interceptableFns = {
+  buildWorker() {
+    return comlinkWrap(
+      new Worker('./image-compression.worker.js', {
+        type: 'module',
+      }),
+    )
+  },
+}
+
+export const _testonly = {
+  interceptableFns,
 }

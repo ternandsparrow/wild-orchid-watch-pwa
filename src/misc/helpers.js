@@ -334,6 +334,8 @@ export function makeEnumValidator(validValues) {
   }
 }
 
+export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
+
 export function humanDateString(dateStr) {
   if (!dateStr) {
     return '(no date recorded)'

@@ -3,11 +3,11 @@ import base64js from 'base64-js'
 import dayjs from 'dayjs'
 import uuid from 'uuid/v1'
 import Fuse from 'fuse.js'
+import { wrap as comlinkWrap } from 'comlink'
 import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
-  mapOverObsStore,
   setRecordProcessingOutcome,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
@@ -19,23 +19,22 @@ import {
   chainedError,
   fetchSingleRecord,
   isNoSwActive,
-  makeEnumValidator,
   namedError,
   now,
+  recordTypeEnum as recordType,
   triggerSwObsQueue,
   verifyWowDomainPhoto,
-  wowWarnHandler,
   wowIdOf,
+  wowWarnHandler,
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
 const isRemotePhotoFieldName = 'isRemote'
 
-const recordType = makeEnumValidator(['delete', 'edit', 'new'])
-
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
-
+let refreshLocalRecordQueueLock = null
+let mapStoreWorker = null
 let taxaIndex = null
 
 const state = {
@@ -717,36 +716,35 @@ const actions = {
     })
   },
   async refreshLocalRecordQueue({ commit }) {
-    try {
-      // FIXME WOW-135 consider using a web worker for this task
-      const localQueueSummary = await mapOverObsStore(r => {
-        const hasBlockedAction = !!r.wowMeta[constants.blockedActionFieldName]
-        const isEventuallyDeleted = hasBlockedAction
-          ? r.wowMeta[constants.blockedActionFieldName].wowMeta[
-              constants.recordTypeFieldName
-            ] === recordType('delete')
-          : r.wowMeta[constants.recordTypeFieldName] === recordType('delete')
-        return {
-          [constants.recordTypeFieldName]:
-            r.wowMeta[constants.recordTypeFieldName],
-          [constants.isEventuallyDeletedFieldName]: isEventuallyDeleted,
-          [constants.recordProcessingOutcomeFieldName]:
-            r.wowMeta[constants.recordProcessingOutcomeFieldName],
-          [constants.hasBlockedActionFieldName]: hasBlockedAction,
-          wowUpdatedAt: r.wowMeta.wowUpdatedAt,
-          inatId: r.inatId,
-          uuid: r.uuid,
+    if (refreshLocalRecordQueueLock) {
+      console.debug(
+        '[refreshLocalRecordQueue] worker already running, returning ' +
+          'existing promise',
+      )
+      return refreshLocalRecordQueueLock
+    }
+    console.debug('[refreshLocalRecordQueue] starting')
+    refreshLocalRecordQueueLock = worker().finally(() => {
+      refreshLocalRecordQueueLock = null
+      console.debug('[refreshLocalRecordQueue] finished')
+    })
+    return refreshLocalRecordQueueLock
+    async function worker() {
+      try {
+        if (!mapStoreWorker) {
+          mapStoreWorker = interceptableFns.buildWorker()
         }
-      })
-      commit('setLocalQueueSummary', localQueueSummary)
-      const uiVisibleLocalUuids = localQueueSummary
-        .filter(e => !e[constants.isEventuallyDeletedFieldName])
-        .map(e => e.uuid)
-      const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
-      commit('setUiVisibleLocalRecords', records)
-      revokeOldObjectUrls()
-    } catch (err) {
-      throw chainedError('Failed to refresh localRecordQueue', err)
+        const localQueueSummary = await mapStoreWorker.doit()
+        commit('setLocalQueueSummary', localQueueSummary)
+        const uiVisibleLocalUuids = localQueueSummary
+          .filter(e => !e[constants.isEventuallyDeletedFieldName])
+          .map(e => e.uuid)
+        const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
+        commit('setUiVisibleLocalRecords', records)
+        revokeOldObjectUrls()
+      } catch (err) {
+        throw chainedError('Failed to refresh localRecordQueue', err)
+      }
     }
   },
   /**
@@ -1980,7 +1978,18 @@ function startTimer(task) {
   }
 }
 
+const interceptableFns = {
+  buildWorker() {
+    return comlinkWrap(
+      new Worker('./map-over-obs-store.worker.js', {
+        type: 'module',
+      }),
+    )
+  },
+}
+
 export const _testonly = {
+  interceptableFns,
   mapObsFromApiIntoOurDomain,
   mapObsFromOurDomainOntoApi,
 }
