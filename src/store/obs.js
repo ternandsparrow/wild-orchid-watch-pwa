@@ -651,6 +651,7 @@ const actions = {
         )
       }
       await dispatch('onLocalRecordEvent')
+      return wowIdOf(enhancedRecord)
     } catch (err) {
       throw chainedError(
         `Failed to save edited record with UUID='${editedUuid}'` +
