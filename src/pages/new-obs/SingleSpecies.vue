@@ -298,8 +298,10 @@
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
       </p>
       <p v-show="isShowModalForceClose" class="text-center">
-        Hmmm, this is taking a while. It's best to wait for saving to finish,
-        but if you're sure something has gone wrong, you can
+        Hmmm, this is taking a while. If you have photo compression enabled and
+        you're attaching large photo (10s of megapixels), it can take a while to
+        compress them. It's best to wait for saving to finish, but if you're
+        sure something has gone wrong, you can
         <v-ons-button @click="isSaveModalVisible = false"
           >force close this notification</v-ons-button
         >
