@@ -594,7 +594,7 @@ registerRoute(
     const obsRecord = payload[constants.obsFieldName]
     let obsUuid
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
     } catch (err) {
       return jsonResponse(
         {
@@ -667,8 +667,8 @@ registerRoute(
     let obsUuid
     let obsId
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
-      obsId = verifyNotImpendingDoom(obsRecord.observation.id)
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
+      obsId = verifyNotImpendingDoom(obsRecord.observation, 'id')
     } catch (err) {
       return jsonResponse(
         {
@@ -933,15 +933,20 @@ async function sendMessageToAllClients(msg) {
   }
 }
 
-function verifyNotImpendingDoom(val) {
+function verifyNotImpendingDoom(baseObj, key) {
+  const val = baseObj[key]
   const theSkyIsNotFalling = val != null
   if (theSkyIsNotFalling) {
     return val
   }
-  throw new Error(
-    `Value='${val}' is null-ish, things will go wrong ` +
-      'if we continue. So we are failing fast.',
-  )
+  throw (() => {
+    const result = new Error(
+      `${key}='${val}' is null-ish, things will go wrong ` +
+        'if we continue. So we are failing fast.',
+    )
+    result.name = 'MissingValueError'
+    return result
+  })()
 }
 
 function jsonResponse(bodyObj, status = 200) {
@@ -1019,4 +1024,5 @@ export const _testonly = {
   },
   isSafeToProcessQueue,
   onSyncWithPerItemCallback,
+  verifyNotImpendingDoom,
 }

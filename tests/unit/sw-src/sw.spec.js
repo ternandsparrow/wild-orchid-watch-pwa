@@ -32,6 +32,23 @@ describe('serviceWorker', () => {
     global.clients.clearMessages()
   })
 
+  describe('verifyNotImpendingDoom', () => {
+    it('should return the value when it is truthy', async () => {
+      const obj = { uuid: '123ABC' }
+      const result = objectUnderTest.verifyNotImpendingDoom(obj, 'uuid')
+      expect(result).toEqual('123ABC')
+    })
+
+    it('should throw an error when impending doom', async () => {
+      const obj = {
+        /* no uuid */
+      }
+      expect(function() {
+        objectUnderTest.verifyNotImpendingDoom(obj, 'uuid')
+      }).toThrow(`uuid='undefined' is null-ish`)
+    })
+  })
+
   describe('isSafeToProcessQueue', () => {
     it('should be false when no auth header is set', async () => {
       objectUnderTest.setAuthHeader(null)
