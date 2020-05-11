@@ -1615,7 +1615,7 @@ function resolveLocalRecordUuids(ids) {
       const currRecord = await getRecord(currId)
       if (!currRecord) {
         const msg =
-          `Could resolve ID=${currId} to a DB record.` +
+          `Could not resolve ID=${currId} to a DB record.` +
           ' Assuming it was deleted while we were busy processing.'
         wowWarnHandler(msg)
         const nothingToDoFilterMeOut = null
