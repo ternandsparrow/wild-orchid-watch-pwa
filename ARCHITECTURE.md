@@ -189,7 +189,30 @@ using vue-router.
 We *need* some sort of error tracker and the choice came down to Rollbar,
 Airbrake and Sentry. All three are good choices but we went with Sentry as it
 has the cheapest paid tier if we decide to go paid. You can also self-host
-Sentry if that seems like a more cost-effective solution.
+Sentry if that seems like a more cost-effective solution but I'm not convinced
+it will be. [Their
+doco](https://github.com/getsentry/onpremise#minimum-hardware-requirements)
+says you *need at least* 2400mb of RAM. To run a VM with that much RAM is going
+to cost almost as much as just paying for their SaaS hosted solution, plus you
+don't have to maintain it yourself.
+
+Google Cloud Platform offers "Stackdriver error reporting", which sort of does
+the same thing. It looks mainly geared towards server side reporting, but it
+seems possible to use it for client side (I haven't actually tried) assuming
+you can lock down the API key enough to be safe to give to a client. The error
+reporting is much simpler, you get to report:
+  - a message
+  - a location in source
+  - a user
+  - http context
+The dashboard updates quickly and you can get email notifications. There seems
+to be some issue merging logic and you can link to your issue tracker. If a
+simple solution will suffice, this is worth looking at. But out-of-the-box,
+Sentry gives you a lot more context. You could probably get this in
+Stackdriver, but you'd have to build and maintain it yourself.
+
+Firebase, which we use for hosting, offers Crashlytics but it's only for native
+apps. So that's a non-starter for us.
 
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
