@@ -1,5 +1,10 @@
 <template>
   <menu-wrapper title="My Observations">
+    <template v-slot:toolbar-right>
+      <v-ons-toolbar-button id="toolbar-refresh-btn" @click="doRefresh">
+        <v-ons-icon icon="fa-sync-alt"></v-ons-icon> Refresh
+      </v-ons-toolbar-button>
+    </template>
     <v-ons-pull-hook
       :action="doRefresh"
       @changestate="pullHookState = $event.state"
@@ -278,7 +283,7 @@ export default {
         triggerSwObsQueue()
         triggerSwDepsQueue()
       }
-      done && done()
+      done && typeof done === 'function' && done()
     },
     // TODO it might be nice to be able to retry/cancel failed deletes
     // individually rather than all at once.
@@ -400,5 +405,11 @@ export default {
 .expand-item {
   padding: 0.5em 0;
   border-bottom: 1px solid #ddd;
+}
+
+@media only screen and (max-width: 700px) {
+  #toolbar-refresh-btn {
+    display: none;
+  }
 }
 </style>
