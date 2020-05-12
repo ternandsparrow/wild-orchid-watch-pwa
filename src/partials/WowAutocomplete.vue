@@ -28,8 +28,10 @@
             </div>
             <div class="center">
               <span class="list-item__title">
-                Use "<em>{{ theValue }}</em
-                >" as a Field Name </span
+                <a
+                  >Use "<em>{{ theValue }}</em
+                  >" as a Field Name</a
+                ></span
               ><span class="list-item__subtitle"
                 >Force use of your own term</span
               >
