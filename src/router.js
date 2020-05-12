@@ -194,7 +194,7 @@ function resolveObsByIdOrNotFound(to, from, next) {
   store.commit('obs/setSelectedObservationId', wowId)
   if (!store.getters['obs/observationDetail']) {
     console.warn(`Could not find obs record for wowId=${wowId}`)
-    return next({ name: 'NotFound', replace: true })
+    return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
   }
   return next()
 }
