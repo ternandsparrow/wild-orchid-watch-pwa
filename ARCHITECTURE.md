@@ -111,6 +111,10 @@ run on various underlying storage APIs and handles (de)serialising Blobs when
 running on webkit. On this last point, related to blobs on webkit, it seems to
 work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
+We configure the available drivers to exclude localStorage because we can't
+store binary data out-of-the-box. It's possible if we wrote our own
+(de)serialisation but that seems a bit far to go.
+
 
 ## Strategy for databases in IndexedDB
 Currently we run two databases:
@@ -136,6 +140,12 @@ removed from the DB. This is why this DB will be empty most of the time.
 There is also one other DB that you'll see, but it's not ours. It's the DB
 that's managed by Workbox's queue. (At the time of writing) Each of the records
 in this DB will be a single request that Workbox is waiting to make.
+
+Beware the limitation of IndexedDB if you have WOW open in multiple tabs.
+Apparently connections from one tab will apparently block the other. The other
+connections won't fail, they'll just block until they can run. At the time of
+writing, I wasn't able to reproduce this behaviour but if you see weird things
+happening, this is something to investigate.
 
 
 ## iNaturalist
