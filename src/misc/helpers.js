@@ -408,7 +408,6 @@ const missionEndMarker = 'END-OF-MISSION'
 export function encodeMissionBody(name, endDate, goal, todayMoment = dayjs()) {
   const todayStr = todayMoment.format('DD-MMM-YYYY')
   const endDatePretty = dayjs(endDate).format('DD-MMM-YYYY')
-  debugger // FIXME
   return `
   ${name}
   Start date: ${todayStr}

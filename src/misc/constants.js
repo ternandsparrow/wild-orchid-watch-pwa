@@ -70,7 +70,7 @@ export const maxSpeciesAutocompleteResultLength = convertAndAssertInteger(
 )
 
 export const waitBeforeRefreshSeconds = convertAndAssertInteger(
-  process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 10,
+  process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 1,
 )
 
 export const maxReqFailureCountInSw = convertAndAssertInteger(

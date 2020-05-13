@@ -94,10 +94,6 @@ const mutations = {
 
 const actions = {
   async refreshRemoteObsWithDelay({ dispatch }) {
-    // TODO is there a better way than simply waiting for some period. We keep
-    // it short-ish so it doesn't look like we're taking forever to process the
-    // record. If we're still too fast, then the user will just have to wait
-    // until the next refresh.
     const delayToLetServerPerformIndexingMs =
       constants.waitBeforeRefreshSeconds * 1000
     console.debug(
@@ -496,15 +492,36 @@ const actions = {
     // record but not the xIdsToDelete). Processing the blocked action now is
     // slightly redundant but shouldn't fail.
     try {
+      // reduce chance of TOCTOU race condition by refreshing the queue right
+      // before we use it
+      await dispatch('refreshLocalRecordQueue')
       const existingLocalRecord = getters.localRecords.find(
         e => e.uuid === editedUuid,
       )
       const existingRemoteRecord = state.allRemoteObs.find(
         e => e.uuid === editedUuid,
       )
-      const existingDbRecord = await (() => {
+      const existingDbRecord = await (async () => {
         if (existingLocalRecord) {
-          return getRecord(editedUuid)
+          const result = await getRecord(editedUuid)
+          if (!result) {
+            const err = new Error(
+              `Failed to find record with UUID=${editedUuid} in DB. We ` +
+                `refreshed right before checking the queue summary, found a ` +
+                `matching record='${JSON.stringify(
+                  existingLocalRecord,
+                )}' but then got nothing when we went to the DB. Cannot ` +
+                `continue as we have no local record to update. Possibly ` +
+                `another instance of this app cleaned the DB and the record ` +
+                `is now on the remote but we can't guarantee that we have ` +
+                `access to refresh the remote right now.`,
+              // although maybe we can just read it from Vuex's persisted copy
+              // to localStorage but that feels brittle.
+            )
+            err.name = 'NoDbRecordError'
+            throw err
+          }
+          return result
         }
         return { inatId: existingRemoteRecord.inatId, uuid: editedUuid }
       })()
