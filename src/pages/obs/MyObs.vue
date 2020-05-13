@@ -270,8 +270,23 @@ export default {
       this.$store.commit('obs/setSelectedObservationId', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
+    traceRefreshAction(done) {
+      const msg = (() => {
+        switch (typeof done) {
+          case 'function':
+            return 'pull refresh'
+          case 'object':
+            return 'click refresh'
+          case 'undefined':
+            return 'programatic refresh'
+          default:
+            return '(unknown type of) refresh'
+        }
+      })()
+      this.$wow.uiTrace('MyObs', msg)
+    },
     doRefresh(done) {
-      this.$wow.uiTrace('MyObs', 'pull refresh')
+      this.traceRefreshAction(done)
       if (!this.networkOnLine) {
         this.$ons.notification.toast('Cannot refresh while offline', {
           timeout: 3000,
