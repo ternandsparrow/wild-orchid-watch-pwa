@@ -387,15 +387,23 @@ export default {
         await dispatch('_updateApiToken')
         return
       }
-      const decodedJwt = jwtDecode(state.apiToken)
-      const now = new Date().getTime() / 1000
-      const fiveMinutes = 5 * 60
-      const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
-      if (!isTokenExpiredOrCloseTo) {
-        return
+      try {
+        const decodedJwt = jwtDecode(state.apiToken)
+        const now = new Date().getTime() / 1000
+        const fiveMinutes = 5 * 60
+        const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
+        if (!isTokenExpiredOrCloseTo) {
+          return
+        }
+        console.debug('API token has (or is close to) expired, refreshing.')
+        await dispatch('_updateApiToken')
+      } catch (err) {
+        wowWarnHandler(
+          `Error while decoding JWT, assuming it's malformed so doing an update`,
+          err,
+        )
+        await dispatch('_updateApiToken')
       }
-      console.debug('API token has (or is close to) expired, refreshing.')
-      await dispatch('_updateApiToken')
     },
   },
 }
