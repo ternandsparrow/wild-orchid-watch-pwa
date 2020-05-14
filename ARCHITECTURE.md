@@ -111,6 +111,42 @@ run on various underlying storage APIs and handles (de)serialising Blobs when
 running on webkit. On this last point, related to blobs on webkit, it seems to
 work on macOS but Safari 10.3.4 on iOS kills it so it's not flawless.
 
+We configure the available drivers to exclude localStorage because we can't
+store binary data out-of-the-box. It's possible if we wrote our own
+(de)serialisation but that seems a bit far to go.
+
+
+## Strategy for databases in IndexedDB
+Currently we run two databases:
+  1. one for storing observations, the `obsStore`
+  1. one just for the Service Worker, the `swStore`
+
+The `obsStore` is really the main store you should worry about. It stores the
+observations locally until we've uploaded them to iNat. The main (UI) thread
+does most of the manipulation of these records. Be aware that the SW will also
+touch the records by setting the recordProcessingOutcome. It would have been
+good to only have one thread writing to the DB but the SW can continue to run
+in the background after the clients are closed, suspended, etc (think someone
+turning their phone screen off). This means we need the SW to be able to write
+as it's the only one around to do it.
+
+The `swStore` is used as a persistent working area for the SW while in
+processes an observation. The SW first tries to create the observation on iNat,
+and while that's happening it stores the data for the dependent requests
+(photos and obs fields) in its DB. Once the request for the observation itself
+has succeeded, the requests for the dependents are generated and the record is
+removed from the DB. This is why this DB will be empty most of the time.
+
+There is also one other DB that you'll see, but it's not ours. It's the DB
+that's managed by Workbox's queue. (At the time of writing) Each of the records
+in this DB will be a single request that Workbox is waiting to make.
+
+Beware the limitation of IndexedDB if you have WOW open in multiple tabs.
+Apparently connections from one tab will apparently block the other. The other
+connections won't fail, they'll just block until they can run. At the time of
+writing, I wasn't able to reproduce this behaviour but if you see weird things
+happening, this is something to investigate.
+
 
 ## iNaturalist
 We need somewhere to store the observations that our users create. We could
@@ -163,7 +199,45 @@ using vue-router.
 We *need* some sort of error tracker and the choice came down to Rollbar,
 Airbrake and Sentry. All three are good choices but we went with Sentry as it
 has the cheapest paid tier if we decide to go paid. You can also self-host
-Sentry if that seems like a more cost-effective solution.
+Sentry if that seems like a more cost-effective solution but I'm not convinced
+it will be. [Their
+doco](https://github.com/getsentry/onpremise#minimum-hardware-requirements)
+says you *need at least* 2400mb of RAM. To run a VM with that much RAM is going
+to cost almost as much as just paying for their SaaS hosted solution, plus you
+don't have to maintain it yourself.
+
+Google Cloud Platform offers "Stackdriver error reporting", which sort of does
+the same thing. It looks mainly geared towards server side reporting, but it
+seems possible to use it for client side (I haven't actually tried) assuming
+you can lock down the API key enough to be safe to give to a client. The error
+reporting is much simpler, you get to report:
+  - a message
+  - a location in source
+  - a user
+  - http context
+The dashboard updates quickly and you can get email notifications. There seems
+to be some issue merging logic and you can link to your issue tracker. If a
+simple solution will suffice, this is worth looking at. But out-of-the-box,
+Sentry gives you a lot more context. You could probably get this in
+Stackdriver, but you'd have to build and maintain it yourself.
+
+Firebase, which we use for hosting, offers Crashlytics but it's only for native
+apps. So that's a non-starter for us.
+
+
+## Error tracking strategy
+In Sentry at least, "breadcrumb" are automatically recorded. These are
+basically the events (in a loose sense of the term, not a DOM sense) that
+happened leading up to the Sentry report. Things like route changes, UI
+interaction and console messages.
+
+When a `ui.click` breadcrumb is recorded, it's nice to know what the user
+actually clicked on. CSS selectors aren't the most helpful so instead we can
+make our lives a bit easier by adding a `name` attribute to each button (or
+other element) that we have so we'll more easily be able to tell what the user
+clicked on. These names are purely for this use, so don't get confused when you
+can find any usages of it in our code.
+
 
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
@@ -341,3 +415,17 @@ through to add documents to an index.
 ## DayJS
 We picked this over moment.js because it's API compatible but smaller. We don't
 need the locales from moment and that is what makes it a bloated package.
+
+## Gathering geolocation
+Creating observations that have GPS coordinates is essential for them to be
+useful at the other end when scientists use them. For this reason we make
+geolocation mandatory and offer three ways to collect that data:
+  1. extracted from the EXIF of attached photos (also mandatory)
+  1. using the location of the device
+  1. (in advanced mode) manually entered
+This is also in the order that we prefer as more automated options are more
+reliable. We've seen some devices that don't work as well as we'd hope. A
+Samsung A8 that we tested on often wouldn't geo-tag photos taken with the
+Samsung camera but would immediately give an accurate device location to the
+browser. Using a different camera app, like MX Camera, would fix the problem
+but we can't expect users to install a seperate camera app.

@@ -22,6 +22,10 @@ import '@/global-components'
 import * as constants from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 
+if (constants.isForceVueDevtools) {
+  Vue.config.devtools = true
+}
+
 Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
@@ -117,15 +121,27 @@ new Vue({
         try {
           switch (msgId) {
             case constants.refreshObsMsg:
-              this.$store
-                .dispatch('obs/refreshRemoteObsWithDelay')
-                .catch(err => {
-                  this.$store.dispatch('flagGlobalError', {
-                    msg: `Failed to refresh observations after prompt to do so from the SW`,
-                    userMsg: `Error while trying to refresh your list of observations`,
-                    err,
-                  })
+              ;(async () => {
+                // we refresh the local queue immediately so we can see the
+                // record is marked as "success"
+                await this.$store.dispatch('obs/refreshLocalRecordQueue')
+                await this.$store.dispatch('obs/refreshRemoteObsWithDelay')
+              })().catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to refresh observations after prompt to do so from the SW`,
+                  userMsg: `Error while trying to refresh your list of observations`,
+                  err,
                 })
+              })
+              return
+            case constants.refreshLocalQueueMsg:
+              this.$store.dispatch('obs/refreshLocalRecordQueue').catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg: `Failed to refresh local observation queue after prompt to do so from the SW`,
+                  userMsg: `Error while trying to refresh your list of observations`,
+                  err,
+                })
+              })
               return
             default:
               console.debug('[from SW] ' + event.data)

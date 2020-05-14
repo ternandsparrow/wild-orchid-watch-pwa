@@ -3,6 +3,8 @@ import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 
+const dateTimestampRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/
+
 describe('mutations', () => {
   describe('addRecentlyUsedTaxa', () => {
     it('should create the type key when it does not already exist', () => {
@@ -116,18 +118,18 @@ describe('mutations', () => {
 })
 
 describe('actions', () => {
+  let origConsoleDebug
+
+  beforeAll(function() {
+    origConsoleDebug = console.debug
+    console.debug = () => {}
+  })
+
+  afterAll(function() {
+    console.debug = origConsoleDebug
+  })
+
   describe('waitForProjectInfo', () => {
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
-
     it('should succeed when we have projectInfo that is NOT stale', async () => {
       const state = { projectInfo: { id: 1 } }
       const rootState = {
@@ -345,17 +347,6 @@ describe('actions', () => {
     })
 
     describe('saveNewAndScheduleUpload', () => {
-      let origConsoleDebug
-
-      beforeAll(function() {
-        origConsoleDebug = console.debug
-        console.debug = () => {}
-      })
-
-      afterAll(function() {
-        console.debug = origConsoleDebug
-      })
-
       it('should save a new record without photos', async () => {
         const record = {
           speciesGuess: 'species new',
@@ -373,9 +364,7 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(
-            /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-          ),
+          observedAt: expect.stringMatching(dateTimestampRegex),
           photos: [],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -437,9 +426,7 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(
-            /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-          ),
+          observedAt: expect.stringMatching(dateTimestampRegex),
           photos: [expectedPhoto1, expectedPhoto2],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -455,17 +442,6 @@ describe('actions', () => {
     })
 
     describe('saveEditAndScheduleUpdate', () => {
-      let origConsoleDebug
-
-      beforeAll(function() {
-        origConsoleDebug = console.debug
-        console.debug = () => {}
-      })
-
-      afterAll(function() {
-        console.debug = origConsoleDebug
-      })
-
       it('should save an edit that changes the speciesGuess on an existing local edit', async () => {
         const record = {
           uuid: '123A',
@@ -524,9 +500,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -588,13 +562,61 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'new',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
       })
+
+      it(
+        'should handle when queue summary is out-of-sync with the store; the ' +
+          `record is now remote (we don't know that in Vuex) but we think it's local`,
+        async () => {
+          const record = {
+            uuid: '123A',
+            speciesGuess: 'species new',
+            addedPhotos: [],
+          }
+          // no record in the store, it was deleted (by WOW in another browser
+          // tab) but we haven't updated our local queue in this tab
+          const state = {
+            _uiVisibleLocalRecords: [{ uuid: '123A' }],
+            localQueueSummary: [
+              {
+                // we think there's a record in the store
+                uuid: '123A',
+                [constants.recordProcessingOutcomeFieldName]: 'waiting',
+                [constants.recordTypeFieldName]: 'new',
+              },
+            ],
+            allRemoteObs: [],
+          }
+          const dispatchedStuff = {}
+          expect(
+            objectUnderTest.actions.saveEditAndScheduleUpdate(
+              {
+                state,
+                getters: {
+                  successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                    state,
+                  ),
+                  deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                    state,
+                  ),
+                  localRecords: objectUnderTest.getters.localRecords(state),
+                },
+                dispatch: (actionName, theArg) =>
+                  (dispatchedStuff[actionName] = theArg),
+              },
+              {
+                record,
+                photoIdsToDelete: [],
+                obsFieldIdsToDelete: [],
+              },
+            ),
+          ).rejects.toThrow(`Failed to save edited record with UUID='123A'`)
+        },
+      )
 
       it('should save an edit to a remote record', async () => {
         const record = {
@@ -648,9 +670,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -723,9 +743,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -832,9 +850,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -907,9 +923,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -980,9 +994,7 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(
-                /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-              ),
+              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
             },
           },
         })
@@ -1419,16 +1431,6 @@ describe('actions', () => {
 
   describe('deleteSelectedRecord', () => {
     const obsStore = getOrCreateInstance('wow-obs')
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -1698,16 +1700,6 @@ describe('actions', () => {
 
   describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
     const obsStore = getOrCreateInstance('wow-obs')
-    let origConsoleDebug
-
-    beforeAll(function() {
-      origConsoleDebug = console.debug
-      console.debug = () => {}
-    })
-
-    afterAll(function() {
-      console.debug = origConsoleDebug
-    })
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -1917,6 +1909,126 @@ describe('actions', () => {
         [constants.photoIdsToDeleteFieldName]: [111],
         [constants.photosToAddFieldName]: ['photo2 placeholder'],
       })
+    })
+  })
+
+  describe('findDbIdForWowId', () => {
+    const obsStore = getOrCreateInstance('wow-obs')
+
+    beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    it('should find the ID when we provide an inatId', async () => {
+      const state = {
+        localQueueSummary: [
+          { uuid: '123A', inatId: 111 },
+          { uuid: '468A', inatId: 333 },
+        ],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: () => {},
+        },
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the ID when we provide a db record ID', async () => {
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+      })
+      const state = {
+        localQueueSummary: [
+          { uuid: '123A', inatId: 111 },
+          { uuid: '468A', inatId: 333 },
+        ],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: () => {},
+        },
+        '123A',
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the ID on second try when we provide a db record ID', async () => {
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+      })
+      const state = {
+        localQueueSummary: [{ uuid: '468A', inatId: 333 }],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: actionName => {
+            if (actionName !== 'refreshLocalRecordQueue') {
+              throw new Error(`Unhandled action name=${actionName}`)
+            }
+            state.localQueueSummary = [
+              { uuid: '123A', inatId: 111 },
+              { uuid: '468A', inatId: 333 },
+            ]
+          },
+        },
+        '123A',
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should throw the expected error when we ask for a non-existant ID', async () => {
+      const state = {
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.findDbIdForWowId(
+          {
+            state,
+            dispatch: () => {},
+          },
+          '123A',
+        )
+      } catch (err) {
+        if (err.name === 'DbRecordNotFoundError') {
+          // success
+          return
+        }
+        throw err
+      }
+      throw new Error('Fail, expected error')
+    })
+
+    it('should not try to lookup a DB record in IndexedDB by "number" typed ID', async () => {
+      const wowId = 3337
+      const origConsoleWarn = console.warn
+      console.warn = () => {}
+      await obsStore.setItem(wowId, {
+        uuid:
+          'A temping fake. Real LocalForage will not allow numbers ' +
+          'as keys, but our test DB will',
+      })
+      console.warn = origConsoleWarn
+      const state = {
+        localQueueSummary: [],
+      }
+      const result = await objectUnderTest.actions.findDbIdForWowId(
+        {
+          state,
+          dispatch: actionName => {
+            if (actionName !== 'refreshLocalRecordQueue') {
+              throw new Error(`Unhandled action name=${actionName}`)
+            }
+            state.localQueueSummary = [{ uuid: 'WINNER', inatId: wowId }]
+          },
+        },
+        wowId,
+      )
+      expect(result).toEqual('WINNER')
     })
   })
 })

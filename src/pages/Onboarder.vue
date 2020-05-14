@@ -95,7 +95,10 @@
             <ons-list-item>
               <div>
                 <!-- FIXME tell user they'll be logging in with iNat? -->
-                <v-ons-button v-if="!tsAndCsAccepted" @click="showTAndCs"
+                <v-ons-button
+                  v-if="!tsAndCsAccepted"
+                  name="show-tcs-btn"
+                  @click="showTAndCs"
                   >View Terms and Conditions</v-ons-button
                 >
                 <v-ons-button v-if="tsAndCsAccepted" @click="handleDoneClick"

@@ -62,9 +62,16 @@
       })[0]
       // If the page fails to load, it's good UX to show something to the user.
       var appDiv = document.getElementById('app')
-      appDiv.style.textAlign = 'center'
-      appDiv.style.marginTop = '40vh'
-      strategy.action(appDiv)
+      if (appDiv) {
+        appDiv.style.textAlign = 'center'
+        appDiv.style.marginTop = '40vh'
+        strategy.action(appDiv)
+      } else {
+        console.warn(
+          'Could not find appDiv! This usually means the vue app is running ' +
+          'so *it* should handle the error'
+        )
+      }
     }
   </script>
   <!-- built files will be auto injected -->

@@ -3,11 +3,11 @@ import base64js from 'base64-js'
 import dayjs from 'dayjs'
 import uuid from 'uuid/v1'
 import Fuse from 'fuse.js'
+import { wrap as comlinkWrap } from 'comlink'
 import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
-  mapOverObsStore,
   setRecordProcessingOutcome,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
@@ -19,22 +19,22 @@ import {
   chainedError,
   fetchSingleRecord,
   isNoSwActive,
-  makeEnumValidator,
+  namedError,
   now,
+  recordTypeEnum as recordType,
   triggerSwObsQueue,
   verifyWowDomainPhoto,
-  wowWarnHandler,
   wowIdOf,
+  wowWarnHandler,
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
 const isRemotePhotoFieldName = 'isRemote'
 
-const recordType = makeEnumValidator(['delete', 'edit', 'new'])
-
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
-
+let refreshLocalRecordQueueLock = null
+let mapStoreWorker = null
 let taxaIndex = null
 
 const state = {
@@ -94,11 +94,8 @@ const mutations = {
 
 const actions = {
   async refreshRemoteObsWithDelay({ dispatch }) {
-    // TODO is there a better way than simply waiting for some period. We keep
-    // it short-ish so it doesn't look like we're taking forever to process the
-    // record. If we're still too fast, then the user will just have to wait
-    // until the next refresh.
-    const delayToLetServerPerformIndexingMs = 10 * 1000
+    const delayToLetServerPerformIndexingMs =
+      constants.waitBeforeRefreshSeconds * 1000
     console.debug(
       `Sleeping for ${delayToLetServerPerformIndexingMs}ms before refreshing remote`,
     )
@@ -377,25 +374,38 @@ const actions = {
       .map(e => e.item)
       .slice(0, constants.maxSpeciesAutocompleteResultLength)
   },
-  async findDbIdForWowId({ state }, wowId) {
-    const result = (
-      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
-    ).uuid
-    if (result) {
-      return result
+  async findDbIdForWowId({ dispatch, state }, wowId) {
+    const result1 = findInLocalQueueSummary()
+    if (result1) {
+      return result1
     }
-    // For a record that hasn't yet been uploaded to iNat, we rely on the UUID
-    // and use that as the DB ID. The ID that is passed in will therefore
-    // already be a DB ID but we're confirming.
-    const possibleDbId = wowId
-    const record = await getRecord(possibleDbId)
-    if (record) {
-      return possibleDbId
+    // not allowed to use numbers as keys, so we can shortcircuit
+    // see https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Basic_Concepts_Behind_IndexedDB#gloss_key
+    const isValidIndexedDbKey = typeof wowId !== 'number'
+    if (isValidIndexedDbKey) {
+      // For a record that hasn't yet been uploaded to iNat, we rely on the UUID
+      // and use that as the DB ID. The ID that is passed in will therefore
+      // already be a DB ID but we're confirming.
+      const possibleDbId = wowId
+      if (await getRecord(possibleDbId)) {
+        return possibleDbId
+      }
     }
-    throw new Error(
+    await dispatch('refreshLocalRecordQueue')
+    // maybe if we refresh it'll appear
+    const result2 = findInLocalQueueSummary()
+    if (result2) {
+      return result2
+    }
+    throw namedError(
+      'DbRecordNotFoundError',
       `Could not resolve wowId='${wowId}' (typeof=${typeof wowId}) to a DB ID ` +
         `from localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
     )
+    function findInLocalQueueSummary() {
+      return (state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {})
+        .uuid
+    }
   },
   async upsertQueuedAction(
     _,
@@ -482,15 +492,36 @@ const actions = {
     // record but not the xIdsToDelete). Processing the blocked action now is
     // slightly redundant but shouldn't fail.
     try {
+      // reduce chance of TOCTOU race condition by refreshing the queue right
+      // before we use it
+      await dispatch('refreshLocalRecordQueue')
       const existingLocalRecord = getters.localRecords.find(
         e => e.uuid === editedUuid,
       )
       const existingRemoteRecord = state.allRemoteObs.find(
         e => e.uuid === editedUuid,
       )
-      const existingDbRecord = await (() => {
+      const existingDbRecord = await (async () => {
         if (existingLocalRecord) {
-          return getRecord(editedUuid)
+          const result = await getRecord(editedUuid)
+          if (!result) {
+            const err = new Error(
+              `Failed to find record with UUID=${editedUuid} in DB. We ` +
+                `refreshed right before checking the queue summary, found a ` +
+                `matching record='${JSON.stringify(
+                  existingLocalRecord,
+                )}' but then got nothing when we went to the DB. Cannot ` +
+                `continue as we have no local record to update. Possibly ` +
+                `another instance of this app cleaned the DB and the record ` +
+                `is now on the remote but we can't guarantee that we have ` +
+                `access to refresh the remote right now.`,
+              // although maybe we can just read it from Vuex's persisted copy
+              // to localStorage but that feels brittle.
+            )
+            err.name = 'NoDbRecordError'
+            throw err
+          }
+          return result
         }
         return { inatId: existingRemoteRecord.inatId, uuid: editedUuid }
       })()
@@ -637,6 +668,7 @@ const actions = {
         )
       }
       await dispatch('onLocalRecordEvent')
+      return wowIdOf(enhancedRecord)
     } catch (err) {
       throw chainedError(
         `Failed to save edited record with UUID='${editedUuid}'` +
@@ -674,6 +706,11 @@ const actions = {
             ...p,
             file: '(removed for logging)',
           })),
+          obsFieldValues: enhancedRecord.obsFieldValues.map(o => ({
+            // ignore info available elsewhere. Long traces get truncated :(
+            fieldId: o.fieldId,
+            value: o.value,
+          })),
         })
         throw chainedError(
           `Failed to write record to Db\n` +
@@ -688,8 +725,6 @@ const actions = {
     }
   },
   async onLocalRecordEvent({ dispatch }) {
-    // TODO do we need to call this refresh or can we rely on the processor to
-    // do it?
     await dispatch('refreshLocalRecordQueue')
     dispatch('processLocalQueue').catch(err => {
       dispatch(
@@ -704,36 +739,35 @@ const actions = {
     })
   },
   async refreshLocalRecordQueue({ commit }) {
-    try {
-      // FIXME WOW-135 consider using a web worker for this task
-      const localQueueSummary = await mapOverObsStore(r => {
-        const hasBlockedAction = !!r.wowMeta[constants.blockedActionFieldName]
-        const isEventuallyDeleted = hasBlockedAction
-          ? r.wowMeta[constants.blockedActionFieldName].wowMeta[
-              constants.recordTypeFieldName
-            ] === recordType('delete')
-          : r.wowMeta[constants.recordTypeFieldName] === recordType('delete')
-        return {
-          [constants.recordTypeFieldName]:
-            r.wowMeta[constants.recordTypeFieldName],
-          [constants.isEventuallyDeletedFieldName]: isEventuallyDeleted,
-          [constants.recordProcessingOutcomeFieldName]:
-            r.wowMeta[constants.recordProcessingOutcomeFieldName],
-          [constants.hasBlockedActionFieldName]: hasBlockedAction,
-          wowUpdatedAt: r.wowMeta.wowUpdatedAt,
-          inatId: r.inatId,
-          uuid: r.uuid,
+    if (refreshLocalRecordQueueLock) {
+      console.debug(
+        '[refreshLocalRecordQueue] worker already running, returning ' +
+          'existing promise',
+      )
+      return refreshLocalRecordQueueLock
+    }
+    console.debug('[refreshLocalRecordQueue] starting')
+    refreshLocalRecordQueueLock = worker().finally(() => {
+      refreshLocalRecordQueueLock = null
+      console.debug('[refreshLocalRecordQueue] finished')
+    })
+    return refreshLocalRecordQueueLock
+    async function worker() {
+      try {
+        if (!mapStoreWorker) {
+          mapStoreWorker = interceptableFns.buildWorker()
         }
-      })
-      commit('setLocalQueueSummary', localQueueSummary)
-      const uiVisibleLocalUuids = localQueueSummary
-        .filter(e => !e[constants.isEventuallyDeletedFieldName])
-        .map(e => e.uuid)
-      const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
-      commit('setUiVisibleLocalRecords', records)
-      revokeOldObjectUrls()
-    } catch (err) {
-      throw chainedError('Failed to refresh localRecordQueue', err)
+        const localQueueSummary = await mapStoreWorker.doit()
+        commit('setLocalQueueSummary', localQueueSummary)
+        const uiVisibleLocalUuids = localQueueSummary
+          .filter(e => !e[constants.isEventuallyDeletedFieldName])
+          .map(e => e.uuid)
+        const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
+        commit('setUiVisibleLocalRecords', records)
+        revokeOldObjectUrls()
+      } catch (err) {
+        throw chainedError('Failed to refresh localRecordQueue', err)
+      }
     }
   },
   /**
@@ -823,13 +857,42 @@ const actions = {
             // error, maybe halt as it might affect others?
             // FIXME do we need to be atomic and rollback?
             await dispatch('transitionToSystemErrorOutcome', idToProcess)
+            const userValues = (() => {
+              const fallbackMsg = {
+                userMsg: `Error while trying upload record with ID='${idToProcess}'`,
+              }
+              // let's try to build a nicer message for the user
+              try {
+                const found = getters.localRecords.find(
+                  e => e.uuid === idToProcess,
+                )
+                if (!found) {
+                  return fallbackMsg
+                }
+                const firstPhotoUrl = ((found.photos || [])[0] || {}).url
+                if (!firstPhotoUrl) {
+                  return fallbackMsg
+                }
+                return {
+                  imgUrl: firstPhotoUrl,
+                  userMsg: `Failed to process record: ${found.speciesGuess}`,
+                }
+              } catch (err) {
+                wowWarnHandler(
+                  'While handling failed processing of a record, we tried to ' +
+                    'create a nice error message for the user and had another ' +
+                    'error',
+                  err,
+                )
+                return fallbackMsg
+              }
+            })()
             dispatch(
               'flagGlobalError',
               {
                 msg: `Failed to process Db record with ID='${idToProcess}'`,
-                // FIXME use something more user friendly than the ID
-                userMsg: `Error while trying upload record with ID='${idToProcess}'`,
                 err,
+                ...userValues,
               },
               { root: true },
             )
@@ -1315,8 +1378,7 @@ const actions = {
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
     const selectedId = state.selectedObservationId
-    const dbId = await dispatch('findDbIdForWowId', selectedId)
-    await dispatch('transitionToWaitingOutcome', dbId)
+    await dispatch('transitionToWaitingOutcome', selectedId)
     return dispatch('onLocalRecordEvent')
   },
   async retryFailedDeletes({ getters, dispatch }) {
@@ -1575,7 +1637,7 @@ function resolveLocalRecordUuids(ids) {
       const currRecord = await getRecord(currId)
       if (!currRecord) {
         const msg =
-          `Could resolve ID=${currId} to a DB record.` +
+          `Could not resolve ID=${currId} to a DB record.` +
           ' Assuming it was deleted while we were busy processing.'
         wowWarnHandler(msg)
         const nothingToDoFilterMeOut = null
@@ -1939,7 +2001,18 @@ function startTimer(task) {
   }
 }
 
+const interceptableFns = {
+  buildWorker() {
+    return comlinkWrap(
+      new Worker('./map-over-obs-store.worker.js', {
+        type: 'module',
+      }),
+    )
+  },
+}
+
 export const _testonly = {
+  interceptableFns,
   mapObsFromApiIntoOurDomain,
   mapObsFromOurDomainOntoApi,
 }

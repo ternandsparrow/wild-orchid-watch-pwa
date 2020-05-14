@@ -8,7 +8,11 @@ import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
 import base64js from 'base64-js'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
-import { wowErrorHandler } from '../src/misc/only-common-deps-helpers'
+import {
+  wowErrorHandler,
+  wowWarnHandler,
+  wowWarnMessage,
+} from '../src/misc/only-common-deps-helpers'
 import * as constants from '../src/misc/constants.js'
 
 if (constants.deployedEnvName !== 'local-development') {
@@ -129,9 +133,13 @@ const depsQueue = new Queue('obs-dependant-queue', {
         const obsUuid = entry.metadata.obsUuid
         const obsId = entry.metadata.obsId
         const respStatus = resp.status
-        // at this point we have a choice: press on and accept that we'll be
-        // missing some of the data on the remote, or rollback everything on
-        // the remote and do whatever is necessary to fix it up.
+        // at this point we have three choices:
+        //   1. press on and accept that we'll be missing some of the data on
+        //      the remote,
+        //   2. rollback everything on the remote and do whatever is necessary
+        //       to fix it up, or
+        //   3. give up and leave things in a mess
+        // Right now we're just giving up because rolling back is complex
         switch (entry.request.method) {
           case 'POST':
             await setRecordProcessingOutcome(
@@ -139,22 +147,15 @@ const depsQueue = new Queue('obs-dependant-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
-            console.debug('Handling POST client error by rolling back obs')
-            await obsQueue.unshiftRequest({
-              metadata: {
-                obsId: obsId,
-                obsUuid: obsUuid,
-              },
-              request: new Request(
-                `${constants.apiUrlBase}/observations/${obsId}`,
-                {
-                  method: 'DELETE',
-                  mode: 'cors',
-                },
-              ),
-            })
+            // now we have a problem. If the partial record was a "create" then
+            // we could just delete it, but that doesn't work for an edit. And
+            // we don't know what was done at this point. So we'll do nothing.
+            // iNat has some magic to recognise duplicate requests to create an
+            // obs and will return the existing instance and obsField are
+            // idempotent as they clober. It's only the photos that we'll
+            // duplicate but it's better than losing them.
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'PUT': // we don't update deps, we just clobber with POST
             await setRecordProcessingOutcome(
@@ -162,7 +163,7 @@ const depsQueue = new Queue('obs-dependant-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             return { flag: IGNORE_REMAINING_DEPS_FLAG }
           case 'DELETE':
@@ -247,7 +248,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             await wowSwStore.removeItem(createTag + obsUuid)
             break
@@ -260,7 +261,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             break
           case 'PUT':
@@ -269,7 +270,7 @@ const obsQueue = new Queue('obs-queue', {
               constants.systemErrorOutcome,
             )
             await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
+              id: constants.refreshLocalQueueMsg,
             })
             await wowSwStore.removeItem(updateTag + obsUuid)
             break
@@ -325,12 +326,16 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
     let entry
     while ((entry = await this.shiftRequest())) {
       let resp
+      const obsId = entry.metadata.obsId
       try {
-        const obsId = entry.metadata.obsId
         const isIgnoredObsId = obsIdsToIgnore.includes(obsId)
         if (isIgnoredObsId) {
           console.debug(
             `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
+          )
+          console.debug(
+            `Discarding '${entry.request.method} ${entry.request.url}' ` +
+              `request as it's parent obs=${obsId} is in the ignore list`,
           )
           continue
         }
@@ -350,7 +355,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         req.headers.set('Authorization', authHeaderValue)
         resp = await fetch(req)
         console.debug(
-          `Request for '${entry.request.url}' ` +
+          `Request for '${entry.request.method} ${entry.request.url}' ` +
             `has been replayed in queue '${this._name}'`,
         )
         const statusCode = resp.status
@@ -360,7 +365,9 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
             // throwing so catch block can handle unshifting, etc
             const result = new Error(
               `Response indicates failed auth (status=${statusCode}), ` +
-                `stopping now but we'll retry on next sync.`,
+                `stopping now but we'll retry on next sync. This is not ` +
+                `really an error, everything is working as designed. But we ` +
+                `have to throw to stop queue processing.`,
             )
             result.name = 'Server401Error'
             return result
@@ -383,23 +390,53 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         }
         const isServerError = statusCode >= 500 && statusCode < 600
         if (isServerError) {
-          // other queued reqs probably won't succeed (right now), wait for next sync
-          throw (() => {
-            // throwing so catch block can handle unshifting, etc
-            const result = new Error(
-              `Response indicates server error (status=${statusCode})`,
-            )
-            result.name = 'Server5xxError'
-            return result
-          })()
+          await setRecordProcessingOutcome(
+            entry.metadata.obsUuid,
+            constants.systemErrorOutcome,
+          )
+          await sendMessageToAllClients({
+            id: constants.refreshLocalQueueMsg,
+          })
+          // you'd think a 500 means the server is having a really bad day but
+          // that's not always the case. Sending a photo it doesn't like will
+          // make it explode but it'll happily accept "good" photos. So let's
+          // push on!
+          obsIdsToIgnore.push(obsId)
+          continue
         }
       } catch (err) {
         // "Failed to fetch" lands us here. It could be a network error or a
         // non-CORS response.
+        if (!entry.metadata.failureCount) {
+          entry.metadata.failureCount = 0
+        }
+        entry.metadata.failureCount += 1
+        if (entry.metadata.failureCount > constants.maxReqFailureCountInSw) {
+          wowWarnMessage(
+            `Request for '${entry.request.url}' from queue '${this._name}' ` +
+              `failed to replay for the ${entry.metadata.failureCount} time. ` +
+              `This is over the ${constants.maxReqFailureCountInSw} threshold ` +
+              `so we're giving up on this whole obsId=${obsId}. Most recent ` +
+              `error: (name=${err.name}) message=${err.message}`,
+          )
+          await setRecordProcessingOutcome(
+            entry.metadata.obsUuid,
+            constants.systemErrorOutcome,
+          )
+          await sendMessageToAllClients({
+            id: constants.refreshLocalQueueMsg,
+          })
+          obsIdsToIgnore.push(obsId)
+          continue
+        }
+        // we have to put it back at the start of the queue as we may have
+        // order dependent requests and it's hard to move them all to the end
+        // of the queue
         await this.unshiftRequest(entry)
         console.debug(
-          `Request for '${entry.request.url}' ` +
-            `failed to replay, putting it back in queue '${this._name}'.`,
+          `Request for '${entry.request.url}' failed to replay for the ` +
+            `${entry.metadata.failureCount} time, putting it back at front of ` +
+            `the queue '${this._name}' and stopping queue processing.`,
         )
         // Note: we *need* to throw here to stop an immediate retry on sync.
         // Workbox does this for good reason: it needs to process items that were
@@ -559,7 +596,7 @@ registerRoute(
     const obsRecord = payload[constants.obsFieldName]
     let obsUuid
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
     } catch (err) {
       return jsonResponse(
         {
@@ -632,8 +669,8 @@ registerRoute(
     let obsUuid
     let obsId
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation.uuid)
-      obsId = verifyNotImpendingDoom(obsRecord.observation.id)
+      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
+      obsId = verifyNotImpendingDoom(obsRecord.observation, 'id')
     } catch (err) {
       return jsonResponse(
         {
@@ -727,18 +764,7 @@ registerRoute(
   constants.serviceWorkerHealthCheckUrl,
   async ({ url, event, params }) => {
     console.debug('Performing a health check')
-    const waitingDepsBundles = await wowSwStore.length()
-    return jsonResponse({
-      depsQueueStatus: {
-        syncInProgress: isQueueSyncingNow(depsQueue),
-        length: (await depsQueue.getAll()).length,
-      },
-      obsQueueStatus: {
-        syncInProgress: isQueueSyncingNow(obsQueue),
-        length: (await obsQueue.getAll()).length,
-      },
-      waitingDepsBundles,
-    })
+    return jsonResponse(await buildHealthcheckObj())
   },
   'GET',
 )
@@ -783,6 +809,7 @@ function setAuthHeaderFromReq(req) {
     console.debug(`No auth header='${newValue}' passed, leaving existing value`)
     return
   }
+  console.debug(`[SW] setting auth header='${newValue}'`)
   authHeaderValue = newValue
 }
 
@@ -893,20 +920,25 @@ async function sendMessageToAllClients(msg) {
     } catch (err) {
       const noProxyConsoleError = origConsole.error || console.error
       noProxyConsoleError(`Failed to send message=${msg} to client`, err)
-      // TODO notify Sentry?
+      Sentry.captureException(err)
     }
   }
 }
 
-function verifyNotImpendingDoom(val) {
+function verifyNotImpendingDoom(baseObj, key) {
+  const val = baseObj[key]
   const theSkyIsNotFalling = val != null
   if (theSkyIsNotFalling) {
     return val
   }
-  throw new Error(
-    `Value='${val}' is null-ish, things will go wrong ` +
-      'if we continue. So we are failing fast.',
-  )
+  throw (() => {
+    const result = new Error(
+      `${key}='${val}' is null-ish, things will go wrong ` +
+        'if we continue. So we are failing fast.',
+    )
+    result.name = 'MissingValueError'
+    return result
+  })()
 }
 
 function jsonResponse(bodyObj, status = 200) {
@@ -975,6 +1007,22 @@ function verifyDepsRecord(depsRecord) {
   }
 }
 
+async function buildHealthcheckObj() {
+  return {
+    authHeaderValue,
+    isSafeToProcessQueue: isSafeToProcessQueue(),
+    depsQueueStatus: {
+      syncInProgress: isQueueSyncingNow(depsQueue),
+      length: (await depsQueue.getAll()).length,
+    },
+    obsQueueStatus: {
+      syncInProgress: isQueueSyncingNow(obsQueue),
+      length: (await obsQueue.getAll()).length,
+    },
+    waitingDepsBundlesCount: await wowSwStore.length(),
+  }
+}
+
 // build process will inject manifest into the following statement.
 workboxPrecacheAndRoute(self.__WB_MANIFEST)
 
@@ -984,4 +1032,10 @@ export const _testonly = {
   },
   isSafeToProcessQueue,
   onSyncWithPerItemCallback,
+  verifyNotImpendingDoom,
+  logHealthcheck() {
+    buildHealthcheckObj().then(o => {
+      console.log(JSON.stringify(o, null, 2))
+    })
+  },
 }

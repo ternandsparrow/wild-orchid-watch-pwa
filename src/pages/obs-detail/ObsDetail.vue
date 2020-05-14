@@ -2,10 +2,13 @@
   <v-ons-page>
     <custom-toolbar back-label="Home" title="Observation">
       <template v-slot:right>
-        <v-ons-toolbar-button @click="onEdit">
+        <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
           Edit
         </v-ons-toolbar-button>
-        <v-ons-toolbar-button @click="onMainActionMenu">
+        <v-ons-toolbar-button
+          name="toolbar-action-btn"
+          @click="onMainActionMenu"
+        >
           <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
         ></v-ons-toolbar-button>
       </template>
@@ -18,7 +21,9 @@
         is to try to upload the record again and see if that works.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcome"
+        <v-ons-button
+          name="retry-error-upload-btn"
+          @click="resetProcessingOutcomeFromSystemError"
           >Retry upload</v-ons-button
         >
       </p>
@@ -35,7 +40,9 @@
         This option will remain available as long as we think it's stuck.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcome"
+        <v-ons-button
+          name="retry-stuck-upload-btn"
+          @click="resetProcessingOutcomeFromStuck"
           >Retry upload</v-ons-button
         >
       </p>
@@ -148,7 +155,7 @@
           </template>
         </v-ons-list>
         <div class="inat-details">
-          <div>iNat UUID: {{ nullSafeObs.uuid }}</div>
+          <div>Record UUID: {{ nullSafeObs.uuid }}</div>
           <template v-if="isSelectedRecordOnRemote">
             <div>iNat ID: {{ nullSafeObs.inatId }}</div>
             <div>Updated at: {{ nullSafeObs.updatedAt }}</div>
@@ -252,6 +259,7 @@
                 </div>
                 <div class="right">
                   <v-ons-button
+                    name="comment-menu-btn"
                     modifier="quiet"
                     @click="onCommentActionMenu(curr)"
                   >
@@ -285,7 +293,11 @@
             >
             </textarea>
             <div class="text-right comment-button-container">
-              <v-ons-button :disabled="isSavingComment" @click="onNewComment">
+              <v-ons-button
+                name="save-comment-btn"
+                :disabled="isSavingComment"
+                @click="onNewComment"
+              >
                 <span v-if="isSavingComment">Saving...</span>
                 <span v-if="!isSavingComment">Done</span>
               </v-ons-button>
@@ -307,11 +319,13 @@
       </div>
       <template slot="footer">
         <v-ons-alert-dialog-button
+          name="cancel-comment-edit-btn"
           :disabled="isSavingComment"
           @click="onCancelEditComment"
           >Cancel</v-ons-alert-dialog-button
         >
         <v-ons-alert-dialog-button
+          name="save-comment-edit-btn"
           :disabled="isSavingComment"
           @click="onSaveEditComment"
         >
@@ -536,6 +550,7 @@ export default {
       // the record to be deleted doesn't have the iNat ID and we don't have
       // access to the new record that will replace it so we need to look up the
       // ID
+      this.$wow.uiTrace('ObsDetail', `jump to new detail page post-upload`)
       try {
         const inatId = await this.$store.dispatch(
           'obs/findObsInatIdForUuid',
@@ -557,7 +572,19 @@ export default {
         })
       }
     },
-    resetProcessingOutcome() {
+    resetProcessingOutcomeFromSystemError() {
+      this.$wow.uiTrace('ObsDetail', `reset an obs from system error`)
+      this._resetProcessingOutcome(
+        'Failed to reset processing outcome after error',
+      )
+    },
+    resetProcessingOutcomeFromStuck() {
+      this.$wow.uiTrace('ObsDetail', `reset an obs from stuck`)
+      this._resetProcessingOutcome(
+        'Failed to reset processing outcome from a possibly stuck record',
+      )
+    },
+    _resetProcessingOutcome(errMsg) {
       this.$store
         .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
         .then(() => {
@@ -570,7 +597,7 @@ export default {
           this.$store.dispatch(
             'flagGlobalError',
             {
-              msg: 'Failed to reset processing outcome after error',
+              msg: errMsg,
               userMsg: 'Error while retrying upload',
               err,
             },
@@ -585,12 +612,15 @@ export default {
     onMainActionMenu() {
       const menu = {
         Delete: () => {
+          this.$wow.uiTrace('ObsDetail', `delete observation`)
           this.$ons.notification
             .confirm('Are you sure about deleting this record?')
             .then(answer => {
               if (!answer) {
+                this.$wow.uiTrace('ObsDetail', `abort delete observation`)
                 return
               }
+              this.$wow.uiTrace('ObsDetail', `confirm delete observation`)
               this.$store
                 .dispatch('obs/deleteSelectedRecord')
                 .then(() => {
@@ -611,6 +641,7 @@ export default {
       }
       if (this.isSelectedRecordEditOfRemote) {
         menu['Delete only local edit'] = () => {
+          this.$wow.uiTrace('ObsDetail', `delete local edit observation`)
           this.$ons.notification
             .confirm(
               'This record has an edit that has NOT yet been ' +
@@ -619,8 +650,16 @@ export default {
             )
             .then(answer => {
               if (!answer) {
+                this.$wow.uiTrace(
+                  'ObsDetail',
+                  `abort delete local edit observation`,
+                )
                 return
               }
+              this.$wow.uiTrace(
+                'ObsDetail',
+                `confirm delete local edit observation`,
+              )
               this.$store
                 .dispatch('obs/deleteSelectedLocalRecord')
                 .then(() => {
@@ -710,6 +749,7 @@ export default {
       )
     },
     onEdit() {
+      this.$wow.uiTrace('ObsDetail', `edit observation`)
       const obsId = wowIdOf(this.nullSafeObs)
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
     },
@@ -725,6 +765,7 @@ export default {
       return identification.taxonPhotoUrl || noImagePlaceholderUrl
     },
     async onNewComment() {
+      this.$wow.uiTrace('ObsDetail', `create new comment`)
       try {
         this.isSavingComment = true
         await this.$store.dispatch('obs/createComment', {
@@ -751,6 +792,7 @@ export default {
       }
     },
     async onSaveEditComment() {
+      this.$wow.uiTrace('ObsDetail', `save comment edit`)
       try {
         this.isSavingComment = true
         await this.$store.dispatch('obs/editComment', {
@@ -779,6 +821,7 @@ export default {
       })
     },
     onCancelEditComment() {
+      this.$wow.uiTrace('ObsDetail', `cancel comment edit`)
       this.isShowCommentEditModal = false
       this.editCommentRecord = {}
     },

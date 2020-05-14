@@ -2,7 +2,11 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
-import { neverUpload, persistedStateLocalStorageKey } from '@/misc/constants'
+import {
+  neverUpload,
+  persistedStateLocalStorageKey,
+  isForceVueDevtools,
+} from '@/misc/constants'
 import { wowErrorHandler, chainedError } from '@/misc/helpers'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
@@ -15,6 +19,9 @@ import obs, {
 import news from './news'
 import missions from './missions'
 
+if (isForceVueDevtools) {
+  Vue.config.devtools = true
+}
 Vue.use(Vuex)
 
 const store = new Vuex.Store({
@@ -47,8 +54,12 @@ const store = new Vuex.Store({
     doApiDelete({ dispatch }, argObj) {
       return dispatch('auth/doApiDelete', argObj)
     },
-    flagGlobalError({ commit }, { msg, userMsg, err }) {
-      commit('ephemeral/flagGlobalError', userMsg)
+    flagGlobalError({ commit }, { msg, userMsg, imgUrl, err }) {
+      if (imgUrl) {
+        commit('ephemeral/flagGlobalError', { msg: userMsg, imgUrl })
+      } else {
+        commit('ephemeral/flagGlobalError', userMsg)
+      }
       wowErrorHandler(msg, err)
     },
     async fetchAllPages({ dispatch }, { baseUrl, pageSize }) {

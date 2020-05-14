@@ -90,6 +90,10 @@ info](https://github.com/browserslist/browserslist#environment-variables)) and
 `DISABLE_MINIFY=1`. This is done behind the scenes for you but you can use these
 against the normal `yarn:build` too.
 
+We also allow Vue devtools to connect to a site built and served using this
+method. This is done by setting `VUE_APP_FORCE_VUE_DEVTOOLS=1`. Search this
+codebase to find how we use that env var.
+
 ## Configuring env vars
 There are aspects of this app that can be configured at deploy-time such as API
 URIs, keys, etc. We achieve this by using `.env*` files that `vue-cli` reads

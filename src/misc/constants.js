@@ -69,6 +69,20 @@ export const maxSpeciesAutocompleteResultLength = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SPECIES_AUTOCOMPLETE_LENGTH || 50,
 )
 
+export const waitBeforeRefreshSeconds = convertAndAssertInteger(
+  process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 1,
+)
+
+export const maxReqFailureCountInSw = convertAndAssertInteger(
+  process.env.VUE_APP_MAX_SW_REQ_FAIL_COUNT || 3,
+)
+
+// useful for enabling devtools in "production mode" while debugging with a
+// service worker
+export const isForceVueDevtools = !!parseInt(
+  process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
+)
+
 export const isMissionsFeatureEnabled =
   process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
 
@@ -347,6 +361,7 @@ export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
 export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
+export const refreshLocalQueueMsg = 'REFRESH_LOCAL_QUEUE_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 export const testSendObsPhotoPostMsg = 'TEST_OBS_PHOTO_POST'

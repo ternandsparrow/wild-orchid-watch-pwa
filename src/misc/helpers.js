@@ -334,6 +334,8 @@ export function makeEnumValidator(validValues) {
   }
 }
 
+export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
+
 export function humanDateString(dateStr) {
   if (!dateStr) {
     return '(no date recorded)'
@@ -406,7 +408,6 @@ const missionEndMarker = 'END-OF-MISSION'
 export function encodeMissionBody(name, endDate, goal, todayMoment = dayjs()) {
   const todayStr = todayMoment.format('DD-MMM-YYYY')
   const endDatePretty = dayjs(endDate).format('DD-MMM-YYYY')
-  debugger // FIXME
   return `
   ${name}
   Start date: ${todayStr}
@@ -547,6 +548,15 @@ function isInBoundingBoxImpl({
   const isLatInBox = minLat < userLat && userLat < maxLat
   const isLonInBox = minLon < userLon && userLon < maxLon
   return isLatInBox && isLonInBox
+}
+
+// Creates a named error
+// The problem with this is the stack trace will point to here, no the calling
+// function. So maybe it's not a great idea to use this. I'm undecided.
+export function namedError(name, msg) {
+  const result = new Error(msg)
+  result.name = name
+  return result
 }
 
 export const _testonly = {

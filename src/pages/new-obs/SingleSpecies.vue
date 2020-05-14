@@ -2,7 +2,9 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
-        <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+          >Save</v-ons-toolbar-button
+        >
       </template>
     </custom-toolbar>
     <v-ons-list-item modifier="nodivider">
@@ -88,12 +90,17 @@
           What species is this observation of?
         </div>
       </v-ons-list-item>
+      <!-- FIXME need to init geolocation so it can be edited. Should we also store -->
+      <!-- the method used (and the thumbnail, etc) or just show that it *is* saved -->
+      <!-- and you can edit it if you like (easier).                                -->
       <wow-header
+        v-if="!isEdit"
         label="Geolocation / GPS coordinates"
         help-target="geolocation"
         @on-help="showHelp"
       />
       <wow-collect-geolocation
+        v-if="!isEdit"
         :photo-count="photos.length"
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"
@@ -245,7 +252,9 @@
       </template>
       <v-ons-list-item>
         <div class="text-center be-wide">
-          <v-ons-button @click="onSave">Save</v-ons-button>
+          <v-ons-button name="bottom-save-btn" @click="onSave"
+            >Save</v-ons-button
+          >
         </div>
       </v-ons-list-item>
       <v-ons-list-item class="advanced-switch-container">
@@ -293,9 +302,13 @@
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
       </p>
       <p v-show="isShowModalForceClose" class="text-center">
-        Hmmm, this is taking a while. It's best to wait for saving to finish,
-        but if you're sure something has gone wrong, you can
-        <v-ons-button @click="isSaveModalVisible = false"
+        Hmmm, this is taking a while. If you have photo compression enabled and
+        you're attaching large photo (10s of megapixels), it can take a while to
+        compress them. It's best to wait for saving to finish, but if you're
+        sure something has gone wrong, you can
+        <v-ons-button
+          name="force-close-modal-btn"
+          @click="isSaveModalVisible = false"
           >force close this notification</v-ons-button
         >
       </p>
@@ -402,6 +415,7 @@ export default {
       obsLng: null,
       obsLocAccuracy: null,
       isValidatedAtLeastOnce: false,
+      uuidOfThisObs: null,
     }
   },
   computed: {
@@ -611,6 +625,10 @@ export default {
       this.geolocationErrorMsg = null
     },
     initForEdit(obsFieldsPromise) {
+      this.uuidOfThisObs = this.observationDetail.uuid
+      this.obsLat = this.observationDetail.lat
+      this.obsLng = this.observationDetail.lng
+      this.obsLocAccuracy = this.observationDetail.positional_accuracy
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
@@ -869,7 +887,7 @@ export default {
           accuracyOfPopulationCountObsFieldDefault,
         )
       } catch (err) {
-        // FIXME the UI doesn't reflect this error, is it because we're in mounted()?
+        // FIXME UI doesn't reflect this error, is it because we're in beforeMount()?
         this.$store.dispatch(
           'flagGlobalError',
           {
@@ -986,135 +1004,19 @@ export default {
         }
         if (!this.validateInputs()) {
           this.$wow.uiTrace('SingleSpecies', `validation failure`)
+          this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
           return
         }
-        this.$store.commit('obs/addRecentlyUsedTaxa', {
-          type: speciesGuessRecentTaxaKey,
-          value: this.speciesGuessSelectedItem,
-        })
-        for (const currId of this.taxonQuestionIds) {
-          const val = this.obsFieldValues[currId]
-          // if we're in edit mode and the user doesn't touch this question,
-          // it'll just be the string value not the selected item
-          const hasUserEditedAnswer = typeof val === 'object'
-          const paramToPass = hasUserEditedAnswer ? val : null
-          this.$store.commit('obs/addRecentlyUsedTaxa', {
-            type: currId,
-            value: paramToPass,
-          })
-        }
-        const record = {
-          addedPhotos: this.photos.map(curr => ({
-            type: curr.type,
-            file: curr.file,
-          })),
-          speciesGuess: this.speciesGuessValue,
-          obsFieldValues: this.displayableObsFields.reduce(
-            (accum, currField) => {
-              const isNotSavable =
-                !this.isAdvancedUserMode && currField.isAdvancedField
-              if (isNotSavable) {
-                return accum
-              }
-              const isMultiselect =
-                currField.wowDatatype === multiselectFieldType
-              if (isMultiselect) {
-                for (const currSubField of currField.multiselectValues) {
-                  const currSubFieldId = currSubField.id
-                  const mappedValue = (() => {
-                    const v = this.obsFieldValues[currSubFieldId]
-                    // here we're fixing up the booleans that come out of switches
-                    if (v === true) {
-                      return yesValue
-                    }
-                    if (v === false) {
-                      return noValue
-                    }
-                    throw new Error(
-                      `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
-                    )
-                  })()
-                  accum.push({
-                    fieldId: parseInt(currSubFieldId),
-                    name: `${currField.name} - ${currSubField.label}`,
-                    value: mappedValue,
-                    // datatype: // don't need this
-                  })
-                }
-                return accum
-              }
-              const currFieldId = currField.id
-              const obsFieldDef = this.getObsFieldDef(currFieldId)
-              let value = this.obsFieldValues[currFieldId]
-              if (isDeletedObsFieldValue(value)) {
-                return accum
-              }
-              if (
-                obsFieldDef.datatype === taxonFieldType &&
-                // in edit mode when the user doesn't change the value, we'll
-                // only have the string value, not the full selected item
-                typeof value === 'object'
-              ) {
-                value = value.preferredCommonName
-              }
-              accum.push({
-                fieldId: parseInt(currFieldId),
-                name: obsFieldDef.name,
-                value: value,
-                datatype: obsFieldDef.datatype,
-              })
-              return accum
-            },
-            [],
-          ),
-          description: this.notes,
-        }
-        if (this.isEdit) {
-          const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
-            (accum, currKey) => {
-              // TODO if we ever have conditionally displayable multiselect
-              // fields, then this will need updating to support that.
-              const isNotVisible = !this.obsFieldVisibility[currKey]
-              const value = this.obsFieldValues[currKey]
-              const hadValueBeforeEditing = !_.isNil(
-                this.obsFieldInitialValues[currKey],
-              )
-              const isEmpty = isDeletedObsFieldValue(value)
-              if (hadValueBeforeEditing && (isNotVisible || isEmpty)) {
-                const obsFieldInstance = this.getObsFieldInstance(currKey)
-                const isObsFieldStoredOnRemote = obsFieldInstance.relationshipId
-                if (isObsFieldStoredOnRemote) {
-                  accum.push(obsFieldInstance.relationshipId)
-                }
-              }
-              return accum
-            },
-            [],
+        this.updateRecentlyUsedTaxa()
+        const strategyKey = this.isEdit ? 'Edit' : 'New'
+        const strategy = this['doSave' + strategyKey]
+        if (!strategy) {
+          throw new Error(
+            `Programmer error: unhandled strategy='${strategyKey}'`,
           )
-          record.uuid = this.observationDetail.uuid
-          await this.$store.dispatch('obs/saveEditAndScheduleUpdate', {
-            record,
-            photoIdsToDelete: this.photoIdsToDelete,
-            obsFieldIdsToDelete,
-          })
-          toastSavedMsg(this.$ons)
-          this.$router.replace({
-            name: 'ObsDetail',
-            params: {
-              id: this.observationDetail.inatId || this.observationDetail.uuid,
-            },
-          })
-        } else {
-          record.lat = this.obsLat
-          record.lng = this.obsLng
-          record.positional_accuracy = this.obsLocAccuracy
-          const newUuid = await this.$store.dispatch(
-            'obs/saveNewAndScheduleUpload',
-            record,
-          )
-          toastSavedMsg(this.$ons)
-          this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
         }
+        const record = this.buildRecordToSave()
+        await strategy(record)
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
           msg: 'Failed to save observation to local store',
@@ -1125,17 +1027,156 @@ export default {
         this.isSaveModalVisible = false
         clearTimeout(timeoutId)
       }
-      function toastSavedMsg($ons) {
-        setTimeout(() => {
-          // TODO should this say something about uploading (or not if
-          // offline)? We don't want to confuse "saved" with "uploaded to inat"
-          $ons.notification.toast('Successfully saved', {
-            timeout: 5000,
-            animation: 'ascend',
-            // TODO add dismiss button
+    },
+    buildRecordToSave() {
+      const obsFieldValues = this.displayableObsFields.reduce(
+        (accum, currField) => {
+          const isNotSavable =
+            !this.isAdvancedUserMode && currField.isAdvancedField
+          if (isNotSavable) {
+            return accum
+          }
+          const isMultiselect = currField.wowDatatype === multiselectFieldType
+          if (isMultiselect) {
+            for (const currSubField of currField.multiselectValues) {
+              const currSubFieldId = currSubField.id
+              const mappedValue = (() => {
+                const v = this.obsFieldValues[currSubFieldId]
+                // here we're fixing up the booleans that come out of switches
+                if (v === true) {
+                  return yesValue
+                }
+                if (v === false) {
+                  return noValue
+                }
+                throw new Error(
+                  `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
+                )
+              })()
+              accum.push({
+                fieldId: parseInt(currSubFieldId),
+                name: `${currField.name} - ${currSubField.label}`,
+                value: mappedValue,
+                // datatype: // don't need this
+              })
+            }
+            return accum
+          }
+          const currFieldId = currField.id
+          const obsFieldDef = this.getObsFieldDef(currFieldId)
+          let value = this.obsFieldValues[currFieldId]
+          if (isDeletedObsFieldValue(value)) {
+            return accum
+          }
+          if (
+            obsFieldDef.datatype === taxonFieldType &&
+            // in edit mode when the user doesn't change the value, we'll
+            // only have the string value, not the full selected item
+            typeof value === 'object'
+          ) {
+            value = value.preferredCommonName
+          }
+          accum.push({
+            fieldId: parseInt(currFieldId),
+            name: obsFieldDef.name,
+            value: value,
+            datatype: obsFieldDef.datatype,
           })
-        }, 800)
+          return accum
+        },
+        [],
+      )
+      const result = {
+        addedPhotos: this.photos.map(curr => ({
+          type: curr.type,
+          file: curr.file,
+        })),
+        speciesGuess: this.speciesGuessValue,
+        obsFieldValues,
+        description: this.notes,
+        lat: this.obsLat,
+        lng: this.obsLng,
+        positional_accuracy: this.obsLocAccuracy,
       }
+      return result
+    },
+    updateRecentlyUsedTaxa() {
+      this.$store.commit('obs/addRecentlyUsedTaxa', {
+        type: speciesGuessRecentTaxaKey,
+        value: this.speciesGuessSelectedItem,
+      })
+      for (const currId of this.taxonQuestionIds) {
+        const val = this.obsFieldValues[currId]
+        // if we're in edit mode and the user doesn't touch this question,
+        // it'll just be the string value not the selected item
+        const hasUserEditedAnswer = typeof val === 'object'
+        const paramToPass = hasUserEditedAnswer ? val : null
+        this.$store.commit('obs/addRecentlyUsedTaxa', {
+          type: currId,
+          value: paramToPass,
+        })
+      }
+    },
+    async doSaveNew(record) {
+      const newUuid = await this.$store.dispatch(
+        'obs/saveNewAndScheduleUpload',
+        record,
+      )
+      this.toastSavedMsg()
+      console.debug(`Navigating user to detail page for '${newUuid}'`)
+      this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
+    },
+    async doSaveEdit(record) {
+      const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
+        (accum, currKey) => {
+          // TODO if we ever have conditionally displayable multiselect
+          // fields, then this will need updating to support that.
+          const isNotVisible = !this.obsFieldVisibility[currKey]
+          const value = this.obsFieldValues[currKey]
+          const hadValueBeforeEditing = !_.isNil(
+            this.obsFieldInitialValues[currKey],
+          )
+          const isEmpty = isDeletedObsFieldValue(value)
+          if (hadValueBeforeEditing && (isNotVisible || isEmpty)) {
+            const obsFieldInstance = this.getObsFieldInstance(currKey)
+            const isObsFieldStoredOnRemote = obsFieldInstance.relationshipId
+            if (isObsFieldStoredOnRemote) {
+              accum.push(obsFieldInstance.relationshipId)
+            }
+          }
+          return accum
+        },
+        [],
+      )
+      const wowId = await this.$store.dispatch(
+        'obs/saveEditAndScheduleUpdate',
+        {
+          record: Object.assign(
+            {
+              uuid: this.uuidOfThisObs,
+            },
+            record,
+          ),
+          photoIdsToDelete: this.photoIdsToDelete,
+          obsFieldIdsToDelete,
+        },
+      )
+      this.toastSavedMsg()
+      this.$router.replace({
+        name: 'ObsDetail',
+        params: { id: wowId },
+      })
+    },
+    toastSavedMsg() {
+      setTimeout(() => {
+        // TODO should this say something about uploading (or not if
+        // offline)? We don't want to confuse "saved" with "uploaded to inat"
+        this.$ons.notification.toast('Successfully saved', {
+          timeout: 5000,
+          animation: 'ascend',
+          // TODO add dismiss button
+        })
+      }, 800)
     },
     getObsFieldInstance(fieldId) {
       const result = this.observationDetail.obsFieldValues.find(

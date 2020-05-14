@@ -2,11 +2,12 @@
   <v-ons-toolbar>
     <div class="left keep-title-centered">
       <slot name="left">
-        <v-ons-back-button v-if="backLabel && isHomeRoute">
+        <v-ons-back-button v-if="backLabel && isHomeRoute" name="back-btn">
           {{ backLabel }}
         </v-ons-back-button>
         <v-ons-toolbar-button
           v-if="!cancellable && !isHomeRoute"
+          name="home-btn"
           modifier="quiet"
           @click="goHome"
         >
@@ -14,6 +15,7 @@
         </v-ons-toolbar-button>
         <v-ons-toolbar-button
           v-if="cancellable && !isHomeRoute"
+          name="cancel-btn"
           modifier="quiet"
           @click="goBack"
         >

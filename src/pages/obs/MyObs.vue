@@ -1,5 +1,11 @@
 <template>
   <menu-wrapper title="My Observations">
+    <template v-slot:toolbar-right>
+      <v-ons-toolbar-button id="toolbar-refresh-btn" @click="doRefresh">
+        <v-ons-icon name="toolbar-refresh-btn" icon="fa-sync-alt"></v-ons-icon>
+        Refresh
+      </v-ons-toolbar-button>
+    </template>
     <v-ons-pull-hook
       :action="doRefresh"
       @changestate="pullHookState = $event.state"
@@ -74,8 +80,15 @@
                 server.
               </div>
               <div class="delete-fail-button-container">
-                <v-ons-button @click="retryFailedDeletes">Retry</v-ons-button>
-                <v-ons-button modifier="outline " @click="cancelFailedDeletes"
+                <v-ons-button
+                  name="retry-failed-deletes-btn"
+                  @click="retryFailedDeletes"
+                  >Retry</v-ons-button
+                >
+                <v-ons-button
+                  name="cancel-failed-deletes-btn"
+                  modifier="outline "
+                  @click="cancelFailedDeletes"
                   >Cancel deletes</v-ons-button
                 >
               </div>
@@ -265,8 +278,23 @@ export default {
       this.$store.commit('obs/setSelectedObservationId', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
+    traceRefreshAction(done) {
+      const msg = (() => {
+        switch (typeof done) {
+          case 'function':
+            return 'pull refresh'
+          case 'object':
+            return 'click refresh'
+          case 'undefined':
+            return 'programatic refresh'
+          default:
+            return '(unknown type of) refresh'
+        }
+      })()
+      this.$wow.uiTrace('MyObs', msg)
+    },
     doRefresh(done) {
-      this.$wow.uiTrace('MyObs', 'pull refresh')
+      this.traceRefreshAction(done)
       if (!this.networkOnLine) {
         this.$ons.notification.toast('Cannot refresh while offline', {
           timeout: 3000,
@@ -278,7 +306,7 @@ export default {
         triggerSwObsQueue()
         triggerSwDepsQueue()
       }
-      done && done()
+      done && typeof done === 'function' && done()
     },
     // TODO it might be nice to be able to retry/cancel failed deletes
     // individually rather than all at once.
@@ -400,5 +428,11 @@ export default {
 .expand-item {
   padding: 0.5em 0;
   border-bottom: 1px solid #ddd;
+}
+
+@media only screen and (max-width: 700px) {
+  #toolbar-refresh-btn {
+    display: none;
+  }
 }
 </style>

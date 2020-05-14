@@ -33,6 +33,7 @@ const state = {
   isForceShowLoginToast: false,
   isGlobalErrorState: false,
   globalErrorUserMsg: null,
+  globalErrorImgUrl: null,
   queueProcessorPromise: null,
   isWarnOnLeaveRoute: false,
   isHelpModalVisible: false,
@@ -70,13 +71,19 @@ const mutations = {
   },
   setForceShowLoginToast: (state, value) =>
     (state.isForceShowLoginToast = value),
-  flagGlobalError: (state, userMsg) => {
+  flagGlobalError: (state, value) => {
     state.isGlobalErrorState = true
-    state.globalErrorUserMsg = userMsg
+    if (typeof value === 'string') {
+      state.globalErrorUserMsg = value
+      return
+    }
+    state.globalErrorUserMsg = value.msg
+    state.globalErrorImgUrl = value.imgUrl
   },
   resetGlobalErrorState: state => {
     state.isGlobalErrorState = false
     state.globalErrorUserMsg = null
+    state.globalErrorImgUrl = null
   },
   enableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = true),
   disableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = false),
@@ -245,11 +252,7 @@ const actions = {
       }
       try {
         if (!imageCompressionWorker) {
-          imageCompressionWorker = comlinkWrap(
-            new Worker('./image-compression.worker.js', {
-              type: 'module',
-            }),
-          )
+          imageCompressionWorker = interceptableFns.buildWorker()
         }
         const compressedBlobish = await imageCompressionWorker.resize(
           blobish,
@@ -446,4 +449,18 @@ function extractGps(parsedExif) {
   }
   const [latDec, lonDec] = dms2dec(...theArgs)
   return { lat: latDec, lng: lonDec }
+}
+
+const interceptableFns = {
+  buildWorker() {
+    return comlinkWrap(
+      new Worker('./image-compression.worker.js', {
+        type: 'module',
+      }),
+    )
+  },
+}
+
+export const _testonly = {
+  interceptableFns,
 }

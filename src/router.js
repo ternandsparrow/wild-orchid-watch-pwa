@@ -193,8 +193,8 @@ function resolveObsByIdOrNotFound(to, from, next) {
   const wowId = isNaN(to.params.id) ? to.params.id : parseInt(to.params.id)
   store.commit('obs/setSelectedObservationId', wowId)
   if (!store.getters['obs/observationDetail']) {
-    console.debug(`Could not find obs record for wowId=${wowId}`)
-    return next({ name: 'NotFound', replace: true })
+    console.warn(`Could not find obs record for wowId=${wowId}`)
+    return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
   }
   return next()
 }

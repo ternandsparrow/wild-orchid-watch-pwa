@@ -17,9 +17,14 @@
         <v-ons-page>
           <custom-toolbar>
             {{ title }}
-            <v-ons-toolbar-button slot="left" @click="onMenuClick">
+            <v-ons-toolbar-button
+              slot="left"
+              name="app-menu-btn"
+              @click="onMenuClick"
+            >
               <v-ons-icon icon="md-menu"></v-ons-icon>
             </v-ons-toolbar-button>
+            <slot slot="right" name="toolbar-right"></slot>
           </custom-toolbar>
           <slot></slot>
         </v-ons-page>

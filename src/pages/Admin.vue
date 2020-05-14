@@ -12,7 +12,9 @@
           >, acc=<span class="mono">{{ acc }}</span>
         </p>
         <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
-        <v-ons-button @click="getLocation">Get location</v-ons-button>
+        <v-ons-button name="get-location-btn" @click="getLocation"
+          >Get location</v-ons-button
+        >
       </div>
     </v-ons-card>
     <v-ons-card>
@@ -50,7 +52,11 @@
         ><br />
         <strong>Waiting = {{ swStatus.waiting }}</strong>
       </p>
-      <p><button @click="fireCheckSwCall">Fire check to SW</button></p>
+      <p>
+        <button name="check-sw-btn" @click="fireCheckSwCall">
+          Fire check to SW
+        </button>
+      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -91,6 +97,31 @@
       <p>
         <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
       </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Reset recordProcessingOutcome to "waiting" for obs
+      </div>
+      <div>
+        <v-ons-button @click="prepResetRpoList"
+          >Get list of resettable obs</v-ons-button
+        >
+      </div>
+      <div>
+        Obs to reset
+        <select v-model="resetRpoUuid">
+          <option
+            v-for="curr of resetRpoList"
+            :key="curr.uuid"
+            :value="curr.uuid"
+            >{{ curr.title }}</option
+          >
+        </select>
+      </div>
+      <div>
+        <v-ons-button @click="doRpoReset">Reset</v-ons-button>
+      </div>
+      <div>Status = {{ rpoResetStatus }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -419,6 +450,9 @@ export default {
       cloneCount: 30,
       cloneSubjectUuid: null,
       cloneStatus: 'not started',
+      rpoResetStatus: null,
+      resetRpoList: [],
+      resetRpoUuid: null,
     }
   },
   computed: {
@@ -482,15 +516,21 @@ export default {
         'bboxLatMin',
         'bboxLonMax',
         'bboxLonMin',
+        'countOfIndividualsObsFieldDefault',
         'deployedEnvName',
         'inatProjectSlug',
         'inatStaticUrlBase',
         'inatUrlBase',
+        'isForceVueDevtools',
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
         'isSearchFeatureEnabled',
+        'maxReqFailureCountInSw',
+        'maxSpeciesAutocompleteResultLength',
         'obsFieldSeparatorChar',
         'redirectUri',
+        'taxaDataUrl',
+        'waitBeforeRefreshSeconds',
       ]
       const partialResult = nonSecretKeys.map(e => ({
         label: e,
@@ -776,6 +816,27 @@ export default {
     prepCloneList() {
       this.cloneList = this.$store.state.obs._uiVisibleLocalRecords.map(e => ({
         title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
+        uuid: e.uuid,
+      }))
+    },
+    async doRpoReset() {
+      this.rpoResetStatus = 'starting'
+      try {
+        await this.$store.dispatch(
+          'obs/transitionToWaitingOutcome',
+          this.resetRpoUuid,
+        )
+        this.rpoResetStatus = 'refreshing'
+        await this.$store.dispatch('obs/refreshLocalRecordQueue')
+        this.rpoResetStatus = 'done'
+      } catch (err) {
+        console.error('Failed to reset status of obs', err)
+        this.rpoResetStatus = 'error: ' + err.message
+      }
+    },
+    prepResetRpoList() {
+      this.resetRpoList = this.$store.getters['obs/localRecords'].map(e => ({
+        title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
     },
