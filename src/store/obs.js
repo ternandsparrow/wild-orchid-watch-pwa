@@ -706,6 +706,11 @@ const actions = {
             ...p,
             file: '(removed for logging)',
           })),
+          obsFieldValues: enhancedRecord.obsFieldValues.map(o => ({
+            // ignore info available elsewhere. Long traces get truncated :(
+            fieldId: o.fieldId,
+            value: o.value,
+          })),
         })
         throw chainedError(
           `Failed to write record to Db\n` +
