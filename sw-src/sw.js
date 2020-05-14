@@ -365,7 +365,9 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
             // throwing so catch block can handle unshifting, etc
             const result = new Error(
               `Response indicates failed auth (status=${statusCode}), ` +
-                `stopping now but we'll retry on next sync.`,
+                `stopping now but we'll retry on next sync. This is not ` +
+                `really an error, everything is working as designed. But we ` +
+                `have to throw to stop queue processing.`,
             )
             result.name = 'Server401Error'
             return result
@@ -762,18 +764,7 @@ registerRoute(
   constants.serviceWorkerHealthCheckUrl,
   async ({ url, event, params }) => {
     console.debug('Performing a health check')
-    const waitingDepsBundles = await wowSwStore.length()
-    return jsonResponse({
-      depsQueueStatus: {
-        syncInProgress: isQueueSyncingNow(depsQueue),
-        length: (await depsQueue.getAll()).length,
-      },
-      obsQueueStatus: {
-        syncInProgress: isQueueSyncingNow(obsQueue),
-        length: (await obsQueue.getAll()).length,
-      },
-      waitingDepsBundles,
-    })
+    return jsonResponse(await buildHealthcheckObj())
   },
   'GET',
 )
@@ -818,6 +809,7 @@ function setAuthHeaderFromReq(req) {
     console.debug(`No auth header='${newValue}' passed, leaving existing value`)
     return
   }
+  console.debug(`[SW] setting auth header='${newValue}'`)
   authHeaderValue = newValue
 }
 
@@ -1015,6 +1007,22 @@ function verifyDepsRecord(depsRecord) {
   }
 }
 
+async function buildHealthcheckObj() {
+  return {
+    authHeaderValue,
+    isSafeToProcessQueue: isSafeToProcessQueue(),
+    depsQueueStatus: {
+      syncInProgress: isQueueSyncingNow(depsQueue),
+      length: (await depsQueue.getAll()).length,
+    },
+    obsQueueStatus: {
+      syncInProgress: isQueueSyncingNow(obsQueue),
+      length: (await obsQueue.getAll()).length,
+    },
+    waitingDepsBundlesCount: await wowSwStore.length(),
+  }
+}
+
 // build process will inject manifest into the following statement.
 workboxPrecacheAndRoute(self.__WB_MANIFEST)
 
@@ -1025,4 +1033,9 @@ export const _testonly = {
   isSafeToProcessQueue,
   onSyncWithPerItemCallback,
   verifyNotImpendingDoom,
+  logHealthcheck() {
+    buildHealthcheckObj().then(o => {
+      console.log(JSON.stringify(o, null, 2))
+    })
+  },
 }
