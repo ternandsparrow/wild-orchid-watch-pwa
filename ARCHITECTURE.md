@@ -1,4 +1,5 @@
 This document will describe how the app is built and why choices were made.
+Read it! ಠ_ಠ
 
 # Minimum version of browsers that we support
 In an ideal world, we'd support as many browsers as possible but there are
@@ -116,38 +117,6 @@ store binary data out-of-the-box. It's possible if we wrote our own
 (de)serialisation but that seems a bit far to go.
 
 
-## Strategy for databases in IndexedDB
-Currently we run two databases:
-  1. one for storing observations, the `obsStore`
-  1. one just for the Service Worker, the `swStore`
-
-The `obsStore` is really the main store you should worry about. It stores the
-observations locally until we've uploaded them to iNat. The main (UI) thread
-does most of the manipulation of these records. Be aware that the SW will also
-touch the records by setting the recordProcessingOutcome. It would have been
-good to only have one thread writing to the DB but the SW can continue to run
-in the background after the clients are closed, suspended, etc (think someone
-turning their phone screen off). This means we need the SW to be able to write
-as it's the only one around to do it.
-
-The `swStore` is used as a persistent working area for the SW while in
-processes an observation. The SW first tries to create the observation on iNat,
-and while that's happening it stores the data for the dependent requests
-(photos and obs fields) in its DB. Once the request for the observation itself
-has succeeded, the requests for the dependents are generated and the record is
-removed from the DB. This is why this DB will be empty most of the time.
-
-There is also one other DB that you'll see, but it's not ours. It's the DB
-that's managed by Workbox's queue. (At the time of writing) Each of the records
-in this DB will be a single request that Workbox is waiting to make.
-
-Beware the limitation of IndexedDB if you have WOW open in multiple tabs.
-Apparently connections from one tab will apparently block the other. The other
-connections won't fail, they'll just block until they can run. At the time of
-writing, I wasn't able to reproduce this behaviour but if you see weird things
-happening, this is something to investigate.
-
-
 ## iNaturalist
 We need somewhere to store the observations that our users create. We could
 create our own walled garden but then we'd have to reinvent a lot of wheels and
@@ -168,7 +137,7 @@ observation record. So when a user edits a record, we can't even show them a
 meaningful "last updated at" date. We only have the observation date to use.
 
 
-# JestJS
+## JestJS
 The unit testing and assertion framework we're using is
 [Jest](https://jestjs.io/docs/). This is what came pre-configured with the
 starter project we used and it's supported by Facebook so it should have a
@@ -225,20 +194,6 @@ Firebase, which we use for hosting, offers Crashlytics but it's only for native
 apps. So that's a non-starter for us.
 
 
-## Error tracking strategy
-In Sentry at least, "breadcrumb" are automatically recorded. These are
-basically the events (in a loose sense of the term, not a DOM sense) that
-happened leading up to the Sentry report. Things like route changes, UI
-interaction and console messages.
-
-When a `ui.click` breadcrumb is recorded, it's nice to know what the user
-actually clicked on. CSS selectors aren't the most helpful so instead we can
-make our lives a bit easier by adding a `name` attribute to each button (or
-other element) that we have so we'll more easily be able to tell what the user
-clicked on. These names are purely for this use, so don't get confused when you
-can find any usages of it in our code.
-
-
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
 some of the heavy lifting because our background sync requirements are a bit
@@ -263,6 +218,55 @@ importing modules so we solve that by building the service worker so it
 contains all the dependencies it needs. Previously we used the hosted version
 of Workbox (via an `importScripts()` call) but seeing as we're building the sw,
 we might as well include the workbox deps in it for extra reliability.
+
+## Fuse.js
+We use this as the fuzzy-find index for species autocomplete. I looked at other
+options like [FlexSearch](https://github.com/nextapps-de/flexsearch) and
+[Elasticlunr](http://elasticlunr.com/). As the [benchmarks
+show](https://raw.githack.com/nextapps-de/flexsearch/master/test/benchmark.html)
+both options would have been faster but they were also more complicated and
+we're not searching that many items. Fuse allowed us to just feed the array of
+items in with config specifying the fields to search and we're off. No itering
+through to add documents to an index.
+
+## DayJS
+We picked this over moment.js because it's API compatible but smaller. We don't
+need the locales from moment and that is what makes it a bloated package.
+
+
+# Design decisions
+
+## Strategy for databases in IndexedDB
+Currently we run two databases:
+  1. one for storing observations, the `obsStore`
+  1. one just for the Service Worker, the `swStore`
+
+The `obsStore` is really the main store you should worry about. It stores the
+observations locally until we've uploaded them to iNat. The main (UI) thread
+does most of the manipulation of these records. Be aware that the SW will also
+touch the records by setting the recordProcessingOutcome. It would have been
+good to only have one thread writing to the DB but the SW can continue to run
+in the background after the clients are closed, suspended, etc (think someone
+turning their phone screen off). This means we need the SW to be able to write
+as it's the only one around to do it.
+
+The `swStore` is used as a persistent working area for the SW while in
+processes an observation. The SW first tries to create the observation on iNat,
+and while that's happening it stores the data for the dependent requests
+(photos and obs fields) in its DB. Once the request for the observation itself
+has succeeded, the requests for the dependents are generated and the record is
+removed from the DB. This is why this DB will be empty most of the time.
+
+There is also one other DB that you'll see, but it's not ours. It's the DB
+that's managed by Workbox's queue. (At the time of writing) Each of the records
+in this DB will be a single request that Workbox is waiting to make.
+
+Beware the limitation of IndexedDB if you have WOW open in multiple tabs.
+Apparently connections from one tab will apparently block the other. The other
+connections won't fail, they'll just block until they can run. At the time of
+writing, I wasn't able to reproduce this behaviour but if you see weird things
+happening, this is something to investigate.
+
 
 ## Pseudo code for edit strategy
 if 'item is queued for ID'
@@ -289,6 +293,7 @@ if 'is existing blocked action'
   delete: replace with delete action
 else
   set value to our action
+
 
 ## Getting photos from the user
 We did actually have a choice here. We went with option 1.
@@ -339,6 +344,7 @@ Known Android camera apps that *do* save to the gallery:
       `/system/priv-app/LGCameraApp/LGCameraApp.apk`
   - [CameraMX](https://play.google.com/store/apps/details?id=com.magix.camera_mx&hl=en_AU)
       (remember to enable geotagging so photo have GPS location stored)
+
 
 ## Taxonomy index
 The iNat API provides an endpoint to do a species autocomplete. It works but
@@ -402,19 +408,20 @@ We chose to bake the list into the app for a number of reasons:
      somehow, it would fragment to community and mean more effort for us to
      maintain and parse the list
 
-## Fuse.js
-We use this as the fuzzy-find index for species autocomplete. I looked at other
-options like [FlexSearch](https://github.com/nextapps-de/flexsearch) and
-[Elasticlunr](http://elasticlunr.com/). As the [benchmarks
-show](https://raw.githack.com/nextapps-de/flexsearch/master/test/benchmark.html)
-both options would have been faster but they were also more complicated and
-we're not searching that many items. Fuse allowed us to just feed the array of
-items in with config specifying the fields to search and we're off. No itering
-through to add documents to an index.
 
-## DayJS
-We picked this over moment.js because it's API compatible but smaller. We don't
-need the locales from moment and that is what makes it a bloated package.
+## Error tracking strategy
+In Sentry at least, "breadcrumb" are automatically recorded. These are
+basically the events (in a loose sense of the term, not a DOM sense) that
+happened leading up to the Sentry report. Things like route changes, UI
+interaction and console messages.
+
+When a `ui.click` breadcrumb is recorded, it's nice to know what the user
+actually clicked on. CSS selectors aren't the most helpful so instead we can
+make our lives a bit easier by adding a `name` attribute to each button (or
+other element) that we have so we'll more easily be able to tell what the user
+clicked on. These names are purely for this use, so don't get confused when you
+can find any usages of it in our code.
+
 
 ## Gathering geolocation
 Creating observations that have GPS coordinates is essential for them to be
