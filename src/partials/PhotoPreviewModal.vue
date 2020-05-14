@@ -8,18 +8,23 @@
     <div class="photo-viewer-toolbar">
       <div v-if="showDelete">
         <v-ons-button class="delete-btn" @click="onDeletePhoto"
-          ><v-ons-icon icon="fa-trash"></v-ons-icon> Delete</v-ons-button
+          ><v-ons-icon name="photo-delete-btn" icon="fa-trash"></v-ons-icon>
+          Delete</v-ons-button
         >
       </div>
       <div v-if="showJump">
         <v-ons-button class="jump-btn" @click="onJump"
-          ><v-ons-icon icon="fa-eye"></v-ons-icon> View
-          observation</v-ons-button
+          ><v-ons-icon name="photo-jump-to-obs-btn" icon="fa-eye"></v-ons-icon>
+          View observation</v-ons-button
         >
       </div>
       <div>
         <v-ons-button @click="closePhotoPreview"
-          ><v-ons-icon icon="fa-times-circle"></v-ons-icon> Close</v-ons-button
+          ><v-ons-icon
+            name="photo-close-btn"
+            icon="fa-times-circle"
+          ></v-ons-icon>
+          Close</v-ons-button
         >
       </div>
     </div>

@@ -79,7 +79,9 @@
           >
         </div>
         <div class="right">
-          <v-ons-button @click="doLogout">Logout</v-ons-button>
+          <v-ons-button name="logout-btn" @click="doLogout"
+            >Logout</v-ons-button
+          >
         </div>
       </ons-list-item>
       <ons-list-item>
@@ -91,7 +93,9 @@
           >
         </div>
         <div class="right">
-          <v-ons-button @click="handleResetOnboarderClick"
+          <v-ons-button
+            name="show-onboarder-btn"
+            @click="handleResetOnboarderClick"
             >Show now</v-ons-button
           >
         </div>
@@ -104,7 +108,11 @@
           >
         </div>
         <div class="right">
-          <v-ons-button @click="doInatProfileRefresh">Refresh</v-ons-button>
+          <v-ons-button
+            name="refresh-inat-profile-btn"
+            @click="doInatProfileRefresh"
+            >Refresh</v-ons-button
+          >
         </div>
       </ons-list-item>
       <ons-list-item>
@@ -115,7 +123,11 @@
           >
         </div>
         <div class="right">
-          <v-ons-button @click="doManualUpdateCheck">Check</v-ons-button>
+          <v-ons-button
+            name="manual-wow-update-btn"
+            @click="doManualUpdateCheck"
+            >Check</v-ons-button
+          >
         </div>
       </ons-list-item>
     </v-ons-list>

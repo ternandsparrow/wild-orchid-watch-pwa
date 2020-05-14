@@ -170,7 +170,11 @@
             Geolocation successfully captured from
             {{ geolocationMethod }}.
             <div>
-              <v-ons-button modifier="quiet" @click="toggleMap">
+              <v-ons-button
+                name="show-map-btn"
+                modifier="quiet"
+                @click="toggleMap"
+              >
                 <span v-if="!isShowMap">View location on </span>
                 <span v-if="isShowMap">Hide </span>map</v-ons-button
               >

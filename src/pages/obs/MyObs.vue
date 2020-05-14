@@ -2,7 +2,8 @@
   <menu-wrapper title="My Observations">
     <template v-slot:toolbar-right>
       <v-ons-toolbar-button id="toolbar-refresh-btn" @click="doRefresh">
-        <v-ons-icon icon="fa-sync-alt"></v-ons-icon> Refresh
+        <v-ons-icon name="toolbar-refresh-btn" icon="fa-sync-alt"></v-ons-icon>
+        Refresh
       </v-ons-toolbar-button>
     </template>
     <v-ons-pull-hook
@@ -79,8 +80,15 @@
                 server.
               </div>
               <div class="delete-fail-button-container">
-                <v-ons-button @click="retryFailedDeletes">Retry</v-ons-button>
-                <v-ons-button modifier="outline " @click="cancelFailedDeletes"
+                <v-ons-button
+                  name="retry-failed-deletes-btn"
+                  @click="retryFailedDeletes"
+                  >Retry</v-ons-button
+                >
+                <v-ons-button
+                  name="cancel-failed-deletes-btn"
+                  modifier="outline "
+                  @click="cancelFailedDeletes"
                   >Cancel deletes</v-ons-button
                 >
               </div>

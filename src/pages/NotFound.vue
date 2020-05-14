@@ -13,7 +13,7 @@
         go home and look for the record there.
       </p>
       <p class="text-center">
-        <v-ons-button @click="goHome">Go home</v-ons-button>
+        <v-ons-button name="go-home-btn" @click="goHome">Go home</v-ons-button>
       </p>
     </v-ons-card>
   </v-ons-page>

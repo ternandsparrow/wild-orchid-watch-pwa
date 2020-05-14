@@ -2,7 +2,9 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
-        <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+          >Save</v-ons-toolbar-button
+        >
       </template>
     </custom-toolbar>
     <v-ons-list-item modifier="nodivider">
@@ -250,7 +252,9 @@
       </template>
       <v-ons-list-item>
         <div class="text-center be-wide">
-          <v-ons-button @click="onSave">Save</v-ons-button>
+          <v-ons-button name="bottom-save-btn" @click="onSave"
+            >Save</v-ons-button
+          >
         </div>
       </v-ons-list-item>
       <v-ons-list-item class="advanced-switch-container">
@@ -302,7 +306,9 @@
         you're attaching large photo (10s of megapixels), it can take a while to
         compress them. It's best to wait for saving to finish, but if you're
         sure something has gone wrong, you can
-        <v-ons-button @click="isSaveModalVisible = false"
+        <v-ons-button
+          name="force-close-modal-btn"
+          @click="isSaveModalVisible = false"
           >force close this notification</v-ons-button
         >
       </p>

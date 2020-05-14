@@ -12,7 +12,9 @@
           >, acc=<span class="mono">{{ acc }}</span>
         </p>
         <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
-        <v-ons-button @click="getLocation">Get location</v-ons-button>
+        <v-ons-button name="get-location-btn" @click="getLocation"
+          >Get location</v-ons-button
+        >
       </div>
     </v-ons-card>
     <v-ons-card>
@@ -50,7 +52,11 @@
         ><br />
         <strong>Waiting = {{ swStatus.waiting }}</strong>
       </p>
-      <p><button @click="fireCheckSwCall">Fire check to SW</button></p>
+      <p>
+        <button name="check-sw-btn" @click="fireCheckSwCall">
+          Fire check to SW
+        </button>
+      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">

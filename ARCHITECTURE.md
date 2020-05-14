@@ -224,6 +224,21 @@ Stackdriver, but you'd have to build and maintain it yourself.
 Firebase, which we use for hosting, offers Crashlytics but it's only for native
 apps. So that's a non-starter for us.
 
+
+## Error tracking strategy
+In Sentry at least, "breadcrumb" are automatically recorded. These are
+basically the events (in a loose sense of the term, not a DOM sense) that
+happened leading up to the Sentry report. Things like route changes, UI
+interaction and console messages.
+
+When a `ui.click` breadcrumb is recorded, it's nice to know what the user
+actually clicked on. CSS selectors aren't the most helpful so instead we can
+make our lives a bit easier by adding a `name` attribute to each button (or
+other element) that we have so we'll more easily be able to tell what the user
+clicked on. These names are purely for this use, so don't get confused when you
+can find any usages of it in our code.
+
+
 ## Workbox
 This eases the work related with managing a service worker. We still have to do
 some of the heavy lifting because our background sync requirements are a bit

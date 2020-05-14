@@ -2,7 +2,9 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title">
       <template v-slot:right>
-        <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+          >Save</v-ons-toolbar-button
+        >
       </template>
     </custom-toolbar>
     <v-ons-list>

@@ -24,11 +24,15 @@
       New version of the app ready.
       <div class="text-right">
         <v-ons-toolbar-button
+          name="not-now-btn"
           class="wow-toast-btn red"
           @click="updateReadyToastVisible = false"
           >not now</v-ons-toolbar-button
         >
-        <v-ons-toolbar-button class="wow-toast-btn green" @click="onUpdate"
+        <v-ons-toolbar-button
+          name="update-now-btn"
+          class="wow-toast-btn green"
+          @click="onUpdate"
           >update</v-ons-toolbar-button
         >
       </div>
@@ -47,7 +51,7 @@
         before logging in. Note that some functions may not work correctly until
         you login.
       </p>
-      <button @click="doLogin">Login</button>
+      <button name="login-btn" @click="doLogin">Login</button>
     </v-ons-toast>
     <v-ons-alert-dialog
       modifier="rowfooter"
@@ -58,7 +62,9 @@
       <p v-if="globalErrorUserMsg">{{ globalErrorUserMsg }}</p>
       <p>Sorry about that, try restarting the app or refreshing the webpage</p>
       <template slot="footer">
-        <v-ons-alert-dialog-button @click="onDismissGlobalError"
+        <v-ons-alert-dialog-button
+          name="dismiss-global-err-btn"
+          @click="onDismissGlobalError"
           >Ok</v-ons-alert-dialog-button
         >
       </template>

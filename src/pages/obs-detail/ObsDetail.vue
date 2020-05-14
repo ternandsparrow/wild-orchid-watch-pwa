@@ -2,10 +2,13 @@
   <v-ons-page>
     <custom-toolbar back-label="Home" title="Observation">
       <template v-slot:right>
-        <v-ons-toolbar-button @click="onEdit">
+        <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
           Edit
         </v-ons-toolbar-button>
-        <v-ons-toolbar-button @click="onMainActionMenu">
+        <v-ons-toolbar-button
+          name="toolbar-action-btn"
+          @click="onMainActionMenu"
+        >
           <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
         ></v-ons-toolbar-button>
       </template>
@@ -18,7 +21,9 @@
         is to try to upload the record again and see if that works.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcomeFromSystemError"
+        <v-ons-button
+          name="retry-error-upload-btn"
+          @click="resetProcessingOutcomeFromSystemError"
           >Retry upload</v-ons-button
         >
       </p>
@@ -35,7 +40,9 @@
         This option will remain available as long as we think it's stuck.
       </p>
       <p>
-        <v-ons-button @click="resetProcessingOutcomeFromStuck"
+        <v-ons-button
+          name="retry-stuck-upload-btn"
+          @click="resetProcessingOutcomeFromStuck"
           >Retry upload</v-ons-button
         >
       </p>
@@ -252,6 +259,7 @@
                 </div>
                 <div class="right">
                   <v-ons-button
+                    name="comment-menu-btn"
                     modifier="quiet"
                     @click="onCommentActionMenu(curr)"
                   >
@@ -285,7 +293,11 @@
             >
             </textarea>
             <div class="text-right comment-button-container">
-              <v-ons-button :disabled="isSavingComment" @click="onNewComment">
+              <v-ons-button
+                name="save-comment-btn"
+                :disabled="isSavingComment"
+                @click="onNewComment"
+              >
                 <span v-if="isSavingComment">Saving...</span>
                 <span v-if="!isSavingComment">Done</span>
               </v-ons-button>
@@ -307,11 +319,13 @@
       </div>
       <template slot="footer">
         <v-ons-alert-dialog-button
+          name="cancel-comment-edit-btn"
           :disabled="isSavingComment"
           @click="onCancelEditComment"
           >Cancel</v-ons-alert-dialog-button
         >
         <v-ons-alert-dialog-button
+          name="save-comment-edit-btn"
           :disabled="isSavingComment"
           @click="onSaveEditComment"
         >
