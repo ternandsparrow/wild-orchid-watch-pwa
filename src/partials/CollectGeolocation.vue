@@ -24,7 +24,7 @@
                   v-if="geolocationFromPhotoState === 'captured'"
                   class="success-alert"
                 >
-                  Yay, we found GPS coordinates in this photo
+                  Yay, we found GPS coordinates in this photo<br />
                   <img :src="obsCoords.url" class="photo-thumb" />
                 </p>
                 <div
