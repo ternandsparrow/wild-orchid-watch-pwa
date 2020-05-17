@@ -843,20 +843,17 @@ const actions = {
         )
       } catch (err) {
         try {
-          const isUserError = false // FIXME how do we compute this?
-          if (isUserError) {
-            console.debug(
-              `Failed to process Db record with ID='${idToProcess}' ` +
-                `due to a user error. Notifying the user.`,
+          // TODO enhancement idea: would be nice to be atomic and rollback,
+          // but that's a complex problem to tackle
+          await dispatch('transitionToSystemErrorOutcome', idToProcess)
+          if (err.isDowngradable) {
+            // TODO enhancement idea: handle a downgraded error specially in
+            // the UI to indicate it's probably just temporary network issues
+            wowWarnHandler(
+              `Warning while trying upload record with ID='${idToProcess}'`,
+              err,
             )
-            // FIXME send toast (or system notification?) to notify user that they
-            // need to check obs list
-            await dispatch('transitionToUserErrorOutcome', idToProcess)
           } else {
-            // TODO should we try the next one or short-circuit? For system
-            // error, maybe halt as it might affect others?
-            // FIXME do we need to be atomic and rollback?
-            await dispatch('transitionToSystemErrorOutcome', idToProcess)
             const userValues = (() => {
               const fallbackMsg = {
                 userMsg: `Error while trying upload record with ID='${idToProcess}'`,
@@ -1430,7 +1427,6 @@ const actions = {
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
         constants.systemErrorOutcome,
-        constants.userErrorOutcome,
       ],
     })
   },
@@ -1449,15 +1445,6 @@ const actions = {
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
         constants.waitingOutcome,
-      ],
-    })
-  },
-  async transitionToUserErrorOutcome({ dispatch }, wowId) {
-    return dispatch('_transitionHelper', {
-      wowId,
-      targetOutcome: constants.userErrorOutcome,
-      validFromOutcomes: [
-        // TODO add supported cases when we start using this outcome
       ],
     })
   },
@@ -1624,9 +1611,7 @@ const getters = {
 }
 
 function isErrorOutcome(outcome) {
-  return [constants.systemErrorOutcome, constants.userErrorOutcome].includes(
-    outcome,
-  )
+  return [constants.systemErrorOutcome].includes(outcome)
 }
 
 function resolveLocalRecordUuids(ids) {

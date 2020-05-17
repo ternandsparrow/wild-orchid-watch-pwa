@@ -373,7 +373,6 @@ export const waitingOutcome = 'waiting' // waiting to be processed
 export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
 export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet
 export const successOutcome = 'success' // successfully processed
-export const userErrorOutcome = 'userError' // processed but encountered an error the user can fix
 export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
 
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
