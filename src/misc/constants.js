@@ -285,11 +285,11 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
 )
 
 export const bboxLatMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MIN || -43.6345972634,
+  process.env.VUE_APP_BBOX_LAT_MIN || -43.7,
 )
 
 export const bboxLatMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MAX || -10.6681857235,
+  process.env.VUE_APP_BBOX_LAT_MAX || -10.4,
 )
 
 if (bboxLatMin >= bboxLatMax) {
@@ -301,11 +301,11 @@ if (bboxLatMin >= bboxLatMax) {
 }
 
 export const bboxLonMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MIN || 113.338953078,
+  process.env.VUE_APP_BBOX_LON_MIN || 112,
 )
 
 export const bboxLonMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MAX || 153.569469029,
+  process.env.VUE_APP_BBOX_LON_MAX || 154,
 )
 
 if (bboxLonMin >= bboxLonMax) {
