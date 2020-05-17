@@ -311,6 +311,10 @@ export default {
       strat && strat()
       // always poke the parent so it can "clear" old coords if needed
       this.pokeParentToReadCoords()
+      if (!this.obsCoords) {
+        // stop showing the map if the new method has no coords
+        this.isShowMap = false
+      }
     },
     photoOutsideBboxErrorMsg(newVal) {
       if (!newVal) {
