@@ -156,17 +156,35 @@ export function deleteWithAuth(url, authHeaderValue, wowUuid) {
   )
 }
 
-async function doManagedFetch(url, req, alsoOkHttpStatuses) {
+async function doManagedFetch(url, init, alsoOkHttpStatuses) {
   try {
-    const resp = await fetch(url, req)
+    const resp = await fetch(url, init)
     const result = await handleJsonResp(resp, alsoOkHttpStatuses)
     return result
   } catch (err) {
+    if (isDowngradable(err.message)) {
+      const result = chainedError(
+        '[Downgraded error] something went wrong during fetch that we cannot control',
+        err,
+      )
+      result.isDowngradable = true
+      throw result
+    }
     let msg = `Failed while doing fetch() with\n`
     msg += `  URL='${url}'\n`
-    msg += `  Req body='${JSON.stringify(req, null, 2)}'`
+    msg += `  Req body='${JSON.stringify(init, null, 2)}'`
     throw chainedError(msg, err)
   }
+}
+
+function isDowngradable(msg) {
+  // there are number of error related to fetching that aren't good but also
+  // there's nothing we can do about it. Things like network dropping out. Here
+  // we build a list of error messages that indicate those situations and
+  // downgrade the errors to warnings. The system operators still should know
+  // they're happening but we don't want them to panic.
+  const downgradableMessages = ['The network connection was lost']
+  return downgradableMessages.some(e => msg.includes(e))
 }
 
 export function findCommonString(string1, string2) {
@@ -562,4 +580,5 @@ export function namedError(name, msg) {
 export const _testonly = {
   isRespJson,
   isInBoundingBoxImpl,
+  doManagedFetch,
 }

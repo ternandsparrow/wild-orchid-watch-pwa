@@ -73,12 +73,12 @@ const mutations = {
     (state.isForceShowLoginToast = value),
   flagGlobalError: (state, value) => {
     state.isGlobalErrorState = true
-    if (typeof value === 'string') {
-      state.globalErrorUserMsg = value
+    if (typeof value === 'object') {
+      state.globalErrorUserMsg = value.msg
+      state.globalErrorImgUrl = value.imgUrl
       return
     }
-    state.globalErrorUserMsg = value.msg
-    state.globalErrorImgUrl = value.imgUrl
+    state.globalErrorUserMsg = value || '(no message provided)'
   },
   resetGlobalErrorState: state => {
     state.isGlobalErrorState = false

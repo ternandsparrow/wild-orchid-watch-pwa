@@ -285,11 +285,11 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
 )
 
 export const bboxLatMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MIN || -43.6345972634,
+  process.env.VUE_APP_BBOX_LAT_MIN || -43.7,
 )
 
 export const bboxLatMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MAX || -10.6681857235,
+  process.env.VUE_APP_BBOX_LAT_MAX || -10.4,
 )
 
 if (bboxLatMin >= bboxLatMax) {
@@ -301,11 +301,11 @@ if (bboxLatMin >= bboxLatMax) {
 }
 
 export const bboxLonMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MIN || 113.338953078,
+  process.env.VUE_APP_BBOX_LON_MIN || 112,
 )
 
 export const bboxLonMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MAX || 153.569469029,
+  process.env.VUE_APP_BBOX_LON_MAX || 154,
 )
 
 if (bboxLonMin >= bboxLonMax) {
@@ -373,7 +373,6 @@ export const waitingOutcome = 'waiting' // waiting to be processed
 export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
 export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet
 export const successOutcome = 'success' // successfully processed
-export const userErrorOutcome = 'userError' // processed but encountered an error the user can fix
 export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
 
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'

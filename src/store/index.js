@@ -58,7 +58,7 @@ const store = new Vuex.Store({
       if (imgUrl) {
         commit('ephemeral/flagGlobalError', { msg: userMsg, imgUrl })
       } else {
-        commit('ephemeral/flagGlobalError', userMsg)
+        commit('ephemeral/flagGlobalError', userMsg || msg)
       }
       wowErrorHandler(msg, err)
     },

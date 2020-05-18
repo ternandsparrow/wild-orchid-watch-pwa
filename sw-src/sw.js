@@ -407,6 +407,11 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       } catch (err) {
         // "Failed to fetch" lands us here. It could be a network error or a
         // non-CORS response.
+        // TODO iOS can return err.message="The network connection was lost".
+        // If we find a way to stop processing the queue without throwing an
+        // error, this is an error that can be swallowed or at least dropped
+        // back to warning level. It's nice to know how often it happens,
+        // there's nothing we can do so we don't want to cause panic.
         if (!entry.metadata.failureCount) {
           entry.metadata.failureCount = 0
         }
