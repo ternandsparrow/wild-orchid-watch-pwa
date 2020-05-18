@@ -728,7 +728,9 @@ export default {
             )
             // we need to reset this so the conditionally required fields lose
             // their required-ness (and hide) without extra logic
-            this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = null
+            this.obsFieldValues[
+              accuracyOfSearchAreaCalcObsFieldId
+            ] = notCollected
           }
           this.refreshVisibilityOfPopulationRecordFields()
           this.refreshVisibilityOfSearchAreaFields()
@@ -866,14 +868,23 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            const isConditionallyRequired = [
-              accuracyOfSearchAreaCalcObsFieldId,
-              areaOfPopulationObsFieldId,
-            ].includes(curr.id)
-            accum[curr.id] =
-              curr.required || isConditionallyRequired
-                ? null
-                : curr.allowedValues[0].value
+            accum[curr.id] = (() => {
+              if (curr.required) {
+                return null
+              }
+              const speciallyHandledFields = {
+                [accuracyOfSearchAreaCalcObsFieldId]: notCollected,
+                [areaOfPopulationObsFieldId]: null,
+              }
+              if (
+                Object.keys(speciallyHandledFields).find(
+                  k => parseInt(k) === curr.id,
+                )
+              ) {
+                return speciallyHandledFields[curr.id]
+              }
+              return curr.allowedValues[0].value
+            })()
             return accum
           },
           {},
