@@ -346,6 +346,9 @@ export const notSupported = 'NOT_SUPPORTED'
 export const blocked = 'BLOCKED'
 export const failed = 'FAILED'
 
+export const autocompleteTypeHost = 'host'
+export const autocompleteTypeOrchid = 'orchid'
+
 export const obsFieldName = 'obs'
 export const recordTypeFieldName = 'recordType'
 export const photosFieldName = 'photos'

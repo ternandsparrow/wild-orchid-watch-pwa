@@ -336,8 +336,12 @@ const actions = {
       throw chainedError('Failed to get project info', err)
     }
   },
-  async doSpeciesAutocomplete(_, partialText) {
+  async doSpeciesAutocomplete(_, partialText, speciesListType) {
     if (!partialText) {
+      return []
+    }
+    if (speciesListType === constants.autocompleteTypeHost) {
+      // FIXME need to build and bundle host tree species list
       return []
     }
     if (!taxaIndex) {

@@ -331,6 +331,8 @@ import {
   wowWarnHandler,
 } from '@/misc/helpers'
 import {
+  autocompleteTypeHost,
+  autocompleteTypeOrchid,
   accuracyOfPopulationCountObsFieldDefault,
   accuracyOfPopulationCountObsFieldId,
   accuracyOfSearchAreaCalcEstimated,
@@ -354,8 +356,8 @@ import {
   searchAreaCalcPreciseLengthObsFieldId,
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
-  widerLanduseObsFieldId,
   wideSelectObsFieldIds,
+  widerLanduseObsFieldId,
   yesValue,
 } from '@/misc/constants'
 
@@ -1254,6 +1256,7 @@ export default {
         this.speciesGuessAutocompleteItems = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
           data.value,
+          autocompleteTypeOrchid,
         )
       } catch (err) {
         wowErrorHandler(
@@ -1267,9 +1270,22 @@ export default {
     async _onTaxonQuestionInput(data) {
       const fieldId = data.extra
       try {
-        this.taxonQuestionAutocompleteItems[
-          fieldId
-        ] = await this.$store.dispatch('obs/doSpeciesAutocomplete', data.value)
+        const config = {
+          [hostTreeSpeciesObsFieldId]: autocompleteTypeHost,
+        }
+        const speciesListType = config[fieldId]
+        if (!speciesListType) {
+          throw new Error(
+            `Programmer problem: unhandled fieldId=${fieldId} for doing ` +
+              `species autocomplete`,
+          )
+        }
+        const vals = await this.$store.dispatch(
+          'obs/doSpeciesAutocomplete',
+          data.value,
+          speciesListType,
+        )
+        this.taxonQuestionAutocompleteItems[fieldId] = vals
       } catch (err) {
         wowErrorHandler(
           `Failed to do species autocomplete for fieldId=${fieldId}`,
