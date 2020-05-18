@@ -116,7 +116,6 @@
                   ref="manualLatInput"
                   v-model="manualLat"
                   input-id="manual-lat"
-                  type="number"
                   placeholder="Lat"
                   @focus="selectManualGeolocationMethod"
                   @keyup.enter="$event.target.blur()"
@@ -129,7 +128,6 @@
                 <v-ons-input
                   v-model="manualLon"
                   html-id="manual-lon"
-                  type="number"
                   placeholder="Lon"
                   @focus="selectManualGeolocationMethod"
                   @keyup.enter="$event.target.blur()"
