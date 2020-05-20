@@ -29,23 +29,14 @@ jobs:
           root: .
           paths: .
 
-  check-prettier:
-    executor: default-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: 'Run prettier check on project files'
-          command: yarn prettier:check
-
   check-linter:
     executor: default-executor
     steps:
       - attach_workspace:
           at: .
       - run:
-          name: 'Run linter'
-          command: yarn lint
+          name: 'Run lint check'
+          command: yarn lint:check
 
   run-unit-tests:
     executor: default-executor
@@ -345,9 +336,6 @@ workflows:
           filters:
             branches:
               only: master # dependent jobs are controlled by this
-      - check-prettier:
-          requires:
-            - install-dependencies
       - check-linter:
           requires:
             - install-dependencies
@@ -359,7 +347,6 @@ workflows:
             - install-dependencies
       - build-prod:
           requires:
-            - check-prettier
             - check-linter
             - run-unit-tests
             - run-e2e-tests
@@ -373,9 +360,6 @@ workflows:
           filters:
             branches:
               only: beta # dependent jobs are controlled by this
-      - check-prettier:
-          requires:
-            - install-dependencies
       - check-linter:
           requires:
             - install-dependencies
@@ -387,7 +371,6 @@ workflows:
             - install-dependencies
       - build-beta:
           requires:
-            - check-prettier
             - check-linter
             - run-unit-tests
             - run-e2e-tests
@@ -403,9 +386,6 @@ workflows:
               ignore: # dependent jobs are controlled by this
                 - beta
                 - master
-      - check-prettier:
-          requires:
-            - install-dependencies
       - check-linter:
           requires:
             - install-dependencies
@@ -417,7 +397,6 @@ workflows:
             - install-dependencies
       - build-dev:
           requires:
-            - check-prettier
             - check-linter
             - run-unit-tests
             - run-e2e-tests
