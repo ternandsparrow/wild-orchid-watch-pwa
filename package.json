@@ -9,7 +9,7 @@
     "test:unit": "vue-cli-service test:unit",
     "test:e2e": "vue-cli-service test:e2e",
     "lint": "vue-cli-service lint",
-    "lint:check": "vue-cli-service lint --no-fix",
+    "lint:check": "vue-cli-service lint --no-fix --max-warnings 0",
     "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 VUE_APP_FORCE_VUE_DEVTOOLS=1 yarn build && servor dist/ index.html --no-browser",
     "build:serve:watch": "nodemon --ext vue,js,mjs,json --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
