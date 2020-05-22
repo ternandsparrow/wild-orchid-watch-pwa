@@ -1602,7 +1602,7 @@ const getters = {
       return accum
     }, {})
   },
-  advancedModeOnlyObsFieldIds(state) {
+  detailedModeOnlyObsFieldIds(state) {
     // this doesn't handle conditional requiredness, but we tackle that elsewhere
     return state.projectInfo.project_observation_fields.reduce(
       (accum, curr) => {

@@ -23,7 +23,7 @@ function buildWrapper() {
       app: {
         namespaced: true,
         state: {
-          isAdvancedMode: false,
+          isDetailedUserMode: false,
         },
       },
       ephemeral: {

@@ -6,7 +6,7 @@ const state = {
   isFirstRun: true,
   tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
-  isAdvancedUserMode: false,
+  isDetailedUserMode: false,
   addToHomeIosPromptLastDate: null,
   isEnablePhotoCompression: false,
 }
@@ -15,7 +15,7 @@ const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
   setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),
-  setIsAdvancedUserMode: (state, value) => (state.isAdvancedUserMode = value),
+  setIsDetailedUserMode: (state, value) => (state.isDetailedUserMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
   setEnablePhotoCompression: (state, value) =>

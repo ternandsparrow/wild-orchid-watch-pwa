@@ -106,7 +106,7 @@
         @read-coords="rereadCoords"
       />
       <template v-for="currField of displayableObsFields">
-        <template v-if="isAdvancedUserMode || !currField.isAdvancedField">
+        <template v-if="isDetailedUserMode || !currField.isDetailedModeField">
           <wow-header
             :key="currField.id + '-list'"
             :label="currField.name"
@@ -230,7 +230,7 @@
           </v-ons-list-item>
         </template>
       </template>
-      <template v-if="isAdvancedUserMode">
+      <template v-if="isDetailedUserMode">
         <wow-header
           label="Other comments"
           help-target="notes"
@@ -257,21 +257,21 @@
           >
         </div>
       </v-ons-list-item>
-      <v-ons-list-item class="advanced-switch-container">
-        <label class="center" for="advancedSwitch">
-          <span class="list-item__title"><a>Enable advanced mode</a></span>
+      <v-ons-list-item class="detailed-mode-switch-container">
+        <label class="center" for="detailedModeSwitch">
+          <span class="list-item__title"><a>Enable detailed mode</a></span>
           <span class="list-item__subtitle"
-            ><span v-if="!isAdvancedUserMode"
-              >You are currently in beginner mode. You are presented with fewer
-              questions while you get used to the process. If you'd like to
-              collect more information, use this switch to enable advanced mode
-              which will show more questions. All these questions are optional
-              and you can always switch back if you don't like it.</span
+            ><span v-if="!isDetailedUserMode"
+              >You are currently in basic mode. You are presented with fewer
+              questions than in detailed mode. If you'd like to collect more
+              information, use this switch to enable detailed mode which will
+              show more questions. All these extra questions are optional and
+              you can always switch back if you don't like it.</span
             >
-            <span v-if="isAdvancedUserMode"
-              >You are currently in advanced mode and have the option to collect
+            <span v-if="isDetailedUserMode"
+              >You are currently in detailed mode and have the option to collect
               more information. This extra information is <i>optional</i> but if
-              you prefer a simpler interface, you can go back to beginner
+              you prefer a simpler interface, you can go back to basic
               mode.</span
             >
             This configuration item is also available in the
@@ -279,7 +279,10 @@
           </span>
         </label>
         <div class="right">
-          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          <v-ons-switch
+            v-model="isDetailedUserMode"
+            input-id="detailedModeSwitch"
+          >
           </v-ons-switch>
         </div>
       </v-ons-list-item>
@@ -424,14 +427,14 @@ export default {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
     ...mapGetters('ephemeral', ['photosStillCompressingCount']),
-    isAdvancedUserMode: {
+    isDetailedUserMode: {
       get() {
-        return this.$store.state.app.isAdvancedUserMode
+        return this.$store.state.app.isDetailedUserMode
       },
       set(newValue) {
-        const newModeName = newValue ? 'advanced' : 'beginner'
+        const newModeName = newValue ? 'detailed' : 'basic'
         this.$wow.uiTrace('SingleSpecies', `switch to ${newModeName} mode`)
-        this.$store.commit('app/setIsAdvancedUserMode', newValue)
+        this.$store.commit('app/setIsDetailedUserMode', newValue)
       },
     },
     displayableObsFields() {
@@ -486,8 +489,8 @@ export default {
             wowDatatype,
             multiselectValues: [{ id: curr.id, label: curr.name }],
             // we don't have any required multiselects so we can simply hide them
-            // all in beginner mode
-            isAdvancedField: true,
+            // all in basic mode
+            isDetailedModeField: true,
           })
           return accum
         }
@@ -504,7 +507,7 @@ export default {
           required: isConditionalRequiredField || curr.required,
           wowDatatype,
         }
-        field.isAdvancedField = !field.required
+        field.isDetailedModeField = !field.required
         if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
@@ -578,7 +581,7 @@ export default {
         newVal === accuracyOfSearchAreaCalcEstimated
       this.refreshVisibilityOfSearchAreaFields()
     },
-    isAdvancedUserMode() {
+    isDetailedUserMode() {
       setTimeout(() => {
         this.scrollToSpeciesGuess()
       }, 300)
@@ -1045,7 +1048,7 @@ export default {
       const obsFieldValues = this.displayableObsFields.reduce(
         (accum, currField) => {
           const isNotSavable =
-            !this.isAdvancedUserMode && currField.isAdvancedField
+            !this.isDetailedUserMode && currField.isDetailedModeField
           if (isNotSavable) {
             return accum
           }
@@ -1546,7 +1549,7 @@ $thumbnailSize: 75px;
   flex-grow: 1;
 }
 
-.advanced-switch-container {
+.detailed-mode-switch-container {
   margin-top: 10em;
 }
 </style>

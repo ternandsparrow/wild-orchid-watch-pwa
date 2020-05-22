@@ -429,7 +429,7 @@ useful at the other end when scientists use them. For this reason we make
 geolocation mandatory and offer three ways to collect that data:
   1. extracted from the EXIF of attached photos (also mandatory)
   1. using the location of the device
-  1. (in advanced mode) manually entered
+  1. (in detailed mode) manually entered
 This is also in the order that we prefer as more automated options are more
 reliable. We've seen some devices that don't work as well as we'd hope. A
 Samsung A8 that we tested on often wouldn't geo-tag photos taken with the

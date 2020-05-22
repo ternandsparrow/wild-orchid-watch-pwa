@@ -104,7 +104,7 @@
         <h3>Observation data</h3>
         <v-ons-list>
           <template v-for="curr of nullSafeObs.obsFieldValues">
-            <template v-if="isAdvancedUserMode || !curr.isAdvancedField">
+            <template v-if="isDetailedUserMode || !curr.isDetailedMode">
               <v-ons-list-header
                 :key="curr.fieldId + '-header'"
                 class="wow-list-header"
@@ -142,7 +142,7 @@
               </v-ons-list-item>
             </template>
           </template>
-          <template v-if="isAdvancedUserMode">
+          <template v-if="isDetailedUserMode">
             <v-ons-list-header class="wow-list-header">Notes</v-ons-list-header>
             <v-ons-list-item>
               <div v-show="nullSafeObs.notes">
@@ -387,13 +387,13 @@ export default {
   },
   computed: {
     ...mapGetters('obs', [
-      'advancedModeOnlyObsFieldIds',
+      'detailedModeOnlyObsFieldIds',
       'isSelectedRecordEditOfRemote',
       'isSelectedRecordOnRemote',
       'observationDetail',
     ]),
     ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
-    ...mapState('app', ['isAdvancedUserMode']),
+    ...mapState('app', ['isDetailedUserMode']),
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
     },
@@ -421,17 +421,17 @@ export default {
             accum.push({
               ...curr,
               title: mappedValue,
-              isAdvancedField: (() => {
+              isDetailedMode: (() => {
                 // looking for == notCollected probably isn't the most robust
                 // check. In a perfect world we would recreate the complex rules
                 // around our conditionally required fields and use that knowledge
                 // here. But this is easy and has the same effect because required
                 // fields can't be not collected
                 const isNotCollected = curr.value === notCollected
-                const isDefinitelyAdvanced = this.advancedModeOnlyObsFieldIds[
+                const isDefinitelyDetailed = this.detailedModeOnlyObsFieldIds[
                   curr.fieldId
                 ]
-                return isDefinitelyAdvanced || isNotCollected
+                return isDefinitelyDetailed || isNotCollected
               })(),
             })
             return accum
@@ -445,8 +445,8 @@ export default {
               multiselectId,
               multiselectValues: [{ name: curr.name, value: mappedValue }],
               // we don't have any required multiselects so we can simply hide them
-              // all in beginner mode
-              isAdvancedField: true,
+              // all in basic mode
+              isDetailedMode: true,
             })
             return accum
           }
