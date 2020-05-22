@@ -4,7 +4,6 @@ const state = {
   // remember we restore state from localStorage, so these are defaults
   appTitle: appTitle,
   isFirstRun: true,
-  tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
   isDetailedUserMode: false,
   addToHomeIosPromptLastDate: null,
@@ -13,7 +12,6 @@ const state = {
 
 const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
-  setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),
   setIsDetailedUserMode: (state, value) => (state.isDetailedUserMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
