@@ -245,6 +245,7 @@ const obsFields = [
     'Evidence of disturbance and threats in the immediate area',
     '',
     [
+      'None observed',
       'Vegetation clearance',
       'Mowing/slashing',
       'Rubbish dumping',
