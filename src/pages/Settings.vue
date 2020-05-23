@@ -206,7 +206,7 @@ export default {
     },
     isEnableHighAccuracy: {
       get() {
-        return this.$store.state.app.isEnableHighAccuracy
+        return this.$store.mutation.app.isEnableHighAccuracy
       },
       set(newValue) {
         this.$store.commit('app/isEnableHighAccuracy', newValue)
