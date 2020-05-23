@@ -192,22 +192,22 @@ const actions = {
         const blobType = safeBlobish.type
         wowWarnHandler(
           `Could not read EXIF data from blob with size=${blobSize} bytes and ` +
-          `type=${blobType}. Cannot process image, using original image as-is. ` +
-          `Error:`,
+            `type=${blobType}. Cannot process image, using original image as-is. ` +
+            `Error:`,
           err,
         )
         dispatch('uiTrace', {
-            category: 'store/ephemeral',
-            action: `error reading EXIF from attached photo`,
-          })
-          // TODO enhancement idea: brute force meansure image dimensions to do
-          // resizing, or find them elsewhere?
+          category: 'store/ephemeral',
+          action: `error reading EXIF from attached photo`,
+        })
+        // TODO enhancement idea: brute force meansure image dimensions to do
+        // resizing, or find them elsewhere?
         return {
           data: blobish,
           location: { isPresent: false },
         }
-      };
-      (function debugMetadata() {
+      }
+      ;(function debugMetadata() {
         const slightlyTerserMetadata = Object.assign({}, originalMetadata)
         if (slightlyTerserMetadata.UserComment) {
           slightlyTerserMetadata.UserComment = `(hidden ${slightlyTerserMetadata.UserComment.length} bytes)`
@@ -241,12 +241,12 @@ const actions = {
         isPhotoAlreadySmallEnoughStorage
       ) {
         // don't bother compressing an image that's already small enough
-        const dimMsg = hasDimensionsInExif ?
-          `X=${dimensionX}, Y=${dimensionY}` :
-          '(No EXIF dimensions)'
+        const dimMsg = hasDimensionsInExif
+          ? `X=${dimensionX}, Y=${dimensionY}`
+          : '(No EXIF dimensions)'
         console.debug(
           `No compresion needed for ${dimMsg},` +
-          ` ${originalImageSizeMb.toFixed(3)} MB image`,
+            ` ${originalImageSizeMb.toFixed(3)} MB image`,
         )
         return blobish
       }
@@ -261,14 +261,14 @@ const actions = {
         return compressedBlobish
       } catch (err) {
         wowWarnHandler(
-            `Failed to compress a photo with MIME=${blobish.type}, ` +
+          `Failed to compress a photo with MIME=${blobish.type}, ` +
             `size=${blobish.size} and EXIF=${JSON.stringify(
-        originalMetadata,
-      )}. ` +
+              originalMetadata,
+            )}. ` +
             'Falling back to original image.',
-            err,
-          )
-          // fallback to using the fullsize image
+          err,
+        )
+        // fallback to using the fullsize image
         return blobish
       }
     } finally {
@@ -299,10 +299,10 @@ const actions = {
       }
       console.debug(
         `Attached photo is missing GPS coords, summary: ${JSON.stringify(
-      debugInfo,
-      null,
-      2,
-    )}`,
+          debugInfo,
+          null,
+          2,
+        )}`,
       )
       return
     }
@@ -310,13 +310,13 @@ const actions = {
       commit(
         'setPhotoOutsideBboxErrorMsg',
         `<img style="width: 230px;" src="${photoObj.url}"><br />` +
-        `This photo has GPS coordinates (${lat},${lng}) but they look ` +
-        `like they're outside Australia so we can't use them. You can ` +
-        `still use the photo though.`,
+          `This photo has GPS coordinates (${lat},${lng}) but they look ` +
+          `like they're outside Australia so we can't use them. You can ` +
+          `still use the photo though.`,
       )
       wowWarnMessage(
         `User tried to use photo metadata coords (${lat},${lng}) that are ` +
-        `outside of Australia.`,
+          `outside of Australia.`,
       )
       return
     }
@@ -372,7 +372,7 @@ const actions = {
               // still fails.
               console.warn(
                 'Geolocation is supported but not available. Error code=' +
-                errCode,
+                  errCode,
               )
               return reject(constants.failed)
             case timeout:
@@ -383,7 +383,8 @@ const actions = {
             default:
               return reject(err)
           }
-        }, {
+        },
+        {
           timeout: 5000, // milliseconds
           enableHighAccuracy: this.isEnableHighAccuracy,
         },

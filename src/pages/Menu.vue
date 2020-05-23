@@ -4,12 +4,16 @@
       class="is-dev-warning"
       :class="{ 'force-hide': isForceHideDevWarning }"
       @click="onDevWarningClick"
-    >{{ deployedEnvName }}</div>
+    >
+      {{ deployedEnvName }}
+    </div>
     <div class="app-banner centered-flex-row">
       <img src="../assets/wow-logo.png" />
       <div>
         <div>Wild Orchid Watch</div>
-        <div class="version-number" @click="onVersionClick">Version: {{ appVersion }}</div>
+        <div class="version-number" @click="onVersionClick">
+          Version: {{ appVersion }}
+        </div>
       </div>
     </div>
     <div class="profile-pic centered-flex-row">
@@ -24,7 +28,11 @@
         @click="handleMenuClick(item.target)"
       >
         <div class="left">
-          <v-ons-icon fixed-width class="list-item__icon" :icon="item.icon"></v-ons-icon>
+          <v-ons-icon
+            fixed-width
+            class="list-item__icon"
+            :icon="item.icon"
+          ></v-ons-icon>
         </div>
         <div class="center">
           <a>{{ item.title }}</a>
@@ -34,9 +42,17 @@
 
     <v-ons-list-title>Links</v-ons-list-title>
     <v-ons-list>
-      <v-ons-list-item v-for="item in links" :key="item.title" :modifier="md ? 'nodivider' : ''">
+      <v-ons-list-item
+        v-for="item in links"
+        :key="item.title"
+        :modifier="md ? 'nodivider' : ''"
+      >
         <div class="left">
-          <v-ons-icon fixed-width class="list-item__icon" :icon="item.icon"></v-ons-icon>
+          <v-ons-icon
+            fixed-width
+            class="list-item__icon"
+            :icon="item.icon"
+          ></v-ons-icon>
         </div>
         <div class="center">
           <a :href="item.url" target="_blank" class="external-link">
