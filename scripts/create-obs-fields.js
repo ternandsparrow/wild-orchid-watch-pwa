@@ -112,7 +112,7 @@ const obsFields = [
   ),
   {
     name: 'Accuracy of population count',
-    description: 'How accurate is the count of indiviudals recorded.',
+    description: 'How accurate is the count of individuals recorded.',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
