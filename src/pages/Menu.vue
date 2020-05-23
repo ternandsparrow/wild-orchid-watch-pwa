@@ -40,9 +40,7 @@
         </div>
         <div class="center">
           <a :href="item.url" target="_blank" class="external-link">
-            {{
-            item.title
-            }}
+            {{ item.title }}
           </a>
         </div>
         <div class="right">
