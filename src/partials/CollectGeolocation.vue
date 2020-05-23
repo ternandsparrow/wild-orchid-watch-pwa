@@ -92,7 +92,7 @@
               </p>
             </div>
           </v-ons-list-item>
-          <v-ons-list-item v-if="isAdvancedUserMode" tappable>
+          <v-ons-list-item v-if="isDetailedUserMode" tappable>
             <label class="left">
               <v-ons-radio
                 v-model="geolocationMethod"
@@ -224,7 +224,7 @@ export default {
     }
   },
   computed: {
-    ...mapState('app', ['isAdvancedUserMode']),
+    ...mapState('app', ['isDetailedUserMode']),
     ...mapState('ephemeral', ['photoOutsideBboxErrorMsg']),
     ...mapGetters('ephemeral', [
       'oldestPhotoCoords',
@@ -332,9 +332,9 @@ export default {
       this.$store.commit('ephemeral/setManualCoords', newVal)
       this.pokeParentToReadCoords()
     },
-    isAdvancedUserMode(newVal) {
-      const isSwappedToBeginner = !newVal
-      if (isSwappedToBeginner && this.geolocationMethod === 'manual') {
+    isDetailedUserMode(newVal) {
+      const isSwappedToBasic = !newVal
+      if (isSwappedToBasic && this.geolocationMethod === 'manual') {
         this.geolocationMethod = 'photo'
       }
     },

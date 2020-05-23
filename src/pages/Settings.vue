@@ -55,15 +55,20 @@
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center" for="advancedSwitch">
-          <span class="list-item__title"><a>Advanced mode</a></span
+        <label class="center" for="detailedModeSwitch">
+          <span class="list-item__title"><a>Detailed mode</a></span
           ><span class="list-item__subtitle"
-            >If enabled, more questions will be asked when creating
-            observations. The extra questions are all optional.</span
+            >If enabled, you have the option to collect more detailed
+            observations through answering more questions. The extra questions
+            are all optional and you can switch back to basic mode at any
+            time.</span
           >
         </label>
         <div class="right">
-          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          <v-ons-switch
+            v-model="isDetailedUserMode"
+            input-id="detailedModeSwitch"
+          >
           </v-ons-switch>
         </div>
       </ons-list-item>
@@ -196,12 +201,12 @@ export default {
         this.$store.commit('app/setEnablePhotoCompression', newValue)
       },
     },
-    isAdvancedUserMode: {
+    isDetailedUserMode: {
       get() {
-        return this.$store.state.app.isAdvancedUserMode
+        return this.$store.state.app.isDetailedUserMode
       },
       set(newValue) {
-        this.$store.commit('app/setIsAdvancedUserMode', newValue)
+        this.$store.commit('app/setIsDetailedUserMode', newValue)
       },
     },
     isEnableHighAccuracy: {
