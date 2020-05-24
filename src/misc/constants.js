@@ -190,14 +190,20 @@ export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
 )
 
+// these following field IDs values are comma separated lists of ID that will
+// be grouped and displayed as a mutliselect in the UI. This is the make them
+// easier for the user to interact with.
+
 export const phenologyObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_PHENOLOGY',
   'phenology',
 )
 
+// the terminology changed from "coarse fragments" to "rock cover" but there
+// hasn't been time to refactor all the variable names yet
 export const coarseFragmentsObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_COARSE_FRAGMENTS',
-  'coarse fragments',
+  'rock cover',
 )
 
 export const immediateLanduseObsFieldIds = parseFieldIdList(
@@ -215,11 +221,17 @@ export const evidenceThreatsObsFieldIds = parseFieldIdList(
   'evidence of threats',
 )
 
+// these field IDs will become mutually exclusive with all other values in the
+// multiselect.
 export const mutuallyExclusiveMultiselectObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_MUTUALLY_EXCLUSIVE_MULTISELECT',
   'mutually exclusive',
 )
 
+// some browsers don't know how to word wrap long values in <select>s (looking
+// at you Samsung Internet and iOS Safari). To work around this, field IDs
+// listed here will be forced into a radiogroup instead, so we can control the
+// word wrapping
 export const wideSelectObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_WIDE_SELECTS',
   'wide select fields',

@@ -289,7 +289,7 @@ const obsFields = [
       'Mowing/slashing',
       'Rubbish dumping',
       'Chemical spray',
-      'Cultivation ',
+      'Cultivation',
       'Dieback',
       'Soil erosion',
       'Firewood/coarse woody debris removal',
