@@ -81,6 +81,14 @@ an iNat stack.
      and native Android and iOS. So it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
      as a Pixel 2 or iPhone 8.
 
+### Easier debugging
+There is another command you can to start the dev server: `yarn serve:debug`.
+This command configures the JS transpiling to target a more recent platform so
+the generated code will more closely match the code that you write. Trust me,
+this makes debugging async code much easier. It's probably a good idea to use
+this version of serve all the time for local development. Have a look at the
+`scripts` key in `package.json` to see how we achieve this.
+
 ## "Not so quick" quickstart to support remote devices accessing your local dev server
 
 PWAs *need* to be served over HTTPS for essential features to work. There's an
