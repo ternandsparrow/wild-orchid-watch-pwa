@@ -9,38 +9,79 @@ uploads obsversations to [iNaturalist](https://inaturalist.org/).
 
 Requirements:
   - yarn >= 1.16
-  - node >= 12 (or at least an LTS release otherwise you'll have to compile some things as part of the dependency install - like sharp - and that will either take a long time or fail... Just use an LTS release!)
-  - modern web browser (Chrome is a good choice)
+  - node >= 12 (or at least an LTS release otherwise you'll have to compile some
+      things as part of the dependency install - like sharp - and that will either
+      take a long time or fail... Just use an LTS release!)
+  - modern web browser (Chrome or Firefox are good choices)
+
+As a developer on this project, follow these steps to get the webpack dev server
+up and running. This is a local web server that builds the project and serves it
+on localhost so you can test your changes to the code. It includes a "hot
+reload" feature so you leave the server running while you make code changes and
+as files change, the dev server automatically rebuilds the deltas for a really
+quick feedback loop.
+
+The WOW app is just a way to interact with a single "traditional" project on an
+iNaturalist instance. The app *requires* an iNaturalist instance to operate. For
+production, this would be the "real" iNat (inaturalist.org) but during
+development it's likely to be a seperate instance.
+
+You'll need an active internet connection to use this app as it will communicate
+with an iNat instance. If you want to work completely offline, that's possible
+to do by running an iNat instance locally. See
+https://github.com/ternandsparrow/inaturalist-docker for an easy way to spin up
+an iNat stack.
+
+### Once-off set up steps
 
   1. clone repo
   1. install deps: `yarn`
+  1. (optional) get a Google maps API key. You'll need the [Maps JavaScript
+     API](https://developers.google.com/maps/documentation/javascript/tutorial).
+     See the docs for how to generate a key. We'll configure WOW to use it
+     below.
+  1. ensure you have an iNaturalist OAUTH client configure as you'll need to
+     login via iNaturalist to use the app. A client is already configured in the
+     `.env`, which will work for local development. If you need to configure a
+     different client, you can find the page create a new client on iNat here:
+     https://www.inaturalist.org/oauth/applications, or the corresponding page
+     on a sandbox copy of iNat. We'll configure WOW to use it below.
   1. create a `.env.local` file in the root of this project. In this file you
      can override values from the `.env` file. It's worth noting that this file
      is ignored by version control. You'll probably want define at least a
      Google Maps API key so the maps work but you may also need to change the
-     OAuth client ID. It's *NOT* a good idea to just copy the .env because if
-     the .env file ever changes in the future, your .env.local will continue to
-     (incorrectly) override that. Only add the items you want to your .env.loca.
+     OAuth client ID. It's *NOT* a good idea to just copy the `.env` because if
+     the `.env` file ever changes in the future, your `.env.local` will continue to
+     (incorrectly) override that. Only add the items you want to your `.env.local`
      Something like:
       ```env
+      # your iNat OAUTH client app ID, if you aren't using the default one
       VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
+      # your Google maps API key
       VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
-      # you can comment with a hashed line too
       ```
+
+### Steps you'll run every time
+
   1. run the dev server:
       ```
       yarn serve
+      # Or, if you want a different port
+      yarn serve --port=8081
       # Or, if you want to listen on your external IP
       yarn serve --host=11.22.33.44
-      # note that this will only work when running in development mode as there's no service worker, which would require HTTPS and a valid cert, which you almost certainly don't have on your local machine.
+      # note that accessing the app from an address other than localhost AND
+      # without HTTPS will only work when running in development mode as
+      # there's no service worker. PWAs require HTTPS and a valid cert,
+      # which you almost certainly don't have on your local machine. See below
+      # for steps to correctly set up for remote devices to connect.
       ```
   1. open the app URL (probably `http://localhost:8080`) in your browser
-  1. this is a PWA (web page that feels like a native app) so it's best to
-     enable the [Mobile Device Viewport
-     Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
+  1. this is a PWA and we've chosen a UI framework that copies the look and feel
+     and native Android and iOS. So it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
      as a Pixel 2 or iPhone 8.
 
-## Not-so-quick-but-better-start
+## "Not so quick" quickstart to support remote devices accessing your local dev server
 
 PWAs *need* to be served over HTTPS for essential features to work. There's an
 allowance for localhost to *not* require HTTPS, which is why the quickstart
@@ -109,7 +150,7 @@ CircleCI builds will have any required vars written to the `.env.local` file
 during the build process so check the [build config](./.circleci/config.yml) if
 you need to make sure a value is configured during the build.
 
-## Config via environment variables
+## Config deployed app via environment variables
 
 Look in `src/misc/constants.js` for all the values that can be configured. See
 the [CircleCI config](.circleci/config.yml) in the build step, for how we set

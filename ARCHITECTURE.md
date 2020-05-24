@@ -19,6 +19,21 @@ So, our hand has been forced and now we support the following browsers:
 - Samsung Internet 8.2+ (December 2018)
 - Apple macOS Safari 11.1+ (March 2018)
 
+
+# Continuous integration/deployment
+We use CircleCI for CI/CD. The way we've [configured](./.circleci/config.yml)
+the workflow is that *all* branches will be linted and unit tested for every
+commit. When it comes to deploying the app to a publicly accessible location,
+only 3 branches are deployed. At the time of writing, these are where each
+branch is deployed:
+ - develop is deployed to dev.app.wildorchidwatch.org
+ - beta is deployed to beta.app.wildorchidwatch.org
+ - master is deployed to app.wildorchidwatch.org
+
+This is all configurable via the environment variables used during the build
+process if you wish to change it.
+
+
 # Techonology choices
 
 ## PWA (Progressive Web App)
