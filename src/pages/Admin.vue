@@ -527,6 +527,7 @@ export default {
         'isSearchFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',
+        'obsFieldNamePrefix',
         'obsFieldSeparatorChar',
         'redirectUri',
         'taxaDataUrl',
@@ -538,7 +539,6 @@ export default {
       }))
       const result = [
         ...partialResult,
-        { label: 'obsFieldPrefix', value: `"${constants.obsFieldPrefix}"` },
         { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
         {
           label: 'googleMapsApiKey',

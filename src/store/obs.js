@@ -1845,7 +1845,7 @@ function mapGeojsonToLatLng(geojson) {
 }
 
 function processObsFieldName(fieldName) {
-  return (fieldName || '').replace(constants.obsFieldPrefix, '')
+  return (fieldName || '').replace(constants.obsFieldNamePrefix, '')
 }
 
 function mapObsFromOurDomainOntoApi(dbRecord) {

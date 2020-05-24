@@ -389,7 +389,8 @@ is we have a taxa list that's available offline, only includes orchids and
 saves clients from having to do needless processing as we can do it once at
 build time.
 
-When it comes time to roll out a new version, we get the cache busting for free from workbox because it's part of the manifest.
+When it comes time to roll out a new version, we get the cache busting for free
+from workbox because it's part of the manifest.
 
 Currently it's a manual job to periodically re-run the script to build a new
 list and if it's changed, commit it to git. This could be automated by
@@ -436,3 +437,54 @@ Samsung A8 that we tested on often wouldn't geo-tag photos taken with the
 Samsung camera but would immediately give an accurate device location to the
 browser. Using a different camera app, like MX Camera, would fix the problem
 but we can't expect users to install a seperate camera app.
+
+
+## Storing answers to our questions in iNat
+iNat has the core observation record, which contains species name, datetime,
+coordinate, observer and other information. There is no possibility to store
+any extra data *in* the observation record. iNat does provide for this "extra
+data" use case through a feature they call "observation fields". Any user can
+view/define these here: https://www.inaturalist.org/observation_fields.
+
+Fields can define their type and an enum/controlled vocabulary of valid values,
+which are enforced. We use these observation fields to store the answers for
+almost all of the questions we ask. At the time of writing, the only questions
+that don't get stored as observation fields are species name, coordinates and
+notes.
+
+To ease the process of creating these fields, and to store their configuration
+in source code, we have the `./scripts/create-obs-fields.js` NodeJS script.
+When run, this script will create all the fields in the target iNat instance.
+This is something that only needs to be done once for production but it may be
+required more often during development. The script requires some configuration
+to run so it's best to read the source code before running it.
+
+One limitation of observation fields is that they're owned by a single iNat
+user, with no option for transfer. Ideally they would be owned by the project
+and any curator of the project could maintain them but that's not currently the
+case. As a workaround, we've created an iNat users purely to own the fields.
+
+
+## Multiselect observation fields
+Another limitation of observation fields is that they can only have a single
+response and you can only have one instance of each field on an observation. So
+for a use case where you ask a question like "select all life stages present in
+the population", you need to get a bit creative to support that in iNat. Your
+options are:
+
+  1. serialise multiple values into a single response, such as
+     lifeStages="stage1|stage2"
+  1. have repeated questions to capture each response, such as
+     lifeStage1="stage1", lifeStage2="stage2"
+  1. pivot the question so each possible response becomes it's own boolean
+     question, such as "is stage1 present?"=yes, "is stage2 present?"=yes
+
+The first two options aren't great for a few reasons but mostly because they
+make the data hard to consume. The only drawback for the third option is we
+have to create more observation fields in iNat but we think that's acceptable
+for ending up with usable data.
+
+We use option 3 and we call these types of question "multiselects". This is
+because there are an enumerated set of options and you can select 0 to many of
+them. We also treat them specially in the UI, with some UI sugar, to make them
+nicer to interact with.

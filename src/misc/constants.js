@@ -11,7 +11,7 @@ import {
   yesValue,
 } from './obs-field-constants'
 
-export { noValue, yesValue, multiselectSeparator }
+export { noValue, yesValue, multiselectSeparator, obsFieldNamePrefix }
 
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
@@ -317,9 +317,6 @@ if (bboxLonMin >= bboxLonMax) {
 }
 
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
-
-export const obsFieldPrefix =
-  process.env.VUE_APP_OBS_FIELD_PREFIX || obsFieldNamePrefix
 
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
