@@ -2,7 +2,10 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 
 import store from '@/store'
-import { mainStackReplace } from '@/misc/nav-stacks'
+import {
+  mainStackReplace,
+  isOnboarderVisible as isOnboarderVisibleFn,
+} from '@/misc/nav-stacks'
 
 import Admin from '@/pages/Admin'
 import FAQ from '@/pages/faq/index'
@@ -35,6 +38,12 @@ const router = new VueRouter({
       path: '/',
       name: 'Home',
       component: homeComponent,
+      beforeEnter: (to, from, next) => {
+        if (store.state.app.isFirstRun && !isOnboarderVisibleFn()) {
+          return next({ name: 'Onboarder' })
+        }
+        return next()
+      },
     },
     {
       path: '/obs/gallery',

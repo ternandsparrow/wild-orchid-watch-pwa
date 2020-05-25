@@ -111,14 +111,6 @@
       :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
-    <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <div class="wow-t-c-container">
-        <div class="iframe-wrapper" :class="{ 'make-safari-scroll': isIos }">
-          <iframe src="/wow-t-and-c-v3.html" frameborder="0"></iframe>
-        </div>
-        <div class="close-btn" @click="onTAndCsCloseClick">Close</div>
-      </div>
-    </v-ons-dialog>
   </v-ons-page>
 </template>
 
@@ -140,7 +132,6 @@ export default {
         color: '#333',
         'z-index': 1, // WOW-60 needed for Firefox
       },
-      tsAndCsModalVisible: false,
     }
   },
   computed: {
@@ -163,14 +154,6 @@ export default {
     },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
-    },
-    showTAndCs() {
-      this.$wow.uiTrace('Onboarder', 'T&C open')
-      this.tsAndCsModalVisible = true
-    },
-    onTAndCsCloseClick() {
-      this.$wow.uiTrace('Onboarder', 'T&C close')
-      this.tsAndCsModalVisible = false
     },
   },
 }
