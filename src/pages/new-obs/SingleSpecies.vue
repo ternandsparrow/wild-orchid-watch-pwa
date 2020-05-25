@@ -187,7 +187,7 @@
                 :items="taxonQuestionAutocompleteItems[currField.id]"
                 :initial-value="obsFieldInitialValues[currField.id]"
                 :is-error="speciesAutocompleteErrors[currField.id]"
-                placeholder-text="e.g. snail orchid"
+                placeholder-text="e.g. casuarina glauca"
                 :extra-callback-data="currField.id"
                 @change="debouncedOnTaxonQuestionInput"
                 @item-selected="onTaxonQuestionSet"
