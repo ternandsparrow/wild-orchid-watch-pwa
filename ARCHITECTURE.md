@@ -34,6 +34,49 @@ This is all configurable via the environment variables used during the build
 process if you wish to change it.
 
 
+# High level steps to set this project up from scratch
+These steps shouldn't be needed as the project was handed over already
+configured. They may be needed for setting up a development environment or if
+this project is forked for another iNat project.
+
+This is how to get the project running as-is. We'll address changes for a fork
+after.
+
+  1. find somewhere to host this app/site (Firebase hosting, AWS S3 website, etc)
+  1. create a DNS record to point to the hosting. We'll use `wow.example.com` as
+     an example
+  1. ensure that the web hosting is done over HTTPS (PWAs must be served over
+     HTTPS)
+  1. create a [traditional](https://www.inaturalist.org/pages/managing-projects#traditional) project on iNaturalist, which is where observations will be stored
+  1. create all the required observation fields in iNaturalist (see
+     `scripts/create-obs-fields.js`)
+  1. add all the obs fields to the new iNat project
+  1. create an [OAuth client app](https://www.inaturalist.org/oauth/applications) in iNat, making sure to *not* choose "confidential" as a static website cannot keep secrets
+  1. edit `.env.local` to override all the required values from `.env` so point
+     to all the obs field IDs (you created above) and other configurable items
+  1. run the dev server locally with `yarn serve` and confirm everything works
+  1. configure CircleCI to build this repo and supply all the expected env vars
+     (see `.circleci/config.yml`)
+  1. trigger a build in CircleCI so the project is deployed to your hosting
+  1. visit wow.example.com to use the app
+
+If you're forking this project, a lot should be usable as is. You'll still be
+submitting observations to a single project on iNat so all the pipeline for
+uploading observations will be usable.
+
+The things you will need to change are any branding (there is very little) and
+the hardcoded knowledge about observation fields. The main reason we have so
+many obs field IDs configured is for linking to the help doco. The other reason
+is complex logic around when to display or make certain obs fields required.
+You'll have to change this to suit your particular set of obs fields.
+
+Doco gets out of date so the best way is to read the code. Look for what happens
+when you opt to create an new observation and follow the trail from there. Most
+of the changes will be required at the start but once the observation has been
+written to the datastore, fewer changes will be required to get it uploaded and
+it's treated fairly generically.
+
+
 # Techonology choices
 
 ## PWA (Progressive Web App)
