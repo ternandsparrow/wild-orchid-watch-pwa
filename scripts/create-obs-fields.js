@@ -269,11 +269,12 @@ const obsFields = [
     datatype: 'text',
     allowedValues: '',
   },
-  ...multiselect(
-    'Landuse of the immediate area',
-    'Categorise the immediate area surrounding the observation',
-    `Conservation and natural environments|${commonLanduses}`,
-  ),
+  {
+    name: 'Landuse of the immediate area',
+    description: 'Categorise the immediate area surrounding the observation',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.conservationLanduse}|${commonLanduses}`,
+  },
   {
     name: 'Wider landuse',
     description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
@@ -412,5 +413,11 @@ function requiredEnvVar(key) {
     }
     await createObsField(curr)
   }
+  console.log(
+    '[INFO] note that for the iNat project to see any changes to obs fields, ' +
+      'you need to edit and save it (even if you change nothing). This will ' +
+      'make the project "re-read" the obs fields otherwise it seems to ' +
+      'continue to serve up a cached, stale copy of the project info.',
+  )
   console.log('[INFO] Done, all fields created without error')
 })()

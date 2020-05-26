@@ -334,8 +334,6 @@ import {
   wowWarnHandler,
 } from '@/misc/helpers'
 import {
-  autocompleteTypeHost,
-  autocompleteTypeOrchid,
   accuracyOfPopulationCountObsFieldDefault,
   accuracyOfPopulationCountObsFieldId,
   accuracyOfSearchAreaCalcEstimated,
@@ -343,28 +341,31 @@ import {
   accuracyOfSearchAreaCalcPrecise,
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
+  autocompleteTypeHost,
+  autocompleteTypeOrchid,
   coarseFragmentsMultiselectId,
-  conservationImmediateLanduseObsFieldId,
+  conservationLanduse,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
+  immediateLanduseObsFieldId,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
-  photoTypeWholePlant,
-  photoTypeFlower,
-  photoTypeLeaf,
-  photoTypeFruit,
-  photoTypeHabitat,
-  photoTypeMicrohabitat,
-  photoTypeCanopy,
-  photoTypeFloralVisitors,
-  photoTypeEpiphyteHostTree,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
+  photoTypeCanopy,
+  photoTypeEpiphyteHostTree,
+  photoTypeFloralVisitors,
+  photoTypeFlower,
+  photoTypeFruit,
+  photoTypeHabitat,
+  photoTypeLeaf,
+  photoTypeMicrohabitat,
+  photoTypeWholePlant,
   searchAreaCalcPreciseLengthObsFieldId,
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
@@ -503,13 +504,18 @@ export default {
           })
           return accum
         }
+        const fieldIdsConditionallyRequiredOnlyInDetailedMode = [
+          widerLanduseObsFieldId,
+        ]
         const isConditionalRequiredField = [
           ...this.requiredFieldIdsConditionalOnNumberFields,
           ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
           // if these fields are visible, then they're required!
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
-          widerLanduseObsFieldId,
+          ...(this.isDetailedUserMode
+            ? fieldIdsConditionallyRequiredOnlyInDetailedMode
+            : []),
         ].includes(curr.id)
         const field = {
           ...curr,
@@ -573,8 +579,9 @@ export default {
       this.obsFieldVisibility[soilStructureObsFieldId] = isTerrestrial
       this.obsFieldVisibility[coarseFragmentsMultiselectId] = isTerrestrial
     },
-    [`obsFieldValues.${conservationImmediateLanduseObsFieldId}`](newVal) {
-      const isConservation = newVal === true
+    [`obsFieldValues.${immediateLanduseObsFieldId}`](newVal) {
+      const isConservation = newVal === conservationLanduse
+
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
     },
     [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {

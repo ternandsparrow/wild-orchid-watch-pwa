@@ -607,7 +607,7 @@ export default (() => {
       ],
     },
     {
-      id: constants.immediateLanduseMultiselectId,
+      id: constants.immediateLanduseObsFieldId,
       heading: 'Landuse of the immediate area',
       values: [
         [

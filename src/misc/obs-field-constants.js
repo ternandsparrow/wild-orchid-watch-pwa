@@ -16,4 +16,6 @@ module.exports = {
 
   precise: 'Precise',
   estimated: 'Estimated',
+
+  conservationLanduse: 'Conservation and natural environments',
 }

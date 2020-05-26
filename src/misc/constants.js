@@ -1,4 +1,5 @@
 import {
+  conservationLanduse,
   epiphyte,
   estimated,
   exact,
@@ -11,7 +12,13 @@ import {
   yesValue,
 } from './obs-field-constants'
 
-export { noValue, yesValue, multiselectSeparator, obsFieldNamePrefix }
+export {
+  conservationLanduse,
+  multiselectSeparator,
+  noValue,
+  obsFieldNamePrefix,
+  yesValue,
+}
 
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
@@ -108,8 +115,8 @@ export const soilStructureObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_SOIL_STRUCTURE,
 )
 
-export const conservationImmediateLanduseObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE_CONSERVATION,
+export const immediateLanduseObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE,
 )
 
 export const areaOfPopulationObsFieldId = convertAndAssertInteger(
@@ -206,11 +213,6 @@ export const coarseFragmentsObsFieldIds = parseFieldIdList(
   'rock cover',
 )
 
-export const immediateLanduseObsFieldIds = parseFieldIdList(
-  'VUE_APP_OBS_FIELD_IDS_IMMEDIATE_LANDUSE',
-  'immediate landuse',
-)
-
 export const floralVisitorsObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_FLORAL_VISITORS',
   'floral visitors',
@@ -259,7 +261,6 @@ function parseFieldIdList(envVarKey, msgFragment) {
 export const coarseFragmentsMultiselectId = 'coarseFragmentsMultiselect'
 export const evidenceThreatsMultiselectId = 'evidenceThreatsMultiselect'
 export const floralVisitorsMultiselectId = 'floralVisitorsMultiselect'
-export const immediateLanduseMultiselectId = 'immediateLanduseMultiselect'
 export const phenologyMultiselectId = 'phenologyMultiselect'
 
 export function getMultiselectId(fieldId) {
@@ -267,7 +268,6 @@ export function getMultiselectId(fieldId) {
     [coarseFragmentsObsFieldIds]: coarseFragmentsMultiselectId,
     [evidenceThreatsObsFieldIds]: evidenceThreatsMultiselectId,
     [floralVisitorsObsFieldIds]: floralVisitorsMultiselectId,
-    [immediateLanduseObsFieldIds]: immediateLanduseMultiselectId,
     [phenologyObsFieldIds]: phenologyMultiselectId,
   }
   const found = Object.entries(multiselectIdMapping).find(e =>
