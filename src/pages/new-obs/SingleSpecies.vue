@@ -870,9 +870,9 @@ export default {
     },
     setDefaultAnswers() {
       try {
-        // TODO are these defaults ok? Should we be smarter like picking the
-        // last used values? Or should we have a button to "clone previous
-        // observation"?
+        // TODO enhancement idea: we could be smarter like picking the last
+        // used values. Or should we could have a button to "clone previous
+        // observation".
         this.obsFieldValues = this.displayableObsFields.reduce(
           (accum, curr) => {
             const isMultiselect = curr.wowDatatype === multiselectFieldType
@@ -893,6 +893,7 @@ export default {
               const speciallyHandledFields = {
                 [accuracyOfSearchAreaCalcObsFieldId]: notCollected,
                 [areaOfPopulationObsFieldId]: null,
+                [widerLanduseObsFieldId]: null,
               }
               if (
                 Object.keys(speciallyHandledFields).find(
