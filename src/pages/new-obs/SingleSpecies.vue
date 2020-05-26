@@ -28,6 +28,7 @@
                 :id="currMenuItem.id + '-add'"
                 :ref="photoRef(currMenuItem)"
                 type="file"
+                multiple
                 :name="currMenuItem.id + '-add'"
                 accept="image/png, image/jpeg"
                 class="photo-button"
@@ -1225,49 +1226,54 @@ export default {
       return result
     },
     async onPhotoChanged(photoDefObj) {
-      this.$wow.uiTrace('SingleSpecies', `photo attached`)
       const type = photoDefObj.id
-      const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
-      if (!file) {
-        return
-      }
-      const theUuid = uuid()
-      const photoObj = {
-        type,
-        file,
-        url: URL.createObjectURL(file),
-        uuid: theUuid,
-      }
-      this.photos.push(photoObj)
-      // here we use the full size photo but send it for compression/resizing in
-      // the worker (background) so we don't block the UI.
-      this.$store
-        .dispatch('ephemeral/processPhoto', photoObj)
-        .then(photoBlobish => {
-          const found = this.photos.find(e => e.uuid === theUuid)
-          if (!found) {
-            // guess the photo has already been deleted?
-            return
-          }
-          found.file = photoBlobish
-          const oldUrl = found.url
-          const newUrl = URL.createObjectURL(photoBlobish)
-          if (oldUrl === newUrl) {
-            // createObjectURL seems to always generate a new URL, but just to
-            // be safe, we'll check. Don't wanna revoke the one we're using.
-            return
-          }
-          found.url = newUrl
-          // we don't want our thumbnail to be using a revoked blob URL
-          this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
-            uuid: photoObj.uuid,
-            newUrl,
+      const files = this.$refs[this.photoRef(photoDefObj)][0].files
+      this.$wow.uiTrace(
+        'SingleSpecies',
+        `photo attached: ${files.length} ${type}`,
+      )
+      for (const file of files) {
+        if (!file) {
+          continue
+        }
+        const theUuid = uuid()
+        const photoObj = {
+          type,
+          file,
+          url: URL.createObjectURL(file),
+          uuid: theUuid,
+        }
+        this.photos.push(photoObj)
+        // here we use the full size photo but send it for compression/resizing in
+        // the worker (background) so we don't block the UI.
+        this.$store
+          .dispatch('ephemeral/processPhoto', photoObj)
+          .then(photoBlobish => {
+            const found = this.photos.find(e => e.uuid === theUuid)
+            if (!found) {
+              // guess the photo has already been deleted?
+              return
+            }
+            found.file = photoBlobish
+            const oldUrl = found.url
+            const newUrl = URL.createObjectURL(photoBlobish)
+            if (oldUrl === newUrl) {
+              // createObjectURL seems to always generate a new URL, but just to
+              // be safe, we'll check. Don't wanna revoke the one we're using.
+              return
+            }
+            found.url = newUrl
+            // we don't want our thumbnail to be using a revoked blob URL
+            this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
+              uuid: photoObj.uuid,
+              newUrl,
+            })
+            URL.revokeObjectURL(oldUrl)
           })
-          URL.revokeObjectURL(oldUrl)
-        })
-        .catch(err => {
-          wowWarnHandler('Failed to compress/resize an image', err)
-        })
+          .catch(err => {
+            wowWarnHandler('Failed to compress/resize an image', err)
+          })
+      }
     },
     async _onSpeciesGuessInput(data) {
       this.speciesAutocompleteErrors.speciesGuess = false
