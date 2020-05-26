@@ -141,6 +141,12 @@
                   Enter both lat and lon values
                 </div>
                 <div
+                  v-if="geolocationFromManualState === 'invalid'"
+                  class="warning-alert"
+                >
+                  Invalid value(s). Please only enter numbers.
+                </div>
+                <div
                   v-if="geolocationFromManualState === 'outside-bbox'"
                   class="warning-alert"
                 >
@@ -273,6 +279,9 @@ export default {
       }
       if (!this.isManualLatAndLon) {
         return 'incomplete'
+      }
+      if (isNaN(this.manualLat) || isNaN(this.manualLon)) {
+        return 'invalid'
       }
       const lat = parseFloat(this.manualLat)
       const lng = parseFloat(this.manualLon)
