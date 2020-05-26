@@ -17,7 +17,7 @@
           :key="currMenuItem.name + '-header'"
           :label="currMenuItem.name + ' photos'"
           :required="currMenuItem.required"
-          help-target="photos"
+          :help-target="'photos-' + currMenuItem.id"
           class="margin-for-photos"
           @on-help="showHelp"
         />
@@ -353,6 +353,15 @@ import {
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
+  photoTypeWholePlant,
+  photoTypeFlower,
+  photoTypeLeaf,
+  photoTypeFruit,
+  photoTypeHabitat,
+  photoTypeMicrohabitat,
+  photoTypeCanopy,
+  photoTypeFloralVisitors,
+  photoTypeEpiphyteHostTree,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
@@ -375,15 +384,15 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole-plant', name: 'Whole plant', required: true },
-        { id: 'flower', name: 'Flower' },
-        { id: 'leaf', name: 'Leaf' },
-        { id: 'fruit', name: 'Fruit' },
-        { id: 'habitat', name: 'Habitat', required: true },
-        { id: 'micro-habitat', name: 'Micro-habitat', required: true },
-        { id: 'canopy', name: 'Canopy' },
-        { id: 'floral-visitors', name: 'Floral visitors' },
-        { id: 'host-tree', name: 'Epiphyte host tree' },
+        { id: photoTypeWholePlant, name: 'Whole plant', required: true },
+        { id: photoTypeFlower, name: 'Flower' },
+        { id: photoTypeLeaf, name: 'Leaf' },
+        { id: photoTypeFruit, name: 'Fruit' },
+        { id: photoTypeHabitat, name: 'Habitat', required: true },
+        { id: photoTypeMicrohabitat, name: 'Micro-habitat', required: true },
+        { id: photoTypeCanopy, name: 'Canopy' },
+        { id: photoTypeFloralVisitors, name: 'Floral visitors' },
+        { id: photoTypeEpiphyteHostTree, name: 'Epiphyte host tree' },
       ],
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,

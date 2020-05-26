@@ -399,6 +399,16 @@ export const serviceWorkerUpdateAuthHeaderUrl =
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
 
+export const photoTypeWholePlant = 'whole-plant'
+export const photoTypeFlower = 'flower'
+export const photoTypeLeaf = 'leaf'
+export const photoTypeFruit = 'fruit'
+export const photoTypeHabitat = 'habitat'
+export const photoTypeMicrohabitat = 'micro-habitat'
+export const photoTypeCanopy = 'canopy'
+export const photoTypeFloralVisitors = 'floral-visitors'
+export const photoTypeEpiphyteHostTree = 'host-tree'
+
 function convertAndAssertInteger(val) {
   const result = parseInt(val)
   if (isNaN(result)) {

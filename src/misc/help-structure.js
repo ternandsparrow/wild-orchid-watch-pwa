@@ -56,49 +56,97 @@ const commonLanduseValues = [
 export default (() => {
   const theData = [
     {
-      id: 'photos',
-      heading: 'Photos',
+      id: 'photos-' + constants.photoTypeWholePlant,
+      heading: 'Whole plant photos',
       values: [
         [
           'Whole Plant',
           'Show the plant habit; that is, its overall shape and form. Where possible please use a scale card or item such as a coin to show the height and width of the flower stem.',
           'photo-habit.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeFlower,
+      heading: 'Flower photos',
+      values: [
         [
           'Flower',
           'Please include photos of the individual flower from the front, side, and back. If relevant photograph whole inflorescence (complete flower head). If possible please use a scale card (see example photo) or item such as a coin for scale.',
           'photo-flower.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeLeaf,
+      heading: 'Leaf photos',
+      values: [
         [
           'Leaf',
           'Include photos of the leaf showing shape and any vein patterns, using a scale if possible.',
           'photo-leaf.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeFruit,
+      heading: 'Fruit photos',
+      values: [
         [
           'Fruit',
           'Photos of fruit including colour and size. Include scale if possible.',
           'photo-fruit.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeHabitat,
+      heading: 'Habitat photos',
+      values: [
         [
           'Habitat',
           'Habitat features to include in photo: where present try to capture dominant ground cover, shrubs and canopy vegetation. Any obvious landscape features such as water bodies or evidence of fire.',
           'photo-habitat.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeMicrohabitat,
+      heading: 'Micro-habitat photos',
+      values: [
         [
           'Micro-habitat',
           'Photograph the ground directly beneath the orchid, ~30cm from the orchid on either side.',
           'photo-micro-habitat.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeCanopy,
+      heading: 'Canopy photos',
+      values: [
         [
           'Canopy',
           'Take a photo straight up into the canopy directly above the orchid. Please hold the phone at flower height for terrestrial, or chest height for above head height epiphytes.',
           'photo-canopy.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeFloralVisitors,
+      heading: 'Floral visitors photos',
+      values: [
         [
           'Floral visitors',
           'Photograph any potential pollinators on the orchid. May be hard to capture, but great if you can!',
           'visitors-fungus-gnat.jpg',
         ],
+      ],
+    },
+    {
+      id: 'photos-' + constants.photoTypeEpiphyteHostTree,
+      heading: 'Epiphyte host tree photos',
+      values: [
         [
           'Epiphyte host tree',
           'When an orchid is growing on another plant (ie. is not terrestrial) please photograph the host tree/plant',
