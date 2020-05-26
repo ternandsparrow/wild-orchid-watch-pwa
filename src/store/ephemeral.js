@@ -42,7 +42,7 @@ const state = {
   photoCoords: [],
   deviceCoords: null,
   manualCoords: null,
-  geolocationMethod: 'photo',
+  geolocationMethod: null,
   photoOutsideBboxErrorMsg: null,
   photoProcessingTasks: [],
   hadSuccessfulDeviceLocReq: false, // in ephemeral so we only remember it for a session
@@ -94,11 +94,11 @@ const mutations = {
   closePhotoPreview: state => (state.previewedPhoto = null),
   pushConsoleMsg: (state, msg) => state.consoleMsgs.push(msg),
   clearConsoleMsgs: state => (state.consoleMsgs = []),
-  resetCoordsState: state => {
+  resetCoordsState: (state, geolocationMethod) => {
     state.photoCoords = []
     state.deviceCoords = null
     state.manualCoords = null
-    state.geolocationMethod = 'photo'
+    state.geolocationMethod = geolocationMethod
     state.photoProcessingTasks = []
     state.photoOutsideBboxErrorMsg = null
   },
@@ -405,9 +405,17 @@ const getters = {
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
   isLocalProcessorRunning: state => !!state.queueProcessorPromise,
-  coordsForCurrentlyEditingObs(state, getters) {
+  coordsForCurrentlyEditingObs(state, getters, _, rootGetters) {
     const geoMethod = state.geolocationMethod
     switch (geoMethod) {
+      case 'existing':
+        return (() => {
+          const editingObs = rootGetters['obs/observationDetail'] || {}
+          return {
+            lat: editingObs.lat,
+            lng: editingObs.lng,
+          }
+        })()
       case 'photo':
         return getters.oldestPhotoCoords
       case 'device':

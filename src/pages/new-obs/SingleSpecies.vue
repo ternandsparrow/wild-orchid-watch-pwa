@@ -91,17 +91,13 @@
           What species is this observation of?
         </div>
       </v-ons-list-item>
-      <!-- FIXME need to init geolocation so it can be edited. Should we also store -->
-      <!-- the method used (and the thumbnail, etc) or just show that it *is* saved -->
-      <!-- and you can edit it if you like (easier).                                -->
       <wow-header
-        v-if="!isEdit"
         label="Geolocation / GPS coordinates"
         help-target="geolocation"
         @on-help="showHelp"
       />
       <wow-collect-geolocation
-        v-if="!isEdit"
+        :is-edit="isEdit"
         :photo-count="photos.length"
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"

@@ -2,8 +2,23 @@
   <div>
     <v-ons-list-item modifier="nodivider">
       <div class="center">
-        <!-- FIXME need to handle edit mode -->
         <v-ons-list>
+          <v-ons-list-item v-if="isEdit" tappable>
+            <label class="left">
+              <v-ons-radio
+                v-model="geolocationMethod"
+                input-id="radio-gm-existing"
+                value="existing"
+                modifier="material"
+              >
+              </v-ons-radio>
+            </label>
+            <div class="center geolocation-option-label">
+              <label for="radio-gm-existing">
+                Use existing value in saved record
+              </label>
+            </div>
+          </v-ons-list-item>
           <v-ons-list-item tappable>
             <label class="left">
               <v-ons-radio
@@ -220,6 +235,10 @@ export default {
       type: Boolean,
       required: true,
     },
+    isEdit: {
+      type: Boolean,
+      required: true,
+    },
   },
   data() {
     return {
@@ -349,7 +368,8 @@ export default {
     },
   },
   beforeMount() {
-    this.$store.commit('ephemeral/resetCoordsState')
+    const selectedMethod = this.isEdit ? 'existing' : 'photo'
+    this.$store.commit('ephemeral/resetCoordsState', selectedMethod)
   },
   beforeDestroy() {
     this.$store.commit('ephemeral/resetCoordsState')
