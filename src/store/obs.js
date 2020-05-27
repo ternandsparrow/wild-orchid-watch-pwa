@@ -1573,12 +1573,12 @@ const getters = {
         constants.successOutcome,
     )
   },
-  obsFields(state) {
-    const projectInfo = state.projectInfo
-    if (!projectInfo) {
+  obsFields(_, getters) {
+    const projectObsFields = getters.nullSafeProjectObsFields
+    if (!projectObsFields.length) {
       return []
     }
-    const result = projectInfo.project_observation_fields.map(fieldRel => {
+    const result = projectObsFields.map(fieldRel => {
       // don't get confused: we have the field definition *and* the
       // relationship to the project
       const fieldDef = fieldRel.observation_field
@@ -1602,15 +1602,18 @@ const getters = {
       return accum
     }, {})
   },
-  detailedModeOnlyObsFieldIds(state) {
+  detailedModeOnlyObsFieldIds(_, getters) {
     // this doesn't handle conditional requiredness, but we tackle that elsewhere
-    return state.projectInfo.project_observation_fields.reduce(
-      (accum, curr) => {
-        accum[curr.id] = curr.required
-        return accum
-      },
-      {},
-    )
+    return getters.nullSafeProjectObsFields.reduce((accum, curr) => {
+      accum[curr.id] = curr.required
+      return accum
+    }, {})
+  },
+  nullSafeProjectObsFields(state) {
+    // there's a race condition where you can get to an obs detail page before
+    // the project info has been cached. This stops an error and will
+    // auto-magically update when the project info does arrive
+    return (state.projectInfo || {}).project_observation_fields || []
   },
 }
 
