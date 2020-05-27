@@ -370,7 +370,7 @@ export default {
         )
       }
     },
-    setUsernameOnSentry({ getters }) {
+    setUsernameOnSentry({ getters, dispatch }) {
       const username = getters.myUsername
       if (!username) {
         console.debug('No username present, cannot set on Sentry')
@@ -379,6 +379,19 @@ export default {
       console.debug(`Setting username=${username} on Sentry`)
       Sentry.configureScope(scope => {
         scope.setUser({ username: username })
+      })
+      dispatch('sendSwUpdatedErrorTrackerContext', { username })
+    },
+    async sendSwUpdatedErrorTrackerContext(_, { username }) {
+      if (!(await isSwActive())) {
+        return
+      }
+      return fetch(constants.serviceWorkerUpdateErrorTrackerContextUrl, {
+        method: 'POST',
+        retries: 0,
+        body: JSON.stringify({
+          username: username,
+        }),
       })
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {

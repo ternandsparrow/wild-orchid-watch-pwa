@@ -790,6 +790,25 @@ registerRoute(
   'POST',
 )
 
+registerRoute(
+  constants.serviceWorkerUpdateErrorTrackerContextUrl,
+  async ({ url, event, params }) => {
+    const newContext = await event.request.json()
+    const username = newContext.username
+    if (username) {
+      console.debug(`[SW] Updating error tracker username to '${username}'`)
+      Sentry.configureScope(scope => {
+        scope.setUser({ username: username })
+      })
+    }
+    return jsonResponse({
+      result: 'thanks',
+      suppliedContext: newContext,
+    })
+  },
+  'POST',
+)
+
 // We don't want the SW to interfere here but if we have a mapping, calls to
 // this endpoint will "wake up" the SW. This will prompt queue processing if
 // required so things will get processed sooner.
