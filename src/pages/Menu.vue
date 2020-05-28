@@ -73,8 +73,9 @@ import { mapGetters } from 'vuex'
 import {
   appVersion,
   deployedEnvName,
-  inatUrlBase,
   inatProjectSlug,
+  inatUrlBase,
+  isBugReportFeatureEnabled,
   isMissionsFeatureEnabled,
   isNewsFeatureEnabled,
   isSearchFeatureEnabled,
@@ -167,6 +168,12 @@ export default {
           title: 'Settings',
           icon: 'md-settings',
           target: { name: 'Settings' },
+        },
+        {
+          title: 'Report problem',
+          icon: 'fa-bug',
+          target: { name: 'BugReport' },
+          isDisabled: !isBugReportFeatureEnabled,
         },
       ],
     }

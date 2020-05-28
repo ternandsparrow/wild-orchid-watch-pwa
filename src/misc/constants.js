@@ -36,8 +36,6 @@ export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 // https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
-export const appTitle = process.env.VUE_APP_TITLE
-
 // Where the static assets for iNat are served from. For a dev server, it's
 // probably the same at inatUrlBase. For the real inat, it's probably a CDN. To
 // find out this value, load the iNat page of your choosing, and inspect the
@@ -63,6 +61,8 @@ export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
 export const deployedEnvName = process.env.VUE_APP_DEPLOYED_ENV_NAME
 
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
+export const googleErrorsApiKey =
+  process.env.VUE_APP_GCP_ERRORS_API_KEY || googleMapsApiKey
 
 // The tracker code for Google Analytics, e.g: UA-000000-1
 export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
@@ -98,6 +98,9 @@ export const isNewsFeatureEnabled =
 
 export const isSearchFeatureEnabled =
   process.env.VUE_APP_FEATURE_FLAG_SEARCH || false
+
+export const isBugReportFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_BUG_REPORT || false
 
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,

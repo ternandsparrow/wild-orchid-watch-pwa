@@ -42,6 +42,7 @@
     "register-service-worker": "^1.6.2",
     "sass": "^1.21.0",
     "smoothscroll-polyfill": "^0.4.4",
+    "stackdriver-error-reporting-clientside-js-client": "https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#v0.1.0",
     "uuid": "^3.3.3",
     "vue": "^2.6.10",
     "vue-analytics": "^5.17.2",

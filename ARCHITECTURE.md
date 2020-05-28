@@ -234,10 +234,11 @@ to cost almost as much as just paying for their SaaS hosted solution, plus you
 don't have to maintain it yourself.
 
 Google Cloud Platform offers "Stackdriver error reporting", which sort of does
-the same thing. It looks mainly geared towards server side reporting, but it
-seems possible to use it for client side (I haven't actually tried) assuming
-you can lock down the API key enough to be safe to give to a client. The error
-reporting is much simpler, you get to report:
+the same thing. It is mainly geared towards server side reporting, and although
+they offer a NodeJS client, this cannot be used for client side code (I tried).
+You can use the HTTP API though (and we do for the "bug reporting"). Compared
+with Sentry (and similar), the error reporting is much simpler, you get to
+report:
   - a message
   - a location in source
   - a user
@@ -250,6 +251,41 @@ Stackdriver, but you'd have to build and maintain it yourself.
 
 Firebase, which we use for hosting, offers Crashlytics but it's only for native
 apps. So that's a non-starter for us.
+
+
+## Google Cloud Stackdriver Error Reporting
+We have this in the mix too because the "Report Problem" (BugReport) feature
+needs to send quite a bit of data (10kb payload isn't unexpected) and this is
+too much for the other alternatives we had on hand:
+  - Sentry won't error when you send that much data but it does truncate the payload
+  - sending via email with a mailto: href gives a 413 error for gMail (might
+     work for native clients, but it's pushing it)
+
+The requirements when looking for something that would accept our user
+triggered bug reports were to stick within the requirements of the existing
+app, so:
+  - cost effective
+  - minimal operational overhead (no server to run)
+
+Additionally it'd nice if we don't need to use yet another service so as we
+already need Google Cloud, options on that platform are attractive. Stackdriver
+is good because it already has a UI for displaying reports, it can handle the
+payload size, it's free and it can trigger email alerts.
+
+We looked at Stackdriver logging but the UI doesn't fit our use case and there
+doesn't seem to be email alerts for new items (only for configuration issues),
+which are pretty useful. In any case, all Error Reporting errors are accessible
+from the Logging UI anyway so you can choose which interface to use.
+
+One sticking point is that all the clients are designed to run in server-side
+environments. The NodeJS offering
+(https://github.com/googleapis/nodejs-error-reporting) can't run in a
+client-side browser world because it has expectations on things in the
+`process` global that Node sets up. There is a HTTP API though, the call isn't
+hard and it's probably safe to assume that Google can version and honour their
+API correctly so there's minimal risk. We rolled our own client to that API
+incase the community adopts it and we can share any maintenance load:
+https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client.
 
 
 ## Workbox

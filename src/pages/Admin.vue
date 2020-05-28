@@ -525,6 +525,7 @@ export default {
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
         'isSearchFeatureEnabled',
+        'isBugReportFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',
         'obsFieldNamePrefix',

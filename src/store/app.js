@@ -1,8 +1,7 @@
-import { alwaysUpload, appTitle } from '@/misc/constants'
+import { alwaysUpload } from '@/misc/constants'
 
 const state = {
   // remember we restore state from localStorage, so these are defaults
-  appTitle: appTitle,
   isFirstRun: true,
   whenToSync: alwaysUpload,
   isDetailedUserMode: false,

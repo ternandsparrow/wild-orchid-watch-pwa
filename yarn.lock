@@ -13834,6 +13834,10 @@ stack-utils@^1.0.1:
   resolved "https://registry.yarnpkg.com/stack-utils/-/stack-utils-1.0.2.tgz#33eba3897788558bebfc2db059dc158ec36cebb8"
   integrity sha512-MTX+MeG5U994cazkjd/9KNAapsHnibjMLnfXodlkXw76JEea0UiNzrqidzo1emMwk7w5Qhc9jd4Bn9TBb1MFwA==
 
+"stackdriver-error-reporting-clientside-js-client@https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#v0.1.0":
+  version "0.1.0"
+  resolved "https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#0b1815e0d6429aafee72f645ef1074d32bb88f45"
+
 stackframe@^1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/stackframe/-/stackframe-1.1.1.tgz#ffef0a3318b1b60c3b58564989aca5660729ec71"

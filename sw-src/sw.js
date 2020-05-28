@@ -1032,18 +1032,33 @@ function verifyDepsRecord(depsRecord) {
 }
 
 async function buildHealthcheckObj() {
+  const obsQueueEntries = await obsQueue.getAll()
+  const obsSummary = mapEntries(obsQueueEntries)
+  const depsQueueEntries = await depsQueue.getAll()
+  const depsSummary = mapEntries(depsQueueEntries)
   return {
     authHeaderValue,
     isSafeToProcessQueue: isSafeToProcessQueue(),
     depsQueueStatus: {
       syncInProgress: isQueueSyncingNow(depsQueue),
-      length: (await depsQueue.getAll()).length,
+      length: depsQueueEntries.length,
+      summary: depsSummary,
+      reqsWithFailuresCount: depsSummary.filter(e => e.failureCount).length,
     },
     obsQueueStatus: {
       syncInProgress: isQueueSyncingNow(obsQueue),
-      length: (await obsQueue.getAll()).length,
+      length: obsQueueEntries.length,
+      summary: obsSummary,
+      reqsWithFailuresCount: obsSummary.filter(e => e.failureCount).length,
     },
     waitingDepsBundlesCount: await wowSwStore.length(),
+  }
+  function mapEntries(entries) {
+    return entries.map(e => ({
+      ...e.metadata,
+      reqUrl: e.request.url,
+      reqMethod: e.request.method,
+    }))
   }
 }
 

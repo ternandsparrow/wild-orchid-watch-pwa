@@ -8,6 +8,7 @@ import {
 } from '@/misc/nav-stacks'
 
 import Admin from '@/pages/Admin'
+import BugReport from '@/pages/BugReport'
 import FAQ from '@/pages/faq/index'
 import Gallery from '@/pages/obs/Gallery'
 import HelpPage from '@/pages/HelpPage'
@@ -145,6 +146,11 @@ const router = new VueRouter({
       path: '/zzadmin',
       name: 'Admin',
       component: Admin,
+    },
+    {
+      path: '/bug-report',
+      name: 'BugReport',
+      component: BugReport,
     },
     {
       path: '/not-found',
