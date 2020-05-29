@@ -8,17 +8,60 @@
     </v-ons-card>
     <v-ons-card>
       <p>
-        <label>Any extra comments</label>
+        Tell us about the problem. The best bug reports include the following
+        information:
+      </p>
+      <ul>
+        <li>what steps you took to lead up to the problem</li>
+        <li>what you <em>expected</em> to happen</li>
+        <li>what <em>actually</em> happened</li>
+      </ul>
+      <p>
+        These details are extremely useful because they let us reproduce the
+        problem. If we can make the problem happen, we can also know when the
+        problem is fixed.
       </p>
       <p>
-        <textarea v-model="bugComment"></textarea>
+        Example report (note: iNat doesn't support videos, this is just a
+        contrived example):
+      </p>
+      <div>
+        <pre>
+        Steps:
+        - open the app
+        - open the "new observation" screen
+        - tap the "whole plant" photo to select a file
+        - select a video file from my phone
+
+        Expected behaviour:
+        The app accepts the video file.
+
+        Actual behaviour:
+        No file is shown and an error message appears
+        saying "unhandled file type".
+        </pre>
+      </div>
+      <p>
+        <label>Report details:</label>
       </p>
       <p>
-        <!-- FIXME make this nicer -->
-        Status=<span>{{ reportState }}</span>
+        <textarea v-model="bugComment" class="wow-textarea"></textarea>
+      </p>
+      <p v-if="reportState === 'success'" class="success-alert">
+        Successfully reported
+      </p>
+      <p v-if="reportState === 'error'" class="error-alert">
+        Failed to report
       </p>
       <p>
-        <v-ons-button @click="sendBugReport">Send report</v-ons-button>
+        <v-ons-button @click="sendBugReport">
+          Send report
+          <v-ons-icon
+            v-if="reportState === 'processing'"
+            icon="fa-spinner"
+            spin
+          ></v-ons-icon>
+        </v-ons-button>
       </p>
     </v-ons-card>
     <v-ons-card>
@@ -217,3 +260,29 @@ function trimAndMeasure(str) {
   return str.substring(0, 5) + `...(string length=${str.length})`
 }
 </script>
+
+<style lang="scss" scoped>
+.success-alert,
+.error-alert {
+  padding: 1em;
+  border-radius: 10px;
+  margin: 0 auto;
+}
+
+.error-alert {
+  border: 1px solid red;
+  background: #ffdcdc;
+}
+
+.success-alert {
+  border: 1px solid green;
+  background: #d5ffbf;
+}
+
+.wow-textarea {
+  padding: 12px 16px 14px;
+  border-radius: 4px;
+  width: 80%;
+  height: 5em;
+}
+</style>
