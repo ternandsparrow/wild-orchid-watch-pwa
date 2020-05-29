@@ -150,7 +150,7 @@ export default {
       try {
         await this.gatherContext()
         const msg =
-          `User bug report. Comment='${this.bugComment}'.` +
+          `[user=${this.myUsername}] User bug report. Comment='${this.bugComment}'.` +
           ` Context=${JSON.stringify(this.contextObj, null, 2)}`
         await gcpError.report({
           message: msg,
