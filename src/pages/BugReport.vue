@@ -93,7 +93,7 @@
 import { mapGetters } from 'vuex'
 import * as gcpError from 'stackdriver-error-reporting-clientside-js-client'
 import * as constants from '@/misc/constants'
-import { isSwActive } from '@/misc/helpers'
+import { isSwActive, chainedError } from '@/misc/helpers'
 
 export default {
   name: 'BugReport',
@@ -170,12 +170,23 @@ export default {
       }
     },
     showTechDetails() {
-      this.gatherContext()
-      this.isShowTechDetails = true
+      try {
+        this.gatherContext()
+        this.isShowTechDetails = true
+      } catch (err) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to gather technical details`,
+            err,
+          },
+          { root: true },
+        )
+      }
     },
     async gatherContext() {
-      console.debug('Gathering bug report context')
       try {
+        console.debug('Gathering bug report context')
         await this.gatherContextSw()
         await this.gatherContextAppStore()
         await this.gatherContextAuthStore()
@@ -183,14 +194,7 @@ export default {
         await this.gatherContextObsStore()
         await this.gatherContextConstants()
       } catch (err) {
-        this.$store.dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed to gather context for bug report page`,
-            err,
-          },
-          { root: true },
-        )
+        throw chainedError('Failed to gather context on bug report page', err)
       }
     },
     async gatherContextSw() {
@@ -257,6 +261,9 @@ export default {
 }
 
 function trimAndMeasure(str) {
+  if (!str) {
+    return null
+  }
   return str.substring(0, 5) + `...(string length=${str.length})`
 }
 </script>
