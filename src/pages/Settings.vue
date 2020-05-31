@@ -142,7 +142,7 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import { alwaysUpload, neverUpload } from '@/misc/constants'
+import * as constants from '@/misc/constants'
 import {
   clearLocalStorage,
   formatStorageSize,
@@ -154,8 +154,8 @@ export default {
   data() {
     return {
       whenToSyncOptions: [
-        { value: alwaysUpload, label: 'Always (WiFi, mobile data)' },
-        { value: neverUpload, label: 'Never' },
+        { value: constants.alwaysUpload, label: 'Always (WiFi, mobile data)' },
+        { value: constants.neverUpload, label: 'Never' },
       ],
       storageQuota: 0,
       storageUsage: 0,
@@ -219,24 +219,17 @@ export default {
         const msgFragmentLocalData = (() => {
           if (this.unsyncRecordsCount) {
             return (
-              `You have ${this.unsyncRecordsCount} records` +
-              ' that have NOT been synchronised to the server and will be lost forever!'
+              `You have ${this.unsyncRecordsCount} records ` +
+              'that have NOT been synchronised to the server and will be ' +
+              'lost forever if you continue!'
             )
           }
           return (
-            'All your local data has been synchronised to the server, ' +
+            'All your local data has been synchronised to iNaturalist, ' +
             'no data will be lost.'
           )
         })()
-        const msgFragmentInatLogout = this.token
-          ? ' We also need to logout of iNaturalist, which will be done by ' +
-            'opening a new window in your browser. You can safely close this ' +
-            'window once the logout has happened.'
-          : ''
-        const msg =
-          'Are you sure? All data for this app will be deleted! ' +
-          msgFragmentLocalData +
-          msgFragmentInatLogout
+        const msg = 'Are you sure you want to logout? ' + msgFragmentLocalData
         const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
           this.$ons.notification.toast('Logout cancelled', {
@@ -249,10 +242,20 @@ export default {
         clearLocalStorage()
         unregisterAllServiceWorkers()
         await deleteKnownStorageInstances()
+        // In order to log a user out of iNat, you *must* open the page in a new
+        // window. The non-working alternatives are:
+        //   1. we can't pass CORS check to make it with XHR/fetch
+        //   2. fetch with mode: 'no-cors' because it just doesn't work (no
+        //      cookie passed?)
+        //   3. we can't IFrame it in because iNat passes X-Frame-Options header
         await this.$ons.notification.alert(
-          'Logged out and all data wiped, press ok to restart the app in a clean state',
+          `You are now logged out of WOW. <strong>However</strong> you are ` +
+            `still logged into iNaturalist but you can also <a ` +
+            `href="${constants.inatUrlBase}/logout" target="_blank">logout of ` +
+            `iNat</a> (close the page and come back here after). Press ok to ` +
+            `restart WOW in a clean state.`,
         )
-        window.location.reload()
+        window.location = constants.onboarderPath
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',

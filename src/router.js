@@ -6,6 +6,7 @@ import {
   mainStackReplace,
   isOnboarderVisible as isOnboarderVisibleFn,
 } from '@/misc/nav-stacks'
+import { onboarderPath } from '@/misc/constants'
 
 import Admin from '@/pages/Admin'
 import BugReport from '@/pages/BugReport'
@@ -92,7 +93,7 @@ const router = new VueRouter({
     // TODO use /obs/new-community for multiple species
     // TODO use /obs/new-mapping for mapping record
     {
-      path: '/onboarder',
+      path: onboarderPath,
       name: 'Onboarder',
       component: Onboarder,
     },

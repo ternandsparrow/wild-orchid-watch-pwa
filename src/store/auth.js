@@ -288,10 +288,12 @@ export default {
             token: state.token,
           },
         })
-        // This must be opened in a new window as we can't pass CORS check to
-        // make it with XHR and we can't IFrame it in because iNat passes
-        // X-Frame-Options header
-        window.open(`${constants.inatUrlBase}/logout`, '_blank')
+        // We do NOT automatically logout of iNat on behalf of the user. It's
+        // not our place to do so as iNat is it's own separate service. Imagine
+        // if you logged out of something that used Google OAuth and suddenly
+        // you're logged out of all Google services... yeah, not good. Thanks
+        // to https://stackoverflow.com/a/12909563/1410035 for the primer on
+        // this.
       } catch (err) {
         throw chainedError('Failed to revoke iNat token while logging out', err)
       }
