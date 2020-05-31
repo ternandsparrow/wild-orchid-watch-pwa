@@ -137,12 +137,12 @@
             <div class="expand-item">
               {{ allRecords.length }} total observations
             </div>
-            <div class="exapnd-item">
-              <v-ons-icon icon="fa-comment"> </v-ons-icon>
+            <div>
+              <v-ons-icon icon="fa-comment" class="obs-badges"> </v-ons-icon>
               count of comments on observation
             </div>
-            <div class="exapnd-item">
-              <v-ons-icon icon="fa-dna"> </v-ons-icon>
+            <div>
+              <v-ons-icon icon="fa-dna" class="obs-badges"> </v-ons-icon>
               count of IDs on observation
             </div>
           </div>
