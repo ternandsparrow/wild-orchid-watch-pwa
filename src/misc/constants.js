@@ -80,6 +80,8 @@ export const waitBeforeRefreshSeconds = convertAndAssertInteger(
   process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 1,
 )
 
+// this is the max number of *failures*. It will get one more chance than this
+// number so n = 3 will have the request made 4 times.
 export const maxReqFailureCountInSw = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SW_REQ_FAIL_COUNT || 3,
 )

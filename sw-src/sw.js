@@ -354,11 +354,11 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         const req = entry.request.clone()
         req.headers.set('Authorization', authHeaderValue)
         resp = await fetch(req)
+        const statusCode = resp.status
         console.debug(
           `Request for '${entry.request.method} ${entry.request.url}' ` +
-            `has been replayed in queue '${this._name}'`,
+            `has been replayed in queue '${this._name}' with status=${statusCode}`,
         )
-        const statusCode = resp.status
         if (statusCode === 401) {
           // other queued reqs probably won't succeed (right now), wait for next sync
           throw (() => {
@@ -376,7 +376,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         const is4xxStatusCode = statusCode >= 400 && statusCode < 500
         if (is4xxStatusCode) {
           console.debug(
-            `Response (status=${statusCode}) for '${resp.url}'` +
+            `Response (status=${statusCode}) for '${resp.method} ${resp.url}'` +
               ` indicates client error. Calling cleanup callback, then ` +
               `continuing processing the queue`,
           )
@@ -399,7 +399,8 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
           })
           // you'd think a 500 means the server is having a really bad day but
           // that's not always the case. Sending a photo it doesn't like will
-          // make it explode but it'll happily accept "good" photos. So let's
+          // make it explode but it'll happily accept "good" photos. We cannot
+          // complete this observation but other will probably work so let's
           // push on!
           obsIdsToIgnore.push(obsId)
           continue
@@ -411,18 +412,24 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         // If we find a way to stop processing the queue without throwing an
         // error, this is an error that can be swallowed or at least dropped
         // back to warning level. It's nice to know how often it happens,
-        // there's nothing we can do so we don't want to cause panic.
+        // but there's nothing we can do so we don't want to cause panic by
+        // logging errors when warning will suffice.
         if (!entry.metadata.failureCount) {
           entry.metadata.failureCount = 0
         }
         entry.metadata.failureCount += 1
-        if (entry.metadata.failureCount > constants.maxReqFailureCountInSw) {
+        const failureCountMsgPrefix =
+          `Request for '${entry.request.method} ${entry.request.url}' from ` +
+          `queue '${this._name}' failed to replay for the ` +
+          `${entry.metadata.failureCount} time.`
+        const hasReqFailedTooManyTimes =
+          entry.metadata.failureCount > constants.maxReqFailureCountInSw
+        if (hasReqFailedTooManyTimes) {
           wowWarnMessage(
-            `Request for '${entry.request.url}' from queue '${this._name}' ` +
-              `failed to replay for the ${entry.metadata.failureCount} time. ` +
-              `This is over the ${constants.maxReqFailureCountInSw} threshold ` +
-              `so we're giving up on this whole obsId=${obsId}. Most recent ` +
-              `error: (name=${err.name}) message=${err.message}`,
+            `${failureCountMsgPrefix} This is over the ` +
+              `${constants.maxReqFailureCountInSw} threshold so we're giving ` +
+              `up on this whole obsId=${obsId}. Most recent error: ` +
+              `(name=${err.name}) message=${err.message}`,
           )
           await setRecordProcessingOutcome(
             entry.metadata.obsUuid,
@@ -431,7 +438,8 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
           await sendMessageToAllClients({
             id: constants.refreshLocalQueueMsg,
           })
-          obsIdsToIgnore.push(obsId)
+          obsIdsToIgnore.push(obsId) // don't process anything else for this obs
+          // not unshifting onto the queue as this has failed too many times!
           continue
         }
         // we have to put it back at the start of the queue as we may have
@@ -439,8 +447,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         // of the queue
         await this.unshiftRequest(entry)
         console.debug(
-          `Request for '${entry.request.url}' failed to replay for the ` +
-            `${entry.metadata.failureCount} time, putting it back at front of ` +
+          `${failureCountMsgPrefix} Putting it back at front of ` +
             `the queue '${this._name}' and stopping queue processing.`,
         )
         // Note: we *need* to throw here to stop an immediate retry on sync.

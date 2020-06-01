@@ -2,7 +2,7 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
-        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="debouncedOnSave"
           >Save</v-ons-toolbar-button
         >
       </template>
@@ -249,7 +249,7 @@
       </template>
       <v-ons-list-item>
         <div class="text-center be-wide">
-          <v-ons-button name="bottom-save-btn" @click="onSave"
+          <v-ons-button name="bottom-save-btn" @click="debouncedOnSave"
             >Save</v-ons-button
           >
         </div>
@@ -628,6 +628,12 @@ export default {
       this._onTaxonQuestionInput,
       300,
     )
+    // the modal means we usually won't need the debounce as the modal will
+    // block clicks, but let's program defensively.
+    this.debouncedOnSave = _.debounce(this._onSave, 2000, {
+      leading: true,
+      trailing: false,
+    })
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
@@ -1014,7 +1020,7 @@ export default {
       }
       return true
     },
-    async onSave() {
+    async _onSave() {
       this.$wow.uiTrace('SingleSpecies', `save`)
       this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
