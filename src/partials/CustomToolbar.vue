@@ -56,8 +56,7 @@ export default {
           return
         }
         this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
-        this.$emit('cancelled')
-        this.$router.go(-1)
+        this.$emit('cancelled') // caller needs to handle navigation in the callback!
       })
     },
   },

@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable :title="title">
+    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
         <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
           >Save</v-ons-toolbar-button
@@ -159,6 +159,9 @@ export default {
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
+    },
+    onCancel() {
+      this.$router.push({ name: 'Missions' })
     },
   },
 }

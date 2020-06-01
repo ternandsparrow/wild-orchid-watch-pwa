@@ -1400,6 +1400,15 @@ export default {
     onCancel() {
       const modeName = this.isEdit ? 'edit' : 'create'
       this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
+      if (this.isEdit) {
+        this.$router.push({
+          name: 'ObsDetail',
+          params: { id: this.$route.params.id },
+        })
+      } else {
+        // new obs
+        this.$router.push({ name: 'Home' })
+      }
     },
     rereadCoords() {
       const newCoords = this.$store.getters[
