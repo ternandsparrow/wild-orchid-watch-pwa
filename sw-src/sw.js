@@ -364,10 +364,10 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
           throw (() => {
             // throwing so catch block can handle unshifting, etc
             const result = new Error(
-              `Response indicates failed auth (status=${statusCode}), ` +
-                `stopping now but we'll retry on next sync. This is not ` +
-                `really an error, everything is working as designed. But we ` +
-                `have to throw to stop queue processing.`,
+              `Response for '${req.method} ${req.url}' indicates failed auth ` +
+                `(status=${statusCode}), stopping now but we'll retry on next ` +
+                `sync. This is not really an error, everything is working as ` +
+                `designed. But we have to throw to stop queue processing.`,
             )
             result.name = 'Server401Error'
             return result
@@ -606,7 +606,7 @@ registerRoute(
       return jsonResponse(
         {
           result: 'failed',
-          msg: 'Required parameters are missing' + err.toString(),
+          msg: 'Required parameters are missing. ' + err.toString(),
         },
         400,
       )
