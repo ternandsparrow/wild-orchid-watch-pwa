@@ -404,6 +404,8 @@ export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
 export const serviceWorkerUpdateErrorTrackerContextUrl =
   serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
+export const serviceWorkerClearEverythingUrl =
+  serviceWorkerMagicUrlPrefix + '/clear-everything'
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
 

@@ -834,6 +834,44 @@ registerRoute(
   'GET',
 )
 
+// This *does not* execute the requests in the queue, it just discards them
+registerRoute(
+  constants.serviceWorkerClearEverythingUrl,
+  async ({ url, event, params }) => {
+    try {
+      console.debug('Clearing queue and deleting databases')
+      // throw away all entries in the queue
+      const obsQueueEntries = await obsQueue.getAll()
+      for (const _ of obsQueueEntries) {
+        await obsQueue.shiftRequest()
+      }
+      const depsQueueEntries = await depsQueue.getAll()
+      for (const _ of depsQueueEntries) {
+        await depsQueue.shiftRequest()
+      }
+      const localForageSizeBeforeClear = await wowSwStore.length()
+      await wowSwStore.clear()
+      wowSwStore.dropInstance() // no await because it's flakey. See indexeddb/storage-manager.js
+      return jsonResponse({
+        obsQueueEntriesDiscarded: obsQueueEntries.length,
+        depsQueueEntriesDiscarded: depsQueueEntries.length,
+        swStoreItemsCleared: localForageSizeBeforeClear,
+      })
+    } catch (err) {
+      const msg = 'Failed trying to clear SW storage'
+      console.error(msg, err)
+      return jsonResponse(
+        {
+          result: 'failed',
+          msg: `${msg}, caused by: ${err.toString()}`,
+        },
+        500,
+      )
+    }
+  },
+  'DELETE',
+)
+
 function setAuthHeaderFromReq(req) {
   const newValue = req.headers.get('Authorization')
   if (!newValue || newValue === 'undefined' /*everything gets stringified*/) {

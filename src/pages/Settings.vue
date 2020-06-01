@@ -144,9 +144,12 @@ import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import {
+  chainedError,
   clearLocalStorage,
   formatStorageSize,
+  isNoSwActive,
   unregisterAllServiceWorkers,
+  wowWarnHandler,
 } from '@/misc/helpers'
 
 export default {
@@ -240,6 +243,7 @@ export default {
         }
         await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
+        await this.clearSwStorage()
         unregisterAllServiceWorkers()
         await deleteKnownStorageInstances()
         // In order to log a user out of iNat, you *must* open the page in a new
@@ -266,6 +270,28 @@ export default {
           },
           { root: true },
         )
+      }
+    },
+    async clearSwStorage() {
+      if (await isNoSwActive()) {
+        console.debug('No SW, no storage to clear')
+        return
+      }
+      try {
+        const resp = await fetch(constants.serviceWorkerClearEverythingUrl, {
+          method: 'DELETE',
+        })
+        const respBody = await resp.text() // it's JSON but we want it as text
+        if (!resp.ok) {
+          wowWarnHandler(
+            `Status=${resp.status} indicates failure while clearing SW ` +
+              `storage. Not bothering the user because they still need to ` +
+              `complete the logout. Resp body: ${respBody}`,
+          )
+        }
+        console.debug(`SW clear success with resp body=${respBody}`)
+      } catch (err) {
+        throw chainedError('Failed while requesting SW to clear storage', err)
       }
     },
     doManualUpdateCheck() {
