@@ -964,6 +964,13 @@ export default {
       return result
     },
     validatePhotos() {
+      if (this.isEdit && this.allPhotosByType[this.otherType].length) {
+        // WOW-249 at time of writing, iNat prod doesn't use the photo filename
+        // we supply so we lose type information. The photos will appear as
+        // "other" type. If we continue to enforce the following rules, user's
+        // won't be able to edit an observation without adding 3 more photos.
+        return
+      }
       const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
       requiredPhotoTypes.forEach(curr => {
         const photosOfType = this.allPhotosByType[curr.id]
