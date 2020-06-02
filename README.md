@@ -57,30 +57,18 @@ an iNat stack.
 ### Once-off set up steps
 
   1. clone repo
-  1. install deps: `yarn`
-  1. (optional) get a Google maps API key. You'll need the [Maps JavaScript
-     API](https://developers.google.com/maps/documentation/javascript/tutorial).
-     See the docs for how to generate a key. We'll configure WOW to use it
-     below.
-  1. ensure you have an iNaturalist OAUTH client configure as you'll need to
-     login via iNaturalist to use the app. A client is already configured in the
-     `.env`, which will work for local development. If you need to configure a
-     different client, you can find the page create a new client on iNat here:
-     https://www.inaturalist.org/oauth/applications, or the corresponding page
-     on a sandbox copy of iNat. We'll configure WOW to use it below.
-  1. create a `.env.local` file in the root of this project. In this file you
-     can override values from the `.env` file. It's worth noting that this file
-     is ignored by version control. You'll probably want define at least a
-     Google Maps API key so the maps work but you may also need to change the
-     OAuth client ID. It's *NOT* a good idea to just copy the `.env` because if
-     the `.env` file ever changes in the future, your `.env.local` will continue to
-     (incorrectly) override that. Only add the items you want to your `.env.local`
-     Something like:
-      ```env
-      # your iNat OAUTH client app ID, if you aren't using the default one
-      VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
-      # your Google maps API key
-      VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
+  1. install deps
+      ```bash
+      yarn
+      ```
+  1. copy the example env local override file (**DO NOT** copy the .env file)
+      ```bash
+      cp example.env.local .env.local
+      ```
+  1. (optional) edit the env local override file to change anything you like.
+     You don't need to make any changes to get up and running though.
+      ```bash
+      vim .env.local
       ```
 
 ### Steps you'll run every time

@@ -15,8 +15,9 @@ import {
 } from '../src/misc/only-common-deps-helpers'
 import * as constants from '../src/misc/constants.js'
 
-if (constants.deployedEnvName !== 'local-development') {
-  // don't init Sentry during (local) dev because developers make lots of errors
+if (constants.sentryDsn === 'off') {
+  console.debug('No sentry DSN provided, refusing to init Sentry in SW')
+} else {
   Sentry.init({
     dsn: constants.sentryDsn,
     release: constants.appVersion,
@@ -24,8 +25,6 @@ if (constants.deployedEnvName !== 'local-development') {
   Sentry.configureScope(scope => {
     scope.setTag('environment', constants.deployedEnvName)
   })
-} else {
-  console.debug('Env is local dev, refusing to init Sentry in SW')
 }
 
 /**

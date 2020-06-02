@@ -28,20 +28,24 @@ export {
 // pulls config from the server rather than relying on the user updating the
 // app shell to see the new values.
 
-// The URL of the API that we prepend to all our requests. Include the version
-// path suffix, like https://api.inaturalist.com/v1
+// The URL of the API (implemented with NodeJS at time of writing) that we
+// prepend to all our requests. Include the version path suffix, like
+// https://api.inaturalist.com/v1
 export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
-// URL of the iNat server that we prepend to all our requests. Something like
-// https://inaturalist.com
+// URL of the Ruby on Rails iNaturalist server that we prepend to all our
+// requests. Something like https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
-// Where the static assets for iNat are served from. For a dev server, it's
-// probably the same at inatUrlBase. For the real inat, it's probably a CDN. To
-// find out this value, load the iNat page of your choosing, and inspect the
-// logo in the top-left and see what domain it's served from. If the logo URL
-// is https://static.inaturalist.org/sites/1-logo.svg?1507246408
-// ...then use https://static.inaturalist.org for this value
+// Where the static assets for iNat are served from. For a sandbox/dev iNat
+// instance, it's probably the same at inatUrlBase. For the real iNat, it's
+// probably a CDN. To find out this value, load the iNat page of your choosing,
+// and inspect the logo in the top-left and see what domain it's served from.
+// If the logo URL is
+//   https://static.inaturalist.org/sites/1-logo.svg?1507246408
+// ...then use
+//   https://static.inaturalist.org
+// for this value
 export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
 // Get this from the details page of your OAuth app.
@@ -60,6 +64,9 @@ export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
 // set to 'production', 'beta' or 'development' so we can adapt to where we're deployed
 export const deployedEnvName = process.env.VUE_APP_DEPLOYED_ENV_NAME
 
+// Google Cloud Platform API keys. You can use the same key for both. Maps is
+// specifically the "Maps JavaScript API" and errors is "Stackdriver Error
+// Reporting API".
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
 export const googleErrorsApiKey =
   process.env.VUE_APP_GCP_ERRORS_API_KEY || googleMapsApiKey
@@ -67,8 +74,16 @@ export const googleErrorsApiKey =
 // The tracker code for Google Analytics, e.g: UA-000000-1
 export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 
+// Sentry.io is an error tracker. You probably don't want this on for most
+// local dev as there's not much point reporting the numerous errors seen
+// during local dev and often Sentry will swallow the error so it makes
+// debugging harder (see https://github.com/vuejs/vue/issues/8433). Of course
+// at some stage you'll need to test that errors are reported as you expect to
+// Sentry.
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
+// The URL where we can load the taxa list for populating the orchid
+// autocomplete. See scripts/build-taxa-index.js for more details.
 export const taxaDataUrl =
   process.env.VUE_APP_TAXA_DATA_URL || '/wow-taxa-index.json'
 
@@ -92,6 +107,8 @@ export const isForceVueDevtools = !!parseInt(
   process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
 )
 
+// Feature flags, so we can work on things but not have them show up in all
+// environments until we're ready
 export const isMissionsFeatureEnabled =
   process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
 
@@ -180,9 +197,15 @@ export const communityNotesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COMMUNITY_NOTES,
 )
 
-// We need to show/hide other fields based on the orchid type. Here we define
-// the values so we can match for them. Note: they must *exactly* match what is
-// configured in iNat!
+export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
+)
+
+// These values are unlikely to ever change. You can see the linkage to the
+// script that creates the obs fields and assuming it all stays in sync,
+// everyone is happy. If the obs fields get edited in the future (generally not
+// a good idea), then it may be necessary to override some of these values.
+// This is purely to make that (painful) job easier.
 export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
@@ -194,13 +217,8 @@ export const accuracyOfSearchAreaCalcEstimated =
 export const countOfIndividualsObsFieldDefault =
   process.env.VUE_APP_OBS_FIELD_COUNT_DEFAULT || 1
 export const accuracyOfPopulationCountObsFieldDefault = exact
-
 export const notCollected =
   process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault
-
-export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
-)
 
 // these following field IDs values are comma separated lists of ID that will
 // be grouped and displayed as a mutliselect in the UI. This is the make them
