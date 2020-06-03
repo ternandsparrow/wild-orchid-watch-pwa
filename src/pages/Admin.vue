@@ -872,6 +872,9 @@ export default {
         console.debug('removing existing RemoteJS script')
         existingScript.remove()
       }
+      if (!this.hasSwConsoleBeenProxied) {
+        this.enableSwConsoleProxy()
+      }
       const s = document.createElement('script')
       s.src = 'https://remotejs.com/agent/agent.js'
       s.id = scriptTagId
