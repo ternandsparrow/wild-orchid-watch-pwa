@@ -964,7 +964,7 @@ export default {
       return result
     },
     validatePhotos() {
-      if (this.isEdit && this.allPhotosByType[this.otherType].length) {
+      if (this.isEdit && (this.allPhotosByType[this.otherType] || []).length) {
         // WOW-249 at time of writing, iNat prod doesn't use the photo filename
         // we supply so we lose type information. The photos will appear as
         // "other" type. If we continue to enforce the following rules, user's
