@@ -246,11 +246,17 @@ report:
 The dashboard updates quickly and you can get email notifications. There seems
 to be some issue merging logic and you can link to your issue tracker. If a
 simple solution will suffice, this is worth looking at. But out-of-the-box,
-Sentry gives you a lot more context. You could probably get this in
+Sentry gives you a lot more context. You could probably add this context in
 Stackdriver, but you'd have to build and maintain it yourself.
 
 Firebase, which we use for hosting, offers Crashlytics but it's only for native
 apps. So that's a non-starter for us.
+
+[TrackJS](https://trackjs.com/) also looks promising. I haven't tried it but
+from their demo video, it looks like it potentially offers a bit more than
+Sentry. I found them after using their RemoteJS (just integrated into the WOW
+app) tool. They offer discounts/support for not-for-profit, which this project
+would hopefully qualify for.
 
 
 ## Google Cloud Stackdriver Error Reporting
