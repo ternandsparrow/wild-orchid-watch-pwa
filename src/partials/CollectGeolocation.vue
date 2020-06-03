@@ -96,7 +96,12 @@
               <label for="radio-gm-device">
                 Use geolocation of this device, right now.
               </label>
-              <p v-if="deviceGeolocationErrorMsg" class="warning-alert">
+              <p
+                v-if="
+                  geolocationMethod === 'device' && deviceGeolocationErrorMsg
+                "
+                class="warning-alert"
+              >
                 <v-ons-icon
                   class="warning"
                   icon="fa-exclamation-circle"
