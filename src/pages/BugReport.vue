@@ -65,8 +65,27 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div v-if="isShowTechDetails">
+      <p>
+        <v-ons-button modifier="quiet" @click="showTechDetails">
+          <span v-if="!techDetailsLastUpdated">
+            Display
+          </span>
+          <span v-if="techDetailsLastUpdated">
+            Refresh
+          </span>
+          technical details
+        </v-ons-button>
+      </p>
+      <div v-if="techDetailsLastUpdated">
         <div><a :href="mailtoHref" target="_blank">Send via email</a></div>
+        <p>
+          Last updated: <code>{{ techDetailsLastUpdated }}</code>
+        </p>
+        <p>
+          <strong>User agent</strong>
+          <br />
+          <code>{{ userAgent }}</code>
+        </p>
         <strong>Service worker health check</strong>
         <pre><code>{{swHealthCheckResult}}</code></pre>
         <strong>Vuex store: app</strong>
@@ -80,11 +99,6 @@
         <strong>Interesting constants/config</strong>
         <pre><code>{{interestingConstants}}</code></pre>
       </div>
-      <p>
-        <v-ons-button modifier="quiet" @click="showTechDetails"
-          >Display technical details</v-ons-button
-        >
-      </p>
     </v-ons-card>
   </menu-wrapper>
 </template>
@@ -102,7 +116,7 @@ export default {
       bugComment: null,
       reportState: 'initial',
       reportFailureError: null,
-      isShowTechDetails: false,
+      techDetailsLastUpdated: null,
       swHealthCheckResult: null,
       vuexStoreApp: null,
       vuexStoreAuth: null,
@@ -115,6 +129,7 @@ export default {
     ...mapGetters('auth', ['myUsername']),
     contextObj() {
       return {
+        userAgent: this.userAgent,
         swHealthCheckResult: this.swHealthCheckResult,
         vuexStoreApp: this.vuexStoreApp,
         vuexStoreAuth: this.vuexStoreAuth,
@@ -132,6 +147,10 @@ export default {
       const subject = encodeURIComponent('WOW app bug report')
       // FIXME gMail complains with: it's too large (413)
       return `mailto:${bugReportEmail}&subject=${subject}&body=${this.emailBody}`
+    },
+    userAgent() {
+      return (window.navigator || { userAgent: '(no window.navigator)' })
+        .userAgent
     },
   },
   mounted() {
@@ -172,7 +191,7 @@ export default {
     showTechDetails() {
       try {
         this.gatherContext()
-        this.isShowTechDetails = true
+        this.techDetailsLastUpdated = new Date().toISOString()
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
