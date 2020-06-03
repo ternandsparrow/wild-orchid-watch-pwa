@@ -19,6 +19,24 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Connect to RemoteJS (<a href="https://remotejs.com/" target="_blank"
+          >remotejs.com</a
+        >)
+      </div>
+      <div>
+        <label for="remotejs-session-uuid">RemoteJS session UUID:</label>
+        <v-ons-input
+          v-model="remoteJsUuid"
+          input-id="remotejs-session-uuid"
+          placeholder="e.g: aa43a970-44c8-88df-a5bd-d5cb0687fdaf"
+        ></v-ons-input>
+      </div>
+      <p>
+        <v-ons-button @click="attachRemoteJs">Attach</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         User agent
       </div>
       <div class="text-center">
@@ -453,6 +471,7 @@ export default {
       rpoResetStatus: null,
       resetRpoList: [],
       resetRpoUuid: null,
+      remoteJsUuid: null,
     }
   },
   computed: {
@@ -840,6 +859,24 @@ export default {
         title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
+    },
+    attachRemoteJs() {
+      const uuid = this.remoteJsUuid
+      if (!uuid) {
+        alert('You must supply the UUID for the RemoteJS session')
+        return
+      }
+      const scriptTagId = 'remotejs-script'
+      const existingScript = document.getElementById(scriptTagId)
+      if (existingScript) {
+        console.debug('removing existing RemoteJS script')
+        existingScript.remove()
+      }
+      const s = document.createElement('script')
+      s.src = 'https://remotejs.com/agent/agent.js'
+      s.id = scriptTagId
+      s.setAttribute('data-consolejs-channel', uuid)
+      document.head.appendChild(s)
     },
   },
 }
