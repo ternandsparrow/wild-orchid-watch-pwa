@@ -303,6 +303,16 @@ then grab the ID for that new obs and generate all the requests for the photos,
 obs fields, etc. Workbox gives us the freedom to do this and we can even use
 their Queue class to make our life easier.
 
+If you're looking to manually trigger sync events on the background sync
+queues, you'll have access to this in the hidden admin page. Alternatively, you
+can use Chrome devtools to send named events to the SW as per
+https://developers.google.com/web/tools/workbox/modules/workbox-background-sync#testing_workbox_background_sync.
+The names of the events you need for our queues are:
+```
+workbox-background-sync:obs-queue
+workbox-background-sync:obs-dependant-queue
+```
+
 ## Rollup
 Yes, we already have webpack to do the build of our main app but 1) we need to
 build our service worker, and 2) we cannot use webpack to build the service

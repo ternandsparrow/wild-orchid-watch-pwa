@@ -128,6 +128,7 @@ jobs:
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$PROD_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$PROD_FORCE_VUE_DEVTOOLS
             VUE_APP_GCP_ERRORS_API_KEY=${PROD_GCP_ERRORS_API_KEY}
+            VUE_APP_SW_QUEUE_MAX_RETENTION=${PROD_SW_QUEUE_MAX_RETENTION}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -207,6 +208,7 @@ jobs:
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$BETA_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$BETA_FORCE_VUE_DEVTOOLS
             VUE_APP_GCP_ERRORS_API_KEY=${BETA_GCP_ERRORS_API_KEY}
+            VUE_APP_SW_QUEUE_MAX_RETENTION=${BETA_SW_QUEUE_MAX_RETENTION}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -286,6 +288,7 @@ jobs:
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$DEV_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$DEV_FORCE_VUE_DEVTOOLS
             VUE_APP_GCP_ERRORS_API_KEY=${DEV_GCP_ERRORS_API_KEY}
+            VUE_APP_SW_QUEUE_MAX_RETENTION=${DEV_SW_QUEUE_MAX_RETENTION}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile

@@ -70,7 +70,7 @@ describe('serviceWorker', () => {
       const fnUnderTest = objectUnderTest.onSyncWithPerItemCallback.bind(
         testQueue,
       )
-      await fnUnderTest(dontCallMe, dontCallMe)
+      await fnUnderTest(dontCallMe, dontCallMe, dontCallMe)
     })
 
     it('should call the successCb after a successful item', async () => {
@@ -87,9 +87,13 @@ describe('serviceWorker', () => {
         status: 200,
       })
       let isSuccessCbCalled = false
-      await fnUnderTest(() => {
-        isSuccessCbCalled = true
-      }, dontCallMe)
+      await fnUnderTest(
+        () => {
+          isSuccessCbCalled = true
+        },
+        dontCallMe,
+        dontCallMe,
+      )
       expect(isSuccessCbCalled).toEqual(true)
     })
 
@@ -107,10 +111,51 @@ describe('serviceWorker', () => {
         status: 404,
       })
       let isClientErrorCbCalled = false
-      await fnUnderTest(dontCallMe, () => {
-        isClientErrorCbCalled = true
-      })
+      await fnUnderTest(
+        dontCallMe,
+        () => {
+          isClientErrorCbCalled = true
+        },
+        dontCallMe,
+      )
       expect(isClientErrorCbCalled).toEqual(true)
+    })
+
+    it('should call the callbackErrorCb after a failed successCb', async () => {
+      objectUnderTest.setAuthHeader('eySomeToken')
+      const obsUuid = '1234A'
+      await storeRecord({
+        uuid: obsUuid,
+        wowMeta: {
+          [constants.recordProcessingOutcomeFieldName]:
+            constants.withServiceWorkerOutcome,
+        },
+      })
+      const testQueue = new Queue('test-queue' + Math.random())
+      await testQueue.unshiftRequest({
+        request: new global.WowMockRequest('/test/blah'),
+        metadata: { obsId: 666, obsUuid },
+      })
+      const fnUnderTest = objectUnderTest.onSyncWithPerItemCallback.bind(
+        testQueue,
+      )
+      global.fetch = async () => ({
+        status: 200,
+      })
+      let isCallbackErrorCbCalled = false
+      const origConsoleError = console.error
+      console.error = () => {}
+      await fnUnderTest(
+        () => {
+          throw new Error('successCb failed!')
+        },
+        dontCallMe,
+        () => {
+          isCallbackErrorCbCalled = true
+        },
+      )
+      console.error = origConsoleError
+      expect(isCallbackErrorCbCalled).toEqual(true)
     })
 
     it('should ignore and discard requests for the same obsId after a 500 status', async () => {
@@ -143,7 +188,7 @@ describe('serviceWorker', () => {
           status: 500,
         }
       }
-      await fnUnderTest(dontCallMe, dontCallMe)
+      await fnUnderTest(dontCallMe, dontCallMe, dontCallMe)
       expect(testIdsFetched).toEqual([1])
       expect((await testQueue.getAll()).length).toEqual(0)
       const record = await getRecord(obsUuid)

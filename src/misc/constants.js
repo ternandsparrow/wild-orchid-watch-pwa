@@ -101,6 +101,12 @@ export const maxReqFailureCountInSw = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SW_REQ_FAIL_COUNT || 3,
 )
 
+// the retention time of the background-sync workbox queues in the service
+// worker. Once a request is over this threshold, it will *not* be processed
+export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
+  process.env.VUE_APP_SW_QUEUE_MAX_RETENTION || 365 * 24 * 60, // one year
+)
+
 // useful for enabling devtools in "production mode" while debugging with a
 // service worker
 export const isForceVueDevtools = !!parseInt(

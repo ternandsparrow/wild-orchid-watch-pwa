@@ -9,22 +9,27 @@ import base64js from 'base64-js'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import {
+  chainedError,
   wowErrorHandler,
-  wowWarnHandler,
   wowWarnMessage,
 } from '../src/misc/only-common-deps-helpers'
 import * as constants from '../src/misc/constants.js'
 
-if (constants.sentryDsn === 'off') {
-  console.debug('No sentry DSN provided, refusing to init Sentry in SW')
-} else {
-  Sentry.init({
-    dsn: constants.sentryDsn,
-    release: constants.appVersion,
-  })
-  Sentry.configureScope(scope => {
-    scope.setTag('environment', constants.deployedEnvName)
-  })
+function initErrorTracker() {
+  if (constants.sentryDsn === 'off') {
+    console.debug('No sentry DSN provided, refusing to init Sentry in SW')
+  } else {
+    Sentry.init({
+      dsn: constants.sentryDsn,
+      release: constants.appVersion,
+    })
+    Sentry.configureScope(scope => {
+      scope.setTag('environment', constants.deployedEnvName)
+    })
+  }
+}
+if (process.env.NODE_ENV !== 'test') {
+  initErrorTracker()
 }
 
 /**
@@ -73,215 +78,247 @@ const obsPutPoisonPillUrl = poisonPillUrlPrefix + '/obs-put'
 
 let authHeaderValue = null
 
-const depsQueue = new Queue('obs-dependant-queue', {
-  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after a year, can we let it die?
-  async onSync() {
-    const boundFn = onSyncWithPerItemCallback.bind(this)
-    await boundFn(
-      async (entry, req, resp) => {
-        const obsUuid = entry.metadata.obsUuid
-        const obsId = entry.metadata.obsId
-        switch (req.method) {
-          case 'POST':
-            const isProjectLinkingResp = req.url.endsWith(
-              '/project_observations',
-            )
-            const isEndOfObsPostGroup = isProjectLinkingResp
-            if (!isEndOfObsPostGroup) {
-              return
-            }
-            console.debug(
-              'resp IS a project linkage one, this marks the end of an obs',
-            )
-            await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
-            await sendMessageToAllClients({
-              id: constants.refreshObsMsg,
-            })
-            return
-          case magicMethod:
-            const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
-            if (isEndOfObsPutGroup) {
-              console.debug('found magic poison pill indicating end of obs PUT')
-              await setRecordProcessingOutcome(
-                obsUuid,
-                constants.successOutcome,
-              )
-              await sendMessageToAllClients({
-                id: constants.refreshObsMsg,
-              })
-              return
-            }
-            throw new Error(
-              `Lazy programmer error: don't know how to handle ` +
-                ` the magic method=${magicMethod} with url=${req.url}`,
-            )
-          case 'PUT':
-            throw new Error(
-              `Lazy programmer error: not implemented as we don't do PUTs for deps`,
-            )
-          case 'DELETE':
-            // nothing to do
-            return
-          default:
-            throw new Error(
-              `Programmer error: we don't know how to handle method=${req.method}`,
-            )
-        }
-      },
-      async (entry, resp) => {
-        const obsUuid = entry.metadata.obsUuid
-        const obsId = entry.metadata.obsId
-        const respStatus = resp.status
-        // at this point we have three choices:
-        //   1. press on and accept that we'll be missing some of the data on
-        //      the remote,
-        //   2. rollback everything on the remote and do whatever is necessary
-        //       to fix it up, or
-        //   3. give up and leave things in a mess
-        // Right now we're just giving up because rolling back is complex
-        switch (entry.request.method) {
-          case 'POST':
-            await setRecordProcessingOutcome(
-              obsUuid,
-              constants.systemErrorOutcome,
-            )
-            await sendMessageToAllClients({
-              id: constants.refreshLocalQueueMsg,
-            })
-            // now we have a problem. If the partial record was a "create" then
-            // we could just delete it, but that doesn't work for an edit. And
-            // we don't know what was done at this point. So we'll do nothing.
-            // iNat has some magic to recognise duplicate requests to create an
-            // obs and will return the existing instance and obsField are
-            // idempotent as they clober. It's only the photos that we'll
-            // duplicate but it's better than losing them.
-            return { flag: IGNORE_REMAINING_DEPS_FLAG }
-          case 'PUT': // we don't update deps, we just clobber with POST
-            await setRecordProcessingOutcome(
-              obsUuid,
-              constants.systemErrorOutcome,
-            )
-            await sendMessageToAllClients({
-              id: constants.refreshLocalQueueMsg,
-            })
-            return { flag: IGNORE_REMAINING_DEPS_FLAG }
-          case 'DELETE':
-            if (respStatus === 404) {
-              return // that's fine, the job is done
-            }
-            throw new Error(
-              `Lazy programmer error: we don't have deps for DELETEs`,
-            )
-          default:
-            throw new Error(
-              `Programmer error: we don't know how to handle method=${entry.request.method}`,
-            )
-        }
-      },
-    )
-  },
-})
-
+// The queue for the requests to create the core observations. Anything else
+// goes in the dependencies queue.
 // We don't need to register a route for /observations, etc because:
 //  1. if we have a SW, we're using the synthetic bundle endpoint
 //  2. fetch calls *from* the SW don't hit the routes configured *in* the SW
 const obsQueue = new Queue('obs-queue', {
-  maxRetentionTime: 365 * 24 * 60, // FIXME if it doesn't succeed after year, can we let it die?
+  maxRetentionTime: constants.swQueueMaxRetentionMinutes,
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
-      async (entry, req, resp) => {
-        let obsId = '(not sure)'
-        try {
-          const obs = await resp.json()
-          obsId = obs.id
-          switch (req.method) {
-            case 'POST':
-              await onObsPostSuccess(obs)
-              break
-            case 'PUT':
-              await onObsPutSuccess(obs)
-              break
-            case 'DELETE':
-              await setRecordProcessingOutcome(
-                entry.metadata.obsUuid,
-                constants.successOutcome,
-              )
-              await sendMessageToAllClients({
-                id: constants.refreshObsMsg,
-              })
-              break
-            default:
-              throw new Error(
-                `Programmer error: we don't know how to handle method=${req.method}`,
-              )
-          }
-          // we don't await because we need the obs queue to finish processing
-          // even if the deps queue is still going
-          depsQueue._onSync()
-        } catch (err) {
-          // an error happened while *queuing* reqs. Errors from *processing*
-          // the queue will not be caught here!
-
-          // FIXME an error that happens while trying to call onObsPostSuccess
-          // (ie. this try block) will mean that we never queue up the deps for a
-          // successful obs. Might need extra logic to scan obs on the remote and
-          // check for pending deps, then trigger the queuing?
-          wowWarnHandler(
-            `Failed to queue dependents of obsId=${obsId}. This is bad.` +
-              ` We do not know which, if any, deps were queued. Retrying probably` +
-              ` won't help either as the error is not network related.`,
-            err,
-          )
-          throw err
-        }
-      },
-      async (entry, resp) => {
-        const obsUuid = entry.metadata.obsUuid
-        const obsId = entry.metadata.obsId
-        const respStatus = resp.status
-        switch (entry.request.method) {
-          case 'POST':
-            await setRecordProcessingOutcome(
-              obsUuid,
-              constants.systemErrorOutcome,
-            )
-            await sendMessageToAllClients({
-              id: constants.refreshLocalQueueMsg,
-            })
-            await wowSwStore.removeItem(createTag + obsUuid)
-            break
-          case 'DELETE':
-            if (respStatus === 404) {
-              return // that's fine, the job is done
-            }
-            await setRecordProcessingOutcome(
-              obsUuid,
-              constants.systemErrorOutcome,
-            )
-            await sendMessageToAllClients({
-              id: constants.refreshLocalQueueMsg,
-            })
-            break
-          case 'PUT':
-            await setRecordProcessingOutcome(
-              obsUuid,
-              constants.systemErrorOutcome,
-            )
-            await sendMessageToAllClients({
-              id: constants.refreshLocalQueueMsg,
-            })
-            await wowSwStore.removeItem(updateTag + obsUuid)
-            break
-          default:
-            throw new Error(
-              `Programmer error: we don't know how to handle method=${entry.request.method}`,
-            )
-        }
-      },
+      obsQueueSuccessCb,
+      obsQueueClientErrorCb,
+      obsQueueCallbackErrorCb,
     )
   },
 })
+
+// The queue for requests that are dependent on the core observation, so
+// photos, obs fields, project linkage, etc. We can't queue these requests
+// until we know the obs ID, which is part of the request. We run two separate
+// queues because the actions we need to perform after deps requests are
+// different from obs requests. If you don't like that, you could probably add
+// a "type" into the queue entry metadata, then use that to branch in the
+// "after action".
+const depsQueue = new Queue('obs-dependant-queue', {
+  maxRetentionTime: constants.swQueueMaxRetentionMinutes,
+  async onSync() {
+    const boundFn = onSyncWithPerItemCallback.bind(this)
+    await boundFn(
+      depsQueueSuccessCb,
+      depsQueueClientErrorCb,
+      depsQueueCallbackErrorCb,
+    )
+  },
+})
+
+async function obsQueueSuccessCb(entry, resp) {
+  const req = entry.request
+  const obsUuid = entry.metadata.obsUuid
+  let obsId = '(not sure)'
+  try {
+    const obs = await resp.json()
+    obsId = obs.id
+    switch (req.method) {
+      case 'POST':
+        await onObsPostSuccess(obs)
+        break
+      case 'PUT':
+        await onObsPutSuccess(obs)
+        break
+      case 'DELETE':
+        await setRecordProcessingOutcome(
+          entry.metadata.obsUuid,
+          constants.successOutcome,
+        )
+        await sendMessageToAllClients({
+          id: constants.refreshObsMsg,
+        })
+        break
+      default:
+        throw new Error(
+          `Programmer error: we don't know how to handle method=${req.method}`,
+        )
+    }
+    // we don't await because we need the obs queue to finish processing
+    // even if the deps queue is still going
+    depsQueue._onSync()
+  } catch (err) {
+    // an error happened while *queuing* reqs. Errors from *processing*
+    // the queue will not be caught here!
+    //------------------------------------------------------------------
+    // an error that happens while trying to call the success callback
+    // (ie. this try block) will mean that we never queue up the deps for
+    // a successful obs. There's a very small chance that the SW will be
+    // killed after the request but before the callback runs. In that
+    // case, we could get more advanced and try to detect when the remote
+    // obs is as we expect, then queue the deps but this is fairly
+    // advanced (read: tricky).
+    throw chainedError(
+      `Failed to queue dependents of obs with UUID=${obsUuid} and ` +
+        `inatId=${obsId}. This is bad. We do not know which, if any, ` +
+        `deps were queued.`,
+      err,
+    )
+  }
+}
+
+async function obsQueueClientErrorCb(entry, resp) {
+  const obsUuid = entry.metadata.obsUuid
+  const obsId = entry.metadata.obsId
+  const respStatus = resp.status
+  switch (entry.request.method) {
+    case 'POST':
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      await wowSwStore.removeItem(createTag + obsUuid)
+      break
+    case 'DELETE':
+      if (respStatus === 404) {
+        return // that's fine, the job is done
+      }
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      break
+    case 'PUT':
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      await wowSwStore.removeItem(updateTag + obsUuid)
+      break
+    default:
+      throw new Error(
+        `Programmer error: we don't know how to handle method=${entry.request.method}`,
+      )
+  }
+}
+
+async function obsQueueCallbackErrorCb(entry, resp) {
+  const obsUuid = entry.metadata.obsUuid
+  const key = (() => {
+    switch (entry.request.method) {
+      case 'POST':
+        return createTag + obsUuid
+      case 'PUT':
+        return updateTag + obsUuid
+      case 'DELETE':
+        return null
+      default:
+        throw new Error(
+          `Programmer error: we don't know how to handle ` +
+            `method=${entry.request.method}`,
+        )
+    }
+  })()
+  if (!key) {
+    return
+  }
+  console.debug(
+    `[SW] cleaning up deps bundle with key=${key} that would become orphaned`,
+  )
+  await wowSwStore.removeItem(key)
+}
+
+async function depsQueueSuccessCb(entry, resp) {
+  const req = entry.request
+  const obsUuid = entry.metadata.obsUuid
+  const obsId = entry.metadata.obsId
+  switch (req.method) {
+    case 'POST':
+      const isProjectLinkingResp = req.url.endsWith('/project_observations')
+      const isEndOfObsPostGroup = isProjectLinkingResp
+      if (!isEndOfObsPostGroup) {
+        return
+      }
+      console.debug(
+        'resp IS a project linkage one, this marks the end of an obs',
+      )
+      await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshObsMsg,
+      })
+      return
+    case magicMethod:
+      const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
+      if (isEndOfObsPutGroup) {
+        console.debug('found magic poison pill indicating end of obs PUT')
+        await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
+        await sendMessageToAllClients({
+          id: constants.refreshObsMsg,
+        })
+        return
+      }
+      throw new Error(
+        `Lazy programmer error: don't know how to handle ` +
+          ` the magic method=${magicMethod} with url=${req.url}`,
+      )
+    case 'PUT':
+      throw new Error(
+        `Lazy programmer error: not implemented as we don't do PUTs for deps`,
+      )
+    case 'DELETE':
+      // nothing to do
+      return
+    default:
+      throw new Error(
+        `Programmer error: we don't know how to handle method=${req.method}`,
+      )
+  }
+}
+
+async function depsQueueClientErrorCb(entry, resp) {
+  const obsUuid = entry.metadata.obsUuid
+  const obsId = entry.metadata.obsId
+  const respStatus = resp.status
+  // at this point we have three choices:
+  //   1. press on and accept that we'll be missing some of the data on
+  //      the remote,
+  //   2. rollback everything on the remote and do whatever is necessary
+  //       to fix it up, or
+  //   3. give up and leave things in a mess
+  // Right now we're just giving up because rolling back is complex
+  switch (entry.request.method) {
+    case 'POST':
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      // now we have a problem. If the partial record was a "create" then
+      // we could just delete it, but that doesn't work for an edit. And
+      // we don't know what was done at this point. So we'll do nothing.
+      // iNat has some magic to recognise duplicate requests to create an
+      // obs and will return the existing instance and obsField are
+      // idempotent as they clober. It's only the photos that we'll
+      // duplicate but it's better than losing them.
+      return { flag: IGNORE_REMAINING_DEPS_FLAG }
+    case 'PUT': // we don't update deps, we just clobber with POST
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      return { flag: IGNORE_REMAINING_DEPS_FLAG }
+    case 'DELETE':
+      if (respStatus === 404) {
+        return // that's fine, the job is done
+      }
+      throw new Error(`Lazy programmer error: we don't have deps for DELETEs`)
+    default:
+      throw new Error(
+        `Programmer error: we don't know how to handle method=${entry.request.method}`,
+      )
+  }
+}
+
+async function depsQueueCallbackErrorCb(entry, resp) {
+  // nothing to do
+}
 
 function isSafeToProcessQueue() {
   const isAuthHeaderSet = !!authHeaderValue
@@ -304,7 +341,11 @@ function isQueueSyncingNow(queue) {
   )
 }
 
-async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
+async function onSyncWithPerItemCallback(
+  successCb,
+  clientErrorCb,
+  callbackErrorCb, // handler for when successCb has an error
+) {
   const isSyncingAlready = isQueueSyncingNow(this)
   if (!isSafeToProcessQueue() || isSyncingAlready) {
     if (isSyncingAlready) {
@@ -326,14 +367,12 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
     while ((entry = await this.shiftRequest())) {
       let resp
       const obsId = entry.metadata.obsId
+      const obsUuid = entry.metadata.obsUuid
       try {
         const isIgnoredObsId = obsIdsToIgnore.includes(obsId)
         if (isIgnoredObsId) {
           console.debug(
-            `Ignoring deps req as it relates to an ignored obsId=${obsId}`,
-          )
-          console.debug(
-            `Discarding '${entry.request.method} ${entry.request.url}' ` +
+            `[SW] Discarding '${entry.request.method} ${entry.request.url}' ` +
               `request as it's parent obs=${obsId} is in the ignore list`,
           )
           continue
@@ -347,7 +386,7 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
               `shortcircuiting straight to the success callback, no request ` +
               `will be sent over the network`,
           )
-          await successCb(entry, entry.request, null)
+          await successCb(entry, null)
           continue
         }
         const req = entry.request.clone()
@@ -407,12 +446,13 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
       } catch (err) {
         // "Failed to fetch" lands us here. It could be a network error or a
         // non-CORS response.
-        // TODO iOS can return err.message="The network connection was lost".
-        // If we find a way to stop processing the queue without throwing an
-        // error, this is an error that can be swallowed or at least dropped
-        // back to warning level. It's nice to know how often it happens,
-        // but there's nothing we can do so we don't want to cause panic by
-        // logging errors when warning will suffice.
+        //---------------------------------------------------------------------
+        // TODO there are errors that can be swallowed or at least dropped back
+        // to warning level because they're outside our control. It's nice to
+        // know how often they happen, but there's nothing we can do so we
+        // don't want to cause panic by logging errors when warning will
+        // suffice. Known error err.message values:
+        //  - "The network connection was lost" on iOS
         if (!entry.metadata.failureCount) {
           entry.metadata.failureCount = 0
         }
@@ -464,15 +504,35 @@ async function onSyncWithPerItemCallback(successCb, clientErrorCb) {
         })()
       }
       try {
-        await successCb(entry, entry.request, resp)
+        await successCb(entry, resp)
       } catch (err) {
+        try {
+          await callbackErrorCb(entry, resp)
+        } catch (err2) {
+          wowErrorHandler(
+            'Failed during error handler! Queue success callback failed and ' +
+              'while calling the cleanup callback, we encountered another ' +
+              'error. The original error will follow this one in the log',
+            err2,
+          )
+          // consciously not short-circuiting here so the original error
+          // handling can continue.
+        }
         wowErrorHandler(
-          'Failed during callback for a queue item, re-throwing...',
+          `Failed during success callback for a queue item. Ignoring further ` +
+            `queue items for obsId=${obsId}/UUID=${obsUuid}, but continuing ` +
+            `with queue processing.`,
           err,
         )
-        // FIXME probably shouldn't throw here. Not sure what to do. Certainly
-        // log the error and perhaps continue processing the queue
-        throw err
+        await setRecordProcessingOutcome(
+          entry.metadata.obsUuid,
+          constants.systemErrorOutcome,
+        )
+        await sendMessageToAllClients({
+          id: constants.refreshLocalQueueMsg,
+        })
+        obsIdsToIgnore.push(obsId) // don't process anything else for this obs
+        continue
       }
     }
   } finally {
@@ -586,8 +646,9 @@ async function onObsPostSuccess(obsResp) {
       }),
     })
   } catch (err) {
-    // Note: errors related to queue processing won't be caught here. If we're
-    // connected to the network, processing will be triggered by pushing items.
+    // Note: errors related to queue processing won't be caught here. Also if
+    // we're connected to the network, processing is triggered by pushing
+    // items onto the queue.
     console.debug('caught error while populating queue, rethrowing...')
     throw err
   }
@@ -763,9 +824,9 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerIsAliveMagicUrl,
   async ({ url, event, params }) => {
-    console.debug('Still alive over here!')
+    console.debug('[SW] Still alive over here!')
     return jsonResponse({
-      result: 'yep',
+      result: new Date().toISOString(),
     })
   },
   'GET',
@@ -1080,6 +1141,36 @@ async function buildHealthcheckObj() {
   const obsSummary = mapEntries(obsQueueEntries)
   const depsQueueEntries = await depsQueue.getAll()
   const depsSummary = mapEntries(depsQueueEntries)
+  const swStoreItems = await new Promise(async (resolve, reject) => {
+    try {
+      const result = []
+      await wowSwStore.iterate(r => {
+        const logFriendlyRecord = {
+          ...r,
+          photos: r.photos.map(p => {
+            const data = (() => {
+              const val = p.data
+              if (!val) {
+                return val
+              }
+              if (typeof val === 'string') {
+                return `${val.substring(0, 10)}...(length=${val.length})`
+              }
+              return `(type=${typeof val})`
+            })()
+            return {
+              ...p,
+              data: data,
+            }
+          }),
+        }
+        result.push(logFriendlyRecord)
+      })
+      return resolve(result)
+    } catch (err) {
+      return reject(err)
+    }
+  })
   return {
     authHeaderValue,
     isSafeToProcessQueue: isSafeToProcessQueue(),
@@ -1095,7 +1186,10 @@ async function buildHealthcheckObj() {
       summary: obsSummary,
       reqsWithFailuresCount: obsSummary.filter(e => e.failureCount).length,
     },
-    waitingDepsBundlesCount: await wowSwStore.length(),
+    waitingDepsBundles: {
+      count: swStoreItems.length,
+      itemSummaries: swStoreItems,
+    },
   }
   function mapEntries(entries) {
     return entries.map(e => ({
