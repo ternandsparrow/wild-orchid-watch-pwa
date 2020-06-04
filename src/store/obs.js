@@ -1249,7 +1249,8 @@ const actions = {
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+        `Could not find a "process waiting DB" strategy for key='${key}', ` +
+          `cannot continue`,
       )
     }
     await strategy()
