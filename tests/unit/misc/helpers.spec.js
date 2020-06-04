@@ -413,34 +413,26 @@ describe('verifyWowDomainPhoto', () => {
     }
   })
 
-  it('should fail a record missing a license code', () => {
+  it('should NOT fail a record missing a license code', () => {
     const record = {
       id: 33,
       url: 'http://some.ph/oto.jpg',
       // no licenseCode
       attribution: '(c) user, some rights reserved (CC BY-NC)',
     }
-    try {
-      objectUnderTest.verifyWowDomainPhoto(record)
-      fail('error should have been thrown')
-    } catch (err) {
-      // success
-    }
+    objectUnderTest.verifyWowDomainPhoto(record)
+    // expect nothing is thrown
   })
 
-  it('should fail a record missing an attribution', () => {
+  it('should NOT fail a record missing an attribution', () => {
     const record = {
       id: 33,
       url: 'http://some.ph/oto.jpg',
       licenseCode: 'cc-by-nc',
       // no attribution
     }
-    try {
-      objectUnderTest.verifyWowDomainPhoto(record)
-      fail('error should have been thrown')
-    } catch (err) {
-      // success
-    }
+    objectUnderTest.verifyWowDomainPhoto(record)
+    // expect nothing is thrown
   })
 })
 
