@@ -249,8 +249,11 @@ export function verifyWowDomainPhoto(photo) {
   let msg = ''
   assertFieldPresent('id')
   assertFieldPresent('url')
-  assertFieldPresent('licenseCode')
-  assertFieldPresent('attribution')
+  // note: we can't make licenseCode required because users can set "no
+  // license" on a photo - either manually or via default settings in iNat -
+  // and the value will be null.
+  // optional field: licenseCode
+  // optional field: attribution
   if (msg) {
     throw new Error(msg)
   }
