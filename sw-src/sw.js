@@ -805,7 +805,7 @@ registerRoute(
     const obsId = parseInt(
       url.pathname.substr(url.pathname.lastIndexOf('/') + 1),
     )
-    console.debug(`Extracted obs ID='${obsId}' from url=${url.pathname}`)
+    console.debug(`[SW] Extracted obs ID='${obsId}' from url=${url.pathname}`)
     await obsQueue.pushRequest({
       metadata: {
         obsId: obsId,

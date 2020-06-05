@@ -74,7 +74,17 @@ const mutations = {
   flagGlobalError: (state, value) => {
     state.isGlobalErrorState = true
     if (typeof value === 'object') {
-      state.globalErrorUserMsg = value.msg
+      const fullMsg = (() => {
+        if (!value.isNetworkErrorWow) {
+          return value.msg
+        }
+        return (
+          `${value.msg}.\nThis looks to be caused by a network issue like ` +
+          `(dis)connecting to/from WiFi, being offline or poor reception. ` +
+          `Try again once you know you have an internet connection.`
+        )
+      })()
+      state.globalErrorUserMsg = fullMsg
       state.globalErrorImgUrl = value.imgUrl
       return
     }
