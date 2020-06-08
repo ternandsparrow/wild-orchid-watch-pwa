@@ -850,7 +850,7 @@ registerRoute(
   constants.serviceWorkerPlatformTestUrl,
   async ({ url, event, params }) => {
     console.debug('[SW] Performing platform test')
-    const tests = [platformTestReqFileSw]
+    const tests = [platformTestReqFileSw, platformTestReqBlobSw]
     const testResults = await Promise.all(
       tests.map(async f => ({ name: f.name, result: await f() })),
     )
@@ -863,6 +863,10 @@ registerRoute(
 
 function platformTestReqFileSw() {
   return devHelpers.platformTestReqFile()
+}
+
+function platformTestReqBlobSw() {
+  return devHelpers.platformTestReqBlob()
 }
 
 // We have a separate endpoint to update the auth for the case when an obs is

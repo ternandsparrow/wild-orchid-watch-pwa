@@ -900,12 +900,19 @@ export default {
           method: 'POST',
         })
         const mainThreadResults = await Promise.all(
-          [platformTestReqFileMainThread].map(async f => ({
-            name: f.name,
-            result: await f(),
-          })),
+          [platformTestReqFileMainThread, platformTestReqBlobMainThread].map(
+            async f => ({
+              name: f.name,
+              result: await f(),
+            }),
+          ),
         )
-        const swResults = await resp.json()
+        const swResults = await (async () => {
+          if (await isSwActive()) {
+            return resp.json()
+          }
+          return '(no SW)'
+        })()
         this.platformTestResult = [...mainThreadResults, ...swResults]
       } catch (err) {
         console.error('Failed to perform platform test', err)
@@ -917,6 +924,10 @@ export default {
 
 function platformTestReqFileMainThread() {
   return devHelpers.platformTestReqFile()
+}
+
+function platformTestReqBlobMainThread() {
+  return devHelpers.platformTestReqBlob()
 }
 
 function isScriptAlreadyLoaded(src) {
