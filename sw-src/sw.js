@@ -13,6 +13,7 @@ import {
   wowErrorHandler,
   wowWarnMessage,
 } from '../src/misc/only-common-deps-helpers'
+import * as devHelpers from '../src/misc/dev-helpers'
 import * as constants from '../src/misc/constants.js'
 
 function initErrorTracker() {
@@ -849,7 +850,7 @@ registerRoute(
   constants.serviceWorkerPlatformTestUrl,
   async ({ url, event, params }) => {
     console.debug('[SW] Performing platform test')
-    const tests = [platformTestReqArrayBufferSw]
+    const tests = [platformTestReqFileSw]
     const testResults = await Promise.all(
       tests.map(async f => ({ name: f.name, result: await f() })),
     )
@@ -860,25 +861,8 @@ registerRoute(
   'POST',
 )
 
-async function platformTestReqArrayBufferSw() {
-  try {
-    const fd = new FormData()
-    fd.append('observation_photo[observation_id]', 1234)
-    const photoBuffer = base64js.toByteArray(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhA' +
-        'J/wlseKgAAAABJRU5ErkJggg==',
-    )
-    const theFile = new File([photoBuffer], 'wow-flower', { type: 'image/png' })
-    fd.append('file', theFile)
-    const ab = await new Request('https://localhost', {
-      method: 'POST',
-      mode: 'cors',
-      body: fd._blob ? fd._blob() : fd,
-    }).arrayBuffer()
-    return `success, length=${ab.byteLength}`
-  } catch (err) {
-    return err
-  }
+function platformTestReqFileSw() {
+  return devHelpers.platformTestReqFile()
 }
 
 // We have a separate endpoint to update the auth for the case when an obs is

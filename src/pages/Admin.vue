@@ -444,6 +444,7 @@ import {
   triggerSwObsQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
+import * as devHelpers from '@/misc/dev-helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
 
@@ -898,13 +899,24 @@ export default {
         const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
           method: 'POST',
         })
-        this.platformTestResult = await resp.text()
+        const mainThreadResults = await Promise.all(
+          [platformTestReqFileMainThread].map(async f => ({
+            name: f.name,
+            result: await f(),
+          })),
+        )
+        const swResults = await resp.json()
+        this.platformTestResult = [...mainThreadResults, ...swResults]
       } catch (err) {
         console.error('Failed to perform platform test', err)
         this.platformTestResult = 'Failed. ' + err.message
       }
     },
   },
+}
+
+function platformTestReqFileMainThread() {
+  return devHelpers.platformTestReqFile()
 }
 
 function isScriptAlreadyLoaded(src) {
