@@ -37,6 +37,17 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Platform test
+      </div>
+      <p>
+        Run a series of tests to make sure the platform is working like we
+        expect.
+      </p>
+      <pre><code>{{platformTestResult}}</code></pre>
+      <v-ons-button @click="doPlatformTest">Do platform test</v-ons-button>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         User agent
       </div>
       <div class="text-center">
@@ -472,6 +483,7 @@ export default {
       resetRpoList: [],
       resetRpoUuid: null,
       remoteJsUuid: null,
+      platformTestResult: '(not run yet)',
     }
   },
   computed: {
@@ -880,6 +892,17 @@ export default {
       s.id = scriptTagId
       s.setAttribute('data-consolejs-channel', uuid)
       document.head.appendChild(s)
+    },
+    async doPlatformTest() {
+      try {
+        const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
+          method: 'POST',
+        })
+        this.platformTestResult = await resp.text()
+      } catch (err) {
+        console.error('Failed to perform platform test', err)
+        this.platformTestResult = 'Failed. ' + err.message
+      }
     },
   },
 }

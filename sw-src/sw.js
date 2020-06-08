@@ -835,11 +835,42 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerHealthCheckUrl,
   async ({ url, event, params }) => {
-    console.debug('Performing a health check')
+    console.debug('[SW] Performing a health check')
     return jsonResponse(await buildHealthcheckObj())
   },
   'GET',
 )
+
+// "the web" is not *a* platform. A platform offers a controlled runtime
+// environment. It's a collection of platforms. This tests some of the corner
+// cases that make targeting multiple platforms a challenge. Purely for dev
+// use.
+registerRoute(
+  constants.serviceWorkerPlatformTestUrl,
+  async ({ url, event, params }) => {
+    console.debug('[SW] Performing platform test')
+    const tests = [platformTestReqArrayBuffer]
+    const testResults = await Promise.all(
+      tests.map(async f => ({ name: f.name, result: await f() })),
+    )
+    return new Response(JSON.stringify(testResults, null, 2), {
+      status: 200,
+    })
+  },
+  'POST',
+)
+
+async function platformTestReqArrayBuffer() {
+  try {
+    const ab = await new Request('https://localhost', {
+      method: 'POST',
+      body: new Blob(['asdf']),
+    }).arrayBuffer()
+    return `success, length=${ab.byteLength}`
+  } catch (err) {
+    return err
+  }
+}
 
 // We have a separate endpoint to update the auth for the case when an obs is
 // queued for upload but the auth token that would've been supplied expires

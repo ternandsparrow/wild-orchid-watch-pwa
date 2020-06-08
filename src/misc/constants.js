@@ -431,6 +431,9 @@ export const serviceWorkerUpdateErrorTrackerContextUrl =
 export const serviceWorkerClearEverythingUrl =
   serviceWorkerMagicUrlPrefix + '/clear-everything'
 
+export const serviceWorkerPlatformTestUrl =
+  serviceWorkerMagicUrlPrefix + '/platorm-test'
+
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
 
 export const photoTypeWholePlant = 'whole-plant'
