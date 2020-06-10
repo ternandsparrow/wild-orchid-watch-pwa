@@ -7113,7 +7113,7 @@ form-data@~2.3.2:
 
 "formdata-polyfill@https://github.com/ternandsparrow/FormData#safari13.1":
   version "3.0.19-safari13.1"
-  resolved "https://github.com/ternandsparrow/FormData#ec61327b7c684a6c8871bad00cbbdb79511d6985"
+  resolved "https://github.com/ternandsparrow/FormData#d147d2b996eed5129ea5702296b37470d17190df"
 
 forwarded@~0.1.2:
   version "0.1.2"
