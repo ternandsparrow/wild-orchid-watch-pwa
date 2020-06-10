@@ -899,14 +899,16 @@ export default {
         const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
           method: 'POST',
         })
-        const mainThreadResults = await Promise.all(
-          [platformTestReqFileMainThread, platformTestReqBlobMainThread].map(
-            async f => ({
-              name: f.name,
-              result: await f(),
-            }),
-          ),
-        )
+        const mainThreadResults = [
+          {
+            name: 'platformTestReqFileMainThread',
+            result: await devHelpers.platformTestReqFile(),
+          },
+          {
+            name: 'platformTestReqBlobMainThread',
+            result: await devHelpers.platformTestReqBlob(),
+          },
+        ]
         const swResults = await (async () => {
           if (await isSwActive()) {
             return resp.json()
@@ -920,14 +922,6 @@ export default {
       }
     },
   },
-}
-
-function platformTestReqFileMainThread() {
-  return devHelpers.platformTestReqFile()
-}
-
-function platformTestReqBlobMainThread() {
-  return devHelpers.platformTestReqBlob()
 }
 
 function isScriptAlreadyLoaded(src) {
