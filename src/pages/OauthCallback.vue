@@ -19,10 +19,11 @@
 <script>
 import { postJson, wowErrorHandler } from '@/misc/helpers'
 import {
-  inatUrlBase,
   appId,
-  redirectUri,
+  inatUrlBase,
   oauthCallbackComponentName,
+  persistedStateLocalStorageKey,
+  redirectUri,
 } from '@/misc/constants'
 
 export default {
@@ -41,10 +42,32 @@ export default {
       this.isError = false
       let token, tokenType, tokenCreatedAt
       const verifier = this.$store.state.auth.code_verifier
+      const isFirstRun = this.$store.state.app.isFirstRun
       try {
         if (!verifier) {
+          // this is all WOW-115 related
+          const extraDetail = (() => {
+            let msg = `isFirstRun=${isFirstRun}, `
+            if (isFirstRun) {
+              msg +=
+                `Vuex was probably init'd from fresh, or at least the` +
+                ` login button has not been pressed`
+            } else {
+              msg += `seems like *only* the auth info in Vuex was forgotten`
+            }
+            return msg
+          })()
+          // grabbing info stashed at start of index.html
+          const vuexSnapshotFromPageLoad = localStorage.getItem(
+            persistedStateLocalStorageKey + 'on-page-load',
+          )
+          const lengthOfData = (vuexSnapshotFromPageLoad || '').length
           throw new Error(
-            `OAuth code_verifier='${verifier}' is not set, cannot continue.`,
+            `OAuth code_verifier='${verifier}' is not set, cannot continue. ` +
+              `${extraDetail}. Snapshot of Vuex data from when page loaded is ` +
+              `${lengthOfData} characters long, and here's the value: ` +
+              // Sentry is probably going to truncate this
+              `${vuexSnapshotFromPageLoad}`,
           )
         }
         const resp = await postJson(`${inatUrlBase}/oauth/token`, {
