@@ -111,6 +111,12 @@ const actions = {
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
+      if (!myUserId) {
+        console.debug(
+          'No userID present, refusing to try to get my observations',
+        )
+        return
+      }
       const baseUrl =
         `/observations` +
         `?user_id=${myUserId}` +
@@ -133,7 +139,7 @@ const actions = {
         },
         { root: true },
       )
-      return false
+      return
     } finally {
       commit('setIsUpdatingRemoteObs', false)
     }
@@ -246,6 +252,10 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
+    if (!myUserId) {
+      console.debug('No userID present, refusing to try to get my species')
+      return
+    }
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
@@ -266,7 +276,7 @@ const actions = {
         { msg: 'Failed to get my species counts', err },
         { root: true },
       )
-      return false
+      return
     }
   },
   async buildObsFieldSorter({ dispatch }) {
@@ -326,8 +336,8 @@ const actions = {
       const projectInfo = await fetchSingleRecord(url)
       if (!projectInfo) {
         throw new Error(
-          'Request to get project info was successful, but ' +
-            `contained no result, cannot continue, projectInfo='${projectInfo}'`,
+          'Request to get project info was either unsuccessful or ' +
+            `contained no result; cannot continue, projectInfo='${projectInfo}'`,
         )
       }
       commit('setProjectInfo', projectInfo)
