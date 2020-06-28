@@ -211,10 +211,10 @@ export default {
     },
     isEnableHighAccuracy: {
       get() {
-        return this.$store.mutation.app.isEnableHighAccuracy
+        return this.$store.state.app.isEnableHighAccuracy
       },
       set(newValue) {
-        this.$store.commit('app/isEnableHighAccuracy', newValue)
+        this.$store.commit('app/setEnableHighAccuracy', newValue)
       },
     },
     storageMsg() {
