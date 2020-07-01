@@ -217,12 +217,24 @@ export function findCommonString(string1, string2) {
 async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok || alsoOkHttpStatuses.includes(resp.status)
-  try {
-    if (isRespOk && isJson) {
-      return resp.json()
+  if (isRespOk && isJson) {
+    const clonedResp = resp.clone()
+    try {
+      const result = await resp.json()
+      return result
+    } catch (err) {
+      const isEmtpyResp = (await clonedResp.text()).length === 0
+      if (isEmtpyResp) {
+        // Including obs field values and/or project_id in the POST
+        // /v1/observations request seems to trigger this, see
+        // https://github.com/inaturalist/iNaturalistAPI/issues/200.  It would
+        // be even nicer if we could determine length without this mess but the
+        // "Content-Length" header isn't present when this happens (unless that
+        // *is* the indicator).
+        throw chainedError('Empty 200 JSON response', err)
+      }
+      throw chainedError('Failed while parsing JSON response', err)
     }
-  } catch (err) {
-    throw chainedError('Failed while parsing JSON response', err)
   }
   // resp either NOT ok or NOT JSON, prep nice error msg
   const bodyAccessor = isJson ? 'json' : 'text'

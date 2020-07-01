@@ -1160,6 +1160,8 @@ const actions = {
       },
       [recordType('edit')]: async () => {
         const inatRecordId = await dispatch('_editObservation', {
+          // FIXME should we do child reqs first, then core obs so the
+          // updated_at date is the last thing that's updated?
           obsRecord: apiRecords.observationPostBody,
           inatRecordId: dbRecord.inatId,
         })
@@ -1197,12 +1199,6 @@ const actions = {
       for (const curr of apiRecords.photoPostBodyPartials) {
         await dispatch('_createPhoto', {
           photoRecord: curr,
-          relatedObsId: inatRecordId,
-        })
-      }
-      for (const curr of apiRecords.obsFieldPostBodyPartials) {
-        await dispatch('_createObsFieldValue', {
-          obsFieldRecord: curr,
           relatedObsId: inatRecordId,
         })
       }
@@ -1286,7 +1282,7 @@ const actions = {
           }
         },
       )
-      result[constants.obsFieldsFieldName] = apiRecords.obsFieldPostBodyPartials
+      result[constants.obsFieldsFieldName] = apiRecords.obsFieldPostBodyPartials // FIXME update client of this field to no longer require it
       result[constants.obsFieldIdsToDeleteFieldName] =
         dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName]
       return result
@@ -1908,16 +1904,18 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
         longitude: dbRecord.lng,
         observed_on_string: dbRecord.observedAt,
         species_guess: dbRecord.speciesGuess,
+        observation_field_values_attributes: (
+          dbRecord.obsFieldValues || []
+        ).reduce((accum, curr, index) => {
+          accum[index] = {
+            observation_field_id: curr.fieldId,
+            value: curr.value,
+          }
+          return accum
+        }, {}),
       },
     ),
   }
-  // we could store the fields to send in wowMeta like we do with photos, but
-  // this approach works and is simple
-  result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
-    observation_field_id: e.fieldId,
-    value: e.value,
-  }))
-  result.totalTaskCount += result.obsFieldPostBodyPartials.length
   result.photoPostBodyPartials =
     dbRecord.wowMeta[constants.photosToAddFieldName] || []
   result.totalTaskCount += result.photoPostBodyPartials.length
