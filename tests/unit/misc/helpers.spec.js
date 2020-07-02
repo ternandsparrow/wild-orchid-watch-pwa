@@ -7,94 +7,100 @@ beforeEach(function() {
 
 describe('doManagedFetch', () => {
   it('should handle a successful req for JSON', async () => {
-    global.fetch = async () => ({
-      ok: true,
-      headers: {
-        get(key) {
-          const fakeHeaders = {
-            'Content-Type': 'application/json',
-          }
-          return fakeHeaders[key]
+    global.fetch = async () =>
+      cloneableResp({
+        ok: true,
+        headers: {
+          get(key) {
+            const fakeHeaders = {
+              'Content-Type': 'application/json',
+            }
+            return fakeHeaders[key]
+          },
         },
-      },
-      json: () => 'match me!',
-    })
+        json: () => 'match me!',
+      })
     const result = await objectUnderTest._testonly.doManagedFetch('/test', {})
     expect(result).toEqual('match me!')
   })
 
   it('should handle a NOT successful req for JSON', async () => {
-    global.fetch = async () => ({
-      ok: false,
-      headers: {
-        get(key) {
-          const fakeHeaders = {
-            'Content-Type': 'application/json',
-          }
-          return fakeHeaders[key]
+    global.fetch = async () =>
+      cloneableResp({
+        ok: false,
+        headers: {
+          get(key) {
+            const fakeHeaders = {
+              'Content-Type': 'application/json',
+            }
+            return fakeHeaders[key]
+          },
         },
-      },
-      json: () => 'match me!',
-    })
-    expect(
+        json: () => 'match me!',
+      })
+    await expect(
       objectUnderTest._testonly.doManagedFetch('/test', {}),
     ).rejects.toThrow('Response is either not OK or not JSON')
   })
 
   it('should handle a successful req that is NOT JSON', async () => {
-    global.fetch = async () => ({
-      ok: true,
-      headers: {
-        get(key) {
-          const fakeHeaders = {
-            'Content-Type': 'text/html',
-          }
-          return fakeHeaders[key]
+    global.fetch = async () =>
+      cloneableResp({
+        ok: true,
+        headers: {
+          get(key) {
+            const fakeHeaders = {
+              'Content-Type': 'text/html',
+            }
+            return fakeHeaders[key]
+          },
         },
-      },
-      text: () => '<html>...',
-    })
-    expect(
+        text: () => '<html>...',
+      })
+    await expect(
       objectUnderTest._testonly.doManagedFetch('/test', {}),
     ).rejects.toThrow('Response is either not OK or not JSON')
   })
 
   it('should handle a JSON parsing error', async () => {
-    global.fetch = async () => ({
-      ok: true,
-      headers: {
-        get(key) {
-          const fakeHeaders = {
-            'Content-Type': 'application/json',
-          }
-          return fakeHeaders[key]
+    global.fetch = async () =>
+      cloneableResp({
+        ok: true,
+        headers: {
+          get(key) {
+            const fakeHeaders = {
+              'Content-Type': 'application/json',
+            }
+            return fakeHeaders[key]
+          },
         },
-      },
-      json() {
-        throw new Error('fail town!')
-      },
-    })
-    expect(
+        json() {
+          return JSON.parse('<html>not JSON</html>')
+        },
+        text: () => '<html>not JSON</html>',
+      })
+    await expect(
       objectUnderTest._testonly.doManagedFetch('/test', {}),
     ).rejects.toThrow('Failed while parsing JSON response')
   })
 
   it('should handle an "also ok" HTTP status code', async () => {
-    global.fetch = async () => ({
-      ok: false,
-      status: 201,
-      headers: {
-        get(key) {
-          const fakeHeaders = {
-            'Content-Type': 'application/json',
-          }
-          return fakeHeaders[key]
+    global.fetch = async () =>
+      cloneableResp({
+        ok: false,
+        status: 201,
+        headers: {
+          get(key) {
+            const fakeHeaders = {
+              'Content-Type': 'application/json',
+            }
+            return fakeHeaders[key]
+          },
         },
-      },
-      json() {
-        return 'success!'
-      },
-    })
+        json() {
+          return 'success!'
+        },
+      })
     const result = await objectUnderTest._testonly.doManagedFetch('/test', {}, [
       201,
     ])
@@ -674,4 +680,11 @@ function mockResp(mimeStr) {
       get: () => mimeStr,
     },
   }
+}
+
+function cloneableResp(obj) {
+  obj.clone = function() {
+    return obj
+  }
+  return obj
 }

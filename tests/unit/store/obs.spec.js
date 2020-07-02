@@ -2075,10 +2075,8 @@ describe('mapObsFromOurDomainOntoApi', () => {
       wowMeta: { recordType: 'new' },
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
-    expect(result.obsFieldPostBodyPartials).toEqual([])
     expect(result.photoPostBodyPartials).toEqual([])
     expect(result.observationPostBody).toEqual({
-      ignore_photos: true,
       observation: {
         uuid: '111A',
         species_guess: 'some species',
@@ -2089,6 +2087,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
         longitude: 138.123,
         observed_on_string: '2020-01-03T05:18:10.702Z',
         positional_accuracy: 1234,
+        observation_field_values_attributes: {},
       },
     })
   })
@@ -2126,15 +2125,14 @@ describe('mapObsFromOurDomainOntoApi', () => {
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
     expect(result).toEqual({
-      obsFieldPostBodyPartials: [],
       observationPostBody: {
-        ignore_photos: true,
         observation: {
           latitude: -35.123,
           longitude: 138.123,
           observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
+          observation_field_values_attributes: {},
         },
       },
       photoPostBodyPartials: [{ testTag: 'save me' }],
@@ -2155,19 +2153,20 @@ describe('mapObsFromOurDomainOntoApi', () => {
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
     expect(result).toEqual({
-      obsFieldPostBodyPartials: [{ observation_field_id: 11, value: 'blah' }],
       observationPostBody: {
-        ignore_photos: true,
         observation: {
           latitude: -35.123,
           longitude: 138.123,
           observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
+          observation_field_values_attributes: {
+            0: { observation_field_id: 11, value: 'blah' },
+          },
         },
       },
       photoPostBodyPartials: [],
-      totalTaskCount: 2,
+      totalTaskCount: 1,
     })
   })
 })

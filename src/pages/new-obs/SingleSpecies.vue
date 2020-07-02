@@ -1176,6 +1176,10 @@ export default {
       this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
     },
     async doSaveEdit(record) {
+      // note: swapping from detailed to basic mode will NOT delete the fields
+      // that are no longer visible. Users shouldn't be frequently swapping
+      // between the two but even if they do, losing data is probably not want
+      // they expect.
       const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
         (accum, currKey) => {
           // TODO if we ever have conditionally displayable multiselect

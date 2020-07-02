@@ -56,13 +56,13 @@
         overscrollable
         :index.sync="carouselIndex"
       >
-        <v-ons-carousel-item v-for="curr of photos" :key="curr">
+        <v-ons-carousel-item v-for="curr of photos" :key="curr.id">
           <div class="photo-container">
             <img
               class="a-photo"
-              :src="curr"
+              :src="curr.url"
               alt="an observation photo"
-              @click="showPhotoPreview(curr)"
+              @click="showPhotoPreview(curr.url)"
             />
           </div>
         </v-ons-carousel-item>
@@ -483,9 +483,12 @@ export default {
       return (this.nullSafeObs.photos || []).length
     },
     photos() {
-      return (this.nullSafeObs.photos || []).map(e =>
-        e.url.replace('square', 'medium'),
-      )
+      return (this.nullSafeObs.photos || []).map((e, index) => ({
+        // while photos are still processing, they all have the same URL so
+        // we'll make a unique ID
+        id: 'photo-' + index,
+        url: e.url.replace('square', 'medium'),
+      }))
     },
     isShowDots() {
       return this.photos.length > 1

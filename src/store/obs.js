@@ -1088,7 +1088,11 @@ const actions = {
       'doApiPut',
       {
         urlSuffix: `/observations/${inatRecordId}`,
-        data: obsRecord,
+        data: {
+          // note: obs fields *not* included here are not implicitly deleted.
+          ...obsRecord,
+          ignore_photos: true,
+        },
       },
       { root: true },
     )
@@ -1102,11 +1106,21 @@ const actions = {
       { root: true },
     )
   },
-  async _createPhoto({ dispatch }, { photoRecord, relatedObsId }) {
+  async _createObsPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
       'doPhotoPost',
       {
         obsId: relatedObsId,
+        photoRecord,
+      },
+      { root: true },
+    )
+    return resp.id
+  },
+  async _createLocalPhoto({ dispatch }, { photoRecord }) {
+    const resp = await dispatch(
+      'doLocalPhotoPost',
+      {
         photoRecord,
       },
       { root: true },
@@ -1147,25 +1161,53 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch }, { dbRecord }) {
+  async processWaitingDbRecordNoSw({ dispatch, state }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
       [recordType('new')]: async () => {
-        const inatRecordId = await dispatch('_createObservation', {
-          obsRecord: apiRecords.observationPostBody,
+        const localPhotoIds = []
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          const id = await dispatch('_createLocalPhoto', {
+            photoRecord: curr,
+          })
+          localPhotoIds.push(id)
+        }
+        await dispatch('waitForProjectInfo')
+        return dispatch('_createObservation', {
+          obsRecord: {
+            ...apiRecords.observationPostBody,
+            project_id: [state.projectInfo.id],
+            local_photos: {
+              0: localPhotoIds,
+            },
+            uploader: true,
+            refresh_index: true,
+          },
         })
-        await processChildReqs(dbRecord, inatRecordId)
-        return dispatch('_linkObsWithProject', { recordId: inatRecordId })
       },
       [recordType('edit')]: async () => {
-        const inatRecordId = await dispatch('_editObservation', {
-          // FIXME should we do child reqs first, then core obs so the
-          // updated_at date is the last thing that's updated?
+        const inatRecordId = dbRecord.inatId
+        await Promise.all(
+          dbRecord.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
+            return dispatch('_deletePhoto', id)
+          }),
+        )
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          await dispatch('_createObsPhoto', {
+            photoRecord: curr,
+            relatedObsId: inatRecordId,
+          })
+        }
+        for (const id of dbRecord.wowMeta[
+          constants.obsFieldIdsToDeleteFieldName
+        ]) {
+          await dispatch('_deleteObsFieldValue', id)
+        }
+        return dispatch('_editObservation', {
           obsRecord: apiRecords.observationPostBody,
-          inatRecordId: dbRecord.inatId,
+          inatRecordId,
         })
-        return processChildReqs(dbRecord, inatRecordId)
       },
       [recordType('delete')]: async () => {
         return dispatch('_deleteObservation', {
@@ -1184,30 +1226,13 @@ const actions = {
     // version of the processor and we get this smart retry for free.
     if (!strategy) {
       throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+        `Could not find a "process waiting DB" strategy for key='${key}', ` +
+          `cannot continue`,
       )
     }
     await strategy()
     await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
     await dispatch('refreshRemoteObsWithDelay')
-    async function processChildReqs(dbRecordParam, inatRecordId) {
-      await Promise.all(
-        dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
-          return dispatch('_deletePhoto', id).then(() => {})
-        }),
-      )
-      for (const curr of apiRecords.photoPostBodyPartials) {
-        await dispatch('_createPhoto', {
-          photoRecord: curr,
-          relatedObsId: inatRecordId,
-        })
-      }
-      for (const id of dbRecordParam.wowMeta[
-        constants.obsFieldIdsToDeleteFieldName
-      ]) {
-        await dispatch('_deleteObsFieldValue', id)
-      }
-    }
   },
   async processWaitingDbRecordWithSw(
     { state, dispatch, rootState },
@@ -1888,7 +1913,6 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     return {}
   })()
   result.observationPostBody = {
-    ignore_photos: true,
     observation: Object.keys(dbRecord).reduce(
       (accum, currKey) => {
         const isNotIgnored = !ignoredKeys.includes(currKey)
