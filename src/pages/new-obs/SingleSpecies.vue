@@ -10,6 +10,12 @@
     <v-ons-list-item modifier="nodivider">
       Provide responses for at least all the required questions, then press the
       save button.
+      <div
+        v-show="isDetailedUserMode"
+        class="detailed-indicator wow-obs-field-desc"
+      >
+        Detailed mode enabled!
+      </div>
     </v-ons-list-item>
     <v-ons-list>
       <template v-for="currMenuItem of photoMenu">
@@ -1592,5 +1598,10 @@ $thumbnailSize: 75px;
 
 .detailed-mode-switch-container {
   margin-top: 10em;
+}
+
+.detailed-indicator {
+  flex-grow: 1;
+  text-align: right;
 }
 </style>
