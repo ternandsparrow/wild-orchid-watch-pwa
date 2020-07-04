@@ -543,7 +543,13 @@ export default {
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
-    // TODO when landing from gallery, could preselect the referrer photo
+    this.debouncedResetProcessingOutcome = _.debounce(
+      this._resetProcessingOutcome,
+      2000,
+      { leading: true, trailing: false },
+    )
+    // TODO enhancement idea: when landing from gallery, could preselect the
+    // referrer photo.
   },
   methods: {
     async navigateToNewDetailPage(uuid) {
@@ -574,13 +580,13 @@ export default {
     },
     resetProcessingOutcomeFromSystemError() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from system error`)
-      this._resetProcessingOutcome(
+      this.debouncedResetProcessingOutcome(
         'Failed to reset processing outcome after error',
       )
     },
     resetProcessingOutcomeFromStuck() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from stuck`)
-      this._resetProcessingOutcome(
+      this.debouncedResetProcessingOutcome(
         'Failed to reset processing outcome from a possibly stuck record',
       )
     },

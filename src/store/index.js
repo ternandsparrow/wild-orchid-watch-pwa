@@ -55,11 +55,11 @@ const store = new Vuex.Store({
       return dispatch('auth/doApiDelete', argObj)
     },
     flagGlobalError({ commit }, { msg, userMsg, imgUrl, err }) {
-      if (imgUrl) {
-        commit('ephemeral/flagGlobalError', { msg: userMsg, imgUrl })
-      } else {
-        commit('ephemeral/flagGlobalError', userMsg || msg)
-      }
+      commit('ephemeral/flagGlobalError', {
+        msg: userMsg || msg,
+        imgUrl,
+        isNetworkErrorWow: err.isNetworkErrorWow,
+      })
       wowErrorHandler(msg, err)
     },
     async fetchAllPages({ dispatch }, { baseUrl, pageSize }) {

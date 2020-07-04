@@ -39,7 +39,9 @@ export function chainedError(msg, err) {
     )
   }
   if (typeof err === 'object') {
-    // FIXME can we detect and handle a ProgressEvent and get details from err.target.error.code (and lookup name of error by getting key for the code on .error)
+    // FIXME can we detect and handle a ProgressEvent and get details from
+    // err.target.error.code (and lookup name of error by getting key for the
+    // code on .error)
     const newMsg = `${msg}\nCaused by: ${err.message}`
     try {
       err.message = newMsg

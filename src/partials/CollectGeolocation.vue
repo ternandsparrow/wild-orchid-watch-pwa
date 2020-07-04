@@ -2,8 +2,23 @@
   <div>
     <v-ons-list-item modifier="nodivider">
       <div class="center">
-        <!-- FIXME need to handle edit mode -->
         <v-ons-list>
+          <v-ons-list-item v-if="isEdit" tappable>
+            <label class="left">
+              <v-ons-radio
+                v-model="geolocationMethod"
+                input-id="radio-gm-existing"
+                value="existing"
+                modifier="material"
+              >
+              </v-ons-radio>
+            </label>
+            <div class="center geolocation-option-label">
+              <label for="radio-gm-existing">
+                Use existing value in saved record
+              </label>
+            </div>
+          </v-ons-list-item>
           <v-ons-list-item tappable>
             <label class="left">
               <v-ons-radio
@@ -81,7 +96,12 @@
               <label for="radio-gm-device">
                 Use geolocation of this device, right now.
               </label>
-              <p v-if="deviceGeolocationErrorMsg" class="warning-alert">
+              <p
+                v-if="
+                  geolocationMethod === 'device' && deviceGeolocationErrorMsg
+                "
+                class="warning-alert"
+              >
                 <v-ons-icon
                   class="warning"
                   icon="fa-exclamation-circle"
@@ -139,6 +159,12 @@
                   class="info-alert"
                 >
                   Enter both lat and lon values
+                </div>
+                <div
+                  v-if="geolocationFromManualState === 'invalid'"
+                  class="warning-alert"
+                >
+                  Invalid value(s). Please only enter numbers.
                 </div>
                 <div
                   v-if="geolocationFromManualState === 'outside-bbox'"
@@ -214,6 +240,10 @@ export default {
       type: Boolean,
       required: true,
     },
+    isEdit: {
+      type: Boolean,
+      required: true,
+    },
   },
   data() {
     return {
@@ -273,6 +303,9 @@ export default {
       }
       if (!this.isManualLatAndLon) {
         return 'incomplete'
+      }
+      if (isNaN(this.manualLat) || isNaN(this.manualLon)) {
+        return 'invalid'
       }
       const lat = parseFloat(this.manualLat)
       const lng = parseFloat(this.manualLon)
@@ -340,7 +373,8 @@ export default {
     },
   },
   beforeMount() {
-    this.$store.commit('ephemeral/resetCoordsState')
+    const selectedMethod = this.isEdit ? 'existing' : 'photo'
+    this.$store.commit('ephemeral/resetCoordsState', selectedMethod)
   },
   beforeDestroy() {
     this.$store.commit('ephemeral/resetCoordsState')

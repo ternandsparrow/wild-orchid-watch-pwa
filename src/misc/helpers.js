@@ -170,10 +170,21 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
       result.isDowngradable = true
       throw result
     }
+    const isNetworkErrorWow = err.message === 'Failed to fetch'
     let msg = `Failed while doing fetch() with\n`
     msg += `  URL='${url}'\n`
     msg += `  Req body='${JSON.stringify(init, null, 2)}'`
-    throw chainedError(msg, err)
+    const result = chainedError(msg, err)
+    try {
+      result.isNetworkErrorWow = isNetworkErrorWow
+    } catch (err2) {
+      wowWarnHandler(
+        `Could not set property on error object. It's only for a nicer UX, ` +
+          `so continuing without it`,
+        err2,
+      )
+    }
+    throw result
   }
 }
 
@@ -249,8 +260,11 @@ export function verifyWowDomainPhoto(photo) {
   let msg = ''
   assertFieldPresent('id')
   assertFieldPresent('url')
-  assertFieldPresent('licenseCode')
-  assertFieldPresent('attribution')
+  // note: we can't make licenseCode required because users can set "no
+  // license" on a photo - either manually or via default settings in iNat -
+  // and the value will be null.
+  // optional field: licenseCode
+  // optional field: attribution
   if (msg) {
     throw new Error(msg)
   }

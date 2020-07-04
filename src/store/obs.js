@@ -111,6 +111,12 @@ const actions = {
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
+      if (!myUserId) {
+        console.debug(
+          'No userID present, refusing to try to get my observations',
+        )
+        return
+      }
       const baseUrl =
         `/observations` +
         `?user_id=${myUserId}` +
@@ -133,7 +139,7 @@ const actions = {
         },
         { root: true },
       )
-      return false
+      return
     } finally {
       commit('setIsUpdatingRemoteObs', false)
     }
@@ -246,6 +252,10 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
+    if (!myUserId) {
+      console.debug('No userID present, refusing to try to get my species')
+      return
+    }
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
@@ -266,7 +276,7 @@ const actions = {
         { msg: 'Failed to get my species counts', err },
         { root: true },
       )
-      return false
+      return
     }
   },
   async buildObsFieldSorter({ dispatch }) {
@@ -326,8 +336,8 @@ const actions = {
       const projectInfo = await fetchSingleRecord(url)
       if (!projectInfo) {
         throw new Error(
-          'Request to get project info was successful, but ' +
-            `contained no result, cannot continue, projectInfo='${projectInfo}'`,
+          'Request to get project info was either unsuccessful or ' +
+            `contained no result; cannot continue, projectInfo='${projectInfo}'`,
         )
       }
       commit('setProjectInfo', projectInfo)
@@ -1249,7 +1259,8 @@ const actions = {
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+        `Could not find a "process waiting DB" strategy for key='${key}', ` +
+          `cannot continue`,
       )
     }
     await strategy()
@@ -1573,12 +1584,12 @@ const getters = {
         constants.successOutcome,
     )
   },
-  obsFields(state) {
-    const projectInfo = state.projectInfo
-    if (!projectInfo) {
+  obsFields(_, getters) {
+    const projectObsFields = getters.nullSafeProjectObsFields
+    if (!projectObsFields.length) {
       return []
     }
-    const result = projectInfo.project_observation_fields.map(fieldRel => {
+    const result = projectObsFields.map(fieldRel => {
       // don't get confused: we have the field definition *and* the
       // relationship to the project
       const fieldDef = fieldRel.observation_field
@@ -1602,15 +1613,18 @@ const getters = {
       return accum
     }, {})
   },
-  detailedModeOnlyObsFieldIds(state) {
+  detailedModeOnlyObsFieldIds(_, getters) {
     // this doesn't handle conditional requiredness, but we tackle that elsewhere
-    return state.projectInfo.project_observation_fields.reduce(
-      (accum, curr) => {
-        accum[curr.id] = curr.required
-        return accum
-      },
-      {},
-    )
+    return getters.nullSafeProjectObsFields.reduce((accum, curr) => {
+      accum[curr.id] = curr.required
+      return accum
+    }, {})
+  },
+  nullSafeProjectObsFields(state) {
+    // there's a race condition where you can get to an obs detail page before
+    // the project info has been cached. This stops an error and will
+    // auto-magically update when the project info does arrive
+    return (state.projectInfo || {}).project_observation_fields || []
   },
 }
 
@@ -1845,7 +1859,7 @@ function mapGeojsonToLatLng(geojson) {
 }
 
 function processObsFieldName(fieldName) {
-  return (fieldName || '').replace(constants.obsFieldPrefix, '')
+  return (fieldName || '').replace(constants.obsFieldNamePrefix, '')
 }
 
 function mapObsFromOurDomainOntoApi(dbRecord) {

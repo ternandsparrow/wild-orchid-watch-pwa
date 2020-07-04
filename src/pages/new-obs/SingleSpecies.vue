@@ -2,7 +2,7 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
-        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="debouncedOnSave"
           >Save</v-ons-toolbar-button
         >
       </template>
@@ -17,7 +17,7 @@
           :key="currMenuItem.name + '-header'"
           :label="currMenuItem.name + ' photos'"
           :required="currMenuItem.required"
-          help-target="photos"
+          :help-target="'photos-' + currMenuItem.id"
           class="margin-for-photos"
           @on-help="showHelp"
         />
@@ -28,6 +28,7 @@
                 :id="currMenuItem.id + '-add'"
                 :ref="photoRef(currMenuItem)"
                 type="file"
+                multiple
                 :name="currMenuItem.id + '-add'"
                 accept="image/png, image/jpeg"
                 class="photo-button"
@@ -90,17 +91,13 @@
           What species is this observation of?
         </div>
       </v-ons-list-item>
-      <!-- FIXME need to init geolocation so it can be edited. Should we also store -->
-      <!-- the method used (and the thumbnail, etc) or just show that it *is* saved -->
-      <!-- and you can edit it if you like (easier).                                -->
       <wow-header
-        v-if="!isEdit"
         label="Geolocation / GPS coordinates"
         help-target="geolocation"
         @on-help="showHelp"
       />
       <wow-collect-geolocation
-        v-if="!isEdit"
+        :is-edit="isEdit"
         :photo-count="photos.length"
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"
@@ -187,7 +184,7 @@
                 :items="taxonQuestionAutocompleteItems[currField.id]"
                 :initial-value="obsFieldInitialValues[currField.id]"
                 :is-error="speciesAutocompleteErrors[currField.id]"
-                placeholder-text="e.g. snail orchid"
+                placeholder-text="e.g. casuarina glauca"
                 :extra-callback-data="currField.id"
                 @change="debouncedOnTaxonQuestionInput"
                 @item-selected="onTaxonQuestionSet"
@@ -252,7 +249,7 @@
       </template>
       <v-ons-list-item>
         <div class="text-center be-wide">
-          <v-ons-button name="bottom-save-btn" @click="onSave"
+          <v-ons-button name="bottom-save-btn" @click="debouncedOnSave"
             >Save</v-ons-button
           >
         </div>
@@ -334,8 +331,6 @@ import {
   wowWarnHandler,
 } from '@/misc/helpers'
 import {
-  autocompleteTypeHost,
-  autocompleteTypeOrchid,
   accuracyOfPopulationCountObsFieldDefault,
   accuracyOfPopulationCountObsFieldId,
   accuracyOfSearchAreaCalcEstimated,
@@ -343,19 +338,31 @@ import {
   accuracyOfSearchAreaCalcPrecise,
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
+  autocompleteTypeHost,
+  autocompleteTypeOrchid,
   coarseFragmentsMultiselectId,
-  conservationImmediateLanduseObsFieldId,
+  conservationLanduse,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
+  immediateLanduseObsFieldId,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
+  photoTypeCanopy,
+  photoTypeEpiphyteHostTree,
+  photoTypeFloralVisitors,
+  photoTypeFlower,
+  photoTypeFruit,
+  photoTypeHabitat,
+  photoTypeLeaf,
+  photoTypeMicrohabitat,
+  photoTypeWholePlant,
   searchAreaCalcPreciseLengthObsFieldId,
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
@@ -375,15 +382,15 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole-plant', name: 'Whole plant', required: true },
-        { id: 'flower', name: 'Flower' },
-        { id: 'leaf', name: 'Leaf' },
-        { id: 'fruit', name: 'Fruit' },
-        { id: 'habitat', name: 'Habitat', required: true },
-        { id: 'micro-habitat', name: 'Micro-habitat', required: true },
-        { id: 'canopy', name: 'Canopy' },
-        { id: 'floral-visitors', name: 'Floral visitors' },
-        { id: 'host-tree', name: 'Epiphyte host tree' },
+        { id: photoTypeWholePlant, name: 'Whole plant', required: true },
+        { id: photoTypeFlower, name: 'Flower' },
+        { id: photoTypeLeaf, name: 'Leaf' },
+        { id: photoTypeFruit, name: 'Fruit' },
+        { id: photoTypeHabitat, name: 'Habitat', required: true },
+        { id: photoTypeMicrohabitat, name: 'Micro-habitat', required: true },
+        { id: photoTypeCanopy, name: 'Canopy' },
+        { id: photoTypeFloralVisitors, name: 'Floral visitors' },
+        { id: photoTypeEpiphyteHostTree, name: 'Epiphyte host tree' },
       ],
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,
@@ -494,13 +501,18 @@ export default {
           })
           return accum
         }
+        const fieldIdsConditionallyRequiredOnlyInDetailedMode = [
+          widerLanduseObsFieldId,
+        ]
         const isConditionalRequiredField = [
           ...this.requiredFieldIdsConditionalOnNumberFields,
           ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
           // if these fields are visible, then they're required!
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
-          widerLanduseObsFieldId,
+          ...(this.isDetailedUserMode
+            ? fieldIdsConditionallyRequiredOnlyInDetailedMode
+            : []),
         ].includes(curr.id)
         const field = {
           ...curr,
@@ -564,8 +576,9 @@ export default {
       this.obsFieldVisibility[soilStructureObsFieldId] = isTerrestrial
       this.obsFieldVisibility[coarseFragmentsMultiselectId] = isTerrestrial
     },
-    [`obsFieldValues.${conservationImmediateLanduseObsFieldId}`](newVal) {
-      const isConservation = newVal === true
+    [`obsFieldValues.${immediateLanduseObsFieldId}`](newVal) {
+      const isConservation = newVal === conservationLanduse
+
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
     },
     [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {
@@ -615,6 +628,12 @@ export default {
       this._onTaxonQuestionInput,
       300,
     )
+    // the modal means we usually won't need the debounce as the modal will
+    // block clicks, but let's program defensively.
+    this.debouncedOnSave = _.debounce(this._onSave, 2000, {
+      leading: true,
+      trailing: false,
+    })
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
@@ -857,9 +876,9 @@ export default {
     },
     setDefaultAnswers() {
       try {
-        // TODO are these defaults ok? Should we be smarter like picking the
-        // last used values? Or should we have a button to "clone previous
-        // observation"?
+        // TODO enhancement idea: we could be smarter like picking the last
+        // used values. Or should we could have a button to "clone previous
+        // observation".
         this.obsFieldValues = this.displayableObsFields.reduce(
           (accum, curr) => {
             const isMultiselect = curr.wowDatatype === multiselectFieldType
@@ -880,6 +899,7 @@ export default {
               const speciallyHandledFields = {
                 [accuracyOfSearchAreaCalcObsFieldId]: notCollected,
                 [areaOfPopulationObsFieldId]: null,
+                [widerLanduseObsFieldId]: null,
               }
               if (
                 Object.keys(speciallyHandledFields).find(
@@ -944,6 +964,13 @@ export default {
       return result
     },
     validatePhotos() {
+      if (this.isEdit && (this.allPhotosByType[this.otherType] || []).length) {
+        // WOW-249 at time of writing, iNat prod doesn't use the photo filename
+        // we supply so we lose type information. The photos will appear as
+        // "other" type. If we continue to enforce the following rules, user's
+        // won't be able to edit an observation without adding 3 more photos.
+        return
+      }
       const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
       requiredPhotoTypes.forEach(curr => {
         const photosOfType = this.allPhotosByType[curr.id]
@@ -1000,7 +1027,7 @@ export default {
       }
       return true
     },
-    async onSave() {
+    async _onSave() {
       this.$wow.uiTrace('SingleSpecies', `save`)
       this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
@@ -1209,49 +1236,54 @@ export default {
       return result
     },
     async onPhotoChanged(photoDefObj) {
-      this.$wow.uiTrace('SingleSpecies', `photo attached`)
       const type = photoDefObj.id
-      const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
-      if (!file) {
-        return
-      }
-      const theUuid = uuid()
-      const photoObj = {
-        type,
-        file,
-        url: URL.createObjectURL(file),
-        uuid: theUuid,
-      }
-      this.photos.push(photoObj)
-      // here we use the full size photo but send it for compression/resizing in
-      // the worker (background) so we don't block the UI.
-      this.$store
-        .dispatch('ephemeral/processPhoto', photoObj)
-        .then(photoBlobish => {
-          const found = this.photos.find(e => e.uuid === theUuid)
-          if (!found) {
-            // guess the photo has already been deleted?
-            return
-          }
-          found.file = photoBlobish
-          const oldUrl = found.url
-          const newUrl = URL.createObjectURL(photoBlobish)
-          if (oldUrl === newUrl) {
-            // createObjectURL seems to always generate a new URL, but just to
-            // be safe, we'll check. Don't wanna revoke the one we're using.
-            return
-          }
-          found.url = newUrl
-          // we don't want our thumbnail to be using a revoked blob URL
-          this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
-            uuid: photoObj.uuid,
-            newUrl,
+      const files = this.$refs[this.photoRef(photoDefObj)][0].files
+      this.$wow.uiTrace(
+        'SingleSpecies',
+        `photo attached: ${files.length} ${type}`,
+      )
+      for (const file of files) {
+        if (!file) {
+          continue
+        }
+        const theUuid = uuid()
+        const photoObj = {
+          type,
+          file,
+          url: URL.createObjectURL(file),
+          uuid: theUuid,
+        }
+        this.photos.push(photoObj)
+        // here we use the full size photo but send it for compression/resizing in
+        // the worker (background) so we don't block the UI.
+        this.$store
+          .dispatch('ephemeral/processPhoto', photoObj)
+          .then(photoBlobish => {
+            const found = this.photos.find(e => e.uuid === theUuid)
+            if (!found) {
+              // guess the photo has already been deleted?
+              return
+            }
+            found.file = photoBlobish
+            const oldUrl = found.url
+            const newUrl = URL.createObjectURL(photoBlobish)
+            if (oldUrl === newUrl) {
+              // createObjectURL seems to always generate a new URL, but just to
+              // be safe, we'll check. Don't wanna revoke the one we're using.
+              return
+            }
+            found.url = newUrl
+            // we don't want our thumbnail to be using a revoked blob URL
+            this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
+              uuid: photoObj.uuid,
+              newUrl,
+            })
+            URL.revokeObjectURL(oldUrl)
           })
-          URL.revokeObjectURL(oldUrl)
-        })
-        .catch(err => {
-          wowWarnHandler('Failed to compress/resize an image', err)
-        })
+          .catch(err => {
+            wowWarnHandler('Failed to compress/resize an image', err)
+          })
+      }
     },
     async _onSpeciesGuessInput(data) {
       this.speciesAutocompleteErrors.speciesGuess = false
@@ -1375,6 +1407,15 @@ export default {
     onCancel() {
       const modeName = this.isEdit ? 'edit' : 'create'
       this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
+      if (this.isEdit) {
+        this.$router.push({
+          name: 'ObsDetail',
+          params: { id: this.$route.params.id },
+        })
+      } else {
+        // new obs
+        this.$router.push({ name: 'Home' })
+      }
     },
     rereadCoords() {
       const newCoords = this.$store.getters[

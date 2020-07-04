@@ -19,6 +19,35 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
+        Connect to RemoteJS (<a href="https://remotejs.com/" target="_blank"
+          >remotejs.com</a
+        >)
+      </div>
+      <div>
+        <label for="remotejs-session-uuid">RemoteJS session UUID:</label>
+        <v-ons-input
+          v-model="remoteJsUuid"
+          input-id="remotejs-session-uuid"
+          placeholder="e.g: aa43a970-44c8-88df-a5bd-d5cb0687fdaf"
+        ></v-ons-input>
+      </div>
+      <p>
+        <v-ons-button @click="attachRemoteJs">Attach</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Platform test
+      </div>
+      <p>
+        Run a series of tests to make sure the platform is working like we
+        expect.
+      </p>
+      <pre><code>{{platformTestResult}}</code></pre>
+      <v-ons-button @click="doPlatformTest">Do platform test</v-ons-button>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         User agent
       </div>
       <div class="text-center">
@@ -415,6 +444,7 @@ import {
   triggerSwObsQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
+import * as devHelpers from '@/misc/dev-helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
 
@@ -453,6 +483,8 @@ export default {
       rpoResetStatus: null,
       resetRpoList: [],
       resetRpoUuid: null,
+      remoteJsUuid: null,
+      platformTestResult: '(not run yet)',
     }
   },
   computed: {
@@ -525,8 +557,10 @@ export default {
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
         'isSearchFeatureEnabled',
+        'isBugReportFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',
+        'obsFieldNamePrefix',
         'obsFieldSeparatorChar',
         'redirectUri',
         'taxaDataUrl',
@@ -538,7 +572,6 @@ export default {
       }))
       const result = [
         ...partialResult,
-        { label: 'obsFieldPrefix', value: `"${constants.obsFieldPrefix}"` },
         { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
         {
           label: 'googleMapsApiKey',
@@ -840,6 +873,54 @@ export default {
         title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
+    },
+    attachRemoteJs() {
+      const uuid = this.remoteJsUuid
+      if (!uuid) {
+        alert('You must supply the UUID for the RemoteJS session')
+        return
+      }
+      const scriptTagId = 'remotejs-script'
+      const existingScript = document.getElementById(scriptTagId)
+      if (existingScript) {
+        console.debug('removing existing RemoteJS script')
+        existingScript.remove()
+      }
+      if (!this.hasSwConsoleBeenProxied) {
+        this.enableSwConsoleProxy()
+      }
+      const s = document.createElement('script')
+      s.src = 'https://remotejs.com/agent/agent.js'
+      s.id = scriptTagId
+      s.setAttribute('data-consolejs-channel', uuid)
+      document.head.appendChild(s)
+    },
+    async doPlatformTest() {
+      try {
+        const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
+          method: 'POST',
+        })
+        const mainThreadResults = [
+          {
+            name: 'platformTestReqFileMainThread',
+            result: await devHelpers.platformTestReqFile(),
+          },
+          {
+            name: 'platformTestReqBlobMainThread',
+            result: await devHelpers.platformTestReqBlob(),
+          },
+        ]
+        const swResults = await (async () => {
+          if (await isSwActive()) {
+            return resp.json()
+          }
+          return '(no SW)'
+        })()
+        this.platformTestResult = [...mainThreadResults, ...swResults]
+      } catch (err) {
+        console.error('Failed to perform platform test', err)
+        this.platformTestResult = 'Failed. ' + err.message
+      }
     },
   },
 }

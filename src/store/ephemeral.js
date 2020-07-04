@@ -42,7 +42,7 @@ const state = {
   photoCoords: [],
   deviceCoords: null,
   manualCoords: null,
-  geolocationMethod: 'photo',
+  geolocationMethod: null,
   photoOutsideBboxErrorMsg: null,
   photoProcessingTasks: [],
   hadSuccessfulDeviceLocReq: false, // in ephemeral so we only remember it for a session
@@ -74,7 +74,17 @@ const mutations = {
   flagGlobalError: (state, value) => {
     state.isGlobalErrorState = true
     if (typeof value === 'object') {
-      state.globalErrorUserMsg = value.msg
+      const fullMsg = (() => {
+        if (!value.isNetworkErrorWow) {
+          return value.msg
+        }
+        return (
+          `${value.msg}.\nThis looks to be caused by a network issue like ` +
+          `(dis)connecting to/from WiFi, being offline or poor reception. ` +
+          `Try again once you know you have an internet connection.`
+        )
+      })()
+      state.globalErrorUserMsg = fullMsg
       state.globalErrorImgUrl = value.imgUrl
       return
     }
@@ -94,11 +104,11 @@ const mutations = {
   closePhotoPreview: state => (state.previewedPhoto = null),
   pushConsoleMsg: (state, msg) => state.consoleMsgs.push(msg),
   clearConsoleMsgs: state => (state.consoleMsgs = []),
-  resetCoordsState: state => {
+  resetCoordsState: (state, geolocationMethod) => {
     state.photoCoords = []
     state.deviceCoords = null
     state.manualCoords = null
-    state.geolocationMethod = 'photo'
+    state.geolocationMethod = geolocationMethod
     state.photoProcessingTasks = []
     state.photoOutsideBboxErrorMsg = null
   },
@@ -157,7 +167,7 @@ const actions = {
      * Trigger service worker skipWating so the new service worker can take over.
      * This will also trigger a window refresh (see /src/misc/register-service-worker.js)
      */
-    if (isNil(state.SWRegistrationForNewContent)) {
+    if (!(state.SWRegistrationForNewContent || {}).waiting) {
       return
     }
     commit('setRefreshingApp', true)
@@ -406,9 +416,17 @@ const getters = {
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
   isLocalProcessorRunning: state => !!state.queueProcessorPromise,
-  coordsForCurrentlyEditingObs(state, getters) {
+  coordsForCurrentlyEditingObs(state, getters, _, rootGetters) {
     const geoMethod = state.geolocationMethod
     switch (geoMethod) {
+      case 'existing':
+        return (() => {
+          const editingObs = rootGetters['obs/observationDetail'] || {}
+          return {
+            lat: editingObs.lat,
+            lng: editingObs.lng,
+          }
+        })()
       case 'photo':
         return getters.oldestPhotoCoords
       case 'device':

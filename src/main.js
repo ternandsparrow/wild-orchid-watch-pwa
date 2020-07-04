@@ -42,9 +42,11 @@ if (constants.googleAnalyticsTrackerCode !== 'off') {
   })
 }
 
-if (process.env.NODE_ENV !== 'development') {
-  // don't init Sentry during dev, otherwise it won't print render errors to
-  // the console, see https://github.com/vuejs/vue/issues/8433
+if (constants.sentryDsn === 'off') {
+  console.debug(
+    'No sentry DSN provided, refusing to init Sentry in main thread',
+  )
+} else {
   Sentry.init({
     dsn: constants.sentryDsn,
     integrations: [new Integrations.Vue({ Vue, attachProps: true })],

@@ -58,7 +58,9 @@
       :visible.sync="globalErrorDialogVisible"
     >
       <div slot="title">Something broke</div>
-      <p v-if="globalErrorImgUrl"><img :src="globalErrorImgUrl" /></p>
+      <p v-if="globalErrorImgUrl">
+        <img :src="globalErrorImgUrl" class="error-image-thumb" />
+      </p>
       <p v-if="globalErrorUserMsg">{{ globalErrorUserMsg }}</p>
       <p>Sorry about that, try restarting the app or refreshing the webpage</p>
       <template slot="footer">
@@ -232,5 +234,10 @@ export default {
   width: fit-content;
   margin: auto;
   z-index: 1000;
+}
+
+.error-image-thumb {
+  max-width: 20vw;
+  max-height: 30vh;
 }
 </style>

@@ -19,6 +19,64 @@ So, our hand has been forced and now we support the following browsers:
 - Samsung Internet 8.2+ (December 2018)
 - Apple macOS Safari 11.1+ (March 2018)
 
+
+# Continuous integration/deployment
+We use CircleCI for CI/CD. The way we've [configured](./.circleci/config.yml)
+the workflow is that *all* branches will be linted and unit tested for every
+commit. When it comes to deploying the app to a publicly accessible location,
+only 3 branches are deployed. At the time of writing, these are where each
+branch is deployed:
+ - develop is deployed to dev.app.wildorchidwatch.org
+ - beta is deployed to beta.app.wildorchidwatch.org
+ - master is deployed to app.wildorchidwatch.org
+
+This is all configurable via the environment variables used during the build
+process if you wish to change it.
+
+
+# High level steps to set this project up from scratch
+These steps shouldn't be needed as the project was handed over already
+configured. They may be needed for setting up a development environment or if
+this project is forked for another iNat project.
+
+This is how to get the project running as-is. We'll address changes for a fork
+after.
+
+  1. find somewhere to host this app/site (Firebase hosting, AWS S3 website, etc)
+  1. create a DNS record to point to the hosting. We'll use `wow.example.com` as
+     an example
+  1. ensure that the web hosting is done over HTTPS (PWAs must be served over
+     HTTPS)
+  1. create a [traditional](https://www.inaturalist.org/pages/managing-projects#traditional) project on iNaturalist, which is where observations will be stored
+  1. create all the required observation fields in iNaturalist (see
+     `scripts/create-obs-fields.js`)
+  1. add all the obs fields to the new iNat project
+  1. create an [OAuth client app](https://www.inaturalist.org/oauth/applications) in iNat, making sure to *not* choose "confidential" as a static website cannot keep secrets
+  1. edit `.env.local` to override all the required values from `.env` so point
+     to all the obs field IDs (you created above) and other configurable items
+  1. run the dev server locally with `yarn serve` and confirm everything works
+  1. configure CircleCI to build this repo and supply all the expected env vars
+     (see `.circleci/config.yml`)
+  1. trigger a build in CircleCI so the project is deployed to your hosting
+  1. visit wow.example.com to use the app
+
+If you're forking this project, a lot should be usable as is. You'll still be
+submitting observations to a single project on iNat so all the pipeline for
+uploading observations will be usable.
+
+The things you will need to change are any branding (there is very little) and
+the hardcoded knowledge about observation fields. The main reason we have so
+many obs field IDs configured is for linking to the help doco. The other reason
+is complex logic around when to display or make certain obs fields required.
+You'll have to change this to suit your particular set of obs fields.
+
+Doco gets out of date so the best way is to read the code. Look for what happens
+when you opt to create an new observation and follow the trail from there. Most
+of the changes will be required at the start but once the observation has been
+written to the datastore, fewer changes will be required to get it uploaded and
+it's treated fairly generically.
+
+
 # Techonology choices
 
 ## PWA (Progressive Web App)
@@ -176,10 +234,11 @@ to cost almost as much as just paying for their SaaS hosted solution, plus you
 don't have to maintain it yourself.
 
 Google Cloud Platform offers "Stackdriver error reporting", which sort of does
-the same thing. It looks mainly geared towards server side reporting, but it
-seems possible to use it for client side (I haven't actually tried) assuming
-you can lock down the API key enough to be safe to give to a client. The error
-reporting is much simpler, you get to report:
+the same thing. It is mainly geared towards server side reporting, and although
+they offer a NodeJS client, this cannot be used for client side code (I tried).
+You can use the HTTP API though (and we do for the "bug reporting"). Compared
+with Sentry (and similar), the error reporting is much simpler, you get to
+report:
   - a message
   - a location in source
   - a user
@@ -187,11 +246,52 @@ reporting is much simpler, you get to report:
 The dashboard updates quickly and you can get email notifications. There seems
 to be some issue merging logic and you can link to your issue tracker. If a
 simple solution will suffice, this is worth looking at. But out-of-the-box,
-Sentry gives you a lot more context. You could probably get this in
+Sentry gives you a lot more context. You could probably add this context in
 Stackdriver, but you'd have to build and maintain it yourself.
 
 Firebase, which we use for hosting, offers Crashlytics but it's only for native
 apps. So that's a non-starter for us.
+
+[TrackJS](https://trackjs.com/) also looks promising. I haven't tried it but
+from their demo video, it looks like it potentially offers a bit more than
+Sentry. I found them after using their RemoteJS (just integrated into the WOW
+app) tool. They offer discounts/support for not-for-profit, which this project
+would hopefully qualify for.
+
+
+## Google Cloud Stackdriver Error Reporting
+We have this in the mix too because the "Report Problem" (BugReport) feature
+needs to send quite a bit of data (10kb payload isn't unexpected) and this is
+too much for the other alternatives we had on hand:
+  - Sentry won't error when you send that much data but it does truncate the payload
+  - sending via email with a mailto: href gives a 413 error for gMail (might
+     work for native clients, but it's pushing it)
+
+The requirements when looking for something that would accept our user
+triggered bug reports were to stick within the requirements of the existing
+app, so:
+  - cost effective
+  - minimal operational overhead (no server to run)
+
+Additionally it'd nice if we don't need to use yet another service so as we
+already need Google Cloud, options on that platform are attractive. Stackdriver
+is good because it already has a UI for displaying reports, it can handle the
+payload size, it's free and it can trigger email alerts.
+
+We looked at Stackdriver logging but the UI doesn't fit our use case and there
+doesn't seem to be email alerts for new items (only for configuration issues),
+which are pretty useful. In any case, all Error Reporting errors are accessible
+from the Logging UI anyway so you can choose which interface to use.
+
+One sticking point is that all the clients are designed to run in server-side
+environments. The NodeJS offering
+(https://github.com/googleapis/nodejs-error-reporting) can't run in a
+client-side browser world because it has expectations on things in the
+`process` global that Node sets up. There is a HTTP API though, the call isn't
+hard and it's probably safe to assume that Google can version and honour their
+API correctly so there's minimal risk. We rolled our own client to that API
+incase the community adopts it and we can share any maintenance load:
+https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client.
 
 
 ## Workbox
@@ -202,6 +302,16 @@ out-of-the-box but we need to wait for the observation req to succeed (or not),
 then grab the ID for that new obs and generate all the requests for the photos,
 obs fields, etc. Workbox gives us the freedom to do this and we can even use
 their Queue class to make our life easier.
+
+If you're looking to manually trigger sync events on the background sync
+queues, you'll have access to this in the hidden admin page. Alternatively, you
+can use Chrome devtools to send named events to the SW as per
+https://developers.google.com/web/tools/workbox/modules/workbox-background-sync#testing_workbox_background_sync.
+The names of the events you need for our queues are:
+```
+workbox-background-sync:obs-queue
+workbox-background-sync:obs-dependant-queue
+```
 
 ## Rollup
 Yes, we already have webpack to do the build of our main app but 1) we need to
@@ -389,7 +499,8 @@ is we have a taxa list that's available offline, only includes orchids and
 saves clients from having to do needless processing as we can do it once at
 build time.
 
-When it comes time to roll out a new version, we get the cache busting for free from workbox because it's part of the manifest.
+When it comes time to roll out a new version, we get the cache busting for free
+from workbox because it's part of the manifest.
 
 Currently it's a manual job to periodically re-run the script to build a new
 list and if it's changed, commit it to git. This could be automated by
@@ -436,3 +547,54 @@ Samsung A8 that we tested on often wouldn't geo-tag photos taken with the
 Samsung camera but would immediately give an accurate device location to the
 browser. Using a different camera app, like MX Camera, would fix the problem
 but we can't expect users to install a seperate camera app.
+
+
+## Storing answers to our questions in iNat
+iNat has the core observation record, which contains species name, datetime,
+coordinate, observer and other information. There is no possibility to store
+any extra data *in* the observation record. iNat does provide for this "extra
+data" use case through a feature they call "observation fields". Any user can
+view/define these here: https://www.inaturalist.org/observation_fields.
+
+Fields can define their type and an enum/controlled vocabulary of valid values,
+which are enforced. We use these observation fields to store the answers for
+almost all of the questions we ask. At the time of writing, the only questions
+that don't get stored as observation fields are species name, coordinates and
+notes.
+
+To ease the process of creating these fields, and to store their configuration
+in source code, we have the `./scripts/create-obs-fields.js` NodeJS script.
+When run, this script will create all the fields in the target iNat instance.
+This is something that only needs to be done once for production but it may be
+required more often during development. The script requires some configuration
+to run so it's best to read the source code before running it.
+
+One limitation of observation fields is that they're owned by a single iNat
+user, with no option for transfer. Ideally they would be owned by the project
+and any curator of the project could maintain them but that's not currently the
+case. As a workaround, we've created an iNat users purely to own the fields.
+
+
+## Multiselect observation fields
+Another limitation of observation fields is that they can only have a single
+response and you can only have one instance of each field on an observation. So
+for a use case where you ask a question like "select all life stages present in
+the population", you need to get a bit creative to support that in iNat. Your
+options are:
+
+  1. serialise multiple values into a single response, such as
+     lifeStages="stage1|stage2"
+  1. have repeated questions to capture each response, such as
+     lifeStage1="stage1", lifeStage2="stage2"
+  1. pivot the question so each possible response becomes it's own boolean
+     question, such as "is stage1 present?"=yes, "is stage2 present?"=yes
+
+The first two options aren't great for a few reasons but mostly because they
+make the data hard to consume. The only drawback for the third option is we
+have to create more observation fields in iNat but we think that's acceptable
+for ending up with usable data.
+
+We use option 3 and we call these types of question "multiselects". This is
+because there are an enumerated set of options and you can select 0 to many of
+them. We also treat them specially in the UI, with some UI sugar, to make them
+nicer to interact with.

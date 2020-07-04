@@ -8,9 +8,10 @@
       <span v-show="pullHookState === 'preaction'"> Release </span>
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
-    <div v-if="isNoRecords" class="no-records-msg">
-      There are no missions available right now
-    </div>
+    <no-records-msg
+      v-if="isNoRecords"
+      fragment="There are no missions available"
+    />
     <div v-if="isMissionAdmin" class="admin-info-msg">
       <v-ons-icon icon="fa-info-circle"></v-ons-icon>
       You are a project admin, so you can create, edit and delete missions.
@@ -82,11 +83,8 @@ export default {
       )
     },
   },
-  created() {
-    this.$store.dispatch('missions/getAvailableMissions')
-    this.$store.dispatch('obs/getProjectInfo')
-  },
   mounted() {
+    this.$store.dispatch('obs/getProjectInfo')
     this.doRefresh()
   },
   methods: {

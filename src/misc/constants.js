@@ -1,4 +1,5 @@
 import {
+  conservationLanduse,
   epiphyte,
   estimated,
   exact,
@@ -11,7 +12,13 @@ import {
   yesValue,
 } from './obs-field-constants'
 
-export { noValue, yesValue, multiselectSeparator }
+export {
+  conservationLanduse,
+  multiselectSeparator,
+  noValue,
+  obsFieldNamePrefix,
+  yesValue,
+}
 
 // We *must* use VUE_APP_ as a prefix on the env vars, see for more details:
 // https://cli.vuejs.org/guide/mode-and-env.html#using-env-variables-in-client-side-code
@@ -21,22 +28,24 @@ export { noValue, yesValue, multiselectSeparator }
 // pulls config from the server rather than relying on the user updating the
 // app shell to see the new values.
 
-// The URL of the API that we prepend to all our requests. Include the version
-// path suffix, like https://api.inaturalist.com/v1
+// The URL of the API (implemented with NodeJS at time of writing) that we
+// prepend to all our requests. Include the version path suffix, like
+// https://api.inaturalist.com/v1
 export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
-// URL of the iNat server that we prepend to all our requests. Something like
-// https://inaturalist.com
+// URL of the Ruby on Rails iNaturalist server that we prepend to all our
+// requests. Something like https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
 
-export const appTitle = process.env.VUE_APP_TITLE
-
-// Where the static assets for iNat are served from. For a dev server, it's
-// probably the same at inatUrlBase. For the real inat, it's probably a CDN. To
-// find out this value, load the iNat page of your choosing, and inspect the
-// logo in the top-left and see what domain it's served from. If the logo URL
-// is https://static.inaturalist.org/sites/1-logo.svg?1507246408
-// ...then use https://static.inaturalist.org for this value
+// Where the static assets for iNat are served from. For a sandbox/dev iNat
+// instance, it's probably the same at inatUrlBase. For the real iNat, it's
+// probably a CDN. To find out this value, load the iNat page of your choosing,
+// and inspect the logo in the top-left and see what domain it's served from.
+// If the logo URL is
+//   https://static.inaturalist.org/sites/1-logo.svg?1507246408
+// ...then use
+//   https://static.inaturalist.org
+// for this value
 export const inatStaticUrlBase = process.env.VUE_APP_INAT_STATIC_BASE_URL
 
 // Get this from the details page of your OAuth app.
@@ -55,13 +64,26 @@ export const inatProjectSlug = process.env.VUE_APP_INAT_PROJECT_SLUG
 // set to 'production', 'beta' or 'development' so we can adapt to where we're deployed
 export const deployedEnvName = process.env.VUE_APP_DEPLOYED_ENV_NAME
 
+// Google Cloud Platform API keys. You can use the same key for both. Maps is
+// specifically the "Maps JavaScript API" and errors is "Stackdriver Error
+// Reporting API".
 export const googleMapsApiKey = process.env.VUE_APP_GMAPS_API_KEY
+export const googleErrorsApiKey =
+  process.env.VUE_APP_GCP_ERRORS_API_KEY || googleMapsApiKey
 
 // The tracker code for Google Analytics, e.g: UA-000000-1
 export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 
+// Sentry.io is an error tracker. You probably don't want this on for most
+// local dev as there's not much point reporting the numerous errors seen
+// during local dev and often Sentry will swallow the error so it makes
+// debugging harder (see https://github.com/vuejs/vue/issues/8433). Of course
+// at some stage you'll need to test that errors are reported as you expect to
+// Sentry.
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
+// The URL where we can load the taxa list for populating the orchid
+// autocomplete. See scripts/build-taxa-index.js for more details.
 export const taxaDataUrl =
   process.env.VUE_APP_TAXA_DATA_URL || '/wow-taxa-index.json'
 
@@ -73,8 +95,16 @@ export const waitBeforeRefreshSeconds = convertAndAssertInteger(
   process.env.VUE_APP_WAIT_BEFORE_REFRESH_SECONDS || 1,
 )
 
+// this is the max number of *failures*. It will get one more chance than this
+// number so n = 3 will have the request made 4 times.
 export const maxReqFailureCountInSw = convertAndAssertInteger(
   process.env.VUE_APP_MAX_SW_REQ_FAIL_COUNT || 3,
+)
+
+// the retention time of the background-sync workbox queues in the service
+// worker. Once a request is over this threshold, it will *not* be processed
+export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
+  process.env.VUE_APP_SW_QUEUE_MAX_RETENTION || 365 * 24 * 60, // one year
 )
 
 // useful for enabling devtools in "production mode" while debugging with a
@@ -83,6 +113,8 @@ export const isForceVueDevtools = !!parseInt(
   process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
 )
 
+// Feature flags, so we can work on things but not have them show up in all
+// environments until we're ready
 export const isMissionsFeatureEnabled =
   process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
 
@@ -91,6 +123,9 @@ export const isNewsFeatureEnabled =
 
 export const isSearchFeatureEnabled =
   process.env.VUE_APP_FEATURE_FLAG_SEARCH || false
+
+export const isBugReportFeatureEnabled =
+  process.env.VUE_APP_FEATURE_FLAG_BUG_REPORT || false
 
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
@@ -108,8 +143,8 @@ export const soilStructureObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_SOIL_STRUCTURE,
 )
 
-export const conservationImmediateLanduseObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE_CONSERVATION,
+export const immediateLanduseObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_IMMEDIATE_LANDUSE,
 )
 
 export const areaOfPopulationObsFieldId = convertAndAssertInteger(
@@ -168,9 +203,15 @@ export const communityNotesObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COMMUNITY_NOTES,
 )
 
-// We need to show/hide other fields based on the orchid type. Here we define
-// the values so we can match for them. Note: they must *exactly* match what is
-// configured in iNat!
+export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
+  process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
+)
+
+// These values are unlikely to ever change. You can see the linkage to the
+// script that creates the obs fields and assuming it all stays in sync,
+// everyone is happy. If the obs fields get edited in the future (generally not
+// a good idea), then it may be necessary to override some of these values.
+// This is purely to make that (painful) job easier.
 export const orchidTypeEpiphyte =
   process.env.VUE_APP_OBS_FIELD_ORCHID_TYPE_EPIPHYTE || epiphyte
 export const orchidTypeTerrestrial =
@@ -182,27 +223,23 @@ export const accuracyOfSearchAreaCalcEstimated =
 export const countOfIndividualsObsFieldDefault =
   process.env.VUE_APP_OBS_FIELD_COUNT_DEFAULT || 1
 export const accuracyOfPopulationCountObsFieldDefault = exact
-
 export const notCollected =
   process.env.VUE_APP_NOT_COLLECTED || notCollectedDefault
 
-export const hostTreeSpeciesObsFieldId = convertAndAssertInteger(
-  process.env.VUE_APP_OBS_FIELD_ID_HOST_TREE,
-)
+// these following field IDs values are comma separated lists of ID that will
+// be grouped and displayed as a mutliselect in the UI. This is the make them
+// easier for the user to interact with.
 
 export const phenologyObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_PHENOLOGY',
   'phenology',
 )
 
+// the terminology changed from "coarse fragments" to "rock cover" but there
+// hasn't been time to refactor all the variable names yet
 export const coarseFragmentsObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_COARSE_FRAGMENTS',
-  'coarse fragments',
-)
-
-export const immediateLanduseObsFieldIds = parseFieldIdList(
-  'VUE_APP_OBS_FIELD_IDS_IMMEDIATE_LANDUSE',
-  'immediate landuse',
+  'rock cover',
 )
 
 export const floralVisitorsObsFieldIds = parseFieldIdList(
@@ -215,11 +252,17 @@ export const evidenceThreatsObsFieldIds = parseFieldIdList(
   'evidence of threats',
 )
 
+// these field IDs will become mutually exclusive with all other values in the
+// multiselect.
 export const mutuallyExclusiveMultiselectObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_MUTUALLY_EXCLUSIVE_MULTISELECT',
   'mutually exclusive',
 )
 
+// some browsers don't know how to word wrap long values in <select>s (looking
+// at you Samsung Internet and iOS Safari). To work around this, field IDs
+// listed here will be forced into a radiogroup instead, so we can control the
+// word wrapping
 export const wideSelectObsFieldIds = parseFieldIdList(
   'VUE_APP_OBS_FIELD_IDS_WIDE_SELECTS',
   'wide select fields',
@@ -247,7 +290,6 @@ function parseFieldIdList(envVarKey, msgFragment) {
 export const coarseFragmentsMultiselectId = 'coarseFragmentsMultiselect'
 export const evidenceThreatsMultiselectId = 'evidenceThreatsMultiselect'
 export const floralVisitorsMultiselectId = 'floralVisitorsMultiselect'
-export const immediateLanduseMultiselectId = 'immediateLanduseMultiselect'
 export const phenologyMultiselectId = 'phenologyMultiselect'
 
 export function getMultiselectId(fieldId) {
@@ -255,7 +297,6 @@ export function getMultiselectId(fieldId) {
     [coarseFragmentsObsFieldIds]: coarseFragmentsMultiselectId,
     [evidenceThreatsObsFieldIds]: evidenceThreatsMultiselectId,
     [floralVisitorsObsFieldIds]: floralVisitorsMultiselectId,
-    [immediateLanduseObsFieldIds]: immediateLanduseMultiselectId,
     [phenologyObsFieldIds]: phenologyMultiselectId,
   }
   const found = Object.entries(multiselectIdMapping).find(e =>
@@ -318,9 +359,6 @@ if (bboxLonMin >= bboxLonMax) {
 
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
-export const obsFieldPrefix =
-  process.env.VUE_APP_OBS_FIELD_PREFIX || obsFieldNamePrefix
-
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
 
 // More "constant" constants from here on
@@ -330,6 +368,7 @@ export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder-3.png'
 
 export const onboarderComponentName = 'Onboarder'
+export const onboarderPath = '/onboarder'
 
 export const oauthCallbackComponentName = 'OauthCallback'
 
@@ -387,8 +426,25 @@ export const serviceWorkerHealthCheckUrl =
   serviceWorkerMagicUrlPrefix + '/health-check'
 export const serviceWorkerUpdateAuthHeaderUrl =
   serviceWorkerMagicUrlPrefix + '/update-auth-header'
+export const serviceWorkerUpdateErrorTrackerContextUrl =
+  serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
+export const serviceWorkerClearEverythingUrl =
+  serviceWorkerMagicUrlPrefix + '/clear-everything'
+
+export const serviceWorkerPlatformTestUrl =
+  serviceWorkerMagicUrlPrefix + '/platorm-test'
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
+
+export const photoTypeWholePlant = 'whole-plant'
+export const photoTypeFlower = 'flower'
+export const photoTypeLeaf = 'leaf'
+export const photoTypeFruit = 'fruit'
+export const photoTypeHabitat = 'habitat'
+export const photoTypeMicrohabitat = 'micro-habitat'
+export const photoTypeCanopy = 'canopy'
+export const photoTypeFloralVisitors = 'floral-visitors'
+export const photoTypeEpiphyteHostTree = 'host-tree'
 
 function convertAndAssertInteger(val) {
   const result = parseInt(val)

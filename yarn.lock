@@ -7111,10 +7111,13 @@ form-data@~2.3.2:
     combined-stream "^1.0.6"
     mime-types "^2.1.12"
 
-formdata-polyfill@^3.0.19:
+"formdata-polyfill@https://github.com/ternandsparrow/FormData#safari13.1":
+  version "3.0.19-safari13.1"
+  resolved "https://github.com/ternandsparrow/FormData#d147d2b996eed5129ea5702296b37470d17190df"
+
+"formdata-polyfill@https://github.com/ternandsparrow/FormData#safari13.1-attempt2-installable":
   version "3.0.19"
-  resolved "https://registry.yarnpkg.com/formdata-polyfill/-/formdata-polyfill-3.0.19.tgz#72f517db3a646a5dd8c31af0edf111fd8f1e4cee"
-  integrity sha512-nRSp8nniopIOCLZOUE2omwnUvmRH6VEdKm52rLTne8XBsW7hMMBUiOjuxUPoBsiK0CatKmxArh+Svt2s7R66JQ==
+  resolved "https://github.com/ternandsparrow/FormData#820c6bcb0f7666e082aeaa57bc2af2b00f99c271"
 
 forwarded@~0.1.2:
   version "0.1.2"
@@ -13833,6 +13836,10 @@ stack-utils@^1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/stack-utils/-/stack-utils-1.0.2.tgz#33eba3897788558bebfc2db059dc158ec36cebb8"
   integrity sha512-MTX+MeG5U994cazkjd/9KNAapsHnibjMLnfXodlkXw76JEea0UiNzrqidzo1emMwk7w5Qhc9jd4Bn9TBb1MFwA==
+
+"stackdriver-error-reporting-clientside-js-client@https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#v0.1.0":
+  version "0.1.0"
+  resolved "https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#0b1815e0d6429aafee72f645ef1074d32bb88f45"
 
 stackframe@^1.1.1:
   version "1.1.1"
