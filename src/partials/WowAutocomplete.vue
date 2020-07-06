@@ -9,6 +9,7 @@
         type="text"
         @keyup="onKeyup($event)"
         @focus="scrollSoAutocompleteItemsAreVisible"
+        @blur="onBlur"
       >
       </v-ons-search-input>
       <wow-input-status
@@ -20,20 +21,14 @@
       <div class="autocomplete-title">{{ titleMsg }}:</div>
       <div class="autocomplete-list">
         <v-ons-list>
-          <v-ons-list-item v-if="theValue" @click="onSelectPlaceholder">
-            <div class="left">
-              <div class="list-item__thumbnail placeholder-image-wrapper">
-                <v-ons-icon icon="fa-search"></v-ons-icon>
-              </div>
-            </div>
-            <div class="center">
+          <v-ons-list-item v-show="isNoItems">
+            <div class="center text-center">
               <span class="list-item__title">
-                <a
-                  >Use "<em>{{ theValue }}</em
-                  >" as a Field Name</a
-                ></span
-              ><span class="list-item__subtitle"
-                >Force use of your own term</span
+                <v-ons-icon icon="fa-info-circle" />
+                No suggested taxa found
+              </span>
+              <span class="list-item__subtitle"
+                >The species name you have typed will be used as-is</span
               >
             </div>
           </v-ons-list-item>
@@ -89,16 +84,21 @@ export default {
       isDirty: false,
       isItemSelected: false,
       isWatchingInitialValue: true,
+      runningMasterSwitchTimeoutId: null,
+      isFocused: false,
     }
   },
   computed: {
     isShowSuggestions() {
-      const isItems = (this.items || []).length > 0
+      const isItems = !this.isNoItems
       const isInput = !!this.theValue
       return this.showItemsMasterSwitch && (isItems || isInput)
     },
     titleMsg() {
       return this.isDirty ? 'Available items' : 'Recently used'
+    },
+    isNoItems() {
+      return (this.items || []).length === 0
     },
   },
   watch: {
@@ -129,15 +129,9 @@ export default {
     async onKeyup(event) {
       const theKey = event.key.toLowerCase()
       if (theKey === 'enter') {
-        if (event.shiftKey) {
-          // a useful shortcut for powerusers
-          this.onSelectPlaceholder()
-          return
-        } else {
-          // shift-less Enter
-          event.target.blur()
-          return
-        }
+        // this is for the Go/Done button on phone keyboards
+        event.target.blur()
+        return
       }
       const codesToSwallow = ['shift', 'alt', 'control']
       const isArrow = theKey.startsWith('arrow')
@@ -148,14 +142,36 @@ export default {
         value: this.theValue,
         extra: this.extraCallbackData,
       })
-      this.showItemsMasterSwitch = true
+      const isSearchTerm = !!this.theValue
+      if (this.runningMasterSwitchTimeoutId) {
+        clearTimeout(this.runningMasterSwitchTimeoutId)
+        this.runningMasterSwitchTimeoutId = null
+      }
+      if (isSearchTerm) {
+        // the searching of the taxa index is fast but not instant and as it's
+        // triggered async, we need to add some delay to let the index search
+        // complete, otherwise we'd show a flash of the "no results" message.
+        const delayToLetIndexSearchFinish = 500
+        this.runningMasterSwitchTimeoutId = setTimeout(() => {
+          this.showItemsMasterSwitch = true
+        }, delayToLetIndexSearchFinish)
+      } else {
+        this.showItemsMasterSwitch = false
+      }
       this.isDirty = true
-      this.isItemSelected = false
-      this.$emit('item-selected', {
-        value: null,
-        extra: this.extraCallbackData,
-      })
+      this.isItemSelected = isSearchTerm
+      this.useTypedValue()
       this.isWatchingInitialValue = false
+    },
+    onBlur() {
+      this.isFocused = false
+      setTimeout(() => {
+        if (this.isFocused) {
+          // user must have re-focused
+          return
+        }
+        this.showItemsMasterSwitch = false
+      }, 500)
     },
     onSelect(selectedItem) {
       this.theValue = selectedItem.preferredCommonName
@@ -167,13 +183,17 @@ export default {
       })
       this.showItemsMasterSwitch = false
     },
-    onSelectPlaceholder() {
-      this.onSelect({
-        name: this.theValue,
-        preferredCommonName: this.theValue,
+    useTypedValue() {
+      this.$emit('item-selected', {
+        value: {
+          name: this.theValue,
+          preferredCommonName: this.theValue,
+        },
+        extra: this.extraCallbackData,
       })
     },
     scrollSoAutocompleteItemsAreVisible() {
+      this.isFocused = true
       const delayForOnscreenKeyboardToAppear = 400
       setTimeout(() => {
         this.$refs.inputWrapper.scrollIntoView({ behavior: 'smooth' })

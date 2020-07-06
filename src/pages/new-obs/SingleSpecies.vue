@@ -1296,8 +1296,7 @@ export default {
       try {
         this.speciesGuessAutocompleteItems = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
-          data.value,
-          autocompleteTypeOrchid,
+          { partialText: data.value, speciesListType: autocompleteTypeOrchid },
         )
       } catch (err) {
         wowErrorHandler(
@@ -1321,11 +1320,10 @@ export default {
               `species autocomplete`,
           )
         }
-        const vals = await this.$store.dispatch(
-          'obs/doSpeciesAutocomplete',
-          data.value,
+        const vals = await this.$store.dispatch('obs/doSpeciesAutocomplete', {
+          partialText: data.value,
           speciesListType,
-        )
+        })
         this.taxonQuestionAutocompleteItems[fieldId] = vals
       } catch (err) {
         wowErrorHandler(
