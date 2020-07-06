@@ -350,7 +350,7 @@ const actions = {
       })
     state.$ga && state.$ga.event(category, action)
   },
-  markUserGeolocation({ commit }) {
+  markUserGeolocation({ commit, rootState }) {
     if (!navigator.geolocation) {
       console.debug('Geolocation is not supported by user agent')
       return Promise.reject(constants.notSupported)
@@ -396,6 +396,7 @@ const actions = {
         },
         {
           timeout: 5000, // milliseconds
+          enableHighAccuracy: rootState.app.isEnableHighAccuracy,
         },
       )
     })

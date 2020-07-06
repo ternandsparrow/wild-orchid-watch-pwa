@@ -39,6 +39,22 @@
         </div>
       </ons-list-item>
       <ons-list-item>
+        <label class="center" for="accuracySwitch">
+          <span class="list-item__title"><a>Use High Accuracy GPS</a></span
+          ><span class="list-item__subtitle"
+            >Enabling this setting will use high accuracy geolocation. The
+            tradeoff is increased drain on the battery of your device.</span
+          >
+        </label>
+        <div class="right">
+          <v-ons-switch
+            v-model="isEnableHighAccuracy"
+            input-id="accuracySwitch"
+          >
+          </v-ons-switch>
+        </div>
+      </ons-list-item>
+      <ons-list-item>
         <label class="center" for="detailedModeSwitch">
           <span class="list-item__title"><a>Detailed mode</a></span
           ><span class="list-item__subtitle"
@@ -194,6 +210,14 @@ export default {
       },
       set(newValue) {
         this.$store.commit('app/setIsDetailedUserMode', newValue)
+      },
+    },
+    isEnableHighAccuracy: {
+      get() {
+        return this.$store.state.app.isEnableHighAccuracy
+      },
+      set(newValue) {
+        this.$store.commit('app/setEnableHighAccuracy', newValue)
       },
     },
     storageMsg() {

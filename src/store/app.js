@@ -7,6 +7,7 @@ const state = {
   isDetailedUserMode: false,
   addToHomeIosPromptLastDate: null,
   isEnablePhotoCompression: false,
+  isEnableHighAccuracy: false,
 }
 
 const mutations = {
@@ -17,6 +18,7 @@ const mutations = {
     (state.addToHomeIosPromptLastDate = value),
   setEnablePhotoCompression: (state, value) =>
     (state.isEnablePhotoCompression = value),
+  setEnableHighAccuracy: (state, value) => (state.isEnableHighAccuracy = value),
 }
 
 const actions = {}

@@ -661,6 +661,7 @@ export default {
         },
         {
           timeout: 5000, // milliseconds
+          enableHighAccuracy: this.isEnableHighAccuracy,
         },
       )
     },
