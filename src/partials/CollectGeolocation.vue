@@ -1,223 +1,216 @@
 <template>
-  <div>
-    <v-ons-list-item modifier="nodivider">
-      <div class="center">
-        <v-ons-list>
-          <v-ons-list-item v-if="isEdit" tappable>
-            <label class="left">
-              <v-ons-radio
-                v-model="geolocationMethod"
-                input-id="radio-gm-existing"
-                value="existing"
-                modifier="material"
-              >
-              </v-ons-radio>
+  <v-ons-list-item modifier="nodivider">
+    <div class="center flex-column">
+      <v-ons-list>
+        <v-ons-list-item v-if="isEdit" tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-existing"
+              value="existing"
+              modifier="material"
+            >
+            </v-ons-radio>
+          </label>
+          <div class="center geolocation-option-label">
+            <label for="radio-gm-existing">
+              Use existing value in saved record
             </label>
-            <div class="center geolocation-option-label">
-              <label for="radio-gm-existing">
-                Use existing value in saved record
-              </label>
-            </div>
-          </v-ons-list-item>
-          <v-ons-list-item tappable>
-            <label class="left">
-              <v-ons-radio
-                v-model="geolocationMethod"
-                input-id="radio-gm-photo"
-                value="photo"
-                modifier="material"
-              >
-              </v-ons-radio>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-photo"
+              value="photo"
+              modifier="material"
+            >
+            </v-ons-radio>
+          </label>
+          <div class="center">
+            <label for="radio-gm-photo">
+              Automatically read GPS coordinates from photo metadata
+              (recommended)
             </label>
-            <div class="center">
-              <label for="radio-gm-photo">
-                Automatically read GPS coordinates from photo metadata
-                (recommended)
-              </label>
-              <div v-if="geolocationMethod === 'photo'">
-                <p
-                  v-if="geolocationFromPhotoState === 'captured'"
-                  class="success-alert"
+            <div v-if="geolocationMethod === 'photo'">
+              <p
+                v-if="geolocationFromPhotoState === 'captured'"
+                class="success-alert"
+              >
+                Yay, we found GPS coordinates in this photo<br />
+                <img :src="obsCoords.url" class="photo-thumb" />
+              </p>
+              <div
+                v-if="
+                  ['no-photos', 'photos-done-no-capture'].includes(
+                    geolocationFromPhotoState,
+                  )
+                "
+                :class="{
+                  'warning-alert': isExtraEmphasis,
+                  'info-alert': !isExtraEmphasis,
+                }"
+              >
+                <span
+                  v-if="geolocationFromPhotoState === 'photos-done-no-capture'"
                 >
-                  Yay, we found GPS coordinates in this photo<br />
-                  <img :src="obsCoords.url" class="photo-thumb" />
-                </p>
-                <div
-                  v-if="
-                    ['no-photos', 'photos-done-no-capture'].includes(
-                      geolocationFromPhotoState,
-                    )
-                  "
-                  :class="{
-                    'warning-alert': isExtraEmphasis,
-                    'info-alert': !isExtraEmphasis,
-                  }"
-                >
-                  <span
-                    v-if="
-                      geolocationFromPhotoState === 'photos-done-no-capture'
-                    "
-                  >
-                    <v-ons-icon icon="fa-exclamation-circle" />
-                    None of the attached photos seem to have GPS coordinates.
-                    Either attach another photo that does, or select a different
-                    method to get GPS coordinates from this list.
-                  </span>
-                  <span v-else-if="geolocationFromPhotoState === 'no-photos'">
-                    <v-ons-icon icon="fa-info-circle" />
-                    Attach some photos and they'll be automatically scanned
-                  </span>
-                  <h1 v-else style="color: red;">
-                    Programmer problem - unhandled state
-                    {{ geolocationFromPhotoState }}
-                  </h1>
-                </div>
-                <div
-                  v-if="geolocationFromPhotoState === 'processing'"
-                  class="info-alert"
-                >
-                  <v-ons-icon icon="fa-hourglass-half" />
-                  Processing photo(s), looking for GPS coordinates
-                </div>
+                  <v-ons-icon icon="fa-exclamation-circle" />
+                  None of the attached photos seem to have GPS coordinates.
+                  Either attach another photo that does, or select a different
+                  method to get GPS coordinates from this list.
+                </span>
+                <span v-else-if="geolocationFromPhotoState === 'no-photos'">
+                  <v-ons-icon icon="fa-info-circle" />
+                  Attach some photos and they'll be automatically scanned
+                </span>
+                <h1 v-else style="color: red;">
+                  Programmer problem - unhandled state
+                  {{ geolocationFromPhotoState }}
+                </h1>
+              </div>
+              <div
+                v-if="geolocationFromPhotoState === 'processing'"
+                class="info-alert"
+              >
+                <v-ons-icon icon="fa-hourglass-half" />
+                Processing photo(s), looking for GPS coordinates
               </div>
             </div>
-          </v-ons-list-item>
-          <v-ons-list-item tappable>
-            <label class="left">
-              <v-ons-radio
-                v-model="geolocationMethod"
-                input-id="radio-gm-device"
-                value="device"
-                modifier="material"
-              >
-              </v-ons-radio>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-device"
+              value="device"
+              modifier="material"
+            >
+            </v-ons-radio>
+          </label>
+          <div class="center geolocation-option-label">
+            <label for="radio-gm-device">
+              Use geolocation of this device, right now.
             </label>
-            <div class="center geolocation-option-label">
-              <label for="radio-gm-device">
-                Use geolocation of this device, right now.
-              </label>
-              <p
-                v-if="
-                  geolocationMethod === 'device' && deviceGeolocationErrorMsg
-                "
+            <p
+              v-if="geolocationMethod === 'device' && deviceGeolocationErrorMsg"
+              class="warning-alert"
+            >
+              <v-ons-icon
+                class="warning"
+                icon="fa-exclamation-circle"
+              ></v-ons-icon>
+              {{ deviceGeolocationErrorMsg }}. Or consider choosing one of the
+              other methods in this list to capture geolocation/GPS coordinates.
+            </p>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item v-if="isDetailedUserMode" tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-manual"
+              value="manual"
+              modifier="material"
+            >
+            </v-ons-radio>
+          </label>
+          <div class="center geolocation-option-label">
+            <label for="radio-gm-manual">
+              Manually enter decimal GPS coordinates. Useful for when you have a
+              standalone GPS. Press the button when you're done to validate the
+              coordinates.
+            </label>
+            <div class="stop-touching-my-head">
+              <label for="manual-lat">Latitude, e.g. -33.123456 </label>
+            </div>
+            <div class="coord-input">
+              <v-ons-input
+                ref="manualLatInput"
+                v-model="manualLat"
+                input-id="manual-lat"
+                placeholder="Lat"
+                @focus="selectManualGeolocationMethod"
+                @keyup.enter="$event.target.blur()"
+              ></v-ons-input>
+            </div>
+            <div>
+              <label for="manual-lon">Longitude, e.g. 150.123456 </label>
+            </div>
+            <div class="coord-input">
+              <v-ons-input
+                v-model="manualLon"
+                html-id="manual-lon"
+                placeholder="Lon"
+                @focus="selectManualGeolocationMethod"
+                @keyup.enter="$event.target.blur()"
+              ></v-ons-input>
+            </div>
+            <div class="stop-touching-my-head">
+              <div
+                v-if="geolocationFromManualState === 'incomplete'"
+                class="info-alert"
+              >
+                Enter both lat and lon values
+              </div>
+              <div
+                v-if="geolocationFromManualState === 'invalid'"
                 class="warning-alert"
               >
-                <v-ons-icon
-                  class="warning"
-                  icon="fa-exclamation-circle"
-                ></v-ons-icon>
-                {{ deviceGeolocationErrorMsg }}. Or consider choosing one of the
-                other methods in this list to capture geolocation/GPS
-                coordinates.
-              </p>
-            </div>
-          </v-ons-list-item>
-          <v-ons-list-item v-if="isDetailedUserMode" tappable>
-            <label class="left">
-              <v-ons-radio
-                v-model="geolocationMethod"
-                input-id="radio-gm-manual"
-                value="manual"
-                modifier="material"
+                Invalid value(s). Please only enter numbers.
+              </div>
+              <div
+                v-if="geolocationFromManualState === 'outside-bbox'"
+                class="warning-alert"
               >
-              </v-ons-radio>
-            </label>
-            <div class="center geolocation-option-label">
-              <label for="radio-gm-manual">
-                Manually enter decimal GPS coordinates. Useful for when you have
-                a standalone GPS. Press the button when you're done to validate
-                the coordinates.
-              </label>
-              <div class="stop-touching-my-head">
-                <label for="manual-lat">Latitude, e.g. -33.123456 </label>
+                Your coordinates ({{ manualLat }},{{ manualLon }}) look like
+                they're outside Australia. This app is only for observations
+                made in Australia, sorry.
               </div>
-              <div class="coord-input">
-                <v-ons-input
-                  ref="manualLatInput"
-                  v-model="manualLat"
-                  input-id="manual-lat"
-                  placeholder="Lat"
-                  @focus="selectManualGeolocationMethod"
-                  @keyup.enter="$event.target.blur()"
-                ></v-ons-input>
-              </div>
-              <div>
-                <label for="manual-lon">Longitude, e.g. 150.123456 </label>
-              </div>
-              <div class="coord-input">
-                <v-ons-input
-                  v-model="manualLon"
-                  html-id="manual-lon"
-                  placeholder="Lon"
-                  @focus="selectManualGeolocationMethod"
-                  @keyup.enter="$event.target.blur()"
-                ></v-ons-input>
-              </div>
-              <div class="stop-touching-my-head">
-                <div
-                  v-if="geolocationFromManualState === 'incomplete'"
-                  class="info-alert"
-                >
-                  Enter both lat and lon values
-                </div>
-                <div
-                  v-if="geolocationFromManualState === 'invalid'"
-                  class="warning-alert"
-                >
-                  Invalid value(s). Please only enter numbers.
-                </div>
-                <div
-                  v-if="geolocationFromManualState === 'outside-bbox'"
-                  class="warning-alert"
-                >
-                  Your coordinates ({{ manualLat }},{{ manualLon }}) look like
-                  they're outside Australia. This app is only for observations
-                  made in Australia, sorry.
-                </div>
-                <div
-                  v-if="geolocationFromManualState === 'success'"
-                  class="success-alert"
-                >
-                  Success
-                </div>
+              <div
+                v-if="geolocationFromManualState === 'success'"
+                class="success-alert"
+              >
+                Success
               </div>
             </div>
-          </v-ons-list-item>
-        </v-ons-list>
-        <div class="wow-obs-field-desc">
-          <wow-required-chip />
-          Geolocation (GPS coordinates) of this observation.
-        </div>
-        <div v-show="isLocationAlreadyCaptured">
-          <div class="success-alert">
-            <v-ons-icon icon="fa-map-marked-alt" />
-            Geolocation successfully captured from
-            {{ geolocationMethod }}.
-            <div>
-              <v-ons-button
-                name="show-map-btn"
-                modifier="quiet"
-                @click="toggleMap"
-              >
-                <span v-if="!isShowMap">View location on </span>
-                <span v-if="isShowMap">Hide </span>map</v-ons-button
-              >
-            </div>
-            <div v-if="isShowMap">Coordinates= {{ obsLat }},{{ obsLng }}</div>
           </div>
-          <google-map
-            v-if="isShowMap"
-            :marker-position="obsCoords"
-            style="width: 94vw;"
-          />
-        </div>
+        </v-ons-list-item>
+      </v-ons-list>
+      <div class="wow-obs-field-desc">
+        <wow-required-chip />
+        Geolocation (GPS coordinates) of this observation.
       </div>
-      <wow-input-status
-        :is-ok="isLocationAlreadyCaptured"
-        class="right"
-      ></wow-input-status>
-    </v-ons-list-item>
-  </div>
+      <div v-show="isLocationAlreadyCaptured">
+        <div class="success-alert">
+          <v-ons-icon icon="fa-map-marked-alt" />
+          Geolocation successfully captured from
+          {{ geolocationMethod }}.
+          <div>
+            <v-ons-button
+              name="show-map-btn"
+              modifier="quiet"
+              @click="toggleMap"
+            >
+              <span v-if="!isShowMap">View location on </span>
+              <span v-if="isShowMap">Hide </span>map</v-ons-button
+            >
+          </div>
+          <div v-if="isShowMap">Coordinates= {{ obsLat }},{{ obsLng }}</div>
+        </div>
+        <google-map
+          v-if="isShowMap"
+          :marker-position="obsCoords"
+          style="width: 94vw;"
+        />
+      </div>
+    </div>
+    <wow-input-status
+      :is-ok="isLocationAlreadyCaptured"
+      class="right"
+    ></wow-input-status>
+  </v-ons-list-item>
 </template>
 
 <script>
@@ -502,5 +495,10 @@ export default {
 .photo-thumb {
   width: 100px;
   max-height: 300px;
+}
+
+.flex-column {
+  flex-direction: column;
+  align-items: baseline;
 }
 </style>
