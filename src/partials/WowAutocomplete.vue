@@ -9,7 +9,6 @@
         type="text"
         @keyup="onKeyup($event)"
         @focus="scrollSoAutocompleteItemsAreVisible"
-        @blur="onBlur"
       >
       </v-ons-search-input>
       <wow-input-status
@@ -17,8 +16,13 @@
         class="the-input-status"
       ></wow-input-status>
     </div>
-    <div v-show="isShowSuggestions">
-      <div class="autocomplete-title">{{ titleMsg }}:</div>
+    <div v-show="isShowSuggestions" class="the-container">
+      <div class="autocomplete-title">
+        <span class="list-close" @click="hideSuggestions">
+          <v-ons-icon icon="fa-window-close"
+        /></span>
+        <span class="the-title">{{ titleMsg }}:</span>
+      </div>
       <div class="autocomplete-list">
         <v-ons-list>
           <v-ons-list-item v-show="isNoItems">
@@ -85,7 +89,6 @@ export default {
       isItemSelected: false,
       isWatchingInitialValue: true,
       runningMasterSwitchTimeoutId: null,
-      isFocused: false,
     }
   },
   computed: {
@@ -95,7 +98,7 @@ export default {
       return this.showItemsMasterSwitch && (isItems || isInput)
     },
     titleMsg() {
-      return this.isDirty ? 'Available items' : 'Recently used'
+      return this.isDirty ? 'Suggested taxa' : 'Recently used'
     },
     isNoItems() {
       return (this.items || []).length === 0
@@ -163,15 +166,8 @@ export default {
       this.useTypedValue()
       this.isWatchingInitialValue = false
     },
-    onBlur() {
-      this.isFocused = false
-      setTimeout(() => {
-        if (this.isFocused) {
-          // user must have re-focused
-          return
-        }
-        this.showItemsMasterSwitch = false
-      }, 500)
+    hideSuggestions() {
+      this.showItemsMasterSwitch = false
     },
     onSelect(selectedItem) {
       this.theValue = selectedItem.preferredCommonName
@@ -193,7 +189,6 @@ export default {
       })
     },
     scrollSoAutocompleteItemsAreVisible() {
-      this.isFocused = true
       const delayForOnscreenKeyboardToAppear = 400
       setTimeout(() => {
         this.$refs.inputWrapper.scrollIntoView({ behavior: 'smooth' })
@@ -216,7 +211,6 @@ export default {
   margin-top: 1em;
   border: 1px solid #ccc;
   text-align: center;
-  font-style: italic;
   font-size: 0.9em;
   color: #484848;
   border-top-right-radius: 5px;
@@ -247,5 +241,22 @@ export default {
   padding: 1em;
   margin-top: 0.5em;
   background: pink;
+}
+
+.list-close {
+  float: right;
+  margin-right: 0.3em;
+  margin-top: 0.2em;
+}
+
+.the-title {
+  font-weight: bold;
+  font-size: 1.2em;
+  line-height: 1.4em;
+}
+
+.the-container {
+  box-shadow: 8px 8px 10px #666;
+  margin: 1em;
 }
 </style>
