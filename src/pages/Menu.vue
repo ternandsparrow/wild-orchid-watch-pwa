@@ -1,10 +1,6 @@
 <template>
   <v-ons-page modifier="white">
-    <div
-      class="is-dev-warning"
-      :class="{ 'force-hide': isForceHideDevWarning }"
-      @click="onDevWarningClick"
-    >
+    <div class="is-dev-warning">
       {{ deployedEnvName }}
     </div>
     <div class="app-banner centered-flex-row">
@@ -85,7 +81,6 @@ export default {
   data() {
     return {
       appVersion,
-      isForceHideDevWarning: false,
       versionClickCount: 0,
       versionClickEasterEggTimeout: null,
       links: [
@@ -194,9 +189,6 @@ export default {
     handleMenuClick(target) {
       this.safelyPushRoute(target)
     },
-    onDevWarningClick() {
-      this.isForceHideDevWarning = true
-    },
     onVersionClick() {
       // like Android's easter egg, tap the version N times
       const tapCountThreshold = 7
@@ -267,9 +259,5 @@ export default {
 .external-link {
   color: inherit;
   text-decoration: none;
-}
-
-.force-hide {
-  display: none;
 }
 </style>
