@@ -19,10 +19,11 @@ import {
   chainedError,
   fetchSingleRecord,
   isNoSwActive,
+  makeObsRequest,
   namedError,
   now,
   recordTypeEnum as recordType,
-  triggerSwObsQueue,
+  triggerSwWowQueue,
   verifyWowDomainPhoto,
   wowIdOf,
   wowWarnHandler,
@@ -1175,15 +1176,11 @@ const actions = {
         }
         await dispatch('waitForProjectInfo')
         return dispatch('_createObservation', {
-          obsRecord: {
-            ...apiRecords.observationPostBody,
-            project_id: [state.projectInfo.id],
-            local_photos: {
-              0: localPhotoIds,
-            },
-            uploader: true,
-            refresh_index: true,
-          },
+          obsRecord: makeObsRequest(
+            apiRecords.observationPostBody,
+            state.projectInfo.id,
+            localPhotoIds,
+          ),
         })
       },
       [recordType('edit')]: async () => {
@@ -1287,7 +1284,7 @@ const actions = {
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
-    await triggerSwObsQueue()
+    await triggerSwWowQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
       const result = {}

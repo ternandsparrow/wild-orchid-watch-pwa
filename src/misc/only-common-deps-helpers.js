@@ -68,3 +68,30 @@ export function chainedError(msg, err) {
 export function now() {
   return Date.now()
 }
+
+export function makeObsRequest(obsObj, projectId, photoIds) {
+  const result = {
+    ...obsObj,
+    local_photos: {
+      0: photoIds,
+    },
+    uploader: true,
+    refresh_index: true,
+  }
+  if (projectId) {
+    // no need to re-link project if it's already linked
+    result.project_id = [projectId]
+  }
+  return result
+}
+
+export function addPhotoIdToObsReq(obsReq, photoId) {
+  const photoArray = ((obsReq || {}).local_photos || {})[0]
+  if (!photoArray) {
+    throw new Error(
+      `Supplied obs object='${JSON.stringify(obsReq)}' did not have a ` +
+        `'local_photos' attribute for us to manipulate, cannot continue`,
+    )
+  }
+  photoArray.push(photoId)
+}

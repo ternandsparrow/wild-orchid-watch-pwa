@@ -298,19 +298,18 @@ https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-clie
 This eases the work related with managing a service worker. We still have to do
 some of the heavy lifting because our background sync requirements are a bit
 more complicated than the simple case. Workbox can replay single requests
-out-of-the-box but we need to wait for the observation req to succeed (or not),
-then grab the ID for that new obs and generate all the requests for the photos,
-obs fields, etc. Workbox gives us the freedom to do this and we can even use
-their Queue class to make our life easier.
+out-of-the-box but we need to wait for the photo requests to succeed (or not),
+then use the photo IDs in the request to create the observation.  Workbox gives
+us the freedom to do this and we can even use their Queue class to make our
+life easier.
 
 If you're looking to manually trigger sync events on the background sync
-queues, you'll have access to this in the hidden admin page. Alternatively, you
+queue, you'll have access to this in the hidden admin page. Alternatively, you
 can use Chrome devtools to send named events to the SW as per
 https://developers.google.com/web/tools/workbox/modules/workbox-background-sync#testing_workbox_background_sync.
-The names of the events you need for our queues are:
+The name of the event you need for our queue is:
 ```
-workbox-background-sync:obs-queue
-workbox-background-sync:obs-dependant-queue
+workbox-background-sync:wow-queue
 ```
 
 ## Rollup
@@ -367,15 +366,16 @@ and while that's happening it stores the data for the dependent requests
 has succeeded, the requests for the dependents are generated and the record is
 removed from the DB. This is why this DB will be empty most of the time.
 
-There is also one other DB that you'll see, but it's not ours. It's the DB
-that's managed by Workbox's queue. (At the time of writing) Each of the records
-in this DB will be a single request that Workbox is waiting to make.
+There is also one other DB that you'll see, but it's not directly owned by our
+code. It's the DB that's managed by Workbox's queue. (At the time of writing)
+Each of the records in this DB will be a single request that Workbox is waiting
+to make.
 
 Beware the limitation of IndexedDB if you have WOW open in multiple tabs.
-Apparently connections from one tab will apparently block the other. The other
-connections won't fail, they'll just block until they can run. At the time of
-writing, I wasn't able to reproduce this behaviour but if you see weird things
-happening, this is something to investigate.
+Apparently connections from one tab will block connections from the others. The
+other connections won't fail, they'll just block until they can run. At the
+time of writing, I wasn't able to reproduce this behaviour but if you see weird
+things happening, this is something to investigate.
 
 
 ## Pseudo code for edit strategy

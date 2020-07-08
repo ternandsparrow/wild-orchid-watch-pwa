@@ -325,6 +325,10 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
   process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
 )
 
+export const swQueuePeriodicTrigger = convertAndAssertInteger(
+  process.env.VUE_APP_SW_PERIODIC_SYNC || 30, // seconds
+)
+
 export const bboxLatMin = convertAndAssertFloat(
   process.env.VUE_APP_BBOX_LAT_MIN || -43.7,
 )
@@ -394,14 +398,12 @@ export const photosFieldName = 'photos'
 export const photoIdsToDeleteFieldName = 'photos-delete'
 export const photosToAddFieldName = 'photos-add'
 export const obsFieldIdsToDeleteFieldName = 'obsFields-delete'
-export const obsFieldsFieldName = 'obsFields'
 export const projectIdFieldName = 'projectId'
 export const blockedActionFieldName = 'blockedAction'
 export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 
-export const syncDepsQueueMsg = 'SYNC_DEPS_QUEUE'
-export const syncObsQueueMsg = 'SYNC_OBS_QUEUE'
+export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
 export const refreshLocalQueueMsg = 'REFRESH_LOCAL_QUEUE_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'

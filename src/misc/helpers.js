@@ -6,6 +6,7 @@ import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
 import {
   chainedError,
+  makeObsRequest,
   now,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
   // wowErrorHandler eventually
@@ -14,7 +15,14 @@ import {
   wowWarnMessage,
 } from './only-common-deps-helpers'
 
-export { chainedError, now, wowErrorHandler, wowWarnHandler, wowWarnMessage }
+export {
+  chainedError,
+  makeObsRequest,
+  now,
+  wowErrorHandler,
+  wowWarnHandler,
+  wowWarnMessage,
+}
 
 dayjs.extend(duration)
 dayjs.extend(relativeTime)
@@ -500,18 +508,11 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
-export async function triggerSwObsQueue() {
+export async function triggerSwWowQueue() {
   if (await isNoSwActive()) {
     return Promise.resolve()
   }
-  return _sendMessageToSw(constants.syncObsQueueMsg)
-}
-
-export async function triggerSwDepsQueue() {
-  if (await isNoSwActive()) {
-    return Promise.resolve()
-  }
-  return _sendMessageToSw(constants.syncDepsQueueMsg)
+  return _sendMessageToSw(constants.syncSwWowQueueMsg)
 }
 
 function _sendMessageToSw(msg) {

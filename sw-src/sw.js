@@ -1,20 +1,21 @@
 import 'formdata-polyfill'
 import * as Sentry from '@sentry/browser'
-import { BackgroundSyncPlugin } from 'workbox-background-sync/BackgroundSyncPlugin.mjs'
-import { Queue } from 'workbox-background-sync/Queue.mjs'
-import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
-import { registerRoute } from 'workbox-routing/registerRoute.mjs'
-import { NetworkOnly } from 'workbox-strategies/NetworkOnly.mjs'
+import { Queue } from 'workbox-background-sync/Queue'
+import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
+import { registerRoute } from 'workbox-routing/registerRoute'
+import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
 import base64js from 'base64-js'
-import { getOrCreateInstance } from '../src/indexeddb/storage-manager.js'
+import { getOrCreateInstance } from '../src/indexeddb/storage-manager'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import {
+  addPhotoIdToObsReq,
   chainedError,
+  makeObsRequest,
   wowErrorHandler,
   wowWarnMessage,
 } from '../src/misc/only-common-deps-helpers'
 import * as devHelpers from '../src/misc/dev-helpers'
-import * as constants from '../src/misc/constants.js'
+import * as constants from '../src/misc/constants'
 
 function initErrorTracker() {
   if (constants.sentryDsn === 'off') {
@@ -69,67 +70,79 @@ const wowSwStore = getOrCreateInstance('wow-sw')
 wowSwStore.ready().catch(err => {
   wowErrorHandler('Failed to init a localForage instance', err)
 })
-const createTag = 'create:'
-const updateTag = 'update:'
-const IGNORE_REMAINING_DEPS_FLAG = 'ignoreRemainingDepReqs'
+const IGNORE_REMAINING_REQS_FLAG = 'ignoreRemainingReqsForThisObs'
 
 const magicMethod = 'MAGIC'
 const poisonPillUrlPrefix = 'http://local.poison-pill'
-const obsPutPoisonPillUrl = poisonPillUrlPrefix + '/obs-put'
+const photosDonePoisonPillUrl = poisonPillUrlPrefix + '/photos-done'
 
 let authHeaderValue = null
 
-// The queue for the requests to create the core observations. Anything else
-// goes in the dependencies queue.
-// We don't need to register a route for /observations, etc because:
-//  1. if we have a SW, we're using the synthetic bundle endpoint
-//  2. fetch calls *from* the SW don't hit the routes configured *in* the SW
-const obsQueue = new Queue('obs-queue', {
+const wowQueue = new Queue('wow-queue', {
   maxRetentionTime: constants.swQueueMaxRetentionMinutes,
   async onSync() {
     const boundFn = onSyncWithPerItemCallback.bind(this)
     await boundFn(
-      obsQueueSuccessCb,
-      obsQueueClientErrorCb,
-      obsQueueCallbackErrorCb,
+      wowQueueSuccessCb,
+      wowQueueClientErrorCb,
+      wowQueueCallbackErrorCb,
     )
   },
 })
 
-// The queue for requests that are dependent on the core observation, so
-// photos, obs fields, project linkage, etc. We can't queue these requests
-// until we know the obs ID, which is part of the request. We run two separate
-// queues because the actions we need to perform after deps requests are
-// different from obs requests. If you don't like that, you could probably add
-// a "type" into the queue entry metadata, then use that to branch in the
-// "after action".
-const depsQueue = new Queue('obs-dependant-queue', {
-  maxRetentionTime: constants.swQueueMaxRetentionMinutes,
-  async onSync() {
-    const boundFn = onSyncWithPerItemCallback.bind(this)
-    await boundFn(
-      depsQueueSuccessCb,
-      depsQueueClientErrorCb,
-      depsQueueCallbackErrorCb,
-    )
-  },
-})
+// The queues seem really lazy. They should be eager and sync quickly but that
+// doesn't seem to be the case so this is a semi-hacky workaround to make them
+// more eager. It probably comes at the cost of battery life but until we
+// figure out a better way, this will give the experience that users expect.
+const syncPeriod = constants.swQueuePeriodicTrigger * 1000
+function scheduleSync() {
+  setTimeout(() => {
+    wowQueue._onSync().catch(err => {
+      wowErrorHandler('Periodically triggered wowQueue sync has failed', err)
+    })
+    scheduleSync()
+  }, syncPeriod)
+}
+if (syncPeriod) {
+  scheduleSync()
+}
 
-async function obsQueueSuccessCb(entry, resp) {
-  const req = entry.request
+async function wowQueueSuccessCb(entry, resp) {
   const obsUuid = entry.metadata.obsUuid
-  let obsId = '(not sure)'
-  try {
-    const obs = await resp.json()
-    obsId = obs.id
-    switch (req.method) {
-      case 'POST':
-        await onObsPostSuccess(obs)
-        break
-      case 'PUT':
-        await onObsPutSuccess(obs)
-        break
-      case 'DELETE':
+  const strategies = [
+    {
+      matcher: (url, method) => method === 'POST' && url.endsWith('/photos'),
+      action: async function handleSuccessfulPhoto() {
+        try {
+          const respBody = await resp.json()
+          const newPhotoId = respBody.id
+          console.debug(
+            `[SW] adding uploaded photo ID='${newPhotoId}' to obs with ` +
+              `UUID='${obsUuid}'`,
+          )
+          const obsRecord = await wowSwStore.getItem(obsUuid)
+          if (!obsRecord) {
+            throw new Error(
+              `SW could not find a pending obs with UUID=${obsUuid} to add a ` +
+                `photo to`,
+            )
+          }
+          addPhotoIdToObsReq(obsRecord, newPhotoId)
+          await wowSwStore.setItem(obsUuid, obsRecord)
+        } catch (err) {
+          throw new chainedError(
+            'Failed to read ID from successful photo upload and add it to ' +
+              'the owning observation',
+            err,
+          )
+        }
+      },
+    },
+    {
+      matcher: (url, method) =>
+        ['POST', 'PUT', 'DELETE'].includes(method) &&
+        /observations(\/\d+)?$/.test(url),
+      action: async function handleSuccessfulObservation() {
         await setRecordProcessingOutcome(
           entry.metadata.obsUuid,
           constants.successOutcome,
@@ -137,188 +150,171 @@ async function obsQueueSuccessCb(entry, resp) {
         await sendMessageToAllClients({
           id: constants.refreshObsMsg,
         })
-        break
-      default:
-        throw new Error(
-          `Programmer error: we don't know how to handle method=${req.method}`,
+      },
+    },
+    {
+      matcher: (url, method) =>
+        method === 'DELETE' &&
+        /\/observation_(field_values|photos)\/\d+$/.test(url),
+      action: async function handleSuccessfulFieldOrPhotoDelete() {
+        await setRecordProcessingOutcome(
+          entry.metadata.obsUuid,
+          constants.successOutcome,
         )
-    }
-    // we don't await because we need the obs queue to finish processing
-    // even if the deps queue is still going
-    depsQueue._onSync()
-  } catch (err) {
-    // an error happened while *queuing* reqs. Errors from *processing*
-    // the queue will not be caught here!
-    //------------------------------------------------------------------
-    // an error that happens while trying to call the success callback
-    // (ie. this try block) will mean that we never queue up the deps for
-    // a successful obs. There's a very small chance that the SW will be
-    // killed after the request but before the callback runs. In that
-    // case, we could get more advanced and try to detect when the remote
-    // obs is as we expect, then queue the deps but this is fairly
-    // advanced (read: tricky).
-    throw chainedError(
-      `Failed to queue dependents of obs with UUID=${obsUuid} and ` +
-        `inatId=${obsId}. This is bad. We do not know which, if any, ` +
-        `deps were queued.`,
-      err,
-    )
-  }
-}
-
-async function obsQueueClientErrorCb(entry, resp) {
-  const obsUuid = entry.metadata.obsUuid
-  const obsId = entry.metadata.obsId
-  const respStatus = resp.status
-  switch (entry.request.method) {
-    case 'POST':
-      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshLocalQueueMsg,
-      })
-      await wowSwStore.removeItem(createTag + obsUuid)
-      break
-    case 'DELETE':
-      if (respStatus === 404) {
-        return // that's fine, the job is done
-      }
-      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshLocalQueueMsg,
-      })
-      break
-    case 'PUT':
-      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshLocalQueueMsg,
-      })
-      await wowSwStore.removeItem(updateTag + obsUuid)
-      break
-    default:
-      throw new Error(
-        `Programmer error: we don't know how to handle method=${entry.request.method}`,
-      )
-  }
-}
-
-async function obsQueueCallbackErrorCb(entry, resp) {
-  const obsUuid = entry.metadata.obsUuid
-  const key = (() => {
-    switch (entry.request.method) {
-      case 'POST':
-        return createTag + obsUuid
-      case 'PUT':
-        return updateTag + obsUuid
-      case 'DELETE':
-        return null
-      default:
-        throw new Error(
-          `Programmer error: we don't know how to handle ` +
-            `method=${entry.request.method}`,
-        )
-    }
-  })()
-  if (!key) {
-    return
-  }
-  console.debug(
-    `[SW] cleaning up deps bundle with key=${key} that would become orphaned`,
-  )
-  await wowSwStore.removeItem(key)
-}
-
-async function depsQueueSuccessCb(entry, resp) {
-  const req = entry.request
-  const obsUuid = entry.metadata.obsUuid
-  const obsId = entry.metadata.obsId
-  switch (req.method) {
-    case 'POST':
-      const isProjectLinkingResp = req.url.endsWith('/project_observations')
-      const isEndOfObsPostGroup = isProjectLinkingResp
-      if (!isEndOfObsPostGroup) {
-        return
-      }
-      console.debug(
-        'resp IS a project linkage one, this marks the end of an obs',
-      )
-      await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshObsMsg,
-      })
-      return
-    case magicMethod:
-      const isEndOfObsPutGroup = req.url === obsPutPoisonPillUrl
-      if (isEndOfObsPutGroup) {
-        console.debug('found magic poison pill indicating end of obs PUT')
-        await setRecordProcessingOutcome(obsUuid, constants.successOutcome)
         await sendMessageToAllClients({
           id: constants.refreshObsMsg,
         })
-        return
-      }
-      throw new Error(
-        `Lazy programmer error: don't know how to handle ` +
-          ` the magic method=${magicMethod} with url=${req.url}`,
-      )
-    case 'PUT':
-      throw new Error(
-        `Lazy programmer error: not implemented as we don't do PUTs for deps`,
-      )
-    case 'DELETE':
-      // nothing to do
-      return
-    default:
-      throw new Error(
-        `Programmer error: we don't know how to handle method=${req.method}`,
-      )
+      },
+    },
+    {
+      matcher: (url, method) =>
+        method === magicMethod && url === photosDonePoisonPillUrl,
+      action: async function handlePoisonPill() {
+        await enqueueObsRequest(entry)
+      },
+    },
+  ]
+  const req = entry.request
+  const strategy = strategies.find(s => s.matcher(req.url, req.method))
+  if (!strategy) {
+    throw new Error(
+      `Programmer problem: Could not find a strategy to handle a successful ` +
+        `method='${req.method}' to URL='${req.url}', cannot continue`,
+    )
   }
+  await strategy.action()
 }
 
-async function depsQueueClientErrorCb(entry, resp) {
-  const obsUuid = entry.metadata.obsUuid
+async function enqueueObsRequest(entry) {
   const obsId = entry.metadata.obsId
+  const obsUuid = entry.metadata.obsUuid
+  console.debug(
+    '[SW] found magic poison pill indicating end of obs photos group',
+  )
+  const obsRecord = await wowSwStore.getItem(obsUuid)
+  const httpMethod = entry.metadata.methodToUse
+  if (!httpMethod) {
+    throw new Error(
+      `Programmer problem: Trying to queue obs request but we haven't ` +
+        `been told which HTTP method to use='${httpMethod}', cannot continue`,
+    )
+  }
+  console.debug(
+    `[SW] processing obs record (UUID=${obsUuid}) with ` +
+      `method='${httpMethod}'`,
+  )
+  const urlSuffix = (() => {
+    switch (httpMethod) {
+      case 'POST':
+        return ''
+      case 'PUT':
+        return `/${obsId}`
+      default:
+        throw new Error(
+          `Programmer problem: Unhandled "HTTP method to use"=${httpMethod}`,
+        )
+    }
+  })()
+  if (obsRecord.local_photos[0].length === 0) {
+    console.debug(
+      `[SW] no new photos added, ensuring we don't lose the old ones`,
+    )
+    delete obsRecord.local_photos
+    obsRecord.ignore_photos = true
+  }
+  await wowQueue.unshiftRequest({
+    metadata: {
+      // details used when things go wrong so we can clean up
+      obsUuid: obsUuid,
+      obsId: obsId,
+    },
+    request: new Request(constants.apiUrlBase + '/observations' + urlSuffix, {
+      method: httpMethod,
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(obsRecord),
+    }),
+  })
+  await wowSwStore.removeItem(obsUuid)
+}
+
+async function wowQueueClientErrorCb(entry, resp) {
+  const obsUuid = entry.metadata.obsUuid
   const respStatus = resp.status
-  // at this point we have three choices:
-  //   1. press on and accept that we'll be missing some of the data on
-  //      the remote,
-  //   2. rollback everything on the remote and do whatever is necessary
-  //       to fix it up, or
-  //   3. give up and leave things in a mess
-  // Right now we're just giving up because rolling back is complex
   switch (entry.request.method) {
-    case 'POST':
-      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshLocalQueueMsg,
-      })
-      // now we have a problem. If the partial record was a "create" then
-      // we could just delete it, but that doesn't work for an edit. And
-      // we don't know what was done at this point. So we'll do nothing.
-      // iNat has some magic to recognise duplicate requests to create an
-      // obs and will return the existing instance and obsField are
-      // idempotent as they clober. It's only the photos that we'll
-      // duplicate but it's better than losing them.
-      return { flag: IGNORE_REMAINING_DEPS_FLAG }
-    case 'PUT': // we don't update deps, we just clobber with POST
-      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
-      await sendMessageToAllClients({
-        id: constants.refreshLocalQueueMsg,
-      })
-      return { flag: IGNORE_REMAINING_DEPS_FLAG }
     case 'DELETE':
       if (respStatus === 404) {
+        await setRecordProcessingOutcome(
+          entry.metadata.obsUuid,
+          constants.successOutcome,
+        )
+        await sendMessageToAllClients({
+          id: constants.refreshObsMsg,
+        })
         return // that's fine, the job is done
       }
-      throw new Error(`Lazy programmer error: we don't have deps for DELETEs`)
+    // fall through
+    case 'POST':
+    // enhancement idea: you could rollback by deleting the photos that have
+    // been uploaded so far.
+    // fall through
+    case 'PUT':
+      await setRecordProcessingOutcome(obsUuid, constants.systemErrorOutcome)
+      await sendMessageToAllClients({
+        id: constants.refreshLocalQueueMsg,
+      })
+      return { flag: IGNORE_REMAINING_REQS_FLAG }
     default:
       throw new Error(
-        `Programmer error: we don't know how to handle method=${entry.request.method}`,
+        `Programmer error: we don't know how to handle a client HTTP error ` +
+          `for method=${entry.request.method} and URL=${entry.request.url}`,
       )
   }
 }
 
-async function depsQueueCallbackErrorCb(entry, resp) {
-  // nothing to do
+async function wowQueueCallbackErrorCb(entry) {
+  const strategies = [
+    {
+      matcher: (url, method) =>
+        method === 'DELETE' && /observations\/\d+$/.test(url),
+      action: async function doNothing() {
+        // no IndexedDB record to clean up
+        return
+      },
+    },
+    {
+      matcher: (url, method) => {
+        const isObsPostOrPut =
+          ['POST', 'PUT'].includes(method) && /observations(\/\d+)?$/.test(url)
+        const isPhotoPost = method === 'POST' && url.endsWith('/photos')
+        const isPhotoOrObsFieldDelete =
+          method === 'DELETE' &&
+          /\/observation_(field_values|photos)\/\d+$/.test(url)
+        return isObsPostOrPut || isPhotoPost || isPhotoOrObsFieldDelete
+      },
+      action: async function cleanUpObservation() {
+        const obsUuid = entry.metadata.obsUuid
+        const key = obsUuid
+        console.debug(
+          `[SW] cleaning up waiting obs record with key=${key} that would ` +
+            `become orphaned`,
+        )
+        await wowSwStore.removeItem(key)
+      },
+    },
+  ]
+  const req = entry.request
+  const strategy = strategies.find(s => s.matcher(req.url, req.method))
+  if (!strategy) {
+    throw new Error(
+      `Programmer problem: Could not find a strategy to handle a failed ` +
+        `"success callback" with method='${req.method}' and URL='${req.url}', ` +
+        `cannot continue`,
+    )
+  }
+  await strategy.action()
 }
 
 function isSafeToProcessQueue() {
@@ -365,6 +361,7 @@ async function onSyncWithPerItemCallback(
     console.debug(`[queue=${this._name}] starting onSync`)
     const obsIdsToIgnore = []
     let entry
+    // eslint-disable-next-line no-cond-assign
     while ((entry = await this.shiftRequest())) {
       let resp
       const obsId = entry.metadata.obsId
@@ -374,7 +371,8 @@ async function onSyncWithPerItemCallback(
         if (isIgnoredObsId) {
           console.debug(
             `[SW] Discarding '${entry.request.method} ${entry.request.url}' ` +
-              `request as it's parent obs=${obsId} is in the ignore list`,
+              `request as it's parent obs id=${obsId}/uuid=${obsUuid} is in ` +
+              `the ignore list`,
           )
           continue
         }
@@ -421,7 +419,7 @@ async function onSyncWithPerItemCallback(
           )
           const cbResult = await clientErrorCb(entry, resp)
           const isIgnoreDepsForId =
-            cbResult && cbResult.flag === IGNORE_REMAINING_DEPS_FLAG
+            cbResult && cbResult.flag === IGNORE_REMAINING_REQS_FLAG
           if (isIgnoreDepsForId) {
             obsIdsToIgnore.push(obsId)
           }
@@ -508,7 +506,7 @@ async function onSyncWithPerItemCallback(
         await successCb(entry, resp)
       } catch (err) {
         try {
-          await callbackErrorCb(entry, resp)
+          await callbackErrorCb(entry)
         } catch (err2) {
           wowErrorHandler(
             'Failed during error handler! Queue success callback failed and ' +
@@ -541,128 +539,13 @@ async function onSyncWithPerItemCallback(
     console.debug(`[queue=${this._name}] finished onSync`)
   }
 }
-
-async function onObsPutSuccess(obsResp) {
-  const obsUuid = obsResp.uuid
-  const obsId = obsResp.id
-  console.debug(
-    `Running post-PUT-success block for obs UUID=${obsUuid}, ` +
-      `which has ID=${obsId}`,
-  )
-  const key = updateTag + obsUuid
-  const depsRecord = await wowSwStore.getItem(key)
-  if (!depsRecord) {
-    throw new Error(
-      `No deps found under key='${key}'. We should always have deps!`,
-    )
-  }
-  try {
-    await processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId)
-    for (const curr of depsRecord.deletedPhotoIds) {
-      console.debug(`Pushing a photo DELETE, for ID=${curr}, to the queue`)
-      await depsQueue.pushRequest({
-        metadata: {
-          obsId: obsId,
-          obsUuid: obsUuid,
-        },
-        request: new Request(
-          constants.apiUrlBase + '/observation_photos/' + curr,
-          {
-            method: 'DELETE',
-            mode: 'cors',
-          },
-        ),
-      })
-    }
-    for (const curr of depsRecord.deletedObsFieldIds) {
-      console.debug(`Pushing an obsField DELETE, for ID=${curr}, to the queue`)
-      await depsQueue.pushRequest({
-        metadata: {
-          obsId: obsId,
-          obsUuid: obsUuid,
-        },
-        request: new Request(
-          constants.apiUrlBase + '/observation_field_values/' + curr,
-          {
-            method: 'DELETE',
-            mode: 'cors',
-          },
-        ),
-      })
-    }
-    await depsQueue.pushRequest({
-      metadata: {
-        obsId: obsId,
-        obsUuid: obsUuid,
-      },
-      request: new Request(obsPutPoisonPillUrl, {
-        method: magicMethod,
-      }),
-    })
-  } catch (err) {
-    // Note: errors related to queue processing won't be caught here. If we're
-    // connected to the network, processing will be triggered by pushing items.
-    console.debug('caught error while populating queue, rethrowing...')
-    throw err
-  }
-  console.debug(
-    'Cleaning up after ourselves. All requests have been generated and ' +
-      `queued up for key=${key}, so we do not need this data anymore`,
-  )
-  await wowSwStore.removeItem(key)
-}
-
-async function onObsPostSuccess(obsResp) {
-  const obsUuid = obsResp.uuid
-  const obsId = obsResp.id
-  console.debug(
-    `Running post-POST-success block for obs UUID=${obsUuid}, ` +
-      `which has ID=${obsId}`,
-  )
-  const key = createTag + obsUuid
-  const depsRecord = await wowSwStore.getItem(key)
-  if (!depsRecord) {
-    throw new Error(
-      `No deps found under key='${key}'. We should always have deps!`,
-    )
-  }
-  try {
-    await processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId)
-    console.debug('Pushing project linkage call to the queue')
-    await depsQueue.pushRequest({
-      metadata: {
-        obsId: obsId,
-        obsUuid: obsUuid,
-      },
-      request: new Request(constants.apiUrlBase + '/project_observations', {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          observation_id: obsId,
-          project_id: depsRecord.projectId,
-        }),
-      }),
-    })
-  } catch (err) {
-    // Note: errors related to queue processing won't be caught here. Also if
-    // we're connected to the network, processing is triggered by pushing
-    // items onto the queue.
-    console.debug('caught error while populating queue, rethrowing...')
-    throw err
-  }
-  console.debug(
-    'Cleaning up after ourselves. All requests have been generated and ' +
-      `queued up for UUID=${obsUuid}, so we do not need this data anymore`,
-  )
-  await wowSwStore.removeItem(key)
-}
+//
+// We don't need to register routes for POST/PUT /observations because if we
+// have a SW running, we're using the synthetic bundle endpoints (below).
 
 registerRoute(
   constants.serviceWorkerBundleMagicUrl,
-  async ({ url, event, params }) => {
+  async ({ event }) => {
     console.debug('Service worker processing POSTed bundle')
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
@@ -679,39 +562,28 @@ registerRoute(
         400,
       )
     }
-    const projectId = payload[constants.projectIdFieldName]
-    const depsRecord = {
-      obsUuid: obsUuid,
-      photos: payload[constants.photosFieldName],
-      obsFields: payload[constants.obsFieldsFieldName],
-      projectId,
-    }
     try {
-      verifyDepsRecord(depsRecord)
-    } catch (err) {
-      return jsonResponse(
-        {
-          result: 'failed',
-          msg: err.toString(),
-        },
-        400,
-      )
-    }
-    await wowSwStore.setItem(createTag + obsUuid, depsRecord)
-    try {
-      await obsQueue.pushRequest({
+      const newPhotos = payload[constants.photosFieldName]
+      verifyPhotos(newPhotos)
+      await processPhotosCreates(newPhotos, obsUuid)
+      await wowQueue.pushRequest({
         metadata: {
-          // details used when things go wrong so we can clean up
           obsUuid: obsUuid,
+          methodToUse: 'POST',
         },
-        request: new Request(constants.apiUrlBase + '/observations', {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(obsRecord),
+        request: new Request(photosDonePoisonPillUrl, {
+          method: magicMethod,
         }),
+      })
+      const projectId = payload[constants.projectIdFieldName]
+      await wowSwStore.setItem(
+        obsUuid,
+        makeObsRequest(obsRecord, projectId, []),
+      )
+      return jsonResponse({
+        result: 'queued',
+        photoCount: newPhotos.length,
+        projectId,
       })
     } catch (err) {
       return jsonResponse(
@@ -722,19 +594,13 @@ registerRoute(
         500,
       )
     }
-    return jsonResponse({
-      result: 'queued',
-      photoCount: depsRecord.photos.length,
-      obsFieldCount: depsRecord.obsFields.length,
-      projectId,
-    })
   },
   'POST',
 )
 
 registerRoute(
   constants.serviceWorkerBundleMagicUrl,
-  async ({ url, event, params }) => {
+  async ({ event }) => {
     console.debug('Service worker processing PUTed bundle')
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
@@ -753,31 +619,39 @@ registerRoute(
         400,
       )
     }
-    // We could queue all the deps because we have the obsId but it's easier to
-    // keep them in localForage so it's easy to clean up if anything goes wrong
-    const depsRecord = {
-      obsUuid: obsUuid,
-      photos: payload[constants.photosFieldName],
-      obsFields: payload[constants.obsFieldsFieldName],
-      deletedPhotoIds: payload[constants.photoIdsToDeleteFieldName],
-      deletedObsFieldIds: payload[constants.obsFieldIdsToDeleteFieldName],
-    }
-    await wowSwStore.setItem(updateTag + obsUuid, depsRecord)
     try {
-      await obsQueue.pushRequest({
+      const newPhotos = payload[constants.photosFieldName]
+      verifyPhotos(newPhotos)
+      await processPhotosCreates(newPhotos, obsUuid)
+      const photoIdsToDelete = payload[constants.photoIdsToDeleteFieldName]
+      const obsFieldIdsToDelete =
+        payload[constants.obsFieldIdsToDeleteFieldName]
+      await processPhotoAndObsFieldDeletes(
+        photoIdsToDelete,
+        obsFieldIdsToDelete,
+        obsId,
+        obsUuid,
+      )
+      await wowQueue.pushRequest({
         metadata: {
-          // details used when things go wrong so we can clean up
           obsUuid: obsUuid,
           obsId: obsId,
+          methodToUse: 'PUT',
         },
-        request: new Request(`${constants.apiUrlBase}/observations/${obsId}`, {
-          method: 'PUT',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(obsRecord),
+        request: new Request(photosDonePoisonPillUrl, {
+          method: magicMethod,
         }),
+      })
+      const projectIsAlreadyLinked = null
+      await wowSwStore.setItem(
+        obsUuid,
+        makeObsRequest(obsRecord, projectIsAlreadyLinked, []),
+      )
+      return jsonResponse({
+        result: 'queued',
+        newPhotoCount: newPhotos.length,
+        deletedPhotoCount: photoIdsToDelete.length,
+        deletedObsFieldCount: obsFieldIdsToDelete.length,
       })
     } catch (err) {
       return jsonResponse(
@@ -788,26 +662,59 @@ registerRoute(
         500,
       )
     }
-    return jsonResponse({
-      result: 'queued',
-      newPhotoCount: depsRecord.photos.length,
-      newObsFieldCount: depsRecord.obsFields.length,
-      deletedPhotoCount: depsRecord.deletedPhotoIds.length,
-      deletedObsFieldCount: depsRecord.deletedObsFieldIds.length,
-    })
   },
   'PUT',
 )
 
+async function processPhotoAndObsFieldDeletes(
+  photoIdsToDelete,
+  obsFieldIdsToDelete,
+  obsId,
+  obsUuid,
+) {
+  for (const curr of photoIdsToDelete) {
+    console.debug(`Pushing a photo DELETE, for ID=${curr}, to the queue`)
+    await wowQueue.pushRequest({
+      metadata: {
+        obsId: obsId,
+        obsUuid: obsUuid,
+      },
+      request: new Request(
+        constants.apiUrlBase + '/observation_photos/' + curr,
+        {
+          method: 'DELETE',
+          mode: 'cors',
+        },
+      ),
+    })
+  }
+  for (const curr of obsFieldIdsToDelete) {
+    console.debug(`Pushing an obsField DELETE, for ID=${curr}, to the queue`)
+    await wowQueue.pushRequest({
+      metadata: {
+        obsId: obsId,
+        obsUuid: obsUuid,
+      },
+      request: new Request(
+        constants.apiUrlBase + '/observation_field_values/' + curr,
+        {
+          method: 'DELETE',
+          mode: 'cors',
+        },
+      ),
+    })
+  }
+}
+
 registerRoute(
-  new RegExp(`${constants.apiUrlBase}/observations/\d*`),
-  async ({ url, event, params }) => {
+  new RegExp(`${constants.apiUrlBase}/observations/\\d+`),
+  async ({ url, event }) => {
     setAuthHeaderFromReq(event.request)
     const obsId = parseInt(
       url.pathname.substr(url.pathname.lastIndexOf('/') + 1),
     )
     console.debug(`[SW] Extracted obs ID='${obsId}' from url=${url.pathname}`)
-    await obsQueue.pushRequest({
+    await wowQueue.pushRequest({
       metadata: {
         obsId: obsId,
         obsUuid: event.request.headers.get(constants.wowUuidCustomHttpHeader),
@@ -824,7 +731,7 @@ registerRoute(
 
 registerRoute(
   constants.serviceWorkerIsAliveMagicUrl,
-  async ({ url, event, params }) => {
+  async () => {
     console.debug('[SW] Still alive over here!')
     return jsonResponse({
       result: new Date().toISOString(),
@@ -835,7 +742,7 @@ registerRoute(
 
 registerRoute(
   constants.serviceWorkerHealthCheckUrl,
-  async ({ url, event, params }) => {
+  async () => {
     console.debug('[SW] Performing a health check')
     return jsonResponse(await buildHealthcheckObj())
   },
@@ -848,7 +755,7 @@ registerRoute(
 // use.
 registerRoute(
   constants.serviceWorkerPlatformTestUrl,
-  async ({ url, event, params }) => {
+  async () => {
     console.debug('[SW] Performing platform test')
     const tests = [platformTestReqFileSw, platformTestReqBlobSw]
     const testResults = await Promise.all(
@@ -875,7 +782,7 @@ function platformTestReqBlobSw() {
 // up-to-date auth to use for all items in the queue.
 registerRoute(
   constants.serviceWorkerUpdateAuthHeaderUrl,
-  async ({ url, event, params }) => {
+  async ({ event }) => {
     setAuthHeaderFromReq(event.request)
     return jsonResponse({
       result: 'thanks',
@@ -887,7 +794,7 @@ registerRoute(
 
 registerRoute(
   constants.serviceWorkerUpdateErrorTrackerContextUrl,
-  async ({ url, event, params }) => {
+  async ({ event }) => {
     const newContext = await event.request.json()
     const username = newContext.username
     if (username) {
@@ -925,24 +832,20 @@ registerRoute(
 // This *does not* execute the requests in the queue, it just discards them
 registerRoute(
   constants.serviceWorkerClearEverythingUrl,
-  async ({ url, event, params }) => {
+  async () => {
     try {
       console.debug('Clearing queue and deleting databases')
       // throw away all entries in the queue
-      const obsQueueEntries = await obsQueue.getAll()
-      for (const _ of obsQueueEntries) {
-        await obsQueue.shiftRequest()
-      }
-      const depsQueueEntries = await depsQueue.getAll()
-      for (const _ of depsQueueEntries) {
-        await depsQueue.shiftRequest()
+      const wowQueueEntries = await wowQueue.getAll()
+      // eslint-disable-next-line no-unused-vars
+      for (const _ of wowQueueEntries) {
+        await wowQueue.shiftRequest()
       }
       const localForageSizeBeforeClear = await wowSwStore.length()
       await wowSwStore.clear()
       wowSwStore.dropInstance() // no await because it's flakey. See indexeddb/storage-manager.js
       return jsonResponse({
-        obsQueueEntriesDiscarded: obsQueueEntries.length,
-        depsQueueEntriesDiscarded: depsQueueEntries.length,
+        wowQueueEntriesDiscarded: wowQueueEntries.length,
         swStoreItemsCleared: localForageSizeBeforeClear,
       })
     } catch (err) {
@@ -970,34 +873,22 @@ function setAuthHeaderFromReq(req) {
   authHeaderValue = newValue
 }
 
-self.addEventListener('install', function(event) {
+self.addEventListener('install', function() {
   console.debug('SW installed!')
 })
 
-self.addEventListener('activate', function(event) {
+self.addEventListener('activate', function() {
   console.debug('SW activated!')
 })
 
 self.addEventListener('message', function(event) {
   switch (event.data) {
-    case constants.syncDepsQueueMsg:
-      console.debug('triggering deps queue processing at request of client')
-      depsQueue
+    case constants.syncSwWowQueueMsg:
+      console.debug('triggering wowQueue processing at request of client')
+      wowQueue
         ._onSync()
         .catch(err => {
-          console.warn('Manually triggered depsQueue sync has failed', err)
-          event.ports[0].postMessage({ error: err })
-        })
-        .finally(() => {
-          event.ports[0].postMessage('triggered')
-        })
-      return
-    case constants.syncObsQueueMsg:
-      console.debug('triggering obs queue processing at request of client')
-      obsQueue
-        ._onSync()
-        .catch(err => {
-          console.warn('Manually triggered obsQueue sync has failed', err)
+          console.warn('Manually triggered wowQueue sync has failed', err)
           event.ports[0].postMessage({ error: err })
         })
         .finally(() => {
@@ -1068,8 +959,9 @@ function sendMessageToClient(client, msg) {
 }
 
 async function sendMessageToAllClients(msg) {
+  // eslint-disable-next-line no-undef
   const matchedClients = await clients.matchAll()
-  for (let client of matchedClients) {
+  for (const client of matchedClients) {
     try {
       const clientResp = await sendMessageToClient(client, msg)
       const noProxyConsoleDebug = origConsole.debug || console.debug
@@ -1107,52 +999,30 @@ function jsonResponse(bodyObj, status = 200) {
   })
 }
 
-async function processPhotosAndObsFieldCreates(depsRecord, obsUuid, obsId) {
-  for (const curr of depsRecord.photos) {
+async function processPhotosCreates(photos, obsUuid) {
+  for (const curr of photos) {
     const fd = new FormData()
-    fd.append('observation_photo[observation_id]', obsId)
     const photoBuffer = base64js.toByteArray(curr.data)
     // we create a File so we can encode the type of the photo in the
     // filename. Very sneaky ;)
     const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
     fd.append('file', theFile)
     console.debug('Pushing a photo to the queue')
-    await depsQueue.pushRequest({
+    await wowQueue.pushRequest({
       metadata: {
-        obsId: obsId,
         obsUuid: obsUuid,
       },
-      request: new Request(constants.apiUrlBase + '/observation_photos', {
+      request: new Request(constants.apiUrlBase + '/photos', {
         method: 'POST',
         mode: 'cors',
         body: fd._blob ? fd._blob() : fd,
       }),
     })
   }
-  for (const curr of depsRecord.obsFields) {
-    console.debug('Pushing an obsField to the queue')
-    await depsQueue.pushRequest({
-      metadata: {
-        obsId: obsId,
-        obsUuid: obsUuid,
-      },
-      request: new Request(constants.apiUrlBase + '/observation_field_values', {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          observation_id: obsId,
-          ...curr,
-        }),
-      }),
-    })
-  }
 }
 
-function verifyDepsRecord(depsRecord) {
-  for (const curr of depsRecord.photos) {
+function verifyPhotos(photos) {
+  for (const curr of photos) {
     const theSize = curr.data.length
     const isPhotoEmpty = !theSize
     if (isPhotoEmpty) {
@@ -1165,10 +1035,8 @@ function verifyDepsRecord(depsRecord) {
 }
 
 async function buildHealthcheckObj() {
-  const obsQueueEntries = await obsQueue.getAll()
-  const obsSummary = mapEntries(obsQueueEntries)
-  const depsQueueEntries = await depsQueue.getAll()
-  const depsSummary = mapEntries(depsQueueEntries)
+  const wowQueueEntries = await wowQueue.getAll()
+  const queueSummary = mapEntries(wowQueueEntries)
   const swStoreItems = await new Promise(async (resolve, reject) => {
     try {
       const result = []
@@ -1202,19 +1070,13 @@ async function buildHealthcheckObj() {
   return {
     authHeaderValue,
     isSafeToProcessQueue: isSafeToProcessQueue(),
-    depsQueueStatus: {
-      syncInProgress: isQueueSyncingNow(depsQueue),
-      length: depsQueueEntries.length,
-      summary: depsSummary,
-      reqsWithFailuresCount: depsSummary.filter(e => e.failureCount).length,
+    wowQueueStatus: {
+      syncInProgress: isQueueSyncingNow(wowQueue),
+      length: wowQueueEntries.length,
+      summary: queueSummary,
+      reqsWithFailuresCount: queueSummary.filter(e => e.failureCount).length,
     },
-    obsQueueStatus: {
-      syncInProgress: isQueueSyncingNow(obsQueue),
-      length: obsQueueEntries.length,
-      summary: obsSummary,
-      reqsWithFailuresCount: obsSummary.filter(e => e.failureCount).length,
-    },
-    waitingDepsBundles: {
+    obsRecordsWaitingOnPhotos: {
       count: swStoreItems.length,
       itemSummaries: swStoreItems,
     },
@@ -1231,6 +1093,7 @@ async function buildHealthcheckObj() {
 // build process will inject manifest into the following statement.
 workboxPrecacheAndRoute(self.__WB_MANIFEST)
 
+// eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
   setAuthHeader(newVal) {
     authHeaderValue = newVal

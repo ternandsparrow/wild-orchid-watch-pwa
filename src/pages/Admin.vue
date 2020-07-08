@@ -195,21 +195,15 @@
         >
       </div>
       <p>
-        Beware of these two SW triggers. If the queue is already processing,
-        it'll start double processing. There's no safe guard. These status
-        reports are only for manually triggered processing, they have no idea
-        about workbox-triggered processing.
+        Beware of this SW trigger. If the queue is already processing, it'll
+        start double processing. There's no safe guard. These status reports are
+        only for manually triggered processing, they have no idea about
+        workbox-triggered processing.
       </p>
       <div>
-        <p>Manually triggered processing status = {{ swObsQueueStatus }}</p>
-        <v-ons-button @click="triggerSwObsQueue"
-          >Trigger SW obs queue processing</v-ons-button
-        >
-      </div>
-      <div>
-        <p>Manually triggered processing status = {{ swDepsQueueStatus }}</p>
-        <v-ons-button @click="triggerSwDepsQueue"
-          >Trigger SW deps queue processing</v-ons-button
+        <p>Manually triggered processing status = {{ swWowQueueStatus }}</p>
+        <v-ons-button @click="doTriggerSwWowQueue"
+          >Trigger SW WOW queue processing</v-ons-button
         >
       </div>
     </v-ons-card>
@@ -440,8 +434,7 @@ import * as constants from '@/misc/constants'
 import {
   clearLocalStorage,
   isSwActive,
-  triggerSwDepsQueue,
-  triggerSwObsQueue,
+  triggerSwWowQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 import * as devHelpers from '@/misc/dev-helpers'
@@ -467,8 +460,7 @@ export default {
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
-      swObsQueueStatus: 'not started',
-      swDepsQueueStatus: 'not started',
+      swWowQueueStatus: 'not started',
       imageClassificationResult: 'nothing yet',
       classifier: null,
       ourWorker: null,
@@ -712,30 +704,17 @@ export default {
         console.log('Is SW alive? ' + result)
       })
     },
-    triggerSwObsQueue() {
-      this.swObsQueueStatus = 'processing'
-      triggerSwObsQueue()
-        .then(() => {
-          console.debug(
-            'Triggering of SW obs queue processing completed successfully',
-          )
-          this.swObsQueueStatus = 'finished'
-        })
-        .catch(err => {
-          this.swObsQueueStatus = 'error. ' + err.message
-        })
-    },
-    triggerSwDepsQueue() {
-      this.swDepsQueueStatus = 'processing'
-      triggerSwDepsQueue()
+    doTriggerSwWowQueue() {
+      this.swWowQueueStatus = 'processing'
+      triggerSwWowQueue()
         .then(() => {
           console.debug(
             'Triggering of SW deps queue processing completed successfully',
           )
-          this.swDepsQueueStatus = 'finished'
+          this.swWowQueueStatus = 'finished'
         })
         .catch(err => {
-          this.swDepsQueueStatus = 'error. ' + err
+          this.swWowQueueStatus = 'error. ' + err
         })
     },
     _sendMessageToSw(msg) {
