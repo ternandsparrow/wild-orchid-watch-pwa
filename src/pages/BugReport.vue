@@ -249,10 +249,17 @@ export default {
         'hadSuccessfulDeviceLocReq',
         'photoCoords',
         'manualCoords',
-      ].reduce((accum, curr) => {
-        accum[curr] = ephemeralState[curr]
-        return accum
-      }, {})
+      ].reduce(
+        (accum, curr) => {
+          accum[curr] = ephemeralState[curr]
+          return accum
+        },
+        {
+          queueProcessorPromise: ephemeralState.queueProcessorPromise
+            ? '(truthy)'
+            : '(falsy)',
+        },
+      )
     },
     gatherContextObsStore() {
       const obsState = this.$store.state.obs
@@ -262,6 +269,7 @@ export default {
           inatId: e.inatId,
           uuid: e.uuid,
         })),
+        isDoingSync: this.$store.getters['obs/isDoingSync'],
         mySpecies: `(${obsState.mySpecies.length} items)`,
         projectInfo: `(is present?=${!!obsState.projectInfo})`,
         recentlyUsedTaxa: `(is present?=${!!obsState.recentlyUsedTaxa})`,
