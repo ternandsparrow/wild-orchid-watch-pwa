@@ -1304,7 +1304,6 @@ const actions = {
           }
         },
       )
-      result[constants.obsFieldsFieldName] = apiRecords.obsFieldPostBodyPartials // FIXME update client of this field to no longer require it
       result[constants.obsFieldIdsToDeleteFieldName] =
         dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName]
       return result
