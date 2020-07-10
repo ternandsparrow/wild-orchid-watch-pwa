@@ -1,8 +1,6 @@
 const path = require('path')
 const fs = require('fs')
 
-const pluginName = 'DumpVueEnvVarsWebpackPlugin'
-
 /**
  * We to configure the service-worker to cache calls to both the API and the
  * iNat server but these are configurable URLs. We already use the env var

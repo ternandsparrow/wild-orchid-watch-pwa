@@ -1,5 +1,6 @@
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer') // eslint-disable-line
   .BundleAnalyzerPlugin
+// eslint-disable-next-line import/no-extraneous-dependencies
 const SentryWebpackPlugin = require('@sentry/webpack-plugin')
 
 module.exports = {

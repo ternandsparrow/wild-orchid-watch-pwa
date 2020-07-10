@@ -1,4 +1,4 @@
-const path = require('path')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
 const WorkerPlugin = require('worker-plugin')
 const KillVueCliManifestPlugin = require('./KillVueCliManifestPlugin')
