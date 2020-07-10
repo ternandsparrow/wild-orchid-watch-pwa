@@ -107,15 +107,21 @@ async function do2020JulMigrationToBulkObsFields() {
     )
     return Object.keys(stage1)
   })()
-  wowWarnMessage(
-    `[SW] migrating the folowing UUIDs to the 2020Jul format '${JSON.stringify(
-      uniqueUuids,
-    )}'`,
-  )
+  const isMigrationsHappened = !!uniqueUuids.length
+  if (isMigrationsHappened) {
+    wowWarnMessage(
+      `[SW] migrating the folowing UUIDs to the 2020Jul format '${JSON.stringify(
+        uniqueUuids,
+      )}'`,
+    )
+  }
   for (const curr of uniqueUuids) {
     try {
       await setRecordProcessingOutcome(curr, constants.waitingOutcome)
     } catch (err) {
+      // this isn't great but we can't get hung up on it, not sure what else we
+      // could do. It's more important to migrate as much as possible and leave
+      // the app in a working state.
       wowErrorHandler(
         'Failed to reset obs to "waiting" status, ignoring and carrying on',
         err,
