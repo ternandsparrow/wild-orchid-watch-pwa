@@ -16,6 +16,7 @@ import {
 } from '../src/misc/only-common-deps-helpers'
 import * as devHelpers from '../src/misc/dev-helpers'
 import * as constants from '../src/misc/constants'
+import { doMigrations } from './migrations'
 
 function initErrorTracker() {
   if (constants.sentryDsn === 'off') {
@@ -143,6 +144,7 @@ async function wowQueueSuccessCb(entry, resp) {
         ['POST', 'PUT', 'DELETE'].includes(method) &&
         /observations(\/\d+)?$/.test(url),
       action: async function handleSuccessfulObservation() {
+        // FIXME for POST/PUT, confirm (obsResp.project_ids || []).includes(<projectId>)
         await setRecordProcessingOutcome(
           entry.metadata.obsUuid,
           constants.successOutcome,
@@ -546,7 +548,7 @@ async function onSyncWithPerItemCallback(
 registerRoute(
   constants.serviceWorkerBundleMagicUrl,
   async ({ event }) => {
-    console.debug('Service worker processing POSTed bundle')
+    console.debug('[SW] processing POSTed obs bundle')
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
     const obsRecord = payload[constants.obsFieldName]
@@ -601,7 +603,7 @@ registerRoute(
 registerRoute(
   constants.serviceWorkerBundleMagicUrl,
   async ({ event }) => {
-    console.debug('Service worker processing PUTed bundle')
+    console.debug('[SW] processing PUTed obs bundle')
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
     const obsRecord = payload[constants.obsFieldName]
@@ -866,7 +868,9 @@ registerRoute(
 function setAuthHeaderFromReq(req) {
   const newValue = req.headers.get('Authorization')
   if (!newValue || newValue === 'undefined' /*everything gets stringified*/) {
-    console.debug(`No auth header='${newValue}' passed, leaving existing value`)
+    console.debug(
+      `[SW] No auth header='${newValue}' passed, leaving existing value`,
+    )
     return
   }
   console.debug(`[SW] setting auth header='${newValue}'`)
@@ -874,21 +878,32 @@ function setAuthHeaderFromReq(req) {
 }
 
 self.addEventListener('install', function() {
-  console.debug('SW installed!')
+  console.debug(`[SW] I'm installed!`)
 })
 
-self.addEventListener('activate', function() {
-  console.debug('SW activated!')
+self.addEventListener('activate', function(event) {
+  console.debug(`[SW] I'm activated!`)
+  event.waitUntil(
+    doMigrations({
+      triggerRefresh() {
+        return sendMessageToAllClients({
+          id: constants.triggerLocalQueueProcessingMsg,
+        })
+      },
+    }).catch(err => {
+      wowErrorHandler('Failed to perform migrations in SW', err)
+    }),
+  )
 })
 
 self.addEventListener('message', function(event) {
   switch (event.data) {
     case constants.syncSwWowQueueMsg:
-      console.debug('triggering wowQueue processing at request of client')
+      console.debug('[SW] triggering wowQueue processing at request of client')
       wowQueue
         ._onSync()
         .catch(err => {
-          console.warn('Manually triggered wowQueue sync has failed', err)
+          console.warn('[SW] Manually triggered wowQueue sync has failed', err)
           event.ports[0].postMessage({ error: err })
         })
         .finally(() => {

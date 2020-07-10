@@ -779,6 +779,7 @@ const actions = {
           .map(e => e.uuid)
         const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
         commit('setUiVisibleLocalRecords', records)
+        // TODO do we need to wait for nextTick before revoking the old URLs?
         revokeOldObjectUrls()
       } catch (err) {
         throw chainedError('Failed to refresh localRecordQueue', err)
@@ -1076,6 +1077,7 @@ const actions = {
       { root: true },
     )
     const newRecordId = obsResp.id
+    // FIXME confirm (obsResp.project_ids || []).includes(<projectId>)
     return newRecordId
   },
   async _editObservation({ dispatch }, { obsRecord, inatRecordId }) {

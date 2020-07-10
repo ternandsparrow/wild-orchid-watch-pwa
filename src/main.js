@@ -130,7 +130,9 @@ new Vue({
                 await this.$store.dispatch('obs/refreshRemoteObsWithDelay')
               })().catch(err => {
                 this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to refresh observations after prompt to do so from the SW`,
+                  msg:
+                    `Failed to refresh observations after prompt to do so ` +
+                    `from the SW`,
                   userMsg: `Error while trying to refresh your list of observations`,
                   err,
                 })
@@ -139,8 +141,21 @@ new Vue({
             case constants.refreshLocalQueueMsg:
               this.$store.dispatch('obs/refreshLocalRecordQueue').catch(err => {
                 this.$store.dispatch('flagGlobalError', {
-                  msg: `Failed to refresh local observation queue after prompt to do so from the SW`,
+                  msg:
+                    `Failed to refresh local observation queue after prompt ` +
+                    `to do so from the SW`,
                   userMsg: `Error while trying to refresh your list of observations`,
+                  err,
+                })
+              })
+              return
+            case constants.triggerLocalQueueProcessingMsg:
+              this.$store.dispatch('obs/onLocalRecordEvent').catch(err => {
+                this.$store.dispatch('flagGlobalError', {
+                  msg:
+                    `Failed to trigger local queue processing after prompt ` +
+                    `to do so from the SW`,
+                  userMsg: `Error while trying to synchronise your observations`,
                   err,
                 })
               })

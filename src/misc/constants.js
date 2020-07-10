@@ -411,6 +411,7 @@ export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 export const testSendObsPhotoPostMsg = 'TEST_OBS_PHOTO_POST'
 export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
 export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
+export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
 
 // Record processing outcomes
 export const waitingOutcome = 'waiting' // waiting to be processed
