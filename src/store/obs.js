@@ -27,6 +27,7 @@ import {
   verifyWowDomainPhoto,
   wowIdOf,
   wowWarnHandler,
+  wowWarnMessage,
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
@@ -150,7 +151,7 @@ const actions = {
     getters,
     dispatch,
   }) {
-    // FIXME WOW-135 look at moving this whole function body off the main
+    // TODO WOW-135 look at moving this whole function body off the main
     // thread
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
     const lastUpdatedDatesOnRemote = state.allRemoteObs.reduce(
@@ -210,10 +211,24 @@ const actions = {
       await Promise.all(
         dbIdsToDelete.map(currDbId =>
           (async () => {
-            const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
-            let blockedAction
-            if (hasBlockedAction) {
+            const blockedAction = await (async () => {
+              const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
+              if (!hasBlockedAction) {
+                return null
+              }
               const record = await getRecord(currDbId)
+              if (!record) {
+                // I guess this could be TOCTOU related where the DB record is
+                // gone but the queue summary has not yet updated.
+                wowWarnMessage(
+                  `No obs found for ID=${currDbId}. The queue summary ` +
+                    `indicated there was a blocked action for this record but ` +
+                    `when we tried to retrieve the record, nothing was there. ` +
+                    `This shouldn't happen, even if the user deletes the obs, ` +
+                    `as that would be a block action itself.`,
+                )
+                return null
+              }
               const remoteRecord = state.allRemoteObs.find(
                 e => e.uuid === currDbId,
               )
@@ -225,18 +240,22 @@ const actions = {
                     'cannot continue.',
                 )
               }
-              record.inatId = remoteRecord.inatId
-              blockedAction = {
-                ...record,
+              const blockedActionFromDb =
+                record.wowMeta[constants.blockedActionFieldName]
+              return {
+                ...{
+                  ...record,
+                  inatId: remoteRecord.inatId,
+                },
                 wowMeta: {
-                  ...record.wowMeta[constants.blockedActionFieldName].wowMeta,
+                  ...blockedActionFromDb.wowMeta,
                   [constants.recordProcessingOutcomeFieldName]:
                     constants.waitingOutcome,
                 },
               }
-            }
+            })()
             await deleteDbRecordById(currDbId)
-            if (hasBlockedAction) {
+            if (blockedAction) {
               await storeRecord(blockedAction)
             }
           })(),
