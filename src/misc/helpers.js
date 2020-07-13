@@ -136,6 +136,8 @@ export function isPossiblyStuck($store, record) {
   }
   const isAllowedToSync = !$store.getters.isSyncDisabled
   const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
+  // FIXME need to look at records that are withServiceWorker but SW has
+  // nothing in its queue. Need to ask SW for that second bit.
   return (
     isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
   )

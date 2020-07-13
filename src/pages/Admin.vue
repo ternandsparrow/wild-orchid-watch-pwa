@@ -2,20 +2,12 @@
   <menu-wrapper title="Admin">
     <v-ons-card>
       <div class="title">
-        Location test
+        Service Worker health check
       </div>
-      <div class="text-center">
-        <p v-if="isLocSuccess" class="success-msg">
-          Location: lat=<span class="mono">{{ lat }}</span
-          >, lng=<span class="mono">{{ lng }}</span
-          >, alt=<span class="mono">{{ alt }}</span
-          >, acc=<span class="mono">{{ acc }}</span>
-        </p>
-        <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
-        <v-ons-button name="get-location-btn" @click="getLocation"
-          >Get location</v-ons-button
-        >
-      </div>
+      <p>
+        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
+      </p>
+      <div class="code-style">{{ swHealthCheckResult }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -34,6 +26,151 @@
       <p>
         <v-ons-button @click="attachRemoteJs">Attach</v-ons-button>
       </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Clone an obs N times
+      </div>
+      <p>
+        Ever wondered if 30 local observations will bring a device to its knees?
+        Find out. You might want to turn off syncing before cloning.
+      </p>
+      <div>
+        <v-ons-button @click="prepCloneList"
+          >Get list of cloneable obs</v-ons-button
+        >
+      </div>
+      <div>
+        Obs to clone
+        <select v-model="cloneSubjectUuid">
+          <option
+            v-for="curr of cloneList"
+            :key="curr.uuid"
+            :value="curr.uuid"
+            >{{ curr.title }}</option
+          >
+        </select>
+      </div>
+      <div>
+        Number of times to clone
+        <input v-model="cloneCount" type="number" />
+      </div>
+      <div>
+        <v-ons-button @click="doClone">Clone</v-ons-button>
+      </div>
+      <div>Status = {{ cloneStatus }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Dump vuex
+      </div>
+      <p>
+        <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
+        </v-ons-checkbox>
+        <label for="include-project">
+          Include project details
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeLocalObs"
+          input-id="include-local-obs"
+        >
+        </v-ons-checkbox>
+        <label for="include-local-obs">
+          Include local observations
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeRemoteObs"
+          input-id="include-remote-obs"
+        >
+        </v-ons-checkbox>
+        <label for="include-remote-obs">
+          Include remote observations
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeSpeciesList"
+          input-id="include-species-list"
+        >
+        </v-ons-checkbox>
+        <label for="include-species-list">
+          Include species list
+        </label>
+      </p>
+      <p>
+        <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
+      </p>
+      <p>
+        <v-ons-button @click="doCustomLocalQueueSummaryDump"
+          >Dump only custom local queue summary</v-ons-button
+        >
+      </p>
+      <div class="code-style">{{ vuexDump }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable service worker console proxy
+      </div>
+      <p>
+        For when you can't get access to the SW console. iOS Safari in
+        BrowserStack is one offender.
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasSwConsoleBeenProxied"
+          @click="enableSwConsoleProxy"
+        >
+          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
+          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
+        </v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable console proxying to UI
+      </div>
+      <p>
+        For when you can't get access debug tools (like on a mobile device)
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasConsoleBeenProxiedToUi"
+          @click="enableConsoleProxyToUi"
+        >
+          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
+          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
+        </v-ons-button>
+      </p>
+      <code>
+        <pre
+          v-for="curr of consoleMsgs"
+          :key="curr.msg"
+        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
+      </code>
+      <p>
+        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Location test
+      </div>
+      <div class="text-center">
+        <p v-if="isLocSuccess" class="success-msg">
+          Location: lat=<span class="mono">{{ lat }}</span
+          >, lng=<span class="mono">{{ lng }}</span
+          >, alt=<span class="mono">{{ alt }}</span
+          >, acc=<span class="mono">{{ acc }}</span>
+        </p>
+        <p v-if="locErrorMsg" class="error-msg">{{ locErrorMsg }}</p>
+        <v-ons-button name="get-location-btn" @click="getLocation"
+          >Get location</v-ons-button
+        >
+      </div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -89,23 +226,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Login test
-      </div>
-      <div>Logged in = {{ isUserLoggedIn }}</div>
-      <div>
-        Do this first
-        <v-ons-button @click="doLogin">Login</v-ons-button>
-      </div>
-      <p>
-        Then make the call...
-        <v-ons-button @click="doGetUserDetails"
-          >Test API call to /users/me</v-ons-button
-        >
-      </p>
-      <div class="code-style">Result = {{ meResp }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Force refresh project info
       </div>
       <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
@@ -154,39 +274,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Clone an obs N times
-      </div>
-      <p>
-        Ever wondered if 30 local observations will bring a device to its knees?
-        Find out. You might want to turn off syncing before cloning.
-      </p>
-      <div>
-        <v-ons-button @click="prepCloneList"
-          >Get list of cloneable obs</v-ons-button
-        >
-      </div>
-      <div>
-        Obs to clone
-        <select v-model="cloneSubjectUuid">
-          <option
-            v-for="curr of cloneList"
-            :key="curr.uuid"
-            :value="curr.uuid"
-            >{{ curr.title }}</option
-          >
-        </select>
-      </div>
-      <div>
-        Number of times to clone
-        <input v-model="cloneCount" type="number" />
-      </div>
-      <div>
-        <v-ons-button @click="doClone">Clone</v-ons-button>
-      </div>
-      <div>Status = {{ cloneStatus }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Trigger queue processing
       </div>
       <div>
@@ -208,59 +295,6 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Enable service worker console proxy
-      </div>
-      <p>
-        For when you can't get access to the SW console. iOS Safari in
-        BrowserStack is one offender.
-      </p>
-      <p>
-        <v-ons-button
-          :disabled="hasSwConsoleBeenProxied"
-          @click="enableSwConsoleProxy"
-        >
-          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
-          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
-        </v-ons-button>
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Enable console proxying to UI
-      </div>
-      <p>
-        For when you can't get access debug tools (like on a mobile device)
-      </p>
-      <p>
-        <v-ons-button
-          :disabled="hasConsoleBeenProxiedToUi"
-          @click="enableConsoleProxyToUi"
-        >
-          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
-          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
-        </v-ons-button>
-      </p>
-      <code>
-        <pre
-          v-for="curr of consoleMsgs"
-          :key="curr.msg"
-        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
-      </code>
-      <p>
-        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
-      </p>
-    </v-ons-card>
-    <v-ons-card>
       <div class="standalone-title">
         Configuration
       </div>
@@ -280,52 +314,6 @@
           </v-ons-list-item>
         </template>
       </v-ons-list>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Dump vuex
-      </div>
-      <p>
-        <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
-        </v-ons-checkbox>
-        <label for="include-project">
-          Include project details
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeLocalObs"
-          input-id="include-local-obs"
-        >
-        </v-ons-checkbox>
-        <label for="include-local-obs">
-          Include local observations
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeRemoteObs"
-          input-id="include-remote-obs"
-        >
-        </v-ons-checkbox>
-        <label for="include-remote-obs">
-          Include remote observations
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeSpeciesList"
-          input-id="include-species-list"
-        >
-        </v-ons-checkbox>
-        <label for="include-species-list">
-          Include species list
-        </label>
-      </p>
-      <p>
-        <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
-      </p>
-      <div class="code-style">{{ vuexDump }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -593,6 +581,20 @@ export default {
         console.error('Failed to do health check on service worker', err)
       }
     },
+    doCustomLocalQueueSummaryDump() {
+      const speciesGuesses = this.$store.state.obs._uiVisibleLocalRecords.reduce(
+        (accum, curr) => {
+          accum[curr.uuid] = curr.speciesGuess
+          return accum
+        },
+        {},
+      )
+      const lqs = this.$store.state.obs.localQueueSummary.map(e => ({
+        ...e,
+        speciesGuess: speciesGuesses[e.uuid],
+      }))
+      this.vuexDump = JSON.stringify(lqs, null, 2)
+    },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
@@ -656,19 +658,6 @@ export default {
           enableHighAccuracy: this.isEnableHighAccuracy,
         },
       )
-    },
-    doLogin() {
-      this.$store.dispatch('auth/doLogin')
-    },
-    async doGetUserDetails() {
-      const urlSuffix = '/users/me'
-      try {
-        const resp = await this.$store.dispatch('doApiGet', { urlSuffix })
-        this.meResp = resp
-      } catch (err) {
-        console.error(`Failed to make ${urlSuffix} API call`, err)
-        return
-      }
     },
     doCommunityWorkflow() {
       mainStack.push(CommunityComponent) // FIXME change to using router
