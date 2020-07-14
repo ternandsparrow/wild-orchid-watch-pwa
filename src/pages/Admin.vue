@@ -26,6 +26,9 @@
       <p>
         <v-ons-button @click="attachRemoteJs">Attach</v-ons-button>
       </p>
+      <p class="mono">
+        {{ remoteJsAttachStatus }}
+      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -223,6 +226,7 @@
           Fire check to SW
         </button>
       </p>
+      <p class="mono">Result: {{ swCheckResult }}</p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -465,6 +469,8 @@ export default {
       resetRpoUuid: null,
       remoteJsUuid: null,
       platformTestResult: '(not run yet)',
+      swCheckResult: '(not run yet)',
+      remoteJsAttachStatus: '(no connection attempted, yet)',
     }
   },
   computed: {
@@ -689,9 +695,17 @@ export default {
       this._sendMessageToSw(constants.testTriggerManualUncaughtErrorMsg)
     },
     fireCheckSwCall() {
-      isSwActive().then(result => {
-        console.log('Is SW alive? ' + result)
-      })
+      console.debug('Firing check to SW')
+      this.swCheckResult = 'checking...'
+      isSwActive()
+        .then(result => {
+          console.log('Is SW alive? ' + result)
+          this.swCheckResult = 'is SW alive = ' + result
+        })
+        .catch(err => {
+          console.error('Failed to send check to SW', err)
+          this.swCheckResult = 'Error ' + err.message
+        })
     },
     doTriggerSwWowQueue() {
       this.swWowQueueStatus = 'processing'
@@ -727,9 +741,11 @@ export default {
     },
     async enableSwConsoleProxy() {
       this.hasSwConsoleBeenProxied = true
-      this.$store.state.ephemeral.swReg.active.postMessage(
-        constants.proxySwConsoleMsg,
-      )
+      const reg = this.$store.state.ephemeral.swReg
+      if (!reg) {
+        throw new Error('No SW registration found, cannot send message')
+      }
+      reg.active.postMessage(constants.proxySwConsoleMsg)
       console.log('Message sent to SW to enable console proxying')
     },
     enableConsoleProxyToUi() {
@@ -842,7 +858,9 @@ export default {
         uuid: e.uuid,
       }))
     },
-    attachRemoteJs() {
+    async attachRemoteJs() {
+      console.debug('attaching to RemoteJS')
+      this.remoteJsAttachStatus = 'attaching...'
       const uuid = this.remoteJsUuid
       if (!uuid) {
         alert('You must supply the UUID for the RemoteJS session')
@@ -854,14 +872,21 @@ export default {
         console.debug('removing existing RemoteJS script')
         existingScript.remove()
       }
-      if (!this.hasSwConsoleBeenProxied) {
-        this.enableSwConsoleProxy()
-      }
       const s = document.createElement('script')
       s.src = 'https://remotejs.com/agent/agent.js'
       s.id = scriptTagId
       s.setAttribute('data-consolejs-channel', uuid)
       document.head.appendChild(s)
+      if (!this.hasSwConsoleBeenProxied) {
+        try {
+          await this.enableSwConsoleProxy()
+        } catch (err) {
+          this.remoteJsAttachStatus =
+            'attached but SW console proxy failed: ' + err.message
+          return
+        }
+      }
+      this.remoteJsAttachStatus = 'attached and SW console proxied'
     },
     async doPlatformTest() {
       try {
