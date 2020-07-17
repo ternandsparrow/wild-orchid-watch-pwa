@@ -196,14 +196,22 @@ function connect(dbName, dbVersion, objectStoreName, callback) {
   const connection = indexedDB.open(dbName, dbVersion)
   connection.onsuccess = e => {
     const db = e.target.result
-    const transaction = db.transaction([objectStoreName], 'readwrite')
-    const objectStore = transaction.objectStore([objectStoreName])
-    callback(objectStore)
-      .catch(err => console.error('Error while dealing with DB=' + dbName, err))
-      .finally(() => {
-        console.log(`[${dbName}] closing DB`)
-        db.close()
-      })
+    try {
+      const transaction = db.transaction([objectStoreName], 'readwrite')
+      const objectStore = transaction.objectStore([objectStoreName])
+      callback(objectStore)
+        .catch(err =>
+          console.error('Error while dealing with DB=' + dbName, err),
+        )
+        .finally(() => {
+          console.log(`[${dbName}] closing DB`)
+          db.close()
+        })
+    } catch (err) {
+      console.error(
+        `Failed to open ${dbName}:${dbVersion}. It must exist before we can populate it!`,
+      )
+    }
   }
   connection.onerror = err => {
     console.error('Failed to connect to DB ' + dbName, err)
