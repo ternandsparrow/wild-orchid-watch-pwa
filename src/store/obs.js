@@ -26,6 +26,7 @@ import {
   triggerSwWowQueue,
   verifyWowDomainPhoto,
   wowIdOf,
+  wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
@@ -51,6 +52,7 @@ const state = {
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
+  forceQueueProcessingAtNextChance: false,
 }
 
 const mutations = {
@@ -92,6 +94,8 @@ const mutations = {
     const maxItems = 20
     state.recentlyUsedTaxa[type] = stack.slice(0, maxItems)
   },
+  setForceQueueProcessingAtNextChance: (state, value) =>
+    (state.forceQueueProcessingAtNextChance = value),
 }
 
 const actions = {
@@ -619,7 +623,6 @@ const actions = {
           `${existingRemoteRecord ? '' : 'no'}remote`
         console.debug(`[Edit] strategy key=${strategyKey}`)
         const strategy = (() => {
-          // FIXME extract to its own function
           const upsertBlockedAction = 'upsertBlockedAction'
           const upsertQueuedAction = 'upsertQueuedAction'
           switch (strategyKey) {
@@ -644,7 +647,7 @@ const actions = {
 
               // edits of local-only records *need* to result in a 'new' typed
               // record so we process them with a POST. We can't PUT when
-              // there's nothing to update. FIXME this side-effect is hacky
+              // there's nothing to update. TODO this side-effect is hacky
               enhancedRecord.wowMeta[
                 constants.recordTypeFieldName
               ] = recordType('new')
@@ -657,8 +660,7 @@ const actions = {
               // IMPOSSIBLE
               // case 'noprocessing.queued.existingblocked.remote':
               // case 'noprocessing.queued.existingblocked.noremote':
-              //   // don't think things that are NOT processing can have a blocked
-              //   // action, FIXME is this right?
+              //   // things NOT processing cannot have a blocked action
               // case 'noprocessing.noqueued.noexistingblocked.noremote':
               //   // impossible if there's no remote and nothing queued
               // case 'processing.noqueued.noexistingblocked.remote':
@@ -1236,10 +1238,10 @@ const actions = {
     const key = dbRecord.wowMeta[constants.recordTypeFieldName]
     console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
     const strategy = strategies[key]
-    // FIXME add a rollback() fn to each strategy and call it when we encounter
-    // an error during the following processing. For 'new' we can just delete
-    // the partial obs. For delete, we do nothing. For edit, we should really
-    // track which requests have worked so we only replay the
+    // enhancement idea: add a rollback() fn to each strategy and call it when
+    // we encounter an error during the following processing. For 'new' we can
+    // just delete the partial obs. For delete, we do nothing. For edit, we
+    // should really track which requests have worked so we only replay the
     // failed/not-yet-processed ones, but most users will use the withSw
     // version of the processor and we get this smart retry for free.
     if (!strategy) {
@@ -1782,8 +1784,6 @@ function isObsStateProcessing(state) {
  * from our local DB
  */
 function commonApiToOurDomainObsMapping(result, obsFromApi) {
-  // FIXME there's more to do here to align our internal DB records to the
-  // format that the API uses
   result.geolocationAccuracy = obsFromApi.positional_accuracy
 }
 
@@ -1887,7 +1887,7 @@ function updateIdsAndCommentsFor(obs) {
 
 function mapGeojsonToLatLng(geojson) {
   if (!geojson || geojson.type !== 'Point') {
-    // FIXME maybe pull the first point in the shape?
+    // TODO maybe pull the first point in the shape?
     return { lat: null, lng: null }
   }
   return {
@@ -1992,6 +1992,20 @@ function isAnswer(val) {
 
 export function migrate(store) {
   migrateRecentlyUsedTaxa(store)
+
+  if (store.state.obs.forceQueueProcessingAtNextChance) {
+    console.debug(
+      `Triggering local queue processing at request of "force at next ` +
+        `chance" flag`,
+    )
+    store.dispatch('obs/onLocalRecordEvent').catch(err => {
+      wowErrorHandler(
+        'Failed while triggering queue processing at request of flag in store',
+        err,
+      )
+    })
+    store.commit('obs/setForceQueueProcessingAtNextChance', false)
+  }
 }
 
 function migrateRecentlyUsedTaxa(store) {

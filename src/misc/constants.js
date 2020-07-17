@@ -113,19 +113,29 @@ export const isForceVueDevtools = !!parseInt(
   process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
 )
 
+export const isEnableWorkboxLogging = parseBoolean(
+  process.env.VUE_APP_ENABLE_WORKBOX_LOGGING,
+)
+
 // Feature flags, so we can work on things but not have them show up in all
 // environments until we're ready
-export const isMissionsFeatureEnabled =
-  process.env.VUE_APP_FEATURE_FLAG_MISSIONS || false
+export const isMissionsFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_MISSIONS,
+)
 
-export const isNewsFeatureEnabled =
-  process.env.VUE_APP_FEATURE_FLAG_NEWS || false
+export const isNewsFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_NEWS,
+)
 
-export const isSearchFeatureEnabled =
-  process.env.VUE_APP_FEATURE_FLAG_SEARCH || false
+export const isSearchFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_SEARCH,
+)
 
-export const isBugReportFeatureEnabled =
-  process.env.VUE_APP_FEATURE_FLAG_BUG_REPORT || false
+export const isBugReportFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_BUG_REPORT,
+)
+
+// IDs of things in iNat so we know how to handle things correctly
 
 export const countOfIndividualsObsFieldId = convertAndAssertInteger(
   process.env.VUE_APP_OBS_FIELD_ID_COUNT,
@@ -467,4 +477,15 @@ function convertAndAssertFloat(val) {
     )
   }
   return result
+}
+
+function parseBoolean(val) {
+  // slightly better than "any string is truthy"
+  if (val === 'true' || val === 1) {
+    return true
+  }
+  if (val === 'false' || val === 0) {
+    return false
+  }
+  return !!(val || false)
 }

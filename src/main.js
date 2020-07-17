@@ -150,18 +150,17 @@ new Vue({
               })
               return
             case constants.triggerLocalQueueProcessingMsg:
-              this.$store.dispatch('obs/onLocalRecordEvent').catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg:
-                    `Failed to trigger local queue processing after prompt ` +
-                    `to do so from the SW`,
-                  userMsg: `Error while trying to synchronise your observations`,
-                  err,
-                })
-              })
+              // we don't trigger the processing right now, as the web page
+              // needs to reload to use the app code and the new service
+              // worker. We want the processing to happen after the refresh
+              // though, so we set the appropriate flag.
+              this.$store.commit(
+                'obs/setForceQueueProcessingAtNextChance',
+                true,
+              )
               return
             default:
-              console.debug('[from SW] ' + event.data)
+              console.debug('[unhandled message from SW] ' + event.data)
               return
           }
         } finally {

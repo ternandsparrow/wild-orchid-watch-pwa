@@ -323,7 +323,7 @@ function isSafeToProcessQueue() {
   const isAuthHeaderSet = !!authHeaderValue
   if (!isAuthHeaderSet) {
     console.debug(
-      `Auth header='${authHeaderValue}' is not set, refusing to ` +
+      `[SW] Auth header='${authHeaderValue}' is not set, refusing to ` +
         'even try to replay the queue',
     )
     return false
@@ -877,15 +877,34 @@ function setAuthHeaderFromReq(req) {
   authHeaderValue = newValue
 }
 
+let shouldClaimClients = false
+
 self.addEventListener('install', function() {
   console.debug(`[SW] I'm installed!`)
+  if (!self.registration.active) {
+    console.debug('[SW] no existing active SW')
+    self.skipWaiting()
+    shouldClaimClients = true
+  }
 })
 
 self.addEventListener('activate', function(event) {
   console.debug(`[SW] I'm activated!`)
+  if (shouldClaimClients) {
+    // note: this triggers a page refresh. Eagerly claiming clients is probably
+    // not required as a first-time user to the site will need to login to iNat
+    // before they can do anything and that OAuth page navigation lets the SW
+    // claim the client. For that reason, I've left this disabled.
+    // clients.claim()
+  }
   event.waitUntil(
     doMigrations({
       triggerRefresh() {
+        // you'd think we *can't* talk to the clients until the page has
+        // refreshed and the new service worker has claimed the them, but at
+        // least in Chrome it seems we can, so we can do things like this. We
+        // are talking to the pre-updated page though so if you have new
+        // migration code you're relying on, it won't be there yet.
         return sendMessageToAllClients({
           id: constants.triggerLocalQueueProcessingMsg,
         })
@@ -966,7 +985,10 @@ function sendMessageToClient(client, msg) {
       if (event.data.error) {
         return reject(event.data.error)
       }
-      // note: it's vital that at least one client responds to us so this resolves
+      // note: it's vital that the client responds to us so this resolves. An
+      // alternative is to use setTimeout to resolve if no response has been
+      // received in some time frame. It's not awesome but it stops blocking
+      // indefinitely.
       return resolve(event.data)
     }
     client.postMessage(msg, [msgChan.port2])
@@ -1107,6 +1129,8 @@ async function buildHealthcheckObj() {
 
 // build process will inject manifest into the following statement.
 workboxPrecacheAndRoute(self.__WB_MANIFEST)
+
+self.__WB_DISABLE_DEV_LOGS = !constants.isEnableWorkboxLogging
 
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {

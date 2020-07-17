@@ -20,6 +20,17 @@ describe('app module action', () => {
   })
 
   describe('serviceWorkerSkipWaiting', () => {
+    let origConsoleDebug
+
+    beforeAll(function() {
+      origConsoleDebug = console.debug
+      console.debug = () => {}
+    })
+
+    afterAll(function() {
+      console.debug = origConsoleDebug
+    })
+
     it('should set app refreshing status and call sw postMessage with skipWaiting', () => {
       const state = {
         SWRegistrationForNewContent: {

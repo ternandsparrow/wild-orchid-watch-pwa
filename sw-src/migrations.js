@@ -1,6 +1,7 @@
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import {
   chainedError,
+  iterateIdb,
   wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
@@ -9,16 +10,32 @@ import * as constants from '../src/misc/constants'
 
 // eslint-disable-next-line import/prefer-default-export
 export async function doMigrations(context) {
+  const start = Date.now()
   try {
     const updatedRecordCount = await do2020JulMigrationToBulkObsFields()
     if (updatedRecordCount) {
-      await context.triggerRefresh()
+      // note: we don't await this as Safari/WebKit will get stuck on it. I
+      // think it's because this SW can see clients but cannot send messages to
+      // them. It doesn't really matter if this call doesn't work because the
+      // queue processing will eventually be kicked off. It's just better UX if
+      // we kick it off right away.
+      context
+        .triggerRefresh()
+        .then(() => {
+          console.debug('[SW] successfully triggered refresh on client')
+        })
+        .catch(err => {
+          wowErrorHandler('Failed to trigger refresh on client(s) from SW', err)
+        })
     }
     console.debug(
       `[SW] migrations complete, ${updatedRecordCount} observations affected`,
     )
   } catch (err) {
     throw chainedError('Failed during SW migrations', err)
+  } finally {
+    const elapsed = Date.now() - start
+    console.debug(`[SW] migrations took ${elapsed} ms`)
   }
 }
 
@@ -129,50 +146,4 @@ async function do2020JulMigrationToBulkObsFields() {
     }
   }
   return uniqueUuids.length
-}
-
-function iterateIdb(
-  dbName,
-  dbVersion,
-  objectStoreName,
-  cursorMapFn,
-  isWrite = false,
-) {
-  return new Promise((resolve, reject) => {
-    const connection = indexedDB.open(dbName, dbVersion)
-    connection.onsuccess = e => {
-      const database = e.target.result
-      const mode = isWrite ? 'readwrite' : 'readonly'
-      try {
-        const transaction = database.transaction([objectStoreName], mode)
-        const mappedItems = new Set()
-        const objectStore = transaction.objectStore(objectStoreName)
-        const request = objectStore.openCursor()
-        request.addEventListener('success', e => {
-          const cursor = e.target.result
-          if (cursor) {
-            const mapped = cursorMapFn(cursor)
-            if (mapped) {
-              mappedItems.add(mapped)
-            }
-            cursor.continue()
-            return
-          }
-          const result = []
-          for (const curr of mappedItems.keys()) {
-            result.push(curr)
-          }
-          return resolve(result)
-        })
-        request.addEventListener('error', reject)
-      } catch (err) {
-        if (err.name === 'NotFoundError') {
-          return resolve([])
-        }
-        return reject(
-          chainedError(`Failed to open objectStore '${objectStoreName}'`, err),
-        )
-      }
-    }
-  })
 }

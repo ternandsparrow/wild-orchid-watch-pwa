@@ -171,6 +171,7 @@ const actions = {
       return
     }
     commit('setRefreshingApp', true)
+    console.debug('Swapping to new service worker (AKA skipWaiting)')
     state.SWRegistrationForNewContent.waiting.postMessage(
       constants.skipWaitingMsg,
     )
