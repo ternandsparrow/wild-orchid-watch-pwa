@@ -95,3 +95,68 @@ export function addPhotoIdToObsReq(obsReq, photoId) {
   }
   photoArray.push(photoId)
 }
+
+export function iterateIdb(
+  dbName,
+  dbVersion,
+  objectStoreName,
+  cursorMapFn,
+  isWrite = false,
+) {
+  return new Promise((resolve, reject) => {
+    const openRequest = indexedDB.open(dbName, dbVersion)
+    openRequest.onupgradeneeded = e => {
+      // if an upgrade is needed, the requested DB version did NOT exist
+      e.target.transaction.abort()
+      console.debug(
+        `IndexedDB database ${dbName}, version ${dbVersion}, does not exist, ` +
+          `skipping migration`,
+      )
+      return resolve([])
+    }
+    openRequest.onerror = () => {
+      reject(
+        chainedError(
+          `Failed to open IndexedDB '${dbName}' (version ${dbVersion})`,
+          openRequest.error,
+        ),
+      )
+    }
+    openRequest.onsuccess = e => {
+      const database = e.target.result
+      const mode = isWrite ? 'readwrite' : 'readonly'
+      try {
+        const transaction = database.transaction([objectStoreName], mode)
+        const mappedItems = new Set()
+        const objectStore = transaction.objectStore(objectStoreName)
+        const request = objectStore.openCursor()
+        request.addEventListener('success', e => {
+          const cursor = e.target.result
+          if (cursor) {
+            const mapped = cursorMapFn(cursor)
+            if (mapped) {
+              mappedItems.add(mapped)
+            }
+            cursor.continue()
+            return
+          }
+          const result = []
+          for (const curr of mappedItems.keys()) {
+            result.push(curr)
+          }
+          database.close()
+          return resolve(result)
+        })
+        request.addEventListener('error', reject)
+      } catch (err) {
+        database.close()
+        if (err.name === 'NotFoundError') {
+          return resolve([])
+        }
+        return reject(
+          chainedError(`Failed to open objectStore '${objectStoreName}'`, err),
+        )
+      }
+    }
+  })
+}

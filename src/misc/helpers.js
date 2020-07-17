@@ -6,6 +6,7 @@ import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
 import {
   chainedError,
+  iterateIdb,
   makeObsRequest,
   now,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
@@ -17,6 +18,7 @@ import {
 
 export {
   chainedError,
+  iterateIdb,
   makeObsRequest,
   now,
   wowErrorHandler,
