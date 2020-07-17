@@ -26,5 +26,6 @@ rsync \
   --exclude=scripts/transform* \
   --exclude=error-screenshots \
   --exclude=public/wow-taxa-index.json \
+  --exclude=.env.local \
   --delete \
   $sshTargetSpec
