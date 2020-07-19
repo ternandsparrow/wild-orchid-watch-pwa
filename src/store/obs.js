@@ -655,12 +655,16 @@ const actions = {
             case 'noprocessing.noqueued.noexistingblocked.remote':
               // direct edit of remote
               return upsertQueuedAction
+            case 'noprocessing.queued.existingblocked.remote':
+            case 'noprocessing.queued.existingblocked.noremote':
+              // I thought that things NOT processing cannot have a blocked
+              // action, but it has happened in production. I think this
+              // because the recently introduced migration can reset obs back
+              // to "noprocessing".
+              return upsertBlockedAction
 
             default:
               // IMPOSSIBLE
-              // case 'noprocessing.queued.existingblocked.remote':
-              // case 'noprocessing.queued.existingblocked.noremote':
-              //   // things NOT processing cannot have a blocked action
               // case 'noprocessing.noqueued.noexistingblocked.noremote':
               //   // impossible if there's no remote and nothing queued
               // case 'processing.noqueued.noexistingblocked.remote':
@@ -675,7 +679,8 @@ const actions = {
               //   // because we can't have a blocked action if there's nothing
               //   // queued to block it.
               throw new Error(
-                `Programmer error: impossible situation with strategyKey=${strategyKey}`,
+                `Programmer error: impossible situation with ` +
+                  `strategyKey=${strategyKey}`,
               )
           }
         })()
