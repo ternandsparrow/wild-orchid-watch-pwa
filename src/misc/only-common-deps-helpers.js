@@ -52,13 +52,16 @@ export function chainedError(msg, err) {
       // Indexed Database.". That error will have the 'message' property set as
       // readonly and that's how you get here.
       console.warn(
-        `While handling another error, encountered this error ` +
-          `(but we're working around it):${err2.message}`,
+        `While handling the first error:\n` +
+          `  ${err.message}\n` +
+          `encountered this error:\n` +
+          `  ${err2.message}\n` +
+          `but we're working around it! Bubbling original error now.`,
       )
       return new Error(
         newMsg +
           `\nOriginal stack (readonly Error.message forced ` +
-          `creation of a new Error):\n${err.stack}`,
+          `creation of a new Error with new stack):\n${err.stack}`,
       )
     }
   }
