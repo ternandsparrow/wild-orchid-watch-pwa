@@ -746,7 +746,13 @@ registerRoute(
   constants.serviceWorkerHealthCheckUrl,
   async () => {
     console.debug('[SW] Performing a health check')
-    return jsonResponse(await buildHealthcheckObj())
+    try {
+      return jsonResponse(await buildHealthcheckObj())
+    } catch (err) {
+      const msg = 'Failed to build SW health check result'
+      wowErrorHandler(msg, err)
+      return jsonResponse({ error: err.message })
+    }
   },
   'GET',
 )
@@ -1077,31 +1083,46 @@ async function buildHealthcheckObj() {
   const swStoreItems = await new Promise(async (resolve, reject) => {
     try {
       const result = []
-      await wowSwStore.iterate(r => {
-        const logFriendlyRecord = {
-          ...r,
-          photos: r.photos.map(p => {
-            const data = (() => {
-              const val = p.data
-              if (!val) {
-                return val
-              }
-              if (typeof val === 'string') {
-                return `${val.substring(0, 10)}...(length=${val.length})`
-              }
-              return `(type=${typeof val})`
-            })()
-            return {
-              ...p,
-              data: data,
-            }
-          }),
+      const valueProcessorFn = r => {
+        try {
+          const logFriendlyRecord = {
+            ...r,
+            photos:
+              r.photos &&
+              r.photos.map(p => {
+                const data = (() => {
+                  const val = p.data
+                  if (!val) {
+                    return val
+                  }
+                  if (typeof val === 'string') {
+                    return `${val.substring(0, 10)}...(length=${val.length})`
+                  }
+                  return `(type=${typeof val})`
+                })()
+                return {
+                  ...p,
+                  data: data,
+                }
+              }),
+          }
+          result.push(logFriendlyRecord)
+        } catch (err) {
+          // returning non-undefined will short-circuit. We can't just throw
+          // because it won't bubble up for us to handle, so we need to be a
+          // bit creative like this.
+          return chainedError('Failed to process a wowSw IDB record', err)
         }
-        result.push(logFriendlyRecord)
+      }
+      await wowSwStore.iterate(valueProcessorFn, function doneCallback(_, err) {
+        if (!err) {
+          return resolve(result)
+        }
+        // if we do have an error, we've already handled it
+        return reject(err)
       })
-      return resolve(result)
     } catch (err) {
-      return reject(err)
+      return reject(chainedError('Failed to iterate wowSw IDB', err))
     }
   })
   return {
