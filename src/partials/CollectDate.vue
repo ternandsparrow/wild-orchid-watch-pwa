@@ -123,7 +123,7 @@
                   ></label
                 >
               </div>
-              <div class="coord-input">
+              <div class="datetime-input">
                 <v-ons-input
                   v-model="manualDate"
                   input-id="manual-date"
@@ -140,7 +140,7 @@
                   ></label
                 >
               </div>
-              <div class="coord-input">
+              <div class="datetime-input">
                 <v-ons-input
                   v-model="manualTime"
                   html-id="manual-time"
@@ -350,7 +350,7 @@ function nowTime() {
   margin-top: 1em;
 }
 
-.coord-input {
+.datetime-input {
   padding-left: 1em;
 }
 
