@@ -110,7 +110,7 @@
       />
       <wow-header
         label="Date/time"
-        help-target="geolocation"
+        help-target="datetime"
         @on-help="showHelp"
       />
       <wow-collect-date

@@ -177,6 +177,17 @@ export default (() => {
       ],
     },
     {
+      id: 'datetime',
+      heading: 'Observation date and time',
+      values: [
+        [
+          '',
+          `All observations require the date and time that the observation was made at. We offer three methods for gathering this data, in order of preference: 1) using the date/time from the metadata of attached photos, 2) using the date/time from your device, 3) manually inputting date/time. The timezone used will whatever your devices is configured to use, which will be the timezone you are actually in assuming you haven't changed it.`,
+          '',
+        ],
+      ],
+    },
+    {
       id: constants.orchidTypeObsFieldId,
       heading: 'Orchid type',
       values: [
