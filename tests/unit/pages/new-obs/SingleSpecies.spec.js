@@ -120,6 +120,7 @@ function buildWrapper() {
       'v-ons-switch': true,
       'wow-autocomplete': true,
       'wow-collect-geolocation': true,
+      'wow-collect-date': true,
       'wow-header': true,
       'wow-help': true,
       'wow-photo-preview': true,

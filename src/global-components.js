@@ -2,6 +2,7 @@ import Vue from 'vue'
 
 import CarouselDots from '@/partials/CarouselDots'
 import CollectGeolocation from '@/partials/CollectGeolocation'
+import CollectDate from '@/partials/CollectDate'
 import CustomToolbar from '@/partials/CustomToolbar'
 import GoogleMap from '@/components/googleMap'
 import Help from '@/partials/Help'
@@ -16,6 +17,7 @@ import WowInputStatus from '@/partials/WowInputStatus'
 
 Vue.component('carousel-dots', CarouselDots)
 Vue.component('wow-collect-geolocation', CollectGeolocation)
+Vue.component('wow-collect-date', CollectDate)
 Vue.component('custom-toolbar', CustomToolbar)
 Vue.component('google-map', GoogleMap)
 Vue.component('menu-wrapper', MenuWrapper)

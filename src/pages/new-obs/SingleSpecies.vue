@@ -108,6 +108,17 @@
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"
       />
+      <wow-header
+        label="Date/time"
+        help-target="geolocation"
+        @on-help="showHelp"
+      />
+      <wow-collect-date
+        :is-edit="isEdit"
+        :photo-count="photos.length"
+        :is-extra-emphasis="isValidatedAtLeastOnce"
+        @read-datetime="rereadDatetime"
+      />
       <template v-for="currField of displayableObsFields">
         <template v-if="isDetailedUserMode || !currField.isDetailedModeField">
           <wow-header
@@ -434,6 +445,7 @@ export default {
       obsLocAccuracy: null,
       isValidatedAtLeastOnce: false,
       uuidOfThisObs: null,
+      observedAt: null,
     }
   },
   computed: {
@@ -656,8 +668,8 @@ export default {
     },
     initForEdit(obsFieldsPromise) {
       this.uuidOfThisObs = this.observationDetail.uuid
-      this.obsLat = this.observationDetail.lat
-      this.obsLng = this.observationDetail.lng
+      this.rereadCoords()
+      this.rereadDatetime()
       this.obsLocAccuracy = this.observationDetail.positional_accuracy
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
@@ -863,6 +875,7 @@ export default {
       }
       const thisPhotoUuid = record.uuid
       this.$store.commit('ephemeral/popCoordsForPhoto', thisPhotoUuid)
+      this.$store.commit('ephemeral/popDatetimeForPhoto', thisPhotoUuid)
       const indexOfPhoto = this.photos.findIndex(e => e.uuid == thisPhotoUuid)
       if (indexOfPhoto < 0) {
         // why can't we find the photo?
@@ -1142,6 +1155,7 @@ export default {
         })),
         speciesGuess: this.speciesGuessValue,
         obsFieldValues,
+        observedAt: new Date(this.observedAt),
         description: this.notes,
         lat: this.obsLat,
         lng: this.obsLng,
@@ -1284,7 +1298,7 @@ export default {
             }
             found.url = newUrl
             // we don't want our thumbnail to be using a revoked blob URL
-            this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
+            this.$store.commit('ephemeral/updateUrlForPhotoCoordsAndDatetime', {
               uuid: photoObj.uuid,
               newUrl,
             })
@@ -1415,6 +1429,9 @@ export default {
     onCancel() {
       const modeName = this.isEdit ? 'edit' : 'create'
       this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
+      this.$store.commit('ephemeral/resetCoordsState')
+      this.$store.commit('ephemeral/resetDatetimeState')
+      this.$store.commit('ephemeral/resetPhotoProcessingTasks')
       if (this.isEdit) {
         this.$router.push({
           name: 'ObsDetail',
@@ -1424,6 +1441,18 @@ export default {
         // new obs
         this.$router.push({ name: 'Home' })
       }
+    },
+    rereadDatetime() {
+      const newDatetime = this.$store.getters[
+        'ephemeral/datetimeForCurrentlyEditingObs'
+      ]
+      if (!newDatetime) {
+        this.observedAt = null
+        console.debug('cleared datetime triggered by a poke')
+        return
+      }
+      this.observedAt = newDatetime.value
+      console.debug('updated datetime value triggered by a poke')
     },
     rereadCoords() {
       const newCoords = this.$store.getters[

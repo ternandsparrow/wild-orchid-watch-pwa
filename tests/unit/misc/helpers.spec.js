@@ -306,6 +306,13 @@ describe('chainedError', () => {
   })
 })
 
+describe('convertExifDateStr', () => {
+  it('should handle a common value', () => {
+    const result = objectUnderTest.convertExifDateStr('2020:03:15 13:44:23')
+    expect(result).toEqual('2020-03-15 13:44:23')
+  })
+})
+
 describe('formatMetricDistance', () => {
   it('should handle less than 1 km', () => {
     const result = objectUnderTest.formatMetricDistance(123)

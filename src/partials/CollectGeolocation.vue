@@ -12,7 +12,7 @@
             >
             </v-ons-radio>
           </label>
-          <div class="center geolocation-option-label">
+          <div class="center wow-radio-option-label">
             <label for="radio-gm-existing">
               Use existing value in saved record
             </label>
@@ -30,8 +30,8 @@
           </label>
           <div class="center">
             <label for="radio-gm-photo">
-              Automatically read GPS coordinates from photo metadata
-              (recommended)
+              Automatically read GPS coordinates from metadata of photos being
+              uploaded now <span v-if="!isEdit">(recommended)</span>
             </label>
             <div v-if="geolocationMethod === 'photo'">
               <p
@@ -89,7 +89,7 @@
             >
             </v-ons-radio>
           </label>
-          <div class="center geolocation-option-label">
+          <div class="center wow-radio-option-label">
             <label for="radio-gm-device">
               Use geolocation of this device, right now.
             </label>
@@ -116,18 +116,16 @@
             >
             </v-ons-radio>
           </label>
-          <div class="center geolocation-option-label">
+          <div class="center wow-radio-option-label">
             <label for="radio-gm-manual">
               Manually enter decimal GPS coordinates. Useful for when you have a
-              standalone GPS. Press the button when you're done to validate the
-              coordinates.
+              standalone GPS.
             </label>
             <div class="stop-touching-my-head">
               <label for="manual-lat">Latitude, e.g. -33.123456 </label>
             </div>
             <div class="coord-input">
               <v-ons-input
-                ref="manualLatInput"
                 v-model="manualLat"
                 input-id="manual-lat"
                 placeholder="Lat"
@@ -365,13 +363,6 @@ export default {
       }
     },
   },
-  beforeMount() {
-    const selectedMethod = this.isEdit ? 'existing' : 'photo'
-    this.$store.commit('ephemeral/resetCoordsState', selectedMethod)
-  },
-  beforeDestroy() {
-    this.$store.commit('ephemeral/resetCoordsState')
-  },
   methods: {
     pokeParentToReadCoords() {
       this.$emit('read-coords')
@@ -456,11 +447,6 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.geolocation-option-label {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
 .stop-touching-my-head {
   margin-top: 1em;
 }

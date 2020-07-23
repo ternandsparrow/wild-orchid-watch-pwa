@@ -351,6 +351,7 @@ describe('actions', () => {
         const record = {
           speciesGuess: 'species new',
           addedPhotos: [],
+          observedAt: 1595491950028,
         }
         const dispatchedStuff = {}
         const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
@@ -364,7 +365,7 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(dateTimestampRegex),
+          observedAt: 1595491950028,
           photos: [],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -426,7 +427,6 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(dateTimestampRegex),
           photos: [expectedPhoto1, expectedPhoto2],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -751,7 +751,11 @@ describe('actions', () => {
 
       it('should not duplicate photos when saving an edit', async () => {
         const existingLocalPhoto = {
-          file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
+          id: -1,
+          file: {
+            data: `pretend I'm an ArrayBuffer`, // our stub LocalStorage destroys real ArrayBuffers
+            mime: 'image/jpeg',
+          },
           type: 'flower',
         }
         const newPhoto = {
@@ -772,7 +776,7 @@ describe('actions', () => {
         obsStore.setItem('123A', {
           uuid: '123A',
           speciesGuess: 'species blah',
-          photos: [existingLocalPhoto, existingRemotePhoto],
+          photos: [existingLocalPhoto],
         })
         const state = {
           _uiVisibleLocalRecords: [{ uuid: '123A' }],
@@ -821,30 +825,34 @@ describe('actions', () => {
             data: expect.any(ArrayBuffer),
             mime: 'image/jpeg',
           },
-          id: -3,
+          id: -2,
           licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
+        const expectedExistingLocalPhoto = {
+          file: {
+            data: `pretend I'm an ArrayBuffer`,
+            mime: 'image/jpeg',
+          },
+          id: -3,
+          type: 'flower',
+        }
         expect(result.record.photos).toHaveLength(3)
         expect(result).toEqual({
           photoIdsToDelete: [],
-          newPhotos: [expectedNewPhoto],
+          newPhotos: [expectedNewPhoto, expectedExistingLocalPhoto],
           obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [
-              {
-                file: expect.any(Object),
-                id: undefined,
-                type: 'flower',
-              },
               {
                 id: 888,
                 isRemote: true,
                 url: 'http://whatever...',
               },
               expectedNewPhoto,
+              expectedExistingLocalPhoto,
             ],
             speciesGuess: 'species blah',
             uuid: '123A',

@@ -71,13 +71,23 @@ const router = new VueRouter({
       path: `/obs/:id(\\d+|${uuidRegex})`,
       name: 'ObsDetail',
       component: ObsDetail,
-      beforeEnter: resolveObsByIdOrNotFound,
+      beforeEnter: function(to, from, next) {
+        const selectedMethod = 'photo'
+        store.commit('ephemeral/resetCoordsState', selectedMethod)
+        store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        return resolveObsByIdOrNotFound(to, from, next)
+      },
     },
     {
       path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
-      beforeEnter: resolveObsByIdOrNotFound,
+      beforeEnter: function(to, from, next) {
+        const selectedMethod = 'existing'
+        store.commit('ephemeral/resetCoordsState', selectedMethod)
+        store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        return resolveObsByIdOrNotFound(to, from, next)
+      },
       meta: {
         isEdit: true,
       },
@@ -90,7 +100,6 @@ const router = new VueRouter({
         isEdit: false,
       },
     },
-    // TODO use /obs/new-community for multiple species
     // TODO use /obs/new-mapping for mapping record
     {
       path: onboarderPath,

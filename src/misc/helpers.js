@@ -608,6 +608,10 @@ export function namedError(name, msg) {
   return result
 }
 
+export function convertExifDateStr(exifDateStr) {
+  return exifDateStr.replace(':', '-').replace(':', '-')
+}
+
 export const _testonly = {
   isRespJson,
   isInBoundingBoxImpl,

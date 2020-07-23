@@ -569,20 +569,21 @@ const actions = {
             'cannot continue without at least one',
         )
       }
-      const newPhotos = (await processPhotos(record.addedPhotos)) || []
+      const newPhotos = await (async () => {
+        const photosAddedInThisEdit =
+          (await processPhotos(record.addedPhotos)) || []
+        return [...photosAddedInThisEdit, ...(existingDbRecord.photos || [])]
+      })()
       const photos = (() => {
-        // existingLocalRecord is the UI version that has a blob URL for the
-        // photos. We need the raw photo data itself so we go to the DB record
-        // for photos.
         const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
-        const existingLocalPhotos = existingDbRecord.photos
         const photosWithDeletesApplied = [
-          ...(existingLocalPhotos || existingRemotePhotos),
+          ...existingRemotePhotos,
           ...newPhotos,
         ].filter(p => {
           const isPhotoDeleted = photoIdsToDelete.includes(p.id)
           return !isPhotoDeleted
         })
+        // note: this fixIds calls is side-effecting the newPhotos items
         return fixIds(photosWithDeletesApplied)
         function fixIds(thePhotos) {
           return thePhotos.map((e, $index) => {
@@ -721,12 +722,10 @@ const actions = {
   async saveNewAndScheduleUpload({ dispatch }, record) {
     try {
       const newRecordId = uuid()
-      const nowDate = new Date()
       const newPhotos = await processPhotos(record.addedPhotos)
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
         geoprivacy: 'obscured',
-        observedAt: nowDate,
         photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
@@ -1828,7 +1827,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
   // them. The time_observed_at field seems to be standardised, which is good
   // for us to read. We cannot write to time_observed_at though.
-  result.observedAt = obsFromApi.time_observed_at
+  result.observedAt = dayjs(obsFromApi.time_observed_at).unix() * 1000
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
