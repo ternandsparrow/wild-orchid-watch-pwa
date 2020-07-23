@@ -71,12 +71,7 @@ const router = new VueRouter({
       path: `/obs/:id(\\d+|${uuidRegex})`,
       name: 'ObsDetail',
       component: ObsDetail,
-      beforeEnter: function(to, from, next) {
-        const selectedMethod = 'photo'
-        store.commit('ephemeral/resetCoordsState', selectedMethod)
-        store.commit('ephemeral/resetDatetimeState', selectedMethod)
-        return resolveObsByIdOrNotFound(to, from, next)
-      },
+      beforeEnter: resolveObsByIdOrNotFound,
     },
     {
       path: `/obs/:id(\\d+|${uuidRegex})/edit`,
@@ -96,6 +91,12 @@ const router = new VueRouter({
       path: '/obs/new',
       name: 'ObsNewSingleSpecies',
       component: SingleSpecies,
+      beforeEnter: function(to, from, next) {
+        const selectedMethod = 'photo'
+        store.commit('ephemeral/resetCoordsState', selectedMethod)
+        store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        return next()
+      },
       meta: {
         isEdit: false,
       },
