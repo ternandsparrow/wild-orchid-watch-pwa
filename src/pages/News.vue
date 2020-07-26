@@ -9,23 +9,38 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <no-records-msg v-if="isNoRecords" fragment="There is no news" />
-    <v-ons-list v-if="!isNoRecords">
-      <v-ons-list-item
-        v-for="curr in allNews"
-        :key="curr.id"
-        @click="push(curr.id)"
-      >
-        <div class="left">
-          <img class="list-item__thumbnail" :src="thumbnailPhoto(curr)" />
-        </div>
-        <div class="center">
-          <span class="list-item__subtitle">
-            <strong>{{ curr.user }} </strong>
-            <span>{{ curr.action }}</span>
-          </span>
-          <span class="list-item__subtitle">{{ curr.timeStr }}</span>
-        </div>
-      </v-ons-list-item>
+    <v-ons-list v-show="!isNoRecords">
+      <template v-for="curr in allNews">
+        <v-ons-list-item
+          v-if="curr.type === 'wowIdentification'"
+          :key="curr.id"
+          @click="push(curr.id)"
+        >
+          <div class="left">
+            <img class="list-item__thumbnail" :src="thumbnailPhoto(curr)" />
+          </div>
+          <div class="center">
+            <span class="list-item__subtitle">
+              <strong>{{ curr.user }} </strong>
+              <span>{{ curr.action }}</span>
+            </span>
+            <span class="list-item__subtitle">{{ curr.timeStr }}</span>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item
+          v-if="curr.type === 'wowNews'"
+          :key="curr.id"
+          @click="push(curr.id)"
+        >
+          <div class="center">
+            <p>{{ curr.body }}</p>
+            <span class="list-item__subtitle">Author: {{ curr.author }}</span>
+            <!-- FIXME add        -->
+            <!--   - publish time -->
+            <!--   - update time  -->
+          </div>
+        </v-ons-list-item>
+      </template>
     </v-ons-list>
   </menu-wrapper>
 </template>
@@ -42,7 +57,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('news', ['allNews']),
+    ...mapGetters('missionsAndNews', ['allNews']),
     isNoRecords() {
       return !this.allNews || this.allNews.length === 0
     },
@@ -52,7 +67,7 @@ export default {
   },
   methods: {
     doRefresh(done) {
-      this.$store.dispatch('news/updateNewsIfRequired')
+      this.$store.dispatch('missionsAndNews/updateNewsIfRequired')
       done && done()
     },
     push(eventId) {

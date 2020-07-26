@@ -16,8 +16,7 @@ import obs, {
   migrate as obsMigrate,
   networkHooks as obsNetworkHooks,
 } from './obs'
-import news from './news'
-import missions from './missions'
+import missionsAndNews from './missionsAndNews'
 
 if (isForceVueDevtools) {
   Vue.config.devtools = true
@@ -31,9 +30,12 @@ const store = new Vuex.Store({
       key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
         const cleanedState = Object.assign({}, state)
-        // don't save anything in the ephemeral module, we assume nothing in
-        // here will serialise or should be saved.
+        // don't persist anything in the ephemeral module, we assume nothing in
+        // it will serialise nicely or should be saved.
         delete cleanedState.ephemeral
+        // Jul 2020 migration to remove old namespaces
+        delete cleanedState.missions
+        delete cleanedState.news
         return storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),
@@ -114,8 +116,7 @@ const store = new Vuex.Store({
     app,
     auth,
     ephemeral,
-    missions,
-    news,
+    missionsAndNews,
     obs,
   },
 })

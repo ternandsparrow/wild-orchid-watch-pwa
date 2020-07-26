@@ -16,7 +16,7 @@
       <v-ons-icon icon="fa-info-circle"></v-ons-icon>
       You are a project admin, so you can create, edit and delete missions.
     </div>
-    <v-ons-list v-if="!isNoRecords">
+    <v-ons-list v-show="!isNoRecords">
       <v-ons-list-item v-for="curr in displayableMissions" :key="curr.id">
         <div>
           <span class="list-item__title item-header">{{ curr.name }}</span>
@@ -53,6 +53,7 @@ import { mapState, mapGetters } from 'vuex'
 dayjs.extend(duration)
 
 export default {
+  name: 'MissionsAvailable',
   data() {
     return {
       pullHookState: 'initial',
@@ -60,7 +61,7 @@ export default {
     }
   },
   computed: {
-    ...mapState('missions', ['availableMissions']),
+    ...mapState('missionsAndNews', ['availableMissions']),
     ...mapState('ephemeral', ['networkOnLine']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     displayableMissions() {
@@ -98,7 +99,7 @@ export default {
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('missions/getAvailableMissions')
+        this.$store.dispatch('missionsAndNews/getAvailableMissions')
       }
       done && done()
     },
@@ -122,7 +123,7 @@ export default {
       }
       this.deletedMissionIds.push(missionId)
       this.doRefresh(null)
-      await this.$store.dispatch('missions/deleteMission', missionId)
+      await this.$store.dispatch('missionsAndNews/deleteMission', missionId)
       this.$ons.notification.toast('Record deleted!', {
         timeout: 3000,
         animation: 'ascend',

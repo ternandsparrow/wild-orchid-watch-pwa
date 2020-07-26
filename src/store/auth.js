@@ -129,6 +129,9 @@ export default {
       // already be shown. Perhaps we should get more obvious? But then maybe
       // we shouldn't so the user can finish saving the observation locally
       commit('ephemeral/setForceShowLoginToast', true, { root: true }) // TODO remove cross module dependency, use a facade at the root
+      // TODO enhancement idea: currently this will trigger the "something
+      // broke" message. That's not great UX as we should really only show the
+      // login prompt.
       throw new Error(
         'iNat token or token type is NOT present, cannot make call. Forcing user to login again',
       )

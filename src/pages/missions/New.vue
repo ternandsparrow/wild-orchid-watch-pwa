@@ -94,7 +94,7 @@ export default {
     if (!this.isEdit) {
       return
     }
-    const found = this.$store.state.missions.availableMissions.find(
+    const found = this.$store.state.missionsAndNews.availableMissions.find(
       e => e.id === this.targetMissionId,
     )
     if (!found) {
