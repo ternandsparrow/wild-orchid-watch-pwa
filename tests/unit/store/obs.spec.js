@@ -758,6 +758,14 @@ describe('actions', () => {
           },
           type: 'flower',
         }
+        obsStore.setItem('123A', {
+          uuid: '123A',
+          speciesGuess: 'species blah',
+          photos: [existingLocalPhoto],
+          wowMeta: {
+            [constants.photosToAddFieldName]: [existingLocalPhoto],
+          },
+        })
         const newPhoto = {
           file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
           type: 'top',
@@ -773,11 +781,6 @@ describe('actions', () => {
           speciesGuess: 'species blah',
           addedPhotos: [newPhoto],
         }
-        obsStore.setItem('123A', {
-          uuid: '123A',
-          speciesGuess: 'species blah',
-          photos: [existingLocalPhoto],
-        })
         const state = {
           _uiVisibleLocalRecords: [{ uuid: '123A' }],
           allRemoteObs: [

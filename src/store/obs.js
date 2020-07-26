@@ -572,7 +572,9 @@ const actions = {
       const newPhotos = await (async () => {
         const photosAddedInThisEdit =
           (await processPhotos(record.addedPhotos)) || []
-        return [...photosAddedInThisEdit, ...(existingDbRecord.photos || [])]
+        const existingLocalPhotos =
+          (existingDbRecord.wowMeta || {})[constants.photosToAddFieldName] || []
+        return [...photosAddedInThisEdit, ...existingLocalPhotos]
       })()
       const photos = (() => {
         const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
@@ -583,7 +585,7 @@ const actions = {
           const isPhotoDeleted = photoIdsToDelete.includes(p.id)
           return !isPhotoDeleted
         })
-        // note: this fixIds calls is side-effecting the newPhotos items
+        // note: this fixIds call is side-effecting the newPhotos items
         return fixIds(photosWithDeletesApplied)
         function fixIds(thePhotos) {
           return thePhotos.map((e, $index) => {
