@@ -676,7 +676,7 @@ describe('actions', () => {
         })
       })
 
-      it('should save an edit that adds a photo', async () => {
+      it('should save an edit of a remote record that adds a photo', async () => {
         const newPhoto = {
           file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
           type: 'top',
@@ -749,7 +749,7 @@ describe('actions', () => {
         })
       })
 
-      it('should not duplicate photos when saving an edit', async () => {
+      it('should not duplicate photos when saving an edit of a local-only obs', async () => {
         const existingLocalPhoto = {
           id: -1,
           file: {
@@ -1010,9 +1010,6 @@ describe('actions', () => {
           },
         })
       })
-
-      // TODO add test to verify adding obs field. Need support for multiple
-      // obs fields for this to happen
     })
 
     describe('edit strategies', () => {
