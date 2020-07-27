@@ -1,6 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar cancellable :title="title">
+    <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
         <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
           >Save</v-ons-toolbar-button
@@ -94,7 +94,7 @@ export default {
     if (!this.isEdit) {
       return
     }
-    const found = this.$store.state.missions.availableMissions.find(
+    const found = this.$store.state.missionsAndNews.availableMissions.find(
       e => e.id === this.targetMissionId,
     )
     if (!found) {
@@ -159,6 +159,9 @@ export default {
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
+    },
+    onCancel() {
+      this.$router.push({ name: 'Missions' })
     },
   },
 }

@@ -23,7 +23,7 @@ function buildWrapper() {
       app: {
         namespaced: true,
         state: {
-          isAdvancedMode: false,
+          isDetailedUserMode: false,
         },
       },
       ephemeral: {
@@ -39,7 +39,7 @@ function buildWrapper() {
     },
   })
   return shallowMount(CollectGeolocation, {
-    props: { photoCount: 3, isExtraEmphasis: false },
+    props: { photoCount: 3, isExtraEmphasis: false, isEdit: true },
     localVue,
     store,
     stubs: {

@@ -351,6 +351,7 @@ describe('actions', () => {
         const record = {
           speciesGuess: 'species new',
           addedPhotos: [],
+          observedAt: 1595491950028,
         }
         const dispatchedStuff = {}
         const newRecordId = await objectUnderTest.actions.saveNewAndScheduleUpload(
@@ -364,7 +365,7 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(dateTimestampRegex),
+          observedAt: 1595491950028,
           photos: [],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -426,7 +427,6 @@ describe('actions', () => {
         expect(result).toEqual({
           captive_flag: false,
           geoprivacy: 'obscured',
-          observedAt: expect.stringMatching(dateTimestampRegex),
           photos: [expectedPhoto1, expectedPhoto2],
           speciesGuess: 'species new',
           uuid: newRecordId,
@@ -751,9 +751,21 @@ describe('actions', () => {
 
       it('should not duplicate photos when saving an edit', async () => {
         const existingLocalPhoto = {
-          file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
+          id: -1,
+          file: {
+            data: `pretend I'm an ArrayBuffer`, // our stub LocalStorage destroys real ArrayBuffers
+            mime: 'image/jpeg',
+          },
           type: 'flower',
         }
+        obsStore.setItem('123A', {
+          uuid: '123A',
+          speciesGuess: 'species blah',
+          photos: [existingLocalPhoto],
+          wowMeta: {
+            [constants.photosToAddFieldName]: [existingLocalPhoto],
+          },
+        })
         const newPhoto = {
           file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
           type: 'top',
@@ -769,11 +781,6 @@ describe('actions', () => {
           speciesGuess: 'species blah',
           addedPhotos: [newPhoto],
         }
-        obsStore.setItem('123A', {
-          uuid: '123A',
-          speciesGuess: 'species blah',
-          photos: [existingLocalPhoto, existingRemotePhoto],
-        })
         const state = {
           _uiVisibleLocalRecords: [{ uuid: '123A' }],
           allRemoteObs: [
@@ -821,30 +828,34 @@ describe('actions', () => {
             data: expect.any(ArrayBuffer),
             mime: 'image/jpeg',
           },
-          id: -3,
+          id: -2,
           licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
+        const expectedExistingLocalPhoto = {
+          file: {
+            data: `pretend I'm an ArrayBuffer`,
+            mime: 'image/jpeg',
+          },
+          id: -3,
+          type: 'flower',
+        }
         expect(result.record.photos).toHaveLength(3)
         expect(result).toEqual({
           photoIdsToDelete: [],
-          newPhotos: [expectedNewPhoto],
+          newPhotos: [expectedNewPhoto, expectedExistingLocalPhoto],
           obsFieldIdsToDelete: [],
           record: {
             inatId: 666,
             photos: [
-              {
-                file: expect.any(Object),
-                id: undefined,
-                type: 'flower',
-              },
               {
                 id: 888,
                 isRemote: true,
                 url: 'http://whatever...',
               },
               expectedNewPhoto,
+              expectedExistingLocalPhoto,
             ],
             speciesGuess: 'species blah',
             uuid: '123A',
@@ -2075,10 +2086,8 @@ describe('mapObsFromOurDomainOntoApi', () => {
       wowMeta: { recordType: 'new' },
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
-    expect(result.obsFieldPostBodyPartials).toEqual([])
     expect(result.photoPostBodyPartials).toEqual([])
     expect(result.observationPostBody).toEqual({
-      ignore_photos: true,
       observation: {
         uuid: '111A',
         species_guess: 'some species',
@@ -2089,6 +2098,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
         longitude: 138.123,
         observed_on_string: '2020-01-03T05:18:10.702Z',
         positional_accuracy: 1234,
+        observation_field_values_attributes: {},
       },
     })
   })
@@ -2126,15 +2136,14 @@ describe('mapObsFromOurDomainOntoApi', () => {
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
     expect(result).toEqual({
-      obsFieldPostBodyPartials: [],
       observationPostBody: {
-        ignore_photos: true,
         observation: {
           latitude: -35.123,
           longitude: 138.123,
           observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
+          observation_field_values_attributes: {},
         },
       },
       photoPostBodyPartials: [{ testTag: 'save me' }],
@@ -2155,19 +2164,20 @@ describe('mapObsFromOurDomainOntoApi', () => {
     }
     const result = _testonly.mapObsFromOurDomainOntoApi(record)
     expect(result).toEqual({
-      obsFieldPostBodyPartials: [{ observation_field_id: 11, value: 'blah' }],
       observationPostBody: {
-        ignore_photos: true,
         observation: {
           latitude: -35.123,
           longitude: 138.123,
           observed_on_string: '2020-01-03T05:18:10.702Z',
           species_guess: 'some species',
           uuid: '111A',
+          observation_field_values_attributes: {
+            0: { observation_field_id: 11, value: 'blah' },
+          },
         },
       },
       photoPostBodyPartials: [],
-      totalTaskCount: 2,
+      totalTaskCount: 1,
     })
   })
 })

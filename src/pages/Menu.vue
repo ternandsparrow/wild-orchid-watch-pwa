@@ -1,10 +1,6 @@
 <template>
   <v-ons-page modifier="white">
-    <div
-      class="is-dev-warning"
-      :class="{ 'force-hide': isForceHideDevWarning }"
-      @click="onDevWarningClick"
-    >
+    <div class="is-dev-warning">
       {{ deployedEnvName }}
     </div>
     <div class="app-banner centered-flex-row">
@@ -55,9 +51,9 @@
           ></v-ons-icon>
         </div>
         <div class="center">
-          <a :href="item.url" target="_blank" class="external-link">{{
-            item.title
-          }}</a>
+          <a :href="item.url" target="_blank" class="external-link">
+            {{ item.title }}
+          </a>
         </div>
         <div class="right">
           <v-ons-icon icon="fa-external-link"></v-ons-icon>
@@ -73,8 +69,9 @@ import { mapGetters } from 'vuex'
 import {
   appVersion,
   deployedEnvName,
-  inatUrlBase,
   inatProjectSlug,
+  inatUrlBase,
+  isBugReportFeatureEnabled,
   isMissionsFeatureEnabled,
   isNewsFeatureEnabled,
   isSearchFeatureEnabled,
@@ -84,7 +81,6 @@ export default {
   data() {
     return {
       appVersion,
-      isForceHideDevWarning: false,
       versionClickCount: 0,
       versionClickEasterEggTimeout: null,
       links: [
@@ -154,7 +150,7 @@ export default {
           target: { name: 'OrchidScience' },
         },
         {
-          title: 'FAQ',
+          title: 'FAQs',
           icon: 'fa-info',
           target: { name: 'FAQ' },
         },
@@ -167,6 +163,12 @@ export default {
           title: 'Settings',
           icon: 'md-settings',
           target: { name: 'Settings' },
+        },
+        {
+          title: 'Report problem',
+          icon: 'fa-bug',
+          target: { name: 'BugReport' },
+          isDisabled: !isBugReportFeatureEnabled,
         },
       ],
     }
@@ -186,9 +188,6 @@ export default {
   methods: {
     handleMenuClick(target) {
       this.safelyPushRoute(target)
-    },
-    onDevWarningClick() {
-      this.isForceHideDevWarning = true
     },
     onVersionClick() {
       // like Android's easter egg, tap the version N times
@@ -273,9 +272,5 @@ export default {
 .external-link {
   color: inherit;
   text-decoration: none;
-}
-
-.force-hide {
-  display: none;
 }
 </style>

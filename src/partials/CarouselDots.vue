@@ -1,12 +1,14 @@
 <template>
-  <div :style="dotsStyle">
+  <div class="dots-container" :style="extraStyles">
     <span
       v-for="dotIndex in dotIndexes"
       :key="dotIndex"
-      style="cursor: pointer"
+      class="dot"
       @click="onClick(dotIndex)"
     >
-      <a>{{ carouselIndex === dotIndex ? '\u25CF' : '\u25CB' }}</a>
+      <a :class="{ 'selected-dot': isSelectedDot(dotIndex) }">{{
+        isSelectedDot(dotIndex) ? '\u25CF' : '\u25CB'
+      }}</a>
     </span>
   </div>
 </template>
@@ -29,11 +31,6 @@ export default {
     return {
       carouselIndex: 0,
       dotIndexes: [],
-      dotsStyle: {
-        textAlign: 'center',
-        fontSize: '30px',
-        color: '#fff',
-      },
     }
   },
   watch: {
@@ -46,13 +43,33 @@ export default {
       this.dotIndexes.push(i)
     }
     this.carouselIndex = this.selectedIndex
-    this.dotsStyle = Object.assign(this.dotsStyle, this.extraStyles)
   },
   methods: {
     onClick(dotIndex) {
       this.carouselIndex = dotIndex
       this.$emit('dot-click', this.carouselIndex)
     },
+    isSelectedDot(dotIndex) {
+      return this.carouselIndex === dotIndex
+    },
   },
 }
 </script>
+
+<style lang="scss" scoped>
+.dots-container {
+  text-align: center;
+  font-size: 3em;
+  color: #fff;
+
+  .dot {
+    cursor: pointer;
+    margin-left: 0.1em;
+    margin-right: 0.1em;
+  }
+
+  .selected-dot {
+    vertical-align: text-bottom;
+  }
+}
+</style>

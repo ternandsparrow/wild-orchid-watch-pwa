@@ -1,17 +1,22 @@
+#!/usr/bin/env node
+// creates obs fields on a target iNaturalist instance.
+// This script is NOT idempotent. But then you'll be only using it once so it's
+// good enough for that purpose.
 const obsFieldConstants = require('../src/misc/obs-field-constants')
 
 const isPrintOnly = !!process.env.PRINTONLY
+const isMakeHttpie = !!process.env.WOW_MAKE_HTTPIE
 
 // Creates all of our observation fields in an iNaturalist server.
 //
 // During dev we need to re-create them semi-often so this makes life easier.
-// It can also streamline updates.
+// Right now it can't do updates but that is something that could be added.
 //
 // Run with something like:
-// $ WOW_SESSION_VALUE=5c0b232a94ea34a4a21e648b607f6593 \
-//     WOW_AUTHENTICITY_TOKEN='n1wN6vpq4sHoEQkzIz9EHJEhHa+XmWzs5lcEK7xDBuW9kwk4MUxjO3LGlK/9WsNbqCRS6+8EnmiALTFUTDB2wQ==' \
-//     WOW_SESSION_KEY='_devinat_session' \
+// $ WOW_SESSION_KEY='_devinat_session' \
 //     WOW_SERVER='https://dev.inat.techotom.com' \
+//     WOW_SESSION_VALUE=5c0b232a94ea34a4a21e648b607f6593 \
+//     WOW_AUTHENTICITY_TOKEN='n1wN6vpq4sHoEQkzIz9EHJEhHa+XmWzs5lcEK7xDBuW9kwk4MUxjO3LGlK/9WsNbqCRS6+8EnmiALTFUTDB2wQ==' \
 //     node ./create-obs-fields.js
 //
 // See below for how to get an authenticity token
@@ -19,15 +24,22 @@ const got = require('got') // something else pulls this in so we'll use it
 const FormData = require('form-data')
 
 // *YOU* need to config these values \/
+// at time of writing 'https://www.inaturalist.org' works for prod (that www.
+// is important)
 const serverBaseUrl = process.env.WOW_SERVER || 'https://dev.inat.techotom.com'
-const sessionCookieKey = process.env.WOW_SESSION_KEY || '_yoursite_session'
+console.log(`Using WOW_SERVER=${serverBaseUrl}`)
 
-// Use chrome dev tools to pull this Cookie out of an active session with iNat.
-// The cookie name is named after the Rails site that you configure so at the
-// time of writing the prod inat (inaturalist.org) uses _inaturalist_session
-// and our dev server uses _devinat_session.
+// Use your browser dev tools to pull these Cookie details out of an active
+// session with iNat.  The cookie name is named after the Rails site that you
+// configure so at the time of writing the prod inat (inaturalist.org) uses
+// _inaturalist_session and our dev server uses _devinat_session.
+// example session cookie name = '_devinat_session'
+const sessionCookieName = requiredEnvVar('WOW_SESSION_KEY')
 // example session cookie value = '5c0b232a94ea34a4a21e648b607f6593'
 const sessionCookieValue = requiredEnvVar('WOW_SESSION_VALUE')
+
+console.log(`Using WOW_SESSION_KEY=${sessionCookieName}`)
+console.log(`Using WOW_SESSION_VALUE=${sessionCookieValue}`)
 
 // we're pretending to do a POST from a web page so we *need* the CSRF protection
 // token. Lucky Rails seems to accept the same token repeatedly so we can get
@@ -37,14 +49,41 @@ const sessionCookieValue = requiredEnvVar('WOW_SESSION_VALUE')
 // copy+paste and run. Remember to comment again so you can create the obs
 // fields.
 
-// console.log(`curl -s '${serverBaseUrl}/observation_fields/new' \
-//   -H 'accept: text/html' \
-//   -H 'cookie: ${sessionCookieKey}=${sessionCookieValue}' \
-//   | grep -A 1 'csrf.*authenticity' | tail -n 1 | sed 's/.*content="\\(.*\\)".*/\\1/'`)
-// process.exit()
-
 // example auth token = 'nM6DtXsURZsm96E3S8w4M6E53LX7wkFKUx0+u2/43C6+AYdnsDLEYbwgPKuVqb90mDyT8YNfs841ZwvEn4usCg=='
-const authenticityToken = requiredEnvVar('WOW_AUTHENTICITY_TOKEN')
+const authTokenEnvVarKey = 'WOW_AUTHENTICITY_TOKEN'
+const authenticityToken = process.env[authTokenEnvVarKey]
+
+if (!authenticityToken) {
+  console.error('\nNO AUTHENTICITY TOKEN supplied!')
+  console.error(
+    'Generating bash script to help you get it. Run the following script:\n',
+  )
+  console.log(`curl --silent --location \\
+  '${serverBaseUrl}/observation_fields/new' \\
+  -H 'accept: text/html' \\
+  -H 'cookie: ${sessionCookieName}=${sessionCookieValue}' \\
+  | grep -A 1 'csrf.*authenticity' \\
+  | tail -n 1 \\
+  | sed 's/.*content="\\(.*\\)".*/\\1/' \\
+  | grep . --colour=never || echo "ERROR no authenticity token found in HTML"
+  `)
+  console.error(
+    `\nOnce you have the token, run this node script again and set the ` +
+      `${authTokenEnvVarKey} env var to the auth token you got from the bash ` +
+      `script above.`,
+  )
+  process.exit(1)
+}
+if (authenticityToken.length !== 88) {
+  console.error(
+    `[ERROR] authenticity token doesn't look right. Expected a base64 ` +
+      `looking string that is 88 characters long, got ` +
+      `value='${authenticityToken}' with length=${authenticityToken.length}. ` +
+      `Has the value been percent escaped accidentally?`,
+  )
+  process.exit(1)
+}
+console.log(`Using WOW_AUTHENTICITY_TOKEN=${authenticityToken}`)
 // *YOU* need to config these values /\
 
 const commonLanduses =
@@ -112,7 +151,7 @@ const obsFields = [
   ),
   {
     name: 'Accuracy of population count',
-    description: 'How accurate is the count of indiviudals recorded.',
+    description: 'How accurate is the count of individuals recorded.',
     datatype: 'text',
     allowedValues: `${obsFieldConstants.exact}|Partial count|Extrapolated/Estimate`,
   },
@@ -230,11 +269,12 @@ const obsFields = [
     datatype: 'text',
     allowedValues: '',
   },
-  ...multiselect(
-    'Landuse of the immediate area',
-    'Categorise the immediate area surrounding the observation',
-    `Conservation and natural environments|${commonLanduses}`,
-  ),
+  {
+    name: 'Landuse of the immediate area',
+    description: 'Categorise the immediate area surrounding the observation',
+    datatype: 'text',
+    allowedValues: `${obsFieldConstants.notCollected}|${obsFieldConstants.conservationLanduse}|${commonLanduses}`,
+  },
   {
     name: 'Wider landuse',
     description: `Categorise the wider area surrounding the observation. Only required when immediate landuse = ${obsFieldConstants.conservationLanduse}`,
@@ -245,11 +285,12 @@ const obsFields = [
     'Evidence of disturbance and threats in the immediate area',
     '',
     [
+      'None observed',
       'Vegetation clearance',
       'Mowing/slashing',
       'Rubbish dumping',
       'Chemical spray',
-      'Cultivation ',
+      'Cultivation',
       'Dieback',
       'Soil erosion',
       'Firewood/coarse woody debris removal',
@@ -288,7 +329,7 @@ async function createObsField({ name, description, datatype, allowedValues }) {
   try {
     const resp = await got.post(`${serverBaseUrl}/observation_fields`, {
       headers: {
-        Cookie: `${sessionCookieKey}=${sessionCookieValue}`,
+        Cookie: `${sessionCookieName}=${sessionCookieValue}`,
       },
       body: form,
     })
@@ -298,11 +339,32 @@ async function createObsField({ name, description, datatype, allowedValues }) {
     )
     return true
   } catch (err) {
-    const isSuccess = err.statusCode === 302
-    if (isSuccess) {
+    const respBody = err.response.body || ''
+    const isBeingRedirectedToSignin = respBody.includes('sign_in">redirected')
+    const sc = err.statusCode
+    const isSuccess = sc === 302
+    if (isSuccess && !isBeingRedirectedToSignin) {
+      console.info(`Success, status code = ${sc}`)
       return true
     }
-    console.error(`[ERROR] failed to create obsField with name='${name}'`)
+    const msg = (() => {
+      const baseMsg = `[ERROR] failed to create obsField with name='${name}'.`
+      if (isBeingRedirectedToSignin) {
+        return (
+          baseMsg +
+          ` It looks like we're being redirected to sign in. Make sure you ` +
+          `session is still alive and that you're using the server URL it ` +
+          `wants to serve under, e.g. using inaturalist.org when it wants ` +
+          `you to use www.inaturalist.org`
+        )
+      }
+      return (
+        baseMsg +
+        ` HTTP status code = ${sc}, start of response body is:` +
+        respBody.substring(0, 200)
+      )
+    })()
+    console.error(msg)
     process.exit(1)
   }
 }
@@ -325,14 +387,37 @@ function requiredEnvVar(key) {
   // TODO could make idempotent by deleting all fields with matching namePrefix
   // first, although you cannot delete a field that is being used. Maybe look
   // at how the edit feature of the webpage works and emulate that.
-  console.log(`[INFO] creating ${obsFields.length} fields`)
+  console.log(`#[INFO] creating ${obsFields.length} fields`)
   for (const curr of obsFields) {
-    console.log(`[INFO] processing name='${curr.name}'...`)
+    console.log(`#[INFO] processing name='${curr.name}'...`)
     if (isPrintOnly) {
-      console.log('  ' + curr.allowedValues) // copy+paste friendly for manually updating fields
+      // copy+paste friendly for manually updating fields
+      console.log('  ' + curr.allowedValues)
+      continue
+    }
+    if (isMakeHttpie) {
+      // fall back to generating bash script that runs httpie
+      console.log(`http \\
+        --form \\
+        ${serverBaseUrl}/observation_fields \\
+        Cookie:${sessionCookieName}=${sessionCookieValue} \\
+        'observation_field[name]=${obsFieldConstants.obsFieldNamePrefix +
+          curr.name}' \\
+        'observation_field[description]=${curr.description}' \\
+        'observation_field[datatype]=${curr.datatype}' \\
+        'observation_field[allowed_values]=${curr.allowedValues}' \\
+        'authenticity_token=${authenticityToken}' \\
+        'utf8=✓'
+      `)
       continue
     }
     await createObsField(curr)
   }
+  console.log(
+    '[INFO] note that for the iNat project to see any changes to obs fields, ' +
+      'you need to edit and save it (even if you change nothing). This will ' +
+      'make the project "re-read" the obs fields otherwise it seems to ' +
+      'continue to serve up a cached, stale copy of the project info.',
+  )
   console.log('[INFO] Done, all fields created without error')
 })()

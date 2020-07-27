@@ -3,44 +3,103 @@ A [PWA](https://developers.google.com/web/progressive-web-apps/) using
 citizen science data collection for orchids in Australia. Uses OAuth from, and
 uploads obsversations to [iNaturalist](https://inaturalist.org/).
 
+Thinking of forking this for your own iNat project? That's a great idea! The
+code is tailored for our specific use case but we hope it provides most of the
+solution and you just need to adapt it for your questions (obs fields) and
+branding. High level steps on how to tackle this [are
+here](./ARCHITECTURE.md#high-level-steps-to-set-this-project-up-from-scratch).
+
+# Users
+This app (actually it's a website that behaves like an app) is deployed to
+https://app.wildorchidwatch.org and you can use it directly from there. There is
+no need to deal with the source code unless you're a developer working on
+changes to WOW.
+
+Observations submitted via this app will be *directly* uploaded to the [WOW
+iNaturalist project](https://www.inaturalist.org/projects/wild-orchid-watch-australia). This app is a client for iNaturalist with a focus on:
+  - ease of use for citizen scientists
+  - only dealing with orchids
+  - making it as easy as possible to submit detailed observations to the iNat
+      project
+
+This app is not the only way to submit observations to the iNat project, but it
+is the best because it's tailored for this specific use case.
+
 # Developers
 
 ## Quickstart
 
 Requirements:
   - yarn >= 1.16
-  - node >= 12 (or at least an LTS release otherwise you'll have to compile some things as part of the dependency install - like sharp - and that will either take a long time or fail... Just use an LTS release!)
-  - modern web browser (Chrome is a good choice)
+  - node >= 12 (or at least an LTS release otherwise you'll have to compile some
+      things as part of the dependency install - like sharp - and that will either
+      take a long time or fail... Just use an LTS release!)
+  - modern web browser (Chrome or Firefox are good choices)
+
+As a developer on this project, follow these steps to get the webpack dev server
+up and running. This is a local web server that builds the project and serves it
+on localhost so you can test your changes to the code. It includes a "hot
+reload" feature so you leave the server running while you make code changes and
+as files change, the dev server automatically rebuilds the deltas for a really
+quick feedback loop.
+
+The WOW app is just a way to interact with a single "traditional" project on an
+iNaturalist instance. The app *requires* an iNaturalist instance to operate. For
+production, this would be the "real" iNat (inaturalist.org) but during
+development it's likely to be a seperate instance.
+
+You'll need an active internet connection to use this app as it will communicate
+with an iNat instance. If you want to work completely offline, that's possible
+to do by running an iNat instance locally. See
+https://github.com/ternandsparrow/inaturalist-docker for an easy way to spin up
+an iNat stack.
+
+### Once-off set up steps
 
   1. clone repo
-  1. install deps: `yarn`
-  1. create a `.env.local` file in the root of this project. In this file you
-     can override values from the `.env` file. It's worth noting that this file
-     is ignored by version control. You'll probably want define at least a
-     Google Maps API key so the maps work but you may also need to change the
-     OAuth client ID. It's *NOT* a good idea to just copy the .env because if
-     the .env file ever changes in the future, your .env.local will continue to
-     (incorrectly) override that. Only add the items you want to your .env.loca.
-     Something like:
-      ```env
-      VUE_APP_OAUTH_APP_ID=12f220435464a8abd9878cc1805e14643432a8bd268121c7f4698ff0a903e535
-      VUE_APP_GMAPS_API_KEY=AIzaImNotARealKeyDontTryToUseMeIxChzwoc
-      # you can comment with a hashed line too
+  1. install deps
+      ```bash
+      yarn
       ```
+  1. copy the example env local override file (**DO NOT** copy the .env file)
+      ```bash
+      cp example.env.local .env.local
+      ```
+  1. (optional) edit the env local override file to change anything you like.
+     You don't need to make any changes to get up and running though.
+      ```bash
+      vim .env.local
+      ```
+
+### Steps you'll run every time
+
   1. run the dev server:
       ```
       yarn serve
+      # Or, if you want a different port
+      yarn serve --port=8081
       # Or, if you want to listen on your external IP
       yarn serve --host=11.22.33.44
-      # note that this will only work when running in development mode as there's no service worker, which would require HTTPS and a valid cert, which you almost certainly don't have on your local machine.
+      # note that accessing the app from an address other than localhost AND
+      # without HTTPS will only work when running in development mode as
+      # there's no service worker. PWAs require HTTPS and a valid cert,
+      # which you almost certainly don't have on your local machine. See below
+      # for steps to correctly set up for remote devices to connect.
       ```
   1. open the app URL (probably `http://localhost:8080`) in your browser
-  1. this is a PWA (web page that feels like a native app) so it's best to
-     enable the [Mobile Device Viewport
-     Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
+  1. this is a PWA and we've chosen a UI framework that copies the look and feel
+     and native Android and iOS. So it's best to enable the [Mobile Device Viewport Mode](https://developers.google.com/web/tools/chrome-devtools/device-mode/#device)
      as a Pixel 2 or iPhone 8.
 
-## Not-so-quick-but-better-start
+### Easier debugging
+There is another command you can to start the dev server: `yarn serve:debug`.
+This command configures the JS transpiling to target a more recent platform so
+the generated code will more closely match the code that you write. Trust me,
+this makes debugging async code much easier. It's probably a good idea to use
+this version of serve all the time for local development. Have a look at the
+`scripts` key in `package.json` to see how we achieve this.
+
+## "Not so quick" quickstart to support remote devices accessing your local dev server
 
 PWAs *need* to be served over HTTPS for essential features to work. There's an
 allowance for localhost to *not* require HTTPS, which is why the quickstart
@@ -70,7 +129,54 @@ stack](https://github.com/tomsaleeba/docker-https-ssh-tunnel) to achieve that.
 Now you have a publicly accessible host, with an SSL cert from a trusted CA,
 that also has HotModuleReload. Hack away!
 
-### Testing service worker
+## House keeping tasks
+This project was planned to make it as easy as possible to operate and maintain.
+It's essentially a static website so it's cheap and easy to host, very robust
+(assuming it's served from a stable CDN) and requires minimal upkeep as there
+are no servers to maintain.
+
+There are still a few tasks that need to be done from time to time:
+
+  1. update orchid taxa list
+  1. check for security issues with our dependencies
+
+### Updating the orchid taxa list
+Run the `scripts/build-taxa-index.js` script to produce the latest taxa list
+used for the orchid species autocomplete. Then commit the the result of the
+script. The CI/CD build pipeline will then do a deploy and users will recieve
+the new list when they update.
+
+This script reads species from observations made in iNat so as more observations
+are made, the list will change.  Nothing will break if you don't do it, but by
+doing it regularly, users will have a better experience because they'll have a
+more complete list of suggestions.
+
+See more about why it was built this way in [the ARCHITECTURE.md doc](./ARCHITECTURE.md#taxonomy-index).
+
+
+### Checking for security issues with our dependencies
+We have a very small attack surface because we don't operate any servers; the
+WOW app is just a static website. At the time of writing, the code is hosted on
+GitHub and as part of that, you get free security notifications from dependabot.
+
+When assessing these notifications, it's important to keep a few things in mind:
+  1. a lot of our dependencies are "devDependencies" only used at build time.
+     Security issues with these can probably be ignored as they don't affect our
+     users.
+  1. dependabot will send pull requests to update transitive dependencies. That
+     is, dependencies of our dependencies. You should be wary about accepting
+     these pull requests because you're essentially forcing our direct
+     dependencies to run with a different version of their dependencies than
+     what the developer intended. The most reliable approach is to only update
+     our direct dependencies and let the developers of our dependencies manage
+     their dependencies.
+
+To update the project's direct dependencies, you can use [`yarn
+update`](https://classic.yarnpkg.com/en/docs/cli/upgrade/). Note that this will
+update to the newest version allowed by `package.json`, which may not be the
+newest version released.
+
+## Running with/testing the service worker
 
 To check that the service worker is working as you expect, there's a few things
 you need to do differently. We can't use the webpack dev server, instead we need
@@ -109,7 +215,7 @@ CircleCI builds will have any required vars written to the `.env.local` file
 during the build process so check the [build config](./.circleci/config.yml) if
 you need to make sure a value is configured during the build.
 
-## Config via environment variables
+## Config deployed app via environment variables
 
 Look in `src/misc/constants.js` for all the values that can be configured. See
 the [CircleCI config](.circleci/config.yml) in the build step, for how we set

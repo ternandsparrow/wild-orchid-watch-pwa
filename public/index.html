@@ -15,6 +15,30 @@
   <div id="app"></div>
 
   <script charset="utf-8">
+    (function() {
+      // should stay in sync with persistedStateLocalStorageKey in constants.js.
+      // Yeah, it sucks that it's a manual thing but it's only for troubleshooting
+      // one particular bug (WOW-115): seemingly Vuex has forgotten our state
+      // when coming back from the iNat login process.
+      var vuexPersistedLocalStorageKey = 'wow-vuex'
+      try {
+        // we're grabbing a copy of the localStorage value before Vuex (and
+        // plugins) have a chance to touch it. That way we can check if the
+        // re-hydration of Vuex state is working.
+        var valueOnPageLoad = localStorage.getItem(vuexPersistedLocalStorageKey) || ''
+        localStorage.setItem(
+          vuexPersistedLocalStorageKey + 'on-page-load',
+          valueOnPageLoad
+        )
+      } catch (err) {
+        console.error(
+          "Failed to grab snapshot of Vuex persisted state. Oh well, it's " +
+          "only for troubleshooting purposes.",
+          err
+        )
+      }
+    })()
+
     window.onerror = function(err) {
       var errMsg = (err.message || (typeof err === 'string' && err) || '')
       var strategies = [{

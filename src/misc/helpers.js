@@ -6,6 +6,8 @@ import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
 import {
   chainedError,
+  iterateIdb,
+  makeObsRequest,
   now,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
   // wowErrorHandler eventually
@@ -14,7 +16,15 @@ import {
   wowWarnMessage,
 } from './only-common-deps-helpers'
 
-export { chainedError, now, wowErrorHandler, wowWarnHandler, wowWarnMessage }
+export {
+  chainedError,
+  iterateIdb,
+  makeObsRequest,
+  now,
+  wowErrorHandler,
+  wowWarnHandler,
+  wowWarnMessage,
+}
 
 dayjs.extend(duration)
 dayjs.extend(relativeTime)
@@ -128,6 +138,8 @@ export function isPossiblyStuck($store, record) {
   }
   const isAllowedToSync = !$store.getters.isSyncDisabled
   const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
+  // FIXME need to look at records that are withServiceWorker but SW has
+  // nothing in its queue. Need to ask SW for that second bit.
   return (
     isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
   )
@@ -170,10 +182,21 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
       result.isDowngradable = true
       throw result
     }
+    const isNetworkErrorWow = err.message === 'Failed to fetch'
     let msg = `Failed while doing fetch() with\n`
     msg += `  URL='${url}'\n`
     msg += `  Req body='${JSON.stringify(init, null, 2)}'`
-    throw chainedError(msg, err)
+    const result = chainedError(msg, err)
+    try {
+      result.isNetworkErrorWow = isNetworkErrorWow
+    } catch (err2) {
+      wowWarnHandler(
+        `Could not set property on error object. It's only for a nicer UX, ` +
+          `so continuing without it`,
+        err2,
+      )
+    }
+    throw result
   }
 }
 
@@ -206,12 +229,24 @@ export function findCommonString(string1, string2) {
 async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
   const isJson = isRespJson(resp)
   const isRespOk = resp.ok || alsoOkHttpStatuses.includes(resp.status)
-  try {
-    if (isRespOk && isJson) {
-      return resp.json()
+  if (isRespOk && isJson) {
+    const clonedResp = resp.clone()
+    try {
+      const result = await resp.json()
+      return result
+    } catch (err) {
+      const isEmtpyResp = (await clonedResp.text()).length === 0
+      if (isEmtpyResp) {
+        // Including obs field values and/or project_id in the POST
+        // /v1/observations request seems to trigger this, see
+        // https://github.com/inaturalist/iNaturalistAPI/issues/200.  It would
+        // be even nicer if we could determine length without this mess but the
+        // "Content-Length" header isn't present when this happens (unless that
+        // *is* the indicator).
+        throw chainedError('Empty 200 JSON response', err)
+      }
+      throw chainedError('Failed while parsing JSON response', err)
     }
-  } catch (err) {
-    throw chainedError('Failed while parsing JSON response', err)
   }
   // resp either NOT ok or NOT JSON, prep nice error msg
   const bodyAccessor = isJson ? 'json' : 'text'
@@ -249,8 +284,11 @@ export function verifyWowDomainPhoto(photo) {
   let msg = ''
   assertFieldPresent('id')
   assertFieldPresent('url')
-  assertFieldPresent('licenseCode')
-  assertFieldPresent('attribution')
+  // note: we can't make licenseCode required because users can set "no
+  // license" on a photo - either manually or via default settings in iNat -
+  // and the value will be null.
+  // optional field: licenseCode
+  // optional field: attribution
   if (msg) {
     throw new Error(msg)
   }
@@ -474,18 +512,11 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
-export async function triggerSwObsQueue() {
+export async function triggerSwWowQueue() {
   if (await isNoSwActive()) {
     return Promise.resolve()
   }
-  return _sendMessageToSw(constants.syncObsQueueMsg)
-}
-
-export async function triggerSwDepsQueue() {
-  if (await isNoSwActive()) {
-    return Promise.resolve()
-  }
-  return _sendMessageToSw(constants.syncDepsQueueMsg)
+  return _sendMessageToSw(constants.syncSwWowQueueMsg)
 }
 
 function _sendMessageToSw(msg) {
@@ -575,6 +606,10 @@ export function namedError(name, msg) {
   const result = new Error(msg)
   result.name = name
   return result
+}
+
+export function convertExifDateStr(exifDateStr) {
+  return exifDateStr.replace(':', '-').replace(':', '-')
 }
 
 export const _testonly = {

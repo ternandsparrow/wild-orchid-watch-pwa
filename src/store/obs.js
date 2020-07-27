@@ -19,13 +19,16 @@ import {
   chainedError,
   fetchSingleRecord,
   isNoSwActive,
+  makeObsRequest,
   namedError,
   now,
   recordTypeEnum as recordType,
-  triggerSwObsQueue,
+  triggerSwWowQueue,
   verifyWowDomainPhoto,
   wowIdOf,
+  wowErrorHandler,
   wowWarnHandler,
+  wowWarnMessage,
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
@@ -49,6 +52,7 @@ const state = {
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
+  forceQueueProcessingAtNextChance: false,
 }
 
 const mutations = {
@@ -90,6 +94,8 @@ const mutations = {
     const maxItems = 20
     state.recentlyUsedTaxa[type] = stack.slice(0, maxItems)
   },
+  setForceQueueProcessingAtNextChance: (state, value) =>
+    (state.forceQueueProcessingAtNextChance = value),
 }
 
 const actions = {
@@ -111,6 +117,12 @@ const actions = {
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
+      if (!myUserId) {
+        console.debug(
+          'No userID present, refusing to try to get my observations',
+        )
+        return
+      }
       const baseUrl =
         `/observations` +
         `?user_id=${myUserId}` +
@@ -133,7 +145,7 @@ const actions = {
         },
         { root: true },
       )
-      return false
+      return
     } finally {
       commit('setIsUpdatingRemoteObs', false)
     }
@@ -143,7 +155,7 @@ const actions = {
     getters,
     dispatch,
   }) {
-    // FIXME WOW-135 look at moving this whole function body off the main
+    // TODO WOW-135 look at moving this whole function body off the main
     // thread
     const uuidsOfRemoteRecords = state.allRemoteObs.map(e => e.uuid)
     const lastUpdatedDatesOnRemote = state.allRemoteObs.reduce(
@@ -203,10 +215,24 @@ const actions = {
       await Promise.all(
         dbIdsToDelete.map(currDbId =>
           (async () => {
-            const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
-            let blockedAction
-            if (hasBlockedAction) {
+            const blockedAction = await (async () => {
+              const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
+              if (!hasBlockedAction) {
+                return null
+              }
               const record = await getRecord(currDbId)
+              if (!record) {
+                // I guess this could be TOCTOU related where the DB record is
+                // gone but the queue summary has not yet updated.
+                wowWarnMessage(
+                  `No obs found for ID=${currDbId}. The queue summary ` +
+                    `indicated there was a blocked action for this record but ` +
+                    `when we tried to retrieve the record, nothing was there. ` +
+                    `This shouldn't happen, even if the user deletes the obs, ` +
+                    `as that would be a block action itself.`,
+                )
+                return null
+              }
               const remoteRecord = state.allRemoteObs.find(
                 e => e.uuid === currDbId,
               )
@@ -218,18 +244,22 @@ const actions = {
                     'cannot continue.',
                 )
               }
-              record.inatId = remoteRecord.inatId
-              blockedAction = {
-                ...record,
+              const blockedActionFromDb =
+                record.wowMeta[constants.blockedActionFieldName]
+              return {
+                ...{
+                  ...record,
+                  inatId: remoteRecord.inatId,
+                },
                 wowMeta: {
-                  ...record.wowMeta[constants.blockedActionFieldName].wowMeta,
+                  ...blockedActionFromDb.wowMeta,
                   [constants.recordProcessingOutcomeFieldName]:
                     constants.waitingOutcome,
                 },
               }
-            }
+            })()
             await deleteDbRecordById(currDbId)
-            if (hasBlockedAction) {
+            if (blockedAction) {
               await storeRecord(blockedAction)
             }
           })(),
@@ -246,6 +276,10 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     const myUserId = rootGetters.myUserId
+    if (!myUserId) {
+      console.debug('No userID present, refusing to try to get my species')
+      return
+    }
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${constants.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
@@ -266,7 +300,7 @@ const actions = {
         { msg: 'Failed to get my species counts', err },
         { root: true },
       )
-      return false
+      return
     }
   },
   async buildObsFieldSorter({ dispatch }) {
@@ -326,8 +360,8 @@ const actions = {
       const projectInfo = await fetchSingleRecord(url)
       if (!projectInfo) {
         throw new Error(
-          'Request to get project info was successful, but ' +
-            `contained no result, cannot continue, projectInfo='${projectInfo}'`,
+          'Request to get project info was either unsuccessful or ' +
+            `contained no result; cannot continue, projectInfo='${projectInfo}'`,
         )
       }
       commit('setProjectInfo', projectInfo)
@@ -336,8 +370,12 @@ const actions = {
       throw chainedError('Failed to get project info', err)
     }
   },
-  async doSpeciesAutocomplete(_, partialText) {
+  async doSpeciesAutocomplete(_, { partialText, speciesListType }) {
     if (!partialText) {
+      return []
+    }
+    if (speciesListType === constants.autocompleteTypeHost) {
+      // TODO need to build and bundle host tree species list
       return []
     }
     if (!taxaIndex) {
@@ -531,20 +569,23 @@ const actions = {
             'cannot continue without at least one',
         )
       }
-      const newPhotos = (await processPhotos(record.addedPhotos)) || []
+      const newPhotos = await (async () => {
+        const photosAddedInThisEdit =
+          (await processPhotos(record.addedPhotos)) || []
+        const existingLocalPhotos =
+          (existingDbRecord.wowMeta || {})[constants.photosToAddFieldName] || []
+        return [...photosAddedInThisEdit, ...existingLocalPhotos]
+      })()
       const photos = (() => {
-        // existingLocalRecord is the UI version that has a blob URL for the
-        // photos. We need the raw photo data itself so we go to the DB record
-        // for photos.
         const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
-        const existingLocalPhotos = existingDbRecord.photos
         const photosWithDeletesApplied = [
-          ...(existingLocalPhotos || existingRemotePhotos),
+          ...existingRemotePhotos,
           ...newPhotos,
         ].filter(p => {
           const isPhotoDeleted = photoIdsToDelete.includes(p.id)
           return !isPhotoDeleted
         })
+        // note: this fixIds call is side-effecting the newPhotos items
         return fixIds(photosWithDeletesApplied)
         function fixIds(thePhotos) {
           return thePhotos.map((e, $index) => {
@@ -585,7 +626,6 @@ const actions = {
           `${existingRemoteRecord ? '' : 'no'}remote`
         console.debug(`[Edit] strategy key=${strategyKey}`)
         const strategy = (() => {
-          // FIXME extract to its own function
           const upsertBlockedAction = 'upsertBlockedAction'
           const upsertQueuedAction = 'upsertQueuedAction'
           switch (strategyKey) {
@@ -610,7 +650,7 @@ const actions = {
 
               // edits of local-only records *need* to result in a 'new' typed
               // record so we process them with a POST. We can't PUT when
-              // there's nothing to update. FIXME this side-effect is hacky
+              // there's nothing to update. TODO this side-effect is hacky
               enhancedRecord.wowMeta[
                 constants.recordTypeFieldName
               ] = recordType('new')
@@ -618,13 +658,16 @@ const actions = {
             case 'noprocessing.noqueued.noexistingblocked.remote':
               // direct edit of remote
               return upsertQueuedAction
+            case 'noprocessing.queued.existingblocked.remote':
+            case 'noprocessing.queued.existingblocked.noremote':
+              // I thought that things NOT processing cannot have a blocked
+              // action, but it has happened in production. I think this
+              // because the recently introduced migration can reset obs back
+              // to "noprocessing".
+              return upsertBlockedAction
 
             default:
               // IMPOSSIBLE
-              // case 'noprocessing.queued.existingblocked.remote':
-              // case 'noprocessing.queued.existingblocked.noremote':
-              //   // don't think things that are NOT processing can have a blocked
-              //   // action, FIXME is this right?
               // case 'noprocessing.noqueued.noexistingblocked.noremote':
               //   // impossible if there's no remote and nothing queued
               // case 'processing.noqueued.noexistingblocked.remote':
@@ -639,7 +682,8 @@ const actions = {
               //   // because we can't have a blocked action if there's nothing
               //   // queued to block it.
               throw new Error(
-                `Programmer error: impossible situation with strategyKey=${strategyKey}`,
+                `Programmer error: impossible situation with ` +
+                  `strategyKey=${strategyKey}`,
               )
           }
         })()
@@ -680,12 +724,10 @@ const actions = {
   async saveNewAndScheduleUpload({ dispatch }, record) {
     try {
       const newRecordId = uuid()
-      const nowDate = new Date()
       const newPhotos = await processPhotos(record.addedPhotos)
       const enhancedRecord = Object.assign(record, {
         captive_flag: false, // it's *wild* orchid watch
         geoprivacy: 'obscured',
-        observedAt: nowDate,
         photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
@@ -764,6 +806,7 @@ const actions = {
           .map(e => e.uuid)
         const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
         commit('setUiVisibleLocalRecords', records)
+        // TODO do we need to wait for nextTick before revoking the old URLs?
         revokeOldObjectUrls()
       } catch (err) {
         throw chainedError('Failed to refresh localRecordQueue', err)
@@ -1061,6 +1104,7 @@ const actions = {
       { root: true },
     )
     const newRecordId = obsResp.id
+    // FIXME confirm (obsResp.project_ids || []).includes(<projectId>)
     return newRecordId
   },
   async _editObservation({ dispatch }, { obsRecord, inatRecordId }) {
@@ -1074,7 +1118,11 @@ const actions = {
       'doApiPut',
       {
         urlSuffix: `/observations/${inatRecordId}`,
-        data: obsRecord,
+        data: {
+          // note: obs fields *not* included here are not implicitly deleted.
+          ...obsRecord,
+          ignore_photos: true,
+        },
       },
       { root: true },
     )
@@ -1088,11 +1136,21 @@ const actions = {
       { root: true },
     )
   },
-  async _createPhoto({ dispatch }, { photoRecord, relatedObsId }) {
+  async _createObsPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
       'doPhotoPost',
       {
         obsId: relatedObsId,
+        photoRecord,
+      },
+      { root: true },
+    )
+    return resp.id
+  },
+  async _createLocalPhoto({ dispatch }, { photoRecord }) {
+    const resp = await dispatch(
+      'doLocalPhotoPost',
+      {
         photoRecord,
       },
       { root: true },
@@ -1133,23 +1191,49 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch }, { dbRecord }) {
+  async processWaitingDbRecordNoSw({ dispatch, state }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
       [recordType('new')]: async () => {
-        const inatRecordId = await dispatch('_createObservation', {
-          obsRecord: apiRecords.observationPostBody,
+        const localPhotoIds = []
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          const id = await dispatch('_createLocalPhoto', {
+            photoRecord: curr,
+          })
+          localPhotoIds.push(id)
+        }
+        await dispatch('waitForProjectInfo')
+        return dispatch('_createObservation', {
+          obsRecord: makeObsRequest(
+            apiRecords.observationPostBody,
+            state.projectInfo.id,
+            localPhotoIds,
+          ),
         })
-        await processChildReqs(dbRecord, inatRecordId)
-        return dispatch('_linkObsWithProject', { recordId: inatRecordId })
       },
       [recordType('edit')]: async () => {
-        const inatRecordId = await dispatch('_editObservation', {
+        const inatRecordId = dbRecord.inatId
+        await Promise.all(
+          dbRecord.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
+            return dispatch('_deletePhoto', id)
+          }),
+        )
+        for (const curr of apiRecords.photoPostBodyPartials) {
+          await dispatch('_createObsPhoto', {
+            photoRecord: curr,
+            relatedObsId: inatRecordId,
+          })
+        }
+        for (const id of dbRecord.wowMeta[
+          constants.obsFieldIdsToDeleteFieldName
+        ]) {
+          await dispatch('_deleteObsFieldValue', id)
+        }
+        return dispatch('_editObservation', {
           obsRecord: apiRecords.observationPostBody,
-          inatRecordId: dbRecord.inatId,
+          inatRecordId,
         })
-        return processChildReqs(dbRecord, inatRecordId)
       },
       [recordType('delete')]: async () => {
         return dispatch('_deleteObservation', {
@@ -1160,44 +1244,21 @@ const actions = {
     const key = dbRecord.wowMeta[constants.recordTypeFieldName]
     console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
     const strategy = strategies[key]
-    // FIXME add a rollback() fn to each strategy and call it when we encounter
-    // an error during the following processing. For 'new' we can just delete
-    // the partial obs. For delete, we do nothing. For edit, we should really
-    // track which requests have worked so we only replay the
+    // enhancement idea: add a rollback() fn to each strategy and call it when
+    // we encounter an error during the following processing. For 'new' we can
+    // just delete the partial obs. For delete, we do nothing. For edit, we
+    // should really track which requests have worked so we only replay the
     // failed/not-yet-processed ones, but most users will use the withSw
     // version of the processor and we get this smart retry for free.
     if (!strategy) {
       throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+        `Could not find a "process waiting DB" strategy for key='${key}', ` +
+          `cannot continue`,
       )
     }
     await strategy()
     await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
     await dispatch('refreshRemoteObsWithDelay')
-    async function processChildReqs(dbRecordParam, inatRecordId) {
-      await Promise.all(
-        dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
-          return dispatch('_deletePhoto', id).then(() => {})
-        }),
-      )
-      for (const curr of apiRecords.photoPostBodyPartials) {
-        await dispatch('_createPhoto', {
-          photoRecord: curr,
-          relatedObsId: inatRecordId,
-        })
-      }
-      for (const curr of apiRecords.obsFieldPostBodyPartials) {
-        await dispatch('_createObsFieldValue', {
-          obsFieldRecord: curr,
-          relatedObsId: inatRecordId,
-        })
-      }
-      for (const id of dbRecordParam.wowMeta[
-        constants.obsFieldIdsToDeleteFieldName
-      ]) {
-        await dispatch('_deleteObsFieldValue', id)
-      }
-    }
   },
   async processWaitingDbRecordWithSw(
     { state, dispatch, rootState },
@@ -1245,13 +1306,14 @@ const actions = {
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', cannot continue`,
+        `Could not find a "process waiting DB" strategy for key='${key}', ` +
+          `cannot continue`,
       )
     }
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
-    await triggerSwObsQueue()
+    await triggerSwWowQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
       const result = {}
@@ -1271,7 +1333,6 @@ const actions = {
           }
         },
       )
-      result[constants.obsFieldsFieldName] = apiRecords.obsFieldPostBodyPartials
       result[constants.obsFieldIdsToDeleteFieldName] =
         dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName]
       return result
@@ -1569,12 +1630,12 @@ const getters = {
         constants.successOutcome,
     )
   },
-  obsFields(state) {
-    const projectInfo = state.projectInfo
-    if (!projectInfo) {
+  obsFields(_, getters) {
+    const projectObsFields = getters.nullSafeProjectObsFields
+    if (!projectObsFields.length) {
       return []
     }
-    const result = projectInfo.project_observation_fields.map(fieldRel => {
+    const result = projectObsFields.map(fieldRel => {
       // don't get confused: we have the field definition *and* the
       // relationship to the project
       const fieldDef = fieldRel.observation_field
@@ -1598,15 +1659,18 @@ const getters = {
       return accum
     }, {})
   },
-  advancedModeOnlyObsFieldIds(state) {
+  detailedModeOnlyObsFieldIds(_, getters) {
     // this doesn't handle conditional requiredness, but we tackle that elsewhere
-    return state.projectInfo.project_observation_fields.reduce(
-      (accum, curr) => {
-        accum[curr.id] = curr.required
-        return accum
-      },
-      {},
-    )
+    return getters.nullSafeProjectObsFields.reduce((accum, curr) => {
+      accum[curr.id] = curr.required
+      return accum
+    }, {})
+  },
+  nullSafeProjectObsFields(state) {
+    // there's a race condition where you can get to an obs detail page before
+    // the project info has been cached. This stops an error and will
+    // auto-magically update when the project info does arrive
+    return (state.projectInfo || {}).project_observation_fields || []
   },
 }
 
@@ -1726,8 +1790,6 @@ function isObsStateProcessing(state) {
  * from our local DB
  */
 function commonApiToOurDomainObsMapping(result, obsFromApi) {
-  // FIXME there's more to do here to align our internal DB records to the
-  // format that the API uses
   result.geolocationAccuracy = obsFromApi.positional_accuracy
 }
 
@@ -1767,7 +1829,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
   // them. The time_observed_at field seems to be standardised, which is good
   // for us to read. We cannot write to time_observed_at though.
-  result.observedAt = obsFromApi.time_observed_at
+  result.observedAt = dayjs(obsFromApi.time_observed_at).unix() * 1000
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -1831,7 +1893,7 @@ function updateIdsAndCommentsFor(obs) {
 
 function mapGeojsonToLatLng(geojson) {
   if (!geojson || geojson.type !== 'Point') {
-    // FIXME maybe pull the first point in the shape?
+    // TODO maybe pull the first point in the shape?
     return { lat: null, lng: null }
   }
   return {
@@ -1841,7 +1903,7 @@ function mapGeojsonToLatLng(geojson) {
 }
 
 function processObsFieldName(fieldName) {
-  return (fieldName || '').replace(constants.obsFieldPrefix, '')
+  return (fieldName || '').replace(constants.obsFieldNamePrefix, '')
 }
 
 function mapObsFromOurDomainOntoApi(dbRecord) {
@@ -1874,7 +1936,6 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
     return {}
   })()
   result.observationPostBody = {
-    ignore_photos: true,
     observation: Object.keys(dbRecord).reduce(
       (accum, currKey) => {
         const isNotIgnored = !ignoredKeys.includes(currKey)
@@ -1890,16 +1951,18 @@ function mapObsFromOurDomainOntoApi(dbRecord) {
         longitude: dbRecord.lng,
         observed_on_string: dbRecord.observedAt,
         species_guess: dbRecord.speciesGuess,
+        observation_field_values_attributes: (
+          dbRecord.obsFieldValues || []
+        ).reduce((accum, curr, index) => {
+          accum[index] = {
+            observation_field_id: curr.fieldId,
+            value: curr.value,
+          }
+          return accum
+        }, {}),
       },
     ),
   }
-  // we could store the fields to send in wowMeta like we do with photos, but
-  // this approach works and is simple
-  result.obsFieldPostBodyPartials = (dbRecord.obsFieldValues || []).map(e => ({
-    observation_field_id: e.fieldId,
-    value: e.value,
-  }))
-  result.totalTaskCount += result.obsFieldPostBodyPartials.length
   result.photoPostBodyPartials =
     dbRecord.wowMeta[constants.photosToAddFieldName] || []
   result.totalTaskCount += result.photoPostBodyPartials.length
@@ -1935,6 +1998,20 @@ function isAnswer(val) {
 
 export function migrate(store) {
   migrateRecentlyUsedTaxa(store)
+
+  if (store.state.obs.forceQueueProcessingAtNextChance) {
+    console.debug(
+      `Triggering local queue processing at request of "force at next ` +
+        `chance" flag`,
+    )
+    store.dispatch('obs/onLocalRecordEvent').catch(err => {
+      wowErrorHandler(
+        'Failed while triggering queue processing at request of flag in store',
+        err,
+      )
+    })
+    store.commit('obs/setForceQueueProcessingAtNextChance', false)
+  }
 }
 
 function migrateRecentlyUsedTaxa(store) {

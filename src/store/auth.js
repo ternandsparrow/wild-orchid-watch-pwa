@@ -129,6 +129,9 @@ export default {
       // already be shown. Perhaps we should get more obvious? But then maybe
       // we shouldn't so the user can finish saving the observation locally
       commit('ephemeral/setForceShowLoginToast', true, { root: true }) // TODO remove cross module dependency, use a facade at the root
+      // TODO enhancement idea: currently this will trigger the "something
+      // broke" message. That's not great UX as we should really only show the
+      // login prompt.
       throw new Error(
         'iNat token or token type is NOT present, cannot make call. Forcing user to login again',
       )
@@ -230,6 +233,36 @@ export default {
         )
       }
     },
+    /**
+     * Local photos, as opposed to observation photos, are ones that we
+     * pre-upload and associate with the obs as we create it. This makes
+     * creating the obs with photos appear atomic to the user.
+     */
+    async doLocalPhotoPost({ state, dispatch }, { photoRecord }) {
+      try {
+        await dispatch('_refreshApiTokenIfRequired')
+        const resp = await postFormDataWithAuth(
+          `${constants.apiUrlBase}/photos`,
+          formData => {
+            const photoBlob = arrayBufferToBlob(
+              photoRecord.file.data,
+              photoRecord.file.mime,
+            )
+            // we create a File so we can encode the type of the photo in the
+            // filename. Very sneaky ;)
+            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
+              type: photoBlob.type,
+            })
+            formData.append('file', photoFile)
+          },
+          `${state.apiToken}`,
+        )
+        return resp
+      } catch (err) {
+        // TODO if we get a 401, could refresh token and retry
+        throw chainedError(`Failed to POST local observation photo`, err)
+      }
+    },
     saveToken({ commit, dispatch }, vals) {
       // note: we're setting the *iNat* token here, the API token is different
       commit('_setToken', vals.token)
@@ -288,10 +321,12 @@ export default {
             token: state.token,
           },
         })
-        // This must be opened in a new window as we can't pass CORS check to
-        // make it with XHR and we can't IFrame it in because iNat passes
-        // X-Frame-Options header
-        window.open(`${constants.inatUrlBase}/logout`, '_blank')
+        // We do NOT automatically logout of iNat on behalf of the user. It's
+        // not our place to do so as iNat is it's own separate service. Imagine
+        // if you logged out of something that used Google OAuth and suddenly
+        // you're logged out of all Google services... yeah, not good. Thanks
+        // to https://stackoverflow.com/a/12909563/1410035 for the primer on
+        // this.
       } catch (err) {
         throw chainedError('Failed to revoke iNat token while logging out', err)
       }
@@ -370,7 +405,7 @@ export default {
         )
       }
     },
-    setUsernameOnSentry({ getters }) {
+    setUsernameOnSentry({ getters, dispatch }) {
       const username = getters.myUsername
       if (!username) {
         console.debug('No username present, cannot set on Sentry')
@@ -379,6 +414,19 @@ export default {
       console.debug(`Setting username=${username} on Sentry`)
       Sentry.configureScope(scope => {
         scope.setUser({ username: username })
+      })
+      dispatch('sendSwUpdatedErrorTrackerContext', { username })
+    },
+    async sendSwUpdatedErrorTrackerContext(_, { username }) {
+      if (!(await isSwActive())) {
+        return
+      }
+      return fetch(constants.serviceWorkerUpdateErrorTrackerContextUrl, {
+        method: 'POST',
+        retries: 0,
+        body: JSON.stringify({
+          username: username,
+        }),
       })
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {

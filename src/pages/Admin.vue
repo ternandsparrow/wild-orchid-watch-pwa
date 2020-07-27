@@ -2,6 +2,164 @@
   <menu-wrapper title="Admin">
     <v-ons-card>
       <div class="title">
+        Service Worker health check
+      </div>
+      <p>
+        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
+      </p>
+      <div class="code-style">{{ swHealthCheckResult }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Connect to RemoteJS (<a href="https://remotejs.com/" target="_blank"
+          >remotejs.com</a
+        >)
+      </div>
+      <div>
+        <label for="remotejs-session-uuid">RemoteJS session UUID:</label>
+        <v-ons-input
+          v-model="remoteJsUuid"
+          input-id="remotejs-session-uuid"
+          placeholder="e.g: aa43a970-44c8-88df-a5bd-d5cb0687fdaf"
+        ></v-ons-input>
+      </div>
+      <p>
+        <v-ons-button @click="attachRemoteJs">Attach</v-ons-button>
+      </p>
+      <p class="mono">
+        {{ remoteJsAttachStatus }}
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Clone an obs N times
+      </div>
+      <p>
+        Ever wondered if 30 local observations will bring a device to its knees?
+        Find out. You might want to turn off syncing before cloning.
+      </p>
+      <div>
+        <v-ons-button @click="prepCloneList"
+          >Get list of cloneable obs</v-ons-button
+        >
+      </div>
+      <div>
+        Obs to clone
+        <select v-model="cloneSubjectUuid">
+          <option
+            v-for="curr of cloneList"
+            :key="curr.uuid"
+            :value="curr.uuid"
+            >{{ curr.title }}</option
+          >
+        </select>
+      </div>
+      <div>
+        Number of times to clone
+        <input v-model="cloneCount" type="number" />
+      </div>
+      <div>
+        <v-ons-button @click="doClone">Clone</v-ons-button>
+      </div>
+      <div>Status = {{ cloneStatus }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Dump vuex
+      </div>
+      <p>
+        <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
+        </v-ons-checkbox>
+        <label for="include-project">
+          Include project details
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeLocalObs"
+          input-id="include-local-obs"
+        >
+        </v-ons-checkbox>
+        <label for="include-local-obs">
+          Include local observations
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeRemoteObs"
+          input-id="include-remote-obs"
+        >
+        </v-ons-checkbox>
+        <label for="include-remote-obs">
+          Include remote observations
+        </label>
+      </p>
+      <p>
+        <v-ons-checkbox
+          v-model="isIncludeSpeciesList"
+          input-id="include-species-list"
+        >
+        </v-ons-checkbox>
+        <label for="include-species-list">
+          Include species list
+        </label>
+      </p>
+      <p>
+        <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
+      </p>
+      <p>
+        <v-ons-button @click="doCustomLocalQueueSummaryDump"
+          >Dump only custom local queue summary</v-ons-button
+        >
+      </p>
+      <div class="code-style">{{ vuexDump }}</div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable service worker console proxy
+      </div>
+      <p>
+        For when you can't get access to the SW console. iOS Safari in
+        BrowserStack is one offender.
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasSwConsoleBeenProxied"
+          @click="enableSwConsoleProxy"
+        >
+          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
+          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
+        </v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Enable console proxying to UI
+      </div>
+      <p>
+        For when you can't get access debug tools (like on a mobile device)
+      </p>
+      <p>
+        <v-ons-button
+          :disabled="hasConsoleBeenProxiedToUi"
+          @click="enableConsoleProxyToUi"
+        >
+          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
+          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
+        </v-ons-button>
+      </p>
+      <code>
+        <pre
+          v-for="curr of consoleMsgs"
+          :key="curr.msg"
+        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
+      </code>
+      <p>
+        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
+      </p>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
         Location test
       </div>
       <div class="text-center">
@@ -16,6 +174,17 @@
           >Get location</v-ons-button
         >
       </div>
+    </v-ons-card>
+    <v-ons-card>
+      <div class="title">
+        Platform test
+      </div>
+      <p>
+        Run a series of tests to make sure the platform is working like we
+        expect.
+      </p>
+      <pre><code>{{platformTestResult}}</code></pre>
+      <v-ons-button @click="doPlatformTest">Do platform test</v-ons-button>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -57,23 +226,7 @@
           Fire check to SW
         </button>
       </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Login test
-      </div>
-      <div>Logged in = {{ isUserLoggedIn }}</div>
-      <div>
-        Do this first
-        <v-ons-button @click="doLogin">Login</v-ons-button>
-      </div>
-      <p>
-        Then make the call...
-        <v-ons-button @click="doGetUserDetails"
-          >Test API call to /users/me</v-ons-button
-        >
-      </p>
-      <div class="code-style">Result = {{ meResp }}</div>
+      <p class="mono">Result: {{ swCheckResult }}</p>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -125,39 +278,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Clone an obs N times
-      </div>
-      <p>
-        Ever wondered if 30 local observations will bring a device to its knees?
-        Find out. You might want to turn off syncing before cloning.
-      </p>
-      <div>
-        <v-ons-button @click="prepCloneList"
-          >Get list of cloneable obs</v-ons-button
-        >
-      </div>
-      <div>
-        Obs to clone
-        <select v-model="cloneSubjectUuid">
-          <option
-            v-for="curr of cloneList"
-            :key="curr.uuid"
-            :value="curr.uuid"
-            >{{ curr.title }}</option
-          >
-        </select>
-      </div>
-      <div>
-        Number of times to clone
-        <input v-model="cloneCount" type="number" />
-      </div>
-      <div>
-        <v-ons-button @click="doClone">Clone</v-ons-button>
-      </div>
-      <div>Status = {{ cloneStatus }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Trigger queue processing
       </div>
       <div>
@@ -166,76 +286,17 @@
         >
       </div>
       <p>
-        Beware of these two SW triggers. If the queue is already processing,
-        it'll start double processing. There's no safe guard. These status
-        reports are only for manually triggered processing, they have no idea
-        about workbox-triggered processing.
+        Beware of this SW trigger. If the queue is already processing, it'll
+        start double processing. There's no safe guard. These status reports are
+        only for manually triggered processing, they have no idea about
+        workbox-triggered processing.
       </p>
       <div>
-        <p>Manually triggered processing status = {{ swObsQueueStatus }}</p>
-        <v-ons-button @click="triggerSwObsQueue"
-          >Trigger SW obs queue processing</v-ons-button
+        <p>Manually triggered processing status = {{ swWowQueueStatus }}</p>
+        <v-ons-button @click="doTriggerSwWowQueue"
+          >Trigger SW WOW queue processing</v-ons-button
         >
       </div>
-      <div>
-        <p>Manually triggered processing status = {{ swDepsQueueStatus }}</p>
-        <v-ons-button @click="triggerSwDepsQueue"
-          >Trigger SW deps queue processing</v-ons-button
-        >
-      </div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Enable service worker console proxy
-      </div>
-      <p>
-        For when you can't get access to the SW console. iOS Safari in
-        BrowserStack is one offender.
-      </p>
-      <p>
-        <v-ons-button
-          :disabled="hasSwConsoleBeenProxied"
-          @click="enableSwConsoleProxy"
-        >
-          <span v-if="!hasSwConsoleBeenProxied">Enable!</span>
-          <span v-if="hasSwConsoleBeenProxied">Enabled :D</span>
-        </v-ons-button>
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Enable console proxying to UI
-      </div>
-      <p>
-        For when you can't get access debug tools (like on a mobile device)
-      </p>
-      <p>
-        <v-ons-button
-          :disabled="hasConsoleBeenProxiedToUi"
-          @click="enableConsoleProxyToUi"
-        >
-          <span v-if="!hasConsoleBeenProxiedToUi">Enable!</span>
-          <span v-if="hasConsoleBeenProxiedToUi">Enabled :D</span>
-        </v-ons-button>
-      </p>
-      <code>
-        <pre
-          v-for="curr of consoleMsgs"
-          :key="curr.msg"
-        ><span :class="'console-' + curr.level">[{{curr.level}}]</span> {{curr.msg}}</pre>
-      </code>
-      <p>
-        <v-ons-button @click="clearConsole">Clear console</v-ons-button>
-      </p>
     </v-ons-card>
     <v-ons-card>
       <div class="standalone-title">
@@ -257,52 +318,6 @@
           </v-ons-list-item>
         </template>
       </v-ons-list>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Dump vuex
-      </div>
-      <p>
-        <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
-        </v-ons-checkbox>
-        <label for="include-project">
-          Include project details
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeLocalObs"
-          input-id="include-local-obs"
-        >
-        </v-ons-checkbox>
-        <label for="include-local-obs">
-          Include local observations
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeRemoteObs"
-          input-id="include-remote-obs"
-        >
-        </v-ons-checkbox>
-        <label for="include-remote-obs">
-          Include remote observations
-        </label>
-      </p>
-      <p>
-        <v-ons-checkbox
-          v-model="isIncludeSpeciesList"
-          input-id="include-species-list"
-        >
-        </v-ons-checkbox>
-        <label for="include-species-list">
-          Include species list
-        </label>
-      </p>
-      <p>
-        <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
-      </p>
-      <div class="code-style">{{ vuexDump }}</div>
     </v-ons-card>
     <v-ons-card>
       <div class="title">
@@ -411,10 +426,10 @@ import * as constants from '@/misc/constants'
 import {
   clearLocalStorage,
   isSwActive,
-  triggerSwDepsQueue,
-  triggerSwObsQueue,
+  triggerSwWowQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
+import * as devHelpers from '@/misc/dev-helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
 
@@ -437,8 +452,7 @@ export default {
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
-      swObsQueueStatus: 'not started',
-      swDepsQueueStatus: 'not started',
+      swWowQueueStatus: 'not started',
       imageClassificationResult: 'nothing yet',
       classifier: null,
       ourWorker: null,
@@ -453,6 +467,10 @@ export default {
       rpoResetStatus: null,
       resetRpoList: [],
       resetRpoUuid: null,
+      remoteJsUuid: null,
+      platformTestResult: '(not run yet)',
+      swCheckResult: '(not run yet)',
+      remoteJsAttachStatus: '(no connection attempted, yet)',
     }
   },
   computed: {
@@ -477,34 +495,6 @@ export default {
   created() {
     this.computeConfigItems()
   },
-  mounted() {
-    const src = 'https://unpkg.com/ml5@0.5.0/dist/ml5.min.js'
-    // ML5 is huge! And we're not using it in production code yet. So to keep
-    // bundle sizes down, we just pull it from CDN. When we do start using it,
-    // remove all this DOM hackery and just stick the follow line up with the
-    // other imports:
-    //   import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
-    if (!isScriptAlreadyLoaded(src)) {
-      // thanks https://stackoverflow.com/a/47002863/1410035
-      const ml5Script = document.createElement('script')
-      ml5Script.setAttribute('src', src)
-      ml5Script.async = true
-      ml5Script.onload = () => {
-        console.log('ML5 external script loaded')
-        this.classifier = window.ml5.imageClassifier(
-          wowModelPath,
-          this.modelReady,
-        )
-        const worker = new Worker('./classificationWorker.js', {
-          type: 'module',
-        })
-        this.ourWorker = Comlink.wrap(worker)
-      }
-      document.head.appendChild(ml5Script)
-    } else {
-      console.debug('ML5 already loaded')
-    }
-  },
   methods: {
     doLQP() {
       this.$store.dispatch('obs/processLocalQueue')
@@ -525,8 +515,10 @@ export default {
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
         'isSearchFeatureEnabled',
+        'isBugReportFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',
+        'obsFieldNamePrefix',
         'obsFieldSeparatorChar',
         'redirectUri',
         'taxaDataUrl',
@@ -538,7 +530,6 @@ export default {
       }))
       const result = [
         ...partialResult,
-        { label: 'obsFieldPrefix', value: `"${constants.obsFieldPrefix}"` },
         { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
         {
           label: 'googleMapsApiKey',
@@ -568,6 +559,20 @@ export default {
         console.error('Failed to do health check on service worker', err)
       }
     },
+    doCustomLocalQueueSummaryDump() {
+      const speciesGuesses = this.$store.state.obs._uiVisibleLocalRecords.reduce(
+        (accum, curr) => {
+          accum[curr.uuid] = curr.speciesGuess
+          return accum
+        },
+        {},
+      )
+      const lqs = this.$store.state.obs.localQueueSummary.map(e => ({
+        ...e,
+        speciesGuess: speciesGuesses[e.uuid],
+      }))
+      this.vuexDump = JSON.stringify(lqs, null, 2)
+    },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
@@ -585,6 +590,7 @@ export default {
       this.vuexDump = JSON.stringify(parsed, null, 2)
     },
     async doImageClassification() {
+      await this.loadMl5Library()
       console.log(`Counter before: ${await this.ourWorker.counter}`)
       await this.ourWorker.inc()
       console.log(`Counter after: ${await this.ourWorker.counter}`)
@@ -628,21 +634,9 @@ export default {
         },
         {
           timeout: 5000, // milliseconds
+          enableHighAccuracy: this.isEnableHighAccuracy,
         },
       )
-    },
-    doLogin() {
-      this.$store.dispatch('auth/doLogin')
-    },
-    async doGetUserDetails() {
-      const urlSuffix = '/users/me'
-      try {
-        const resp = await this.$store.dispatch('doApiGet', { urlSuffix })
-        this.meResp = resp
-      } catch (err) {
-        console.error(`Failed to make ${urlSuffix} API call`, err)
-        return
-      }
     },
     doCommunityWorkflow() {
       mainStack.push(CommunityComponent) // FIXME change to using router
@@ -674,34 +668,29 @@ export default {
       this._sendMessageToSw(constants.testTriggerManualUncaughtErrorMsg)
     },
     fireCheckSwCall() {
-      isSwActive().then(result => {
-        console.log('Is SW alive? ' + result)
-      })
-    },
-    triggerSwObsQueue() {
-      this.swObsQueueStatus = 'processing'
-      triggerSwObsQueue()
-        .then(() => {
-          console.debug(
-            'Triggering of SW obs queue processing completed successfully',
-          )
-          this.swObsQueueStatus = 'finished'
+      console.debug('Firing check to SW')
+      this.swCheckResult = 'checking...'
+      isSwActive()
+        .then(result => {
+          console.log('Is SW alive? ' + result)
+          this.swCheckResult = 'is SW alive = ' + result
         })
         .catch(err => {
-          this.swObsQueueStatus = 'error. ' + err.message
+          console.error('Failed to send check to SW', err)
+          this.swCheckResult = 'Error ' + err.message
         })
     },
-    triggerSwDepsQueue() {
-      this.swDepsQueueStatus = 'processing'
-      triggerSwDepsQueue()
+    doTriggerSwWowQueue() {
+      this.swWowQueueStatus = 'processing'
+      triggerSwWowQueue()
         .then(() => {
           console.debug(
             'Triggering of SW deps queue processing completed successfully',
           )
-          this.swDepsQueueStatus = 'finished'
+          this.swWowQueueStatus = 'finished'
         })
         .catch(err => {
-          this.swDepsQueueStatus = 'error. ' + err
+          this.swWowQueueStatus = 'error. ' + err
         })
     },
     _sendMessageToSw(msg) {
@@ -725,9 +714,11 @@ export default {
     },
     async enableSwConsoleProxy() {
       this.hasSwConsoleBeenProxied = true
-      this.$store.state.ephemeral.swReg.active.postMessage(
-        constants.proxySwConsoleMsg,
-      )
+      const reg = this.$store.state.ephemeral.swReg
+      if (!reg) {
+        throw new Error('No SW registration found, cannot send message')
+      }
+      reg.active.postMessage(constants.proxySwConsoleMsg)
       console.log('Message sent to SW to enable console proxying')
     },
     enableConsoleProxyToUi() {
@@ -839,6 +830,98 @@ export default {
         title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
+    },
+    async attachRemoteJs() {
+      console.debug('attaching to RemoteJS')
+      this.remoteJsAttachStatus = 'attaching...'
+      const uuid = this.remoteJsUuid
+      if (!uuid) {
+        alert('You must supply the UUID for the RemoteJS session')
+        return
+      }
+      const scriptTagId = 'remotejs-script'
+      const existingScript = document.getElementById(scriptTagId)
+      if (existingScript) {
+        console.debug('removing existing RemoteJS script')
+        existingScript.remove()
+      }
+      const s = document.createElement('script')
+      s.src = 'https://remotejs.com/agent/agent.js'
+      s.id = scriptTagId
+      s.setAttribute('data-consolejs-channel', uuid)
+      document.head.appendChild(s)
+      if (!this.hasSwConsoleBeenProxied) {
+        try {
+          await this.enableSwConsoleProxy()
+        } catch (err) {
+          this.remoteJsAttachStatus =
+            'attached but SW console proxy failed: ' + err.message
+          return
+        }
+      }
+      this.remoteJsAttachStatus = 'attached and SW console proxied'
+    },
+    async doPlatformTest() {
+      try {
+        const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
+          method: 'POST',
+        })
+        const mainThreadResults = [
+          {
+            name: 'platformTestReqFileMainThread',
+            result: await devHelpers.platformTestReqFile(),
+          },
+          {
+            name: 'platformTestReqBlobMainThread',
+            result: await devHelpers.platformTestReqBlob(),
+          },
+        ]
+        const swResults = await (async () => {
+          if (await isSwActive()) {
+            return resp.json()
+          }
+          return '(no SW)'
+        })()
+        this.platformTestResult = [...mainThreadResults, ...swResults]
+      } catch (err) {
+        console.error('Failed to perform platform test', err)
+        this.platformTestResult = 'Failed. ' + err.message
+      }
+    },
+    async loadMl5Library() {
+      const src = 'https://unpkg.com/ml5@0.5.0/dist/ml5.min.js'
+      // ML5 is huge! And we're not using it in production code yet. So to keep
+      // bundle sizes down, we just pull it from CDN. When we do start using it,
+      // remove all this DOM hackery and just stick the follow line up with the
+      // other imports:
+      //   import { imageClassifier as ml5ImageClassifier } from 'ml5/dist/ml5'
+      return new Promise((resolve, reject) => {
+        try {
+          if (isScriptAlreadyLoaded(src)) {
+            console.debug('ML5 already loaded')
+            return resolve()
+          }
+          // thanks https://stackoverflow.com/a/47002863/1410035
+          const ml5Script = document.createElement('script')
+          ml5Script.setAttribute('src', src)
+          ml5Script.async = true
+          ml5Script.onload = () => {
+            console.log('ML5 external script loaded')
+            this.classifier = window.ml5.imageClassifier(
+              wowModelPath,
+              this.modelReady,
+            )
+            const worker = new Worker('./classificationWorker.js', {
+              type: 'module',
+            })
+            this.ourWorker = Comlink.wrap(worker)
+            return resolve()
+          }
+          document.head.appendChild(ml5Script)
+        } catch (err) {
+          return reject(err)
+        }
+      })
     },
   },
 }

@@ -2,7 +2,7 @@
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
       <template v-slot:right>
-        <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
+        <v-ons-toolbar-button name="toolbar-save-btn" @click="debouncedOnSave"
           >Save</v-ons-toolbar-button
         >
       </template>
@@ -10,6 +10,12 @@
     <v-ons-list-item modifier="nodivider">
       Provide responses for at least all the required questions, then press the
       save button.
+      <div
+        v-show="isDetailedUserMode"
+        class="detailed-indicator wow-obs-field-desc"
+      >
+        Detailed mode enabled!
+      </div>
     </v-ons-list-item>
     <v-ons-list>
       <template v-for="currMenuItem of photoMenu">
@@ -17,7 +23,7 @@
           :key="currMenuItem.name + '-header'"
           :label="currMenuItem.name + ' photos'"
           :required="currMenuItem.required"
-          help-target="photos"
+          :help-target="'photos-' + currMenuItem.id"
           class="margin-for-photos"
           @on-help="showHelp"
         />
@@ -28,6 +34,7 @@
                 :id="currMenuItem.id + '-add'"
                 :ref="photoRef(currMenuItem)"
                 type="file"
+                multiple
                 :name="currMenuItem.id + '-add'"
                 accept="image/png, image/jpeg"
                 class="photo-button"
@@ -90,23 +97,30 @@
           What species is this observation of?
         </div>
       </v-ons-list-item>
-      <!-- FIXME need to init geolocation so it can be edited. Should we also store -->
-      <!-- the method used (and the thumbnail, etc) or just show that it *is* saved -->
-      <!-- and you can edit it if you like (easier).                                -->
       <wow-header
-        v-if="!isEdit"
         label="Geolocation / GPS coordinates"
         help-target="geolocation"
         @on-help="showHelp"
       />
       <wow-collect-geolocation
-        v-if="!isEdit"
+        :is-edit="isEdit"
         :photo-count="photos.length"
         :is-extra-emphasis="isValidatedAtLeastOnce"
         @read-coords="rereadCoords"
       />
+      <wow-header
+        label="Date/time"
+        help-target="datetime"
+        @on-help="showHelp"
+      />
+      <wow-collect-date
+        :is-edit="isEdit"
+        :photo-count="photos.length"
+        :is-extra-emphasis="isValidatedAtLeastOnce"
+        @read-datetime="rereadDatetime"
+      />
       <template v-for="currField of displayableObsFields">
-        <template v-if="isAdvancedUserMode || !currField.isAdvancedField">
+        <template v-if="isDetailedUserMode || !currField.isDetailedModeField">
           <wow-header
             :key="currField.id + '-list'"
             :label="currField.name"
@@ -187,7 +201,7 @@
                 :items="taxonQuestionAutocompleteItems[currField.id]"
                 :initial-value="obsFieldInitialValues[currField.id]"
                 :is-error="speciesAutocompleteErrors[currField.id]"
-                placeholder-text="e.g. snail orchid"
+                placeholder-text="e.g. casuarina glauca"
                 :extra-callback-data="currField.id"
                 @change="debouncedOnTaxonQuestionInput"
                 @item-selected="onTaxonQuestionSet"
@@ -230,7 +244,7 @@
           </v-ons-list-item>
         </template>
       </template>
-      <template v-if="isAdvancedUserMode">
+      <template v-if="isDetailedUserMode">
         <wow-header
           label="Other comments"
           help-target="notes"
@@ -252,26 +266,26 @@
       </template>
       <v-ons-list-item>
         <div class="text-center be-wide">
-          <v-ons-button name="bottom-save-btn" @click="onSave"
+          <v-ons-button name="bottom-save-btn" @click="debouncedOnSave"
             >Save</v-ons-button
           >
         </div>
       </v-ons-list-item>
-      <v-ons-list-item class="advanced-switch-container">
-        <label class="center" for="advancedSwitch">
-          <span class="list-item__title"><a>Enable advanced mode</a></span>
+      <v-ons-list-item class="detailed-mode-switch-container">
+        <label class="center" for="detailedModeSwitch">
+          <span class="list-item__title"><a>Enable detailed mode</a></span>
           <span class="list-item__subtitle"
-            ><span v-if="!isAdvancedUserMode"
-              >You are currently in beginner mode. You are presented with fewer
-              questions while you get used to the process. If you'd like to
-              collect more information, use this switch to enable advanced mode
-              which will show more questions. All these questions are optional
-              and you can always switch back if you don't like it.</span
+            ><span v-if="!isDetailedUserMode"
+              >You are currently in basic mode. You are presented with fewer
+              questions than in detailed mode. If you'd like to collect more
+              information, use this switch to enable detailed mode which will
+              show more questions. All these extra questions are optional and
+              you can always switch back if you don't like it.</span
             >
-            <span v-if="isAdvancedUserMode"
-              >You are currently in advanced mode and have the option to collect
+            <span v-if="isDetailedUserMode"
+              >You are currently in detailed mode and have the option to collect
               more information. This extra information is <i>optional</i> but if
-              you prefer a simpler interface, you can go back to beginner
+              you prefer a simpler interface, you can go back to basic
               mode.</span
             >
             This configuration item is also available in the
@@ -279,7 +293,10 @@
           </span>
         </label>
         <div class="right">
-          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          <v-ons-switch
+            v-model="isDetailedUserMode"
+            input-id="detailedModeSwitch"
+          >
           </v-ons-switch>
         </div>
       </v-ons-list-item>
@@ -338,24 +355,36 @@ import {
   accuracyOfSearchAreaCalcPrecise,
   approxAreaSearchedObsFieldId,
   areaOfPopulationObsFieldId,
+  autocompleteTypeHost,
+  autocompleteTypeOrchid,
   coarseFragmentsMultiselectId,
-  conservationImmediateLanduseObsFieldId,
+  conservationLanduse,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
   epiphyteHeightObsFieldId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
+  immediateLanduseObsFieldId,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
   orchidTypeEpiphyte,
   orchidTypeObsFieldId,
   orchidTypeTerrestrial,
+  photoTypeCanopy,
+  photoTypeEpiphyteHostTree,
+  photoTypeFloralVisitors,
+  photoTypeFlower,
+  photoTypeFruit,
+  photoTypeHabitat,
+  photoTypeLeaf,
+  photoTypeMicrohabitat,
+  photoTypeWholePlant,
   searchAreaCalcPreciseLengthObsFieldId,
   searchAreaCalcPreciseWidthObsFieldId,
   soilStructureObsFieldId,
-  widerLanduseObsFieldId,
   wideSelectObsFieldIds,
+  widerLanduseObsFieldId,
   yesValue,
 } from '@/misc/constants'
 
@@ -370,15 +399,15 @@ export default {
   data() {
     return {
       photoMenu: [
-        { id: 'whole-plant', name: 'Whole plant', required: true },
-        { id: 'flower', name: 'Flower' },
-        { id: 'leaf', name: 'Leaf' },
-        { id: 'fruit', name: 'Fruit' },
-        { id: 'habitat', name: 'Habitat', required: true },
-        { id: 'micro-habitat', name: 'Micro-habitat', required: true },
-        { id: 'canopy', name: 'Canopy' },
-        { id: 'floral-visitors', name: 'Floral visitors' },
-        { id: 'host-tree', name: 'Epiphyte host tree' },
+        { id: photoTypeWholePlant, name: 'Whole plant', required: true },
+        { id: photoTypeFlower, name: 'Flower' },
+        { id: photoTypeLeaf, name: 'Leaf' },
+        { id: photoTypeFruit, name: 'Fruit' },
+        { id: photoTypeHabitat, name: 'Habitat', required: true },
+        { id: photoTypeMicrohabitat, name: 'Micro-habitat', required: true },
+        { id: photoTypeCanopy, name: 'Canopy' },
+        { id: photoTypeFloralVisitors, name: 'Floral visitors' },
+        { id: photoTypeEpiphyteHostTree, name: 'Epiphyte host tree' },
       ],
       speciesGuessInitialValue: null,
       speciesGuessSelectedItem: null,
@@ -416,20 +445,21 @@ export default {
       obsLocAccuracy: null,
       isValidatedAtLeastOnce: false,
       uuidOfThisObs: null,
+      observedAt: null,
     }
   },
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
     ...mapGetters('ephemeral', ['photosStillCompressingCount']),
-    isAdvancedUserMode: {
+    isDetailedUserMode: {
       get() {
-        return this.$store.state.app.isAdvancedUserMode
+        return this.$store.state.app.isDetailedUserMode
       },
       set(newValue) {
-        const newModeName = newValue ? 'advanced' : 'beginner'
+        const newModeName = newValue ? 'detailed' : 'basic'
         this.$wow.uiTrace('SingleSpecies', `switch to ${newModeName} mode`)
-        this.$store.commit('app/setIsAdvancedUserMode', newValue)
+        this.$store.commit('app/setIsDetailedUserMode', newValue)
       },
     },
     displayableObsFields() {
@@ -484,25 +514,30 @@ export default {
             wowDatatype,
             multiselectValues: [{ id: curr.id, label: curr.name }],
             // we don't have any required multiselects so we can simply hide them
-            // all in beginner mode
-            isAdvancedField: true,
+            // all in basic mode
+            isDetailedModeField: true,
           })
           return accum
         }
+        const fieldIdsConditionallyRequiredOnlyInDetailedMode = [
+          widerLanduseObsFieldId,
+        ]
         const isConditionalRequiredField = [
           ...this.requiredFieldIdsConditionalOnNumberFields,
           ...this.requiredFieldIdsConditionalAccuracyOfSearchField,
           // if these fields are visible, then they're required!
           epiphyteHeightObsFieldId,
           hostTreeSpeciesObsFieldId,
-          widerLanduseObsFieldId,
+          ...(this.isDetailedUserMode
+            ? fieldIdsConditionallyRequiredOnlyInDetailedMode
+            : []),
         ].includes(curr.id)
         const field = {
           ...curr,
           required: isConditionalRequiredField || curr.required,
           wowDatatype,
         }
-        field.isAdvancedField = !field.required
+        field.isDetailedModeField = !field.required
         if (field.wowDatatype === selectFieldType) {
           const strategy = getAllowedValsStrategy(field)
           field.allowedValues = strategy(curr.allowedValues)
@@ -559,8 +594,9 @@ export default {
       this.obsFieldVisibility[soilStructureObsFieldId] = isTerrestrial
       this.obsFieldVisibility[coarseFragmentsMultiselectId] = isTerrestrial
     },
-    [`obsFieldValues.${conservationImmediateLanduseObsFieldId}`](newVal) {
-      const isConservation = newVal === true
+    [`obsFieldValues.${immediateLanduseObsFieldId}`](newVal) {
+      const isConservation = newVal === conservationLanduse
+
       this.obsFieldVisibility[widerLanduseObsFieldId] = isConservation
     },
     [`obsFieldValues.${accuracyOfSearchAreaCalcObsFieldId}`](newVal) {
@@ -576,7 +612,7 @@ export default {
         newVal === accuracyOfSearchAreaCalcEstimated
       this.refreshVisibilityOfSearchAreaFields()
     },
-    isAdvancedUserMode() {
+    isDetailedUserMode() {
       setTimeout(() => {
         this.scrollToSpeciesGuess()
       }, 300)
@@ -610,6 +646,12 @@ export default {
       this._onTaxonQuestionInput,
       300,
     )
+    // the modal means we usually won't need the debounce as the modal will
+    // block clicks, but let's program defensively.
+    this.debouncedOnSave = _.debounce(this._onSave, 2000, {
+      leading: true,
+      trailing: false,
+    })
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
@@ -626,8 +668,8 @@ export default {
     },
     initForEdit(obsFieldsPromise) {
       this.uuidOfThisObs = this.observationDetail.uuid
-      this.obsLat = this.observationDetail.lat
-      this.obsLng = this.observationDetail.lng
+      this.rereadCoords()
+      this.rereadDatetime()
       this.obsLocAccuracy = this.observationDetail.positional_accuracy
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
@@ -728,7 +770,9 @@ export default {
             )
             // we need to reset this so the conditionally required fields lose
             // their required-ness (and hide) without extra logic
-            this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = null
+            this.obsFieldValues[
+              accuracyOfSearchAreaCalcObsFieldId
+            ] = notCollected
           }
           this.refreshVisibilityOfPopulationRecordFields()
           this.refreshVisibilityOfSearchAreaFields()
@@ -831,6 +875,7 @@ export default {
       }
       const thisPhotoUuid = record.uuid
       this.$store.commit('ephemeral/popCoordsForPhoto', thisPhotoUuid)
+      this.$store.commit('ephemeral/popDatetimeForPhoto', thisPhotoUuid)
       const indexOfPhoto = this.photos.findIndex(e => e.uuid == thisPhotoUuid)
       if (indexOfPhoto < 0) {
         // why can't we find the photo?
@@ -850,9 +895,9 @@ export default {
     },
     setDefaultAnswers() {
       try {
-        // TODO are these defaults ok? Should we be smarter like picking the
-        // last used values? Or should we have a button to "clone previous
-        // observation"?
+        // TODO enhancement idea: we could be smarter like picking the last
+        // used values. Or should we could have a button to "clone previous
+        // observation".
         this.obsFieldValues = this.displayableObsFields.reduce(
           (accum, curr) => {
             const isMultiselect = curr.wowDatatype === multiselectFieldType
@@ -866,14 +911,24 @@ export default {
             if (!hasSelectOptions) {
               return accum
             }
-            const isConditionallyRequired = [
-              accuracyOfSearchAreaCalcObsFieldId,
-              areaOfPopulationObsFieldId,
-            ].includes(curr.id)
-            accum[curr.id] =
-              curr.required || isConditionallyRequired
-                ? null
-                : curr.allowedValues[0].value
+            accum[curr.id] = (() => {
+              if (curr.required) {
+                return null
+              }
+              const speciallyHandledFields = {
+                [accuracyOfSearchAreaCalcObsFieldId]: notCollected,
+                [areaOfPopulationObsFieldId]: null,
+                [widerLanduseObsFieldId]: null,
+              }
+              if (
+                Object.keys(speciallyHandledFields).find(
+                  k => parseInt(k) === curr.id,
+                )
+              ) {
+                return speciallyHandledFields[curr.id]
+              }
+              return curr.allowedValues[0].value
+            })()
             return accum
           },
           {},
@@ -928,6 +983,13 @@ export default {
       return result
     },
     validatePhotos() {
+      if (this.isEdit && (this.allPhotosByType[this.otherType] || []).length) {
+        // WOW-249 at time of writing, iNat prod doesn't use the photo filename
+        // we supply so we lose type information. The photos will appear as
+        // "other" type. If we continue to enforce the following rules, user's
+        // won't be able to edit an observation without adding 3 more photos.
+        return
+      }
       const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
       requiredPhotoTypes.forEach(curr => {
         const photosOfType = this.allPhotosByType[curr.id]
@@ -984,7 +1046,7 @@ export default {
       }
       return true
     },
-    async onSave() {
+    async _onSave() {
       this.$wow.uiTrace('SingleSpecies', `save`)
       this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
       const timeoutId = setTimeout(() => {
@@ -1032,7 +1094,7 @@ export default {
       const obsFieldValues = this.displayableObsFields.reduce(
         (accum, currField) => {
           const isNotSavable =
-            !this.isAdvancedUserMode && currField.isAdvancedField
+            !this.isDetailedUserMode && currField.isDetailedModeField
           if (isNotSavable) {
             return accum
           }
@@ -1093,6 +1155,7 @@ export default {
         })),
         speciesGuess: this.speciesGuessValue,
         obsFieldValues,
+        observedAt: new Date(this.observedAt),
         description: this.notes,
         lat: this.obsLat,
         lng: this.obsLng,
@@ -1127,6 +1190,10 @@ export default {
       this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
     },
     async doSaveEdit(record) {
+      // note: swapping from detailed to basic mode will NOT delete the fields
+      // that are no longer visible. Users shouldn't be frequently swapping
+      // between the two but even if they do, losing data is probably not want
+      // they expect.
       const obsFieldIdsToDelete = Object.keys(this.obsFieldValues).reduce(
         (accum, currKey) => {
           // TODO if we ever have conditionally displayable multiselect
@@ -1193,56 +1260,61 @@ export default {
       return result
     },
     async onPhotoChanged(photoDefObj) {
-      this.$wow.uiTrace('SingleSpecies', `photo attached`)
       const type = photoDefObj.id
-      const file = this.$refs[this.photoRef(photoDefObj)][0].files[0]
-      if (!file) {
-        return
-      }
-      const theUuid = uuid()
-      const photoObj = {
-        type,
-        file,
-        url: URL.createObjectURL(file),
-        uuid: theUuid,
-      }
-      this.photos.push(photoObj)
-      // here we use the full size photo but send it for compression/resizing in
-      // the worker (background) so we don't block the UI.
-      this.$store
-        .dispatch('ephemeral/processPhoto', photoObj)
-        .then(photoBlobish => {
-          const found = this.photos.find(e => e.uuid === theUuid)
-          if (!found) {
-            // guess the photo has already been deleted?
-            return
-          }
-          found.file = photoBlobish
-          const oldUrl = found.url
-          const newUrl = URL.createObjectURL(photoBlobish)
-          if (oldUrl === newUrl) {
-            // createObjectURL seems to always generate a new URL, but just to
-            // be safe, we'll check. Don't wanna revoke the one we're using.
-            return
-          }
-          found.url = newUrl
-          // we don't want our thumbnail to be using a revoked blob URL
-          this.$store.commit('ephemeral/updateUrlForPhotoCoords', {
-            uuid: photoObj.uuid,
-            newUrl,
+      const files = this.$refs[this.photoRef(photoDefObj)][0].files
+      this.$wow.uiTrace(
+        'SingleSpecies',
+        `photo attached: ${files.length} ${type}`,
+      )
+      for (const file of files) {
+        if (!file) {
+          continue
+        }
+        const theUuid = uuid()
+        const photoObj = {
+          type,
+          file,
+          url: URL.createObjectURL(file),
+          uuid: theUuid,
+        }
+        this.photos.push(photoObj)
+        // here we use the full size photo but send it for compression/resizing in
+        // the worker (background) so we don't block the UI.
+        this.$store
+          .dispatch('ephemeral/processPhoto', photoObj)
+          .then(photoBlobish => {
+            const found = this.photos.find(e => e.uuid === theUuid)
+            if (!found) {
+              // guess the photo has already been deleted?
+              return
+            }
+            found.file = photoBlobish
+            const oldUrl = found.url
+            const newUrl = URL.createObjectURL(photoBlobish)
+            if (oldUrl === newUrl) {
+              // createObjectURL seems to always generate a new URL, but just to
+              // be safe, we'll check. Don't wanna revoke the one we're using.
+              return
+            }
+            found.url = newUrl
+            // we don't want our thumbnail to be using a revoked blob URL
+            this.$store.commit('ephemeral/updateUrlForPhotoCoordsAndDatetime', {
+              uuid: photoObj.uuid,
+              newUrl,
+            })
+            URL.revokeObjectURL(oldUrl)
           })
-          URL.revokeObjectURL(oldUrl)
-        })
-        .catch(err => {
-          wowWarnHandler('Failed to compress/resize an image', err)
-        })
+          .catch(err => {
+            wowWarnHandler('Failed to compress/resize an image', err)
+          })
+      }
     },
     async _onSpeciesGuessInput(data) {
       this.speciesAutocompleteErrors.speciesGuess = false
       try {
         this.speciesGuessAutocompleteItems = await this.$store.dispatch(
           'obs/doSpeciesAutocomplete',
-          data.value,
+          { partialText: data.value, speciesListType: autocompleteTypeOrchid },
         )
       } catch (err) {
         wowErrorHandler(
@@ -1256,9 +1328,21 @@ export default {
     async _onTaxonQuestionInput(data) {
       const fieldId = data.extra
       try {
-        this.taxonQuestionAutocompleteItems[
-          fieldId
-        ] = await this.$store.dispatch('obs/doSpeciesAutocomplete', data.value)
+        const config = {
+          [hostTreeSpeciesObsFieldId]: autocompleteTypeHost,
+        }
+        const speciesListType = config[fieldId]
+        if (!speciesListType) {
+          throw new Error(
+            `Programmer problem: unhandled fieldId=${fieldId} for doing ` +
+              `species autocomplete`,
+          )
+        }
+        const vals = await this.$store.dispatch('obs/doSpeciesAutocomplete', {
+          partialText: data.value,
+          speciesListType,
+        })
+        this.taxonQuestionAutocompleteItems[fieldId] = vals
       } catch (err) {
         wowErrorHandler(
           `Failed to do species autocomplete for fieldId=${fieldId}`,
@@ -1345,6 +1429,30 @@ export default {
     onCancel() {
       const modeName = this.isEdit ? 'edit' : 'create'
       this.$wow.uiTrace('SingleSpecies', `cancel ${modeName} observation`)
+      this.$store.commit('ephemeral/resetCoordsState')
+      this.$store.commit('ephemeral/resetDatetimeState')
+      this.$store.commit('ephemeral/resetPhotoProcessingTasks')
+      if (this.isEdit) {
+        this.$router.push({
+          name: 'ObsDetail',
+          params: { id: this.$route.params.id },
+        })
+      } else {
+        // new obs
+        this.$router.push({ name: 'Home' })
+      }
+    },
+    rereadDatetime() {
+      const newDatetime = this.$store.getters[
+        'ephemeral/datetimeForCurrentlyEditingObs'
+      ]
+      if (!newDatetime) {
+        this.observedAt = null
+        console.debug('cleared datetime triggered by a poke')
+        return
+      }
+      this.observedAt = newDatetime.value
+      console.debug('updated datetime value triggered by a poke')
     },
     rereadCoords() {
       const newCoords = this.$store.getters[
@@ -1519,7 +1627,12 @@ $thumbnailSize: 75px;
   flex-grow: 1;
 }
 
-.advanced-switch-container {
+.detailed-mode-switch-container {
   margin-top: 10em;
+}
+
+.detailed-indicator {
+  flex-grow: 1;
+  text-align: right;
 }
 </style>

@@ -39,15 +39,36 @@
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center" for="advancedSwitch">
-          <span class="list-item__title"><a>Advanced mode</a></span
+        <label class="center" for="accuracySwitch">
+          <span class="list-item__title"><a>Use High Accuracy GPS</a></span
           ><span class="list-item__subtitle"
-            >If enabled, more questions will be asked when creating
-            observations. The extra questions are all optional.</span
+            >Enabling this setting will use high accuracy geolocation. The
+            tradeoff is increased drain on the battery of your device.</span
           >
         </label>
         <div class="right">
-          <v-ons-switch v-model="isAdvancedUserMode" input-id="advancedSwitch">
+          <v-ons-switch
+            v-model="isEnableHighAccuracy"
+            input-id="accuracySwitch"
+          >
+          </v-ons-switch>
+        </div>
+      </ons-list-item>
+      <ons-list-item>
+        <label class="center" for="detailedModeSwitch">
+          <span class="list-item__title"><a>Detailed mode</a></span
+          ><span class="list-item__subtitle"
+            >If enabled, you have the option to collect more detailed
+            observations through answering more questions. The extra questions
+            are all optional and you can switch back to basic mode at any
+            time.</span
+          >
+        </label>
+        <div class="right">
+          <v-ons-switch
+            v-model="isDetailedUserMode"
+            input-id="detailedModeSwitch"
+          >
           </v-ons-switch>
         </div>
       </ons-list-item>
@@ -137,11 +158,14 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import { alwaysUpload, neverUpload } from '@/misc/constants'
+import * as constants from '@/misc/constants'
 import {
+  chainedError,
   clearLocalStorage,
   formatStorageSize,
+  isNoSwActive,
   unregisterAllServiceWorkers,
+  wowWarnHandler,
 } from '@/misc/helpers'
 
 export default {
@@ -149,8 +173,8 @@ export default {
   data() {
     return {
       whenToSyncOptions: [
-        { value: alwaysUpload, label: 'Always (WiFi, mobile data)' },
-        { value: neverUpload, label: 'Never' },
+        { value: constants.alwaysUpload, label: 'Always (WiFi, mobile data)' },
+        { value: constants.neverUpload, label: 'Never' },
       ],
       storageQuota: 0,
       storageUsage: 0,
@@ -180,12 +204,20 @@ export default {
         this.$store.commit('app/setEnablePhotoCompression', newValue)
       },
     },
-    isAdvancedUserMode: {
+    isDetailedUserMode: {
       get() {
-        return this.$store.state.app.isAdvancedUserMode
+        return this.$store.state.app.isDetailedUserMode
       },
       set(newValue) {
-        this.$store.commit('app/setIsAdvancedUserMode', newValue)
+        this.$store.commit('app/setIsDetailedUserMode', newValue)
+      },
+    },
+    isEnableHighAccuracy: {
+      get() {
+        return this.$store.state.app.isEnableHighAccuracy
+      },
+      set(newValue) {
+        this.$store.commit('app/setEnableHighAccuracy', newValue)
       },
     },
     storageMsg() {
@@ -214,24 +246,17 @@ export default {
         const msgFragmentLocalData = (() => {
           if (this.unsyncRecordsCount) {
             return (
-              `You have ${this.unsyncRecordsCount} records` +
-              ' that have NOT been synchronised to the server and will be lost forever!'
+              `You have ${this.unsyncRecordsCount} records ` +
+              'that have NOT been synchronised to the server and will be ' +
+              'lost forever if you continue!'
             )
           }
           return (
-            'All your local data has been synchronised to the server, ' +
+            'All your local data has been synchronised to iNaturalist, ' +
             'no data will be lost.'
           )
         })()
-        const msgFragmentInatLogout = this.token
-          ? ' We also need to logout of iNaturalist, which will be done by ' +
-            'opening a new window in your browser. You can safely close this ' +
-            'window once the logout has happened.'
-          : ''
-        const msg =
-          'Are you sure? All data for this app will be deleted! ' +
-          msgFragmentLocalData +
-          msgFragmentInatLogout
+        const msg = 'Are you sure you want to logout? ' + msgFragmentLocalData
         const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
           this.$ons.notification.toast('Logout cancelled', {
@@ -242,12 +267,23 @@ export default {
         }
         await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
+        await this.clearSwStorage()
         unregisterAllServiceWorkers()
         await deleteKnownStorageInstances()
+        // In order to log a user out of iNat, you *must* open the page in a new
+        // window. The non-working alternatives are:
+        //   1. we can't pass CORS check to make it with XHR/fetch
+        //   2. fetch with mode: 'no-cors' because it just doesn't work (no
+        //      cookie passed?)
+        //   3. we can't IFrame it in because iNat passes X-Frame-Options header
         await this.$ons.notification.alert(
-          'Logged out and all data wiped, press ok to restart the app in a clean state',
+          `You are now logged out of WOW. <strong>However</strong> you are ` +
+            `still logged into iNaturalist but you can also <a ` +
+            `href="${constants.inatUrlBase}/logout" target="_blank">logout of ` +
+            `iNat</a> (close the page and come back here after). Press ok to ` +
+            `restart WOW in a clean state.`,
         )
-        window.location.reload()
+        window.location = constants.onboarderPath
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
@@ -258,6 +294,28 @@ export default {
           },
           { root: true },
         )
+      }
+    },
+    async clearSwStorage() {
+      if (await isNoSwActive()) {
+        console.debug('No SW, no storage to clear')
+        return
+      }
+      try {
+        const resp = await fetch(constants.serviceWorkerClearEverythingUrl, {
+          method: 'DELETE',
+        })
+        const respBody = await resp.text() // it's JSON but we want it as text
+        if (!resp.ok) {
+          wowWarnHandler(
+            `Status=${resp.status} indicates failure while clearing SW ` +
+              `storage. Not bothering the user because they still need to ` +
+              `complete the logout. Resp body: ${respBody}`,
+          )
+        }
+        console.debug(`SW clear success with resp body=${respBody}`)
+      } catch (err) {
+        throw chainedError('Failed while requesting SW to clear storage', err)
       }
     },
     doManualUpdateCheck() {

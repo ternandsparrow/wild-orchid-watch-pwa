@@ -39,7 +39,9 @@ export function chainedError(msg, err) {
     )
   }
   if (typeof err === 'object') {
-    // FIXME can we detect and handle a ProgressEvent and get details from err.target.error.code (and lookup name of error by getting key for the code on .error)
+    // FIXME can we detect and handle a ProgressEvent and get details from
+    // err.target.error.code (and lookup name of error by getting key for the
+    // code on .error)
     const newMsg = `${msg}\nCaused by: ${err.message}`
     try {
       err.message = newMsg
@@ -50,13 +52,16 @@ export function chainedError(msg, err) {
       // Indexed Database.". That error will have the 'message' property set as
       // readonly and that's how you get here.
       console.warn(
-        `While handling another error, encountered this error ` +
-          `(but we're working around it):${err2.message}`,
+        `While handling the first error:\n` +
+          `  ${err.message}\n` +
+          `encountered this error:\n` +
+          `  ${err2.message}\n` +
+          `but we're working around it! Bubbling original error now.`,
       )
       return new Error(
         newMsg +
           `\nOriginal stack (readonly Error.message forced ` +
-          `creation of a new Error):\n${err.stack}`,
+          `creation of a new Error with new stack):\n${err.stack}`,
       )
     }
   }
@@ -65,4 +70,96 @@ export function chainedError(msg, err) {
 
 export function now() {
   return Date.now()
+}
+
+export function makeObsRequest(obsObj, projectId, photoIds) {
+  const result = {
+    ...obsObj,
+    local_photos: {
+      0: photoIds,
+    },
+    uploader: true,
+    refresh_index: true,
+  }
+  if (projectId) {
+    // no need to re-link project if it's already linked
+    result.project_id = [projectId]
+  }
+  return result
+}
+
+export function addPhotoIdToObsReq(obsReq, photoId) {
+  const photoArray = ((obsReq || {}).local_photos || {})[0]
+  if (!photoArray) {
+    throw new Error(
+      `Supplied obs object='${JSON.stringify(obsReq)}' did not have a ` +
+        `'local_photos' attribute for us to manipulate, cannot continue`,
+    )
+  }
+  photoArray.push(photoId)
+}
+
+export function iterateIdb(
+  dbName,
+  dbVersion,
+  objectStoreName,
+  cursorMapFn,
+  isWrite = false,
+) {
+  return new Promise((resolve, reject) => {
+    const openRequest = indexedDB.open(dbName, dbVersion)
+    openRequest.onupgradeneeded = e => {
+      // if an upgrade is needed, the requested DB version did NOT exist
+      e.target.transaction.abort()
+      console.debug(
+        `IndexedDB database ${dbName}, version ${dbVersion}, does not exist, ` +
+          `skipping migration`,
+      )
+      return resolve([])
+    }
+    openRequest.onerror = () => {
+      reject(
+        chainedError(
+          `Failed to open IndexedDB '${dbName}' (version ${dbVersion})`,
+          openRequest.error,
+        ),
+      )
+    }
+    openRequest.onsuccess = e => {
+      const database = e.target.result
+      const mode = isWrite ? 'readwrite' : 'readonly'
+      try {
+        const transaction = database.transaction([objectStoreName], mode)
+        const mappedItems = new Set()
+        const objectStore = transaction.objectStore(objectStoreName)
+        const request = objectStore.openCursor()
+        request.addEventListener('success', e => {
+          const cursor = e.target.result
+          if (cursor) {
+            const mapped = cursorMapFn(cursor)
+            if (mapped) {
+              mappedItems.add(mapped)
+            }
+            cursor.continue()
+            return
+          }
+          const result = []
+          for (const curr of mappedItems.keys()) {
+            result.push(curr)
+          }
+          database.close()
+          return resolve(result)
+        })
+        request.addEventListener('error', reject)
+      } catch (err) {
+        database.close()
+        if (err.name === 'NotFoundError') {
+          return resolve([])
+        }
+        return reject(
+          chainedError(`Failed to open objectStore '${objectStoreName}'`, err),
+        )
+      }
+    }
+  })
 }

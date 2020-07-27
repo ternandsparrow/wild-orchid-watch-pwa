@@ -1,12 +1,14 @@
 import { isNil } from 'lodash'
+import dayjs from 'dayjs'
 import { wrap as comlinkWrap } from 'comlink'
 import dms2dec from 'dms2dec'
 import * as constants from '@/misc/constants'
 import {
+  convertExifDateStr,
   getExifFromBlob,
+  isInBoundingBox,
   wowWarnHandler,
   wowWarnMessage,
-  isInBoundingBox,
 } from '@/misc/helpers'
 
 /**
@@ -42,7 +44,10 @@ const state = {
   photoCoords: [],
   deviceCoords: null,
   manualCoords: null,
-  geolocationMethod: 'photo',
+  geolocationMethod: null,
+  datetimeMethod: null,
+  manualDatetime: null,
+  photoDatetimes: [],
   photoOutsideBboxErrorMsg: null,
   photoProcessingTasks: [],
   hadSuccessfulDeviceLocReq: false, // in ephemeral so we only remember it for a session
@@ -74,7 +79,17 @@ const mutations = {
   flagGlobalError: (state, value) => {
     state.isGlobalErrorState = true
     if (typeof value === 'object') {
-      state.globalErrorUserMsg = value.msg
+      const fullMsg = (() => {
+        if (!value.isNetworkErrorWow) {
+          return value.msg
+        }
+        return (
+          `${value.msg}.\nThis looks to be caused by a network issue like ` +
+          `(dis)connecting to/from WiFi, being offline or poor reception. ` +
+          `Try again once you know you have an internet connection.`
+        )
+      })()
+      state.globalErrorUserMsg = fullMsg
       state.globalErrorImgUrl = value.imgUrl
       return
     }
@@ -94,20 +109,40 @@ const mutations = {
   closePhotoPreview: state => (state.previewedPhoto = null),
   pushConsoleMsg: (state, msg) => state.consoleMsgs.push(msg),
   clearConsoleMsgs: state => (state.consoleMsgs = []),
-  resetCoordsState: state => {
+  resetCoordsState: (state, geolocationMethod) => {
     state.photoCoords = []
     state.deviceCoords = null
     state.manualCoords = null
-    state.geolocationMethod = 'photo'
-    state.photoProcessingTasks = []
+    state.geolocationMethod = geolocationMethod
     state.photoOutsideBboxErrorMsg = null
   },
   setGeolocationMethod: (state, method) => (state.geolocationMethod = method),
+  resetDatetimeState: (state, datetimeMethod) => {
+    state.photoDatetimes = []
+    state.manualDatetime = null
+    state.datetimeMethod = datetimeMethod
+  },
+  resetPhotoProcessingTasks: state => {
+    state.photoProcessingTasks = []
+  },
+  setDatetimeMethod: (state, method) => (state.datetimeMethod = method),
   setDeviceCoords: (state, value) => (state.deviceCoords = value),
   setPhotoOutsideBboxErrorMsg: (state, value) =>
     (state.photoOutsideBboxErrorMsg = value),
   clearPhotoOutsideBboxErrorMsg: state =>
     (state.photoOutsideBboxErrorMsg = null),
+  pushPhotoDatetime: (state, newDatetime) =>
+    state.photoDatetimes.push(newDatetime),
+  popDatetimeForPhoto: (state, photoUuid) => {
+    const indexOfPhoto = state.photoDatetimes.findIndex(
+      p => p.photoUuid === photoUuid,
+    )
+    if (!~indexOfPhoto) {
+      // we don't have datetime for this photo, nothing to do
+      return
+    }
+    state.photoDatetimes.splice(indexOfPhoto, 1)
+  },
   pushPhotoCoords: (state, newCoords) => state.photoCoords.push(newCoords),
   popCoordsForPhoto: (state, photoUuid) => {
     const indexOfPhoto = state.photoCoords.findIndex(
@@ -119,15 +154,21 @@ const mutations = {
     }
     state.photoCoords.splice(indexOfPhoto, 1)
   },
-  updateUrlForPhotoCoords: (state, { uuid, newUrl }) => {
-    const found = state.photoCoords.find(p => p.photoUuid === uuid)
-    if (!found) {
-      // we don't have coords for this photo, nothing to do
-      return
+  updateUrlForPhotoCoordsAndDatetime: (state, { uuid, newUrl }) => {
+    doIt('photoDatetimes')
+    doIt('photoCoords')
+
+    function doIt(stateFieldName) {
+      const found = state[stateFieldName].find(p => p.photoUuid === uuid)
+      if (!found) {
+        // we don't have anything stored for this photo, nothing to do
+        return
+      }
+      found.url = newUrl
     }
-    found.url = newUrl
   },
   setManualCoords: (state, coords) => (state.manualCoords = coords),
+  setManualDatetime: (state, datetime) => (state.manualDatetime = datetime),
   addPhotoProcessingTask: (state, taskTracker) =>
     state.photoProcessingTasks.push(taskTracker),
   markPhotoProcessingTaskDone: (state, taskUuid) => {
@@ -157,10 +198,11 @@ const actions = {
      * Trigger service worker skipWating so the new service worker can take over.
      * This will also trigger a window refresh (see /src/misc/register-service-worker.js)
      */
-    if (isNil(state.SWRegistrationForNewContent)) {
+    if (!(state.SWRegistrationForNewContent || {}).waiting) {
       return
     }
     commit('setRefreshingApp', true)
+    console.debug('Swapping to new service worker (AKA skipWaiting)')
     state.SWRegistrationForNewContent.waiting.postMessage(
       constants.skipWaitingMsg,
     )
@@ -222,6 +264,7 @@ const actions = {
       })()
       const originalImageSizeMb = blobish.size / 1024 / 1024
       await dispatch('processExifCoords', { originalMetadata, photoObj })
+      await dispatch('processExifDatetime', { originalMetadata, photoObj })
       if (!rootState.app.isEnablePhotoCompression) {
         console.debug('Photo compression disabled, using original photo')
         return blobish
@@ -274,6 +317,24 @@ const actions = {
     } finally {
       commit('markPhotoProcessingTaskDone', photoObj.uuid)
     }
+  },
+  processExifDatetime({ commit, dispatch }, { originalMetadata, photoObj }) {
+    const rawValue =
+      originalMetadata.DateTimeOriginal || originalMetadata.DateTime
+    const parsedValue = dayjs(convertExifDateStr(rawValue))
+    if (!rawValue || !parsedValue.isValid()) {
+      dispatch('uiTrace', {
+        category: 'store/ephemeral',
+        action: `attached photo is missing datetime`,
+      })
+      console.debug(`Attached photo is missing datetime`)
+      return
+    }
+    commit('pushPhotoDatetime', {
+      value: parsedValue.unix() * 1000,
+      photoUuid: photoObj.uuid,
+      url: photoObj.url,
+    })
   },
   processExifCoords({ commit, dispatch }, { originalMetadata, photoObj }) {
     const { lat, lng } = extractGps(originalMetadata)
@@ -340,7 +401,7 @@ const actions = {
       })
     state.$ga && state.$ga.event(category, action)
   },
-  markUserGeolocation({ commit }) {
+  markUserGeolocation({ commit, rootState }) {
     if (!navigator.geolocation) {
       console.debug('Geolocation is not supported by user agent')
       return Promise.reject(constants.notSupported)
@@ -386,6 +447,7 @@ const actions = {
         },
         {
           timeout: 5000, // milliseconds
+          enableHighAccuracy: rootState.app.isEnableHighAccuracy,
         },
       )
     })
@@ -405,9 +467,37 @@ const getters = {
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
   isLocalProcessorRunning: state => !!state.queueProcessorPromise,
-  coordsForCurrentlyEditingObs(state, getters) {
+  datetimeForCurrentlyEditingObs(state, getters, _, rootGetters) {
+    const datetimeMethod = state.datetimeMethod
+    switch (datetimeMethod) {
+      case 'existing':
+        return (() => {
+          const editingObs = rootGetters['obs/observationDetail'] || {}
+          return { value: editingObs.observedAt }
+        })()
+      case 'photo':
+        return getters.datetimeOfOldestPhoto
+      case 'device':
+        return { value: Date.now() }
+      case 'manual':
+        return { value: state.manualDatetime }
+      default:
+        throw new Error(
+          'Programmer problem: unhandled datetimeMethod=' + datetimeMethod,
+        )
+    }
+  },
+  coordsForCurrentlyEditingObs(state, getters, _, rootGetters) {
     const geoMethod = state.geolocationMethod
     switch (geoMethod) {
+      case 'existing':
+        return (() => {
+          const editingObs = rootGetters['obs/observationDetail'] || {}
+          return {
+            lat: editingObs.lat,
+            lng: editingObs.lng,
+          }
+        })()
       case 'photo':
         return getters.oldestPhotoCoords
       case 'device':
@@ -422,6 +512,9 @@ const getters = {
   },
   oldestPhotoCoords(state) {
     return state.photoCoords[0]
+  },
+  datetimeOfOldestPhoto(state) {
+    return state.photoDatetimes[0]
   },
   photosStillCompressingCount(state) {
     return state.photoProcessingTasks.filter(e => !e.isDone).length

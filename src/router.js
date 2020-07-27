@@ -2,9 +2,14 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 
 import store from '@/store'
-import { mainStackReplace } from '@/misc/nav-stacks'
+import {
+  mainStackReplace,
+  isOnboarderVisible as isOnboarderVisibleFn,
+} from '@/misc/nav-stacks'
+import { onboarderPath } from '@/misc/constants'
 
 import Admin from '@/pages/Admin'
+import BugReport from '@/pages/BugReport'
 import FAQ from '@/pages/faq/index'
 import Gallery from '@/pages/obs/Gallery'
 import HelpPage from '@/pages/HelpPage'
@@ -35,6 +40,12 @@ const router = new VueRouter({
       path: '/',
       name: 'Home',
       component: homeComponent,
+      beforeEnter: (to, from, next) => {
+        if (store.state.app.isFirstRun && !isOnboarderVisibleFn()) {
+          return next({ name: 'Onboarder' })
+        }
+        return next()
+      },
     },
     {
       path: '/obs/gallery',
@@ -66,7 +77,12 @@ const router = new VueRouter({
       path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
-      beforeEnter: resolveObsByIdOrNotFound,
+      beforeEnter: function(to, from, next) {
+        const selectedMethod = 'existing'
+        store.commit('ephemeral/resetCoordsState', selectedMethod)
+        store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        return resolveObsByIdOrNotFound(to, from, next)
+      },
       meta: {
         isEdit: true,
       },
@@ -75,14 +91,19 @@ const router = new VueRouter({
       path: '/obs/new',
       name: 'ObsNewSingleSpecies',
       component: SingleSpecies,
+      beforeEnter: function(to, from, next) {
+        const selectedMethod = 'photo'
+        store.commit('ephemeral/resetCoordsState', selectedMethod)
+        store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        return next()
+      },
       meta: {
         isEdit: false,
       },
     },
-    // TODO use /obs/new-community for multiple species
     // TODO use /obs/new-mapping for mapping record
     {
-      path: '/onboarder',
+      path: onboarderPath,
       name: 'Onboarder',
       component: Onboarder,
     },
@@ -136,6 +157,11 @@ const router = new VueRouter({
       path: '/zzadmin',
       name: 'Admin',
       component: Admin,
+    },
+    {
+      path: '/bug-report',
+      name: 'BugReport',
+      component: BugReport,
     },
     {
       path: '/not-found',

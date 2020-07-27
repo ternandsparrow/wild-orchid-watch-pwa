@@ -1,25 +1,24 @@
-import { alwaysUpload, appTitle } from '@/misc/constants'
+import { alwaysUpload } from '@/misc/constants'
 
 const state = {
   // remember we restore state from localStorage, so these are defaults
-  appTitle: appTitle,
   isFirstRun: true,
-  tsAndCsAccepted: false,
   whenToSync: alwaysUpload,
-  isAdvancedUserMode: false,
+  isDetailedUserMode: false,
   addToHomeIosPromptLastDate: null,
   isEnablePhotoCompression: false,
+  isEnableHighAccuracy: false,
 }
 
 const mutations = {
   setIsFirstRun: (state, value) => (state.isFirstRun = value),
-  setTsAndCsAccepted: (state, value) => (state.tsAndCsAccepted = value),
   setWhenToSync: (state, value) => (state.whenToSync = value),
-  setIsAdvancedUserMode: (state, value) => (state.isAdvancedUserMode = value),
+  setIsDetailedUserMode: (state, value) => (state.isDetailedUserMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
   setEnablePhotoCompression: (state, value) =>
     (state.isEnablePhotoCompression = value),
+  setEnableHighAccuracy: (state, value) => (state.isEnableHighAccuracy = value),
 }
 
 const actions = {}

@@ -80,33 +80,28 @@
       </v-ons-carousel-item>
       <v-ons-carousel-item>
         <v-ons-card class="wow-card">
-          <v-ons-list>
-            <v-ons-list-item tappable>
-              <label class="left">
-                <v-ons-checkbox v-model="tsAndCsAccepted" input-id="accepted">
-                </v-ons-checkbox>
-              </label>
-              <label class="center" for="accepted">
-                I have read and accepted the WoW Field Data Collection App's
-                Terms and Conditions; and I acknowledge that I will only use the
-                app in locations where I have permission to do so.
-              </label>
-            </v-ons-list-item>
-            <ons-list-item>
-              <div>
-                <!-- FIXME tell user they'll be logging in with iNat? -->
-                <v-ons-button
-                  v-if="!tsAndCsAccepted"
-                  name="show-tcs-btn"
-                  @click="showTAndCs"
-                  >View Terms and Conditions</v-ons-button
-                >
-                <v-ons-button v-if="tsAndCsAccepted" @click="handleDoneClick"
-                  >OK, let's go...!
-                </v-ons-button>
-              </div>
-            </ons-list-item>
-          </v-ons-list>
+          <p class="spaced-lines">
+            By using The WOW app in partnership with iNaturalist you agree to
+            the
+            <a href="https://www.inaturalist.org/pages/terms" target="_blank"
+              >iNaturalist Terms of Service</a
+            >
+            and
+            <a href="http://www.inaturalist.org/pages/privacy" target="_blank"
+              >Privacy Policy</a
+            >.
+          </p>
+          <p class="spaced-lines">
+            For more information please see
+            <a href="www.wildorchidwatch.org/wowapp" target="_blank"
+              >WOW FAQs page</a
+            >.
+          </p>
+          <div>
+            <v-ons-button @click="handleLoginClick"
+              >Login with iNaturalist
+            </v-ons-button>
+          </div>
         </v-ons-card>
       </v-ons-carousel-item>
     </v-ons-carousel>
@@ -116,14 +111,6 @@
       :extra-styles="extraDotsStyle"
       @dot-click="onDotClick"
     ></carousel-dots>
-    <v-ons-dialog cancelable :visible.sync="tsAndCsModalVisible">
-      <div class="wow-t-c-container">
-        <div class="iframe-wrapper" :class="{ 'make-safari-scroll': isIos }">
-          <iframe src="/wow-t-and-c-v3.html" frameborder="0"></iframe>
-        </div>
-        <div class="close-btn" @click="onTAndCsCloseClick">Close</div>
-      </div>
-    </v-ons-dialog>
   </v-ons-page>
 </template>
 
@@ -145,18 +132,9 @@ export default {
         color: '#333',
         'z-index': 1, // WOW-60 needed for Firefox
       },
-      tsAndCsModalVisible: false,
     }
   },
   computed: {
-    tsAndCsAccepted: {
-      get() {
-        return this.$store.state.app.tsAndCsAccepted
-      },
-      set(newVal) {
-        this.$store.commit('app/setTsAndCsAccepted', newVal)
-      },
-    },
     isIos() {
       return navigator.userAgent.match(/(iPod|iPhone|iPad)/)
     },
@@ -169,21 +147,13 @@ export default {
     this.$router.replace({ name: 'Home' })
   },
   methods: {
-    handleDoneClick() {
-      this.$wow.uiTrace('Onboarder', 'done')
+    handleLoginClick() {
+      this.$wow.uiTrace('Onboarder', 'login')
       this.$store.commit('app/setIsFirstRun', false)
       this.$store.dispatch('auth/doLogin')
     },
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
-    },
-    showTAndCs() {
-      this.$wow.uiTrace('Onboarder', 'T&C open')
-      this.tsAndCsModalVisible = true
-    },
-    onTAndCsCloseClick() {
-      this.$wow.uiTrace('Onboarder', 'T&C close')
-      this.tsAndCsModalVisible = false
     },
   },
 }
@@ -271,5 +241,9 @@ export default {
   color: #747474;
   font-size: 0.8em;
   margin: 0;
+}
+
+.spaced-lines {
+  line-height: 1.5em;
 }
 </style>
