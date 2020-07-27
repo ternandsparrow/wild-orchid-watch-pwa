@@ -53,6 +53,7 @@ const state = {
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
   forceQueueProcessingAtNextChance: false,
+  lastUsedResponses: {},
 }
 
 const mutations = {
@@ -96,6 +97,7 @@ const mutations = {
   },
   setForceQueueProcessingAtNextChance: (state, value) =>
     (state.forceQueueProcessingAtNextChance = value),
+  setLastUsedResponses: (state, value) => (state.lastUsedResponses = value),
 }
 
 const actions = {
