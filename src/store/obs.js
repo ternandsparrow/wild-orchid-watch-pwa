@@ -1582,12 +1582,12 @@ const getters = {
     return getters.deletesWithErrorDbIds.length
   },
   localRecords(state) {
-    // TODO refactor this nested loops stuff to be more efficient
+    const remoteRecordLookup = state.allRemoteObs.reduce((accum, curr) => {
+      accum[curr.uuid] = curr
+      return accum
+    }, {})
     return state._uiVisibleLocalRecords.map(currLocal => {
-      const existingValues =
-        state.allRemoteObs.find(
-          currRemote => currRemote.uuid === currLocal.uuid,
-        ) || {}
+      const existingValues = remoteRecordLookup[currLocal.uuid] || {}
       const dontModifyTheOtherObjects = {}
       return Object.assign(dontModifyTheOtherObjects, existingValues, currLocal)
     })
@@ -1698,6 +1698,17 @@ function resolveLocalRecordUuids(ids) {
       const result = {
         ...currRecord,
         photos,
+        wowMeta: {
+          ...currRecord.wowMeta,
+          [constants.photosToAddFieldName]: currRecord.wowMeta[
+            constants.photosToAddFieldName
+          ].map(p => ({
+            // we don't need ArrayBuffers of photos in memory, slowing things down
+            type: p.type,
+            id: p.id,
+            fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
+          })),
+        },
       }
       commonApiToOurDomainObsMapping(result, currRecord)
       return result

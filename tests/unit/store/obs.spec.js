@@ -1370,6 +1370,7 @@ describe('actions', () => {
         wowMeta: {
           [constants.recordTypeFieldName]: 'new',
           [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.photosToAddFieldName]: [],
         },
       }
       await obsStore.setItem('123A', record)
@@ -1395,6 +1396,7 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.photosToAddFieldName]: [],
           },
         },
       ])
@@ -1498,6 +1500,7 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.recordTypeFieldName]: 'new',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -1524,6 +1527,7 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
             [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -1548,7 +1552,13 @@ describe('actions', () => {
     )
 
     it('should queue a delete action for the remote record', async () => {
-      await obsStore.setItem('123A', { uuid: '123A', photos: [], wowMeta: {} })
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+        photos: [],
+        wowMeta: {
+          [constants.photosToAddFieldName]: [],
+        },
+      })
       const state = {
         selectedObservationId: 666,
         allRemoteObs: [{ uuid: '123A', inatId: 666 }],
@@ -1585,6 +1595,7 @@ describe('actions', () => {
             [constants.photoIdsToDeleteFieldName]: [
               'this should get clobbered',
             ],
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -1622,6 +1633,7 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
             [constants.recordTypeFieldName]: 'edit',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
