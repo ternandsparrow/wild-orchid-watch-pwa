@@ -1680,41 +1680,39 @@ function isErrorOutcome(outcome) {
   return [constants.systemErrorOutcome].includes(outcome)
 }
 
-function resolveLocalRecordUuids(ids) {
+async function resolveLocalRecordUuids(ids) {
   photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
   photoObjectUrlsInUse = []
-  const promises = ids
-    .map(async currId => {
-      const currRecord = await getRecord(currId)
-      if (!currRecord) {
-        const msg =
-          `Could not resolve ID=${currId} to a DB record.` +
-          ' Assuming it was deleted while we were busy processing.'
-        wowWarnHandler(msg)
-        const nothingToDoFilterMeOut = null
-        return nothingToDoFilterMeOut
-      }
-      const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
-      const result = {
-        ...currRecord,
-        photos,
-        wowMeta: {
-          ...currRecord.wowMeta,
-          [constants.photosToAddFieldName]: currRecord.wowMeta[
-            constants.photosToAddFieldName
-          ].map(p => ({
-            // we don't need ArrayBuffers of photos in memory, slowing things down
-            type: p.type,
-            id: p.id,
-            fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
-          })),
-        },
-      }
-      commonApiToOurDomainObsMapping(result, currRecord)
-      return result
-    })
-    .filter(e => !!e)
-  return Promise.all(promises)
+  const promises = ids.map(async currId => {
+    const currRecord = await getRecord(currId)
+    if (!currRecord) {
+      const msg =
+        `Could not resolve ID=${currId} to a DB record.` +
+        ' Assuming it was deleted while we were busy processing.'
+      wowWarnHandler(msg)
+      const nothingToDoFilterMeOut = null
+      return nothingToDoFilterMeOut
+    }
+    const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
+    const result = {
+      ...currRecord,
+      photos,
+      wowMeta: {
+        ...currRecord.wowMeta,
+        [constants.photosToAddFieldName]: currRecord.wowMeta[
+          constants.photosToAddFieldName
+        ].map(p => ({
+          // we don't need ArrayBuffers of photos in memory, slowing things down
+          type: p.type,
+          id: p.id,
+          fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
+        })),
+      },
+    }
+    commonApiToOurDomainObsMapping(result, currRecord)
+    return result
+  })
+  return (await Promise.all(promises)).filter(e => !!e)
 }
 
 function mapPhotoFromDbToUi(p) {
