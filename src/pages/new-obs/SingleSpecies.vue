@@ -1767,5 +1767,8 @@ $thumbnailSize: 75px;
 
 .copy-last-value-btn {
   color: #777;
+  text-transform: none;
+  font-size: 1em;
+  margin-top: 0.5em;
 }
 </style>
