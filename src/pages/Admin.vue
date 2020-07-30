@@ -175,6 +175,9 @@
         >
       </div>
     </v-ons-card>
+    <wow-generate-crypto-keys />
+    <wow-test-encrypt-payload />
+    <wow-decrypt-payload />
     <v-ons-card>
       <div class="title">
         Platform test
@@ -230,12 +233,18 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Force refresh project info
+        Force refresh
       </div>
       <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
       <p>
         <v-ons-button @click="doProjectInfoRefresh"
           >Get fresh project info now</v-ons-button
+        >
+      </p>
+      <p>User details last updated at: {{ userDetailsLastUpdatedPretty }}</p>
+      <p>
+        <v-ons-button @click="doUserDetailsRefresh"
+          >Get fresh user details now</v-ons-button
         >
       </p>
     </v-ons-card>
@@ -416,7 +425,6 @@
 <script>
 import { mapGetters, mapState } from 'vuex'
 import uuid from 'uuid/v1'
-import dayjs from 'dayjs'
 import _ from 'lodash'
 import * as Comlink from 'comlink'
 
@@ -425,6 +433,7 @@ import { mainStack } from '@/misc/nav-stacks'
 import * as constants from '@/misc/constants'
 import {
   clearLocalStorage,
+  humanDateString,
   isSwActive,
   triggerSwWowQueue,
   unregisterAllServiceWorkers,
@@ -485,7 +494,11 @@ export default {
     },
     projectInfoLastUpdatedPretty() {
       const luDate = this.$store.state.obs.projectInfoLastUpdated
-      return dayjs(luDate || 0)
+      return humanDateString(luDate || 0)
+    },
+    userDetailsLastUpdatedPretty() {
+      const luDate = this.$store.state.auth.userDetailsLastUpdated
+      return humanDateString(luDate || 0)
     },
     userAgent() {
       return (window.navigator || { userAgent: '(no window.navigator)' })
@@ -711,6 +724,9 @@ export default {
     },
     async doProjectInfoRefresh() {
       await this.$store.dispatch('obs/getProjectInfo')
+    },
+    async doUserDetailsRefresh() {
+      await this.$store.dispatch('auth/updateUserDetails')
     },
     async enableSwConsoleProxy() {
       this.hasSwConsoleBeenProxied = true

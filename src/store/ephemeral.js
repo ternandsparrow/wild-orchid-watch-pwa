@@ -300,6 +300,7 @@ const actions = {
         const compressedBlobish = await imageCompressionWorker.resize(
           blobish,
           maxWidthOrHeight,
+          constants.photoCompressionJpgQuality,
         )
         return compressedBlobish
       } catch (err) {

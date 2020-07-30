@@ -130,6 +130,8 @@ jobs:
             VUE_APP_GCP_ERRORS_API_KEY=$PROD_GCP_ERRORS_API_KEY
             VUE_APP_SW_QUEUE_MAX_RETENTION=$PROD_SW_QUEUE_MAX_RETENTION
             VUE_APP_ENABLE_WORKBOX_LOGGING=${PROD_ENABLE_WORKBOX_LOGGING:-false}
+            VUE_APP_PHOTO_COMP_JPEG_QUAL=${PROD_PHOTO_COMP_JPEG_QUAL}
+            VUE_APP_PUBLIC_JWK=${PROD_PUBLIC_JWK}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -211,6 +213,8 @@ jobs:
             VUE_APP_GCP_ERRORS_API_KEY=$BETA_GCP_ERRORS_API_KEY
             VUE_APP_SW_QUEUE_MAX_RETENTION=$BETA_SW_QUEUE_MAX_RETENTION
             VUE_APP_ENABLE_WORKBOX_LOGGING=${BETA_ENABLE_WORKBOX_LOGGING:-true}
+            VUE_APP_PHOTO_COMP_JPEG_QUAL=${BETA_PHOTO_COMP_JPEG_QUAL}
+            VUE_APP_PUBLIC_JWK=${BETA_PUBLIC_JWK}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -292,6 +296,8 @@ jobs:
             VUE_APP_GCP_ERRORS_API_KEY=$DEV_GCP_ERRORS_API_KEY
             VUE_APP_SW_QUEUE_MAX_RETENTION=$DEV_SW_QUEUE_MAX_RETENTION
             VUE_APP_ENABLE_WORKBOX_LOGGING=${DEV_ENABLE_WORKBOX_LOGGING:-true}
+            VUE_APP_PHOTO_COMP_JPEG_QUAL=${DEV_PHOTO_COMP_JPEG_QUAL}
+            VUE_APP_PUBLIC_JWK=${DEV_PUBLIC_JWK}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile

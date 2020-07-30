@@ -50,10 +50,13 @@ export function chainedError(msg, err) {
       // Store a blob in Safari's IndexedDB on iOS (not macOS) and it will
       // throw an error with message = "An unknown error occurred within
       // Indexed Database.". That error will have the 'message' property set as
-      // readonly and that's how you get here.
+      // readonly and that's how you get here. Probably any DOMException is the
+      // same.
       console.warn(
         `While handling the first error:\n` +
-          `  ${err.message}\n` +
+          `  [name=${err.name}, type=${
+            (err.constructor || {}).name
+          }] ${err.message || '(no message)'}\n` +
           `encountered this error:\n` +
           `  ${err2.message}\n` +
           `but we're working around it! Bubbling original error now.`,
