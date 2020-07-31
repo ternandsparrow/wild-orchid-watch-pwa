@@ -344,11 +344,11 @@ export const swQueuePeriodicTrigger = convertAndAssertInteger(
 )
 
 export const bboxLatMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MIN || -43.7,
+  process.env.VUE_APP_BBOX_LAT_MIN || -55,
 )
 
 export const bboxLatMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MAX || -10.4,
+  process.env.VUE_APP_BBOX_LAT_MAX || -10,
 )
 
 if (bboxLatMin >= bboxLatMax) {
@@ -360,11 +360,11 @@ if (bboxLatMin >= bboxLatMax) {
 }
 
 export const bboxLonMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MIN || 112,
+  process.env.VUE_APP_BBOX_LON_MIN || 105,
 )
 
 export const bboxLonMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MAX || 154,
+  process.env.VUE_APP_BBOX_LON_MAX || 168,
 )
 
 if (bboxLonMin >= bboxLonMax) {
