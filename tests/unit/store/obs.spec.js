@@ -1446,50 +1446,6 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
-    async function buildContext(state, capturedCommits) {
-      const result = {
-        state: {
-          _uiVisibleLocalRecords: [],
-          localQueueSummary: [],
-          ...state,
-        },
-        getters: {},
-        commit: (name, value) => {
-          switch (name) {
-            case 'setLocalQueueSummary':
-            case 'setUiVisibleLocalRecords':
-              objectUnderTest.mutations[name](result.state, value)
-              refreshGetters()
-              break
-            default:
-              capturedCommits[name] = value
-          }
-        },
-        dispatch: (actionName, argsObj) => {
-          const availableActions = Object.assign({}, objectUnderTest.actions, {
-            processLocalQueue: () => Promise.resolve(),
-          })
-          const action = availableActions[actionName]
-          if (!action) {
-            console.error(
-              `Cannot find action with name='${actionName}'` +
-                '. Passed args = ',
-              argsObj,
-            )
-            return // can't throw because there's nothing to catch
-          }
-          return action(result, argsObj)
-        },
-      }
-      await objectUnderTest.actions.refreshLocalRecordQueue(result)
-      return result
-      function refreshGetters() {
-        result.getters.localRecords = objectUnderTest.getters.localRecords(
-          result.state,
-        )
-      }
-    }
-
     it(
       'should directly delete a local-only record that has NOT ' +
         'started processing',
@@ -1504,16 +1460,15 @@ describe('actions', () => {
           },
         })
         const state = {
-          selectedObservationId: '123A',
           allRemoteObs: [],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toBeNull()
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
@@ -1531,12 +1486,11 @@ describe('actions', () => {
           },
         })
         const state = {
-          selectedObservationId: '123A',
           allRemoteObs: [],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
@@ -1547,7 +1501,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
@@ -1560,12 +1514,11 @@ describe('actions', () => {
         },
       })
       const state = {
-        selectedObservationId: 666,
         allRemoteObs: [{ uuid: '123A', inatId: 666 }],
       }
       const capturedCommits = {}
       await objectUnderTest.actions.deleteSelectedRecord(
-        await buildContext(state, capturedCommits),
+        await buildContext(state, capturedCommits, '123A'),
       )
       const result = await obsStore.getItem('123A')
       expect(result).toEqual({
@@ -1579,7 +1532,7 @@ describe('actions', () => {
           [constants.obsFieldIdsToDeleteFieldName]: [],
         },
       })
-      expect(capturedCommits.setSelectedObservationId).toBeNull()
+      expect(capturedCommits.setSelectedObservationUuid).toBeNull()
     })
 
     it(
@@ -1599,12 +1552,11 @@ describe('actions', () => {
           },
         })
         const state = {
-          selectedObservationId: 666,
           allRemoteObs: [{ uuid: '123A', inatId: 666 }],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toEqual({
@@ -1618,7 +1570,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
@@ -1637,12 +1589,11 @@ describe('actions', () => {
           },
         })
         const state = {
-          selectedObservationId: 666,
           allRemoteObs: [{ uuid: '123A', inatId: 666 }],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
@@ -1654,7 +1605,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
   })
@@ -1667,50 +1618,39 @@ describe('actions', () => {
     })
 
     it('should delete a local record when it exists', async () => {
-      await obsStore.setItem('123A', { uuid: '123A' })
-      const state = {
-        selectedObservationId: '123A',
-        localQueueSummary: [
-          {
-            uuid: '123A',
-          },
-        ],
-      }
-      const capturedCommits = {}
-      await objectUnderTest.actions.deleteSelectedLocalRecord({
-        state,
-        commit: (name, value) => (capturedCommits[name] = value),
-        dispatch: (actionName, argsObj) => {
-          return objectUnderTest.actions[actionName](
-            { state, commit: () => {} },
-            argsObj,
-          )
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+        wowMeta: {
+          [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.recordTypeFieldName]: 'new',
+          [constants.photosToAddFieldName]: [],
         },
       })
+      const state = {
+        allRemoteObs: [],
+      }
+      const capturedCommits = {}
+      await objectUnderTest.actions.deleteSelectedLocalRecord(
+        await buildContext(state, capturedCommits, '123A'),
+      )
       const result = await obsStore.getItem('123A')
       expect(result).toBeNull()
-      expect(capturedCommits.setSelectedObservationId).toBeNull()
+      expect(capturedCommits.setSelectedObservationUuid).toBeNull()
     })
 
     it('should throw the expected error when we try to delete a non-existent ID', async () => {
       // obsStore is empty
-      const state = {
-        selectedObservationId: 'NOT-REAL-ID',
-        localQueueSummary: [],
-      }
       try {
-        await objectUnderTest.actions.deleteSelectedLocalRecord({
-          state,
-          dispatch: (actionName, argsObj) => {
-            return objectUnderTest.actions[actionName](
-              { state, commit: () => {} },
-              argsObj,
-            )
-          },
-        })
+        const state = {
+          allRemoteObs: [],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedLocalRecord(
+          await buildContext(state, capturedCommits, 'NOT-REAL-ID'),
+        )
       } catch (err) {
         expect(err.message).toEqual(
-          expect.stringMatching(/^Failed to delete local edit/),
+          expect.stringMatching(/^Failed to delete local record/),
         )
         return
       }
@@ -2492,6 +2432,50 @@ function getApiRecord() {
     },
     faves: [],
     non_owner_ids: [],
+  }
+}
+
+async function buildContext(state, capturedCommits, selectedObservationUuid) {
+  const result = {
+    state: {
+      _uiVisibleLocalRecords: [],
+      localQueueSummary: [],
+      selectedObservationUuid,
+      ...state,
+    },
+    commit: (name, value) => {
+      switch (name) {
+        case 'setLocalQueueSummary':
+        case 'setUiVisibleLocalRecords':
+          objectUnderTest.mutations[name](result.state, value)
+          refreshGetters()
+          break
+        default:
+          capturedCommits[name] = value
+      }
+    },
+    getters: {},
+    dispatch: (actionName, argsObj) => {
+      const availableActions = Object.assign({}, objectUnderTest.actions, {
+        processLocalQueue: () => Promise.resolve(),
+      })
+      const action = availableActions[actionName]
+      if (!action) {
+        console.error(
+          `Cannot find action with name='${actionName}'` + '. Passed args = ',
+          argsObj,
+        )
+        return // can't throw because there's nothing to catch
+      }
+      return action(result, argsObj)
+    },
+  }
+  await objectUnderTest.actions.refreshLocalRecordQueue(result)
+  return result
+  function refreshGetters() {
+    result.getters.localRecords = objectUnderTest.getters.localRecords(
+      result.state,
+    )
   }
 }
 

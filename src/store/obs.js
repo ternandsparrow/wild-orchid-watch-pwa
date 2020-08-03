@@ -46,7 +46,7 @@ const state = {
   isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
-  selectedObservationId: null,
+  selectedObservationUuid: null,
   _uiVisibleLocalRecords: [],
   localQueueSummary: [],
   projectInfo: null,
@@ -57,8 +57,8 @@ const state = {
 }
 
 const mutations = {
-  setSelectedObservationId: (state, value) =>
-    (state.selectedObservationId = value),
+  setSelectedObservationUuid: (state, value) =>
+    (state.selectedObservationUuid = value),
   setMySpecies: (state, value) => {
     state.mySpecies = value
     state.mySpeciesLastUpdated = now()
@@ -1378,34 +1378,46 @@ const actions = {
     }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
-    const selectedId = state.selectedObservationId
+    const selectedUuid = state.selectedObservationUuid
+    if (!selectedUuid) {
+      throw namedError(
+        'InvalidState',
+        'Tried to delete local record for the selected observation but no ' +
+          'observation is selected',
+      )
+    }
     try {
-      const dbId = await dispatch('findDbIdForWowId', selectedId)
+      const dbId = await dispatch('findDbIdForWowId', selectedUuid)
       await deleteDbRecordById(dbId)
-      commit('setSelectedObservationId', null)
+      commit('setSelectedObservationUuid', null)
       return dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw new chainedError(
-        `Failed to delete local edit for ID='${selectedId}'`,
+        `Failed to delete local record for UUID='${selectedUuid}'`,
         err,
       )
     }
   },
   async deleteSelectedRecord({ state, dispatch, commit }) {
-    const wowId = state.selectedObservationId
+    const selectedUuid = state.selectedObservationUuid
     const localQueueSummaryForDeleteTarget =
-      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
+      state.localQueueSummary.find(e => e.uuid === selectedUuid) || {}
+    if (!localQueueSummaryForDeleteTarget) {
+      throw namedError(
+        'NoSummaryFound',
+        `Tried to find local summary for UUID='${selectedUuid}' but couldn't.`,
+      )
+    }
     const isProcessingQueuedNow = isObsStateProcessing(
       localQueueSummaryForDeleteTarget[
         constants.recordProcessingOutcomeFieldName
       ],
     )
     const existingRemoteRecord =
-      state.allRemoteObs.find(e => wowIdOf(e) === wowId) || {}
+      state.allRemoteObs.find(e => e.uuid === selectedUuid) || {}
     const record = {
       inatId: existingRemoteRecord.inatId,
-      // if we don't have a remote record, the wowId will be a uuid
-      uuid: existingRemoteRecord.uuid || wowId,
+      uuid: existingRemoteRecord.uuid || selectedUuid,
       wowMeta: {
         [constants.recordTypeFieldName]: recordType('delete'),
       },
@@ -1417,9 +1429,9 @@ const actions = {
       switch (strategyKey) {
         case 'noprocessing.noremote':
           console.debug(
-            `Record with WOW ID='${wowId}' is local-only so deleting right now.`,
+            `Record with UUID='${selectedUuid}' is local-only so deleting right now.`,
           )
-          return dispatch('deleteSelectedLocalRecord', wowId)
+          return dispatch('deleteSelectedLocalRecord')
         case 'noprocessing.remote':
           return dispatch('upsertQueuedAction', { record })
         case 'processing.noremote':
@@ -1433,12 +1445,18 @@ const actions = {
       }
     })()
     await strategyPromise
-    commit('setSelectedObservationId', null)
+    commit('setSelectedObservationUuid', null)
     return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedId = state.selectedObservationId
-    await dispatch('transitionToWaitingOutcome', selectedId)
+    const selectedUuid = state.selectedObservationUuid
+    if (!selectedUuid) {
+      throw namedError(
+        'InvalidState',
+        'Tried to reset the selected observation but no observation is selected',
+      )
+    }
+    await dispatch('transitionToWaitingOutcome', selectedUuid)
     return dispatch('onLocalRecordEvent')
   },
   async retryFailedDeletes({ getters, dispatch }) {
@@ -1559,7 +1577,7 @@ const getters = {
   },
   observationDetail(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
-    const found = allObs.find(e => wowIdOf(e) === state.selectedObservationId)
+    const found = allObs.find(e => e.uuid === state.selectedObservationUuid)
     return found
   },
   waitingForDeleteCount(state) {
@@ -1603,7 +1621,6 @@ const getters = {
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
   isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
   isSelectedRecordEditOfRemote(state, getters) {
-    const selectedId = state.selectedObservationId
     return getters.localRecords
       .filter(e => {
         const hasRemote = !!e.inatId
@@ -1612,7 +1629,7 @@ const getters = {
           hasRemote
         )
       })
-      .some(e => wowIdOf(e) === selectedId)
+      .some(e => e.uuid === state.selectedObservationUuid)
   },
   isSelectedRecordOnRemote(_, getters) {
     const isRemote = (getters.observationDetail || {}).inatId

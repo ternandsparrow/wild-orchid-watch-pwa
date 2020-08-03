@@ -533,11 +533,10 @@ export default {
     },
   },
   watch: {
-    '$route.params.id'(val) {
-      // should be able to use beforeRouteUpdate() instead, but couldn't get it to work
-      this.$store.commit('obs/setSelectedObservationId', val)
-    },
     observationDetail(newVal, oldVal) {
+      // this is for when a local observation record gets deleted out from
+      // under us (at the completion of upload) and we need to update to use
+      // the remote record.
       if (newVal) {
         // only act when it was deleted
         return
