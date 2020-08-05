@@ -2329,7 +2329,7 @@ async function buildDumbContext({ state, getters }) {
       allRemoteObs: [],
       ...state,
     },
-    commit: (name, value) => {},
+    commit: () => {},
     getters: {
       ...getters,
     },
