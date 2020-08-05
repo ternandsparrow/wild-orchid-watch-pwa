@@ -346,6 +346,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     describe('saveNewAndScheduleUpload', () => {
       it('should save a new record without photos', async () => {
         const record = {
@@ -1363,6 +1367,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should see a new record as UI visible', async () => {
       const record = {
         uuid: '123A',
@@ -1446,6 +1454,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it(
       'should directly delete a local-only record that has NOT ' +
         'started processing',
@@ -1464,7 +1476,7 @@ describe('actions', () => {
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits, '123A'),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toBeNull()
@@ -1490,7 +1502,7 @@ describe('actions', () => {
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits, '123A'),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
@@ -1518,7 +1530,7 @@ describe('actions', () => {
       }
       const capturedCommits = {}
       await objectUnderTest.actions.deleteSelectedRecord(
-        await buildContext(state, capturedCommits, '123A'),
+        await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
       )
       const result = await obsStore.getItem('123A')
       expect(result).toEqual({
@@ -1556,7 +1568,7 @@ describe('actions', () => {
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits, '123A'),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toEqual({
@@ -1593,7 +1605,7 @@ describe('actions', () => {
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits, '123A'),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
@@ -1617,6 +1629,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should delete a local record when it exists', async () => {
       await obsStore.setItem('123A', {
         uuid: '123A',
@@ -1631,7 +1647,7 @@ describe('actions', () => {
       }
       const capturedCommits = {}
       await objectUnderTest.actions.deleteSelectedLocalRecord(
-        await buildContext(state, capturedCommits, '123A'),
+        await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
       )
       const result = await obsStore.getItem('123A')
       expect(result).toBeNull()
@@ -1646,7 +1662,11 @@ describe('actions', () => {
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedLocalRecord(
-          await buildContext(state, capturedCommits, 'NOT-REAL-ID'),
+          await buildAutoQueueRefreshContext(
+            state,
+            capturedCommits,
+            'NOT-REAL-ID',
+          ),
         )
       } catch (err) {
         expect(err.message).toEqual(
@@ -1662,6 +1682,10 @@ describe('actions', () => {
     const obsStore = getOrCreateInstance('wow-obs')
 
     beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    afterAll(async () => {
       await obsStore.clear()
     })
 
@@ -1879,6 +1903,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should find the ID when we provide an inatId', async () => {
       const state = {
         localQueueSummary: [
@@ -1969,7 +1997,7 @@ describe('actions', () => {
       console.warn = () => {}
       await obsStore.setItem(wowId, {
         uuid:
-          'A temping fake. Real LocalForage will not allow numbers ' +
+          'A temp-ing fake. Real LocalForage will not allow numbers ' +
           'as keys, but our test DB will',
       })
       console.warn = origConsoleWarn
@@ -1989,6 +2017,110 @@ describe('actions', () => {
         wowId,
       )
       expect(result).toEqual('WINNER')
+    })
+  })
+
+  describe('inatIdToUuid', () => {
+    it('should find the UUID when a local record exists', async () => {
+      const getters = {
+        localRecords: [
+          {
+            uuid: '123A',
+            inatId: 111,
+          },
+        ],
+        remoteRecords: [],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the UUID when a remote record exists', async () => {
+      const getters = {
+        localRecords: [],
+        remoteRecords: [
+          {
+            uuid: '123A',
+            inatId: 111,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should return null when no record exists', async () => {
+      const getters = {
+        localRecords: [],
+        remoteRecords: [],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('getCurrentOutcomeForWowId', () => {
+    it('should find the outcome when a record exists and we use UUID', async () => {
+      const state = {
+        localQueueSummary: [
+          {
+            uuid: '123A',
+            inatId: 111,
+            [constants.recordProcessingOutcomeFieldName]:
+              constants.waitingOutcome,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.getCurrentOutcomeForWowId(
+        await buildDumbContext({ state }),
+        '123A',
+      )
+      expect(result).toEqual('waiting')
+    })
+
+    it('should find the outcome when a record exists and we use iNat ID', async () => {
+      const state = {
+        localQueueSummary: [
+          {
+            uuid: '123A',
+            inatId: 111,
+            [constants.recordProcessingOutcomeFieldName]:
+              constants.withServiceWorkerOutcome,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.getCurrentOutcomeForWowId(
+        await buildDumbContext({ state }),
+        111,
+      )
+      expect(result).toEqual('withServiceWorker')
+    })
+
+    it('should throw the expected error when no record exists', async () => {
+      const state = {
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.getCurrentOutcomeForWowId(
+          await buildDumbContext({ state }),
+          'NO-RECORD-WITH-UUID',
+        )
+      } catch (err) {
+        expect(err.message).toEqual(
+          expect.stringMatching(/^Could not find record with wowId=NO-RECORD/),
+        )
+        return
+      }
+      throw new Error('Expected error should have been thrown')
     })
   })
 })
@@ -2190,6 +2322,68 @@ describe('getters', () => {
     })
   })
 })
+
+async function buildDumbContext({ state, getters }) {
+  const result = {
+    state: {
+      allRemoteObs: [],
+      ...state,
+    },
+    commit: (name, value) => {},
+    getters: {
+      ...getters,
+    },
+    dispatch: (actionName, argsObj) => {
+      const availableActions = Object.assign({}, objectUnderTest.actions, {
+        processLocalQueue: () => Promise.resolve(),
+      })
+      const action = availableActions[actionName]
+      if (!action) {
+        console.error(
+          `Cannot find action with name='${actionName}'` + '. Passed args = ',
+          argsObj,
+        )
+        return // can't throw because there's nothing to catch
+      }
+      return action(result, argsObj)
+    },
+  }
+  return result
+}
+
+async function buildAutoQueueRefreshContext(
+  state,
+  capturedCommits,
+  selectedObservationUuid,
+) {
+  const result = await buildDumbContext({
+    state: {
+      _uiVisibleLocalRecords: [],
+      localQueueSummary: [],
+      selectedObservationUuid,
+      allRemoteObs: [],
+      ...state,
+    },
+  })
+  result.commit = (name, value) => {
+    switch (name) {
+      case 'setLocalQueueSummary':
+      case 'setUiVisibleLocalRecords':
+        objectUnderTest.mutations[name](result.state, value)
+        refreshGetters()
+        break
+      default:
+        capturedCommits[name] = value
+    }
+  }
+  await objectUnderTest.actions.refreshLocalRecordQueue(result)
+  return result
+  function refreshGetters() {
+    result.getters.localRecords = objectUnderTest.getters.localRecords(
+      result.state,
+    )
+  }
+}
 
 function wowUpdatedAtToBeCloseToNow(record) {
   const updatedAtStr = record.wowMeta.wowUpdatedAt
@@ -2432,50 +2626,6 @@ function getApiRecord() {
     },
     faves: [],
     non_owner_ids: [],
-  }
-}
-
-async function buildContext(state, capturedCommits, selectedObservationUuid) {
-  const result = {
-    state: {
-      _uiVisibleLocalRecords: [],
-      localQueueSummary: [],
-      selectedObservationUuid,
-      ...state,
-    },
-    commit: (name, value) => {
-      switch (name) {
-        case 'setLocalQueueSummary':
-        case 'setUiVisibleLocalRecords':
-          objectUnderTest.mutations[name](result.state, value)
-          refreshGetters()
-          break
-        default:
-          capturedCommits[name] = value
-      }
-    },
-    getters: {},
-    dispatch: (actionName, argsObj) => {
-      const availableActions = Object.assign({}, objectUnderTest.actions, {
-        processLocalQueue: () => Promise.resolve(),
-      })
-      const action = availableActions[actionName]
-      if (!action) {
-        console.error(
-          `Cannot find action with name='${actionName}'` + '. Passed args = ',
-          argsObj,
-        )
-        return // can't throw because there's nothing to catch
-      }
-      return action(result, argsObj)
-    },
-  }
-  await objectUnderTest.actions.refreshLocalRecordQueue(result)
-  return result
-  function refreshGetters() {
-    result.getters.localRecords = objectUnderTest.getters.localRecords(
-      result.state,
-    )
   }
 }
 

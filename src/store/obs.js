@@ -40,7 +40,7 @@ let refreshLocalRecordQueueLock = null
 let mapStoreWorker = null
 let taxaIndex = null
 
-const state = {
+const initialState = {
   allRemoteObs: [],
   allRemoteObsLastUpdated: 0,
   isUpdatingRemoteObs: false,
@@ -446,6 +446,15 @@ const actions = {
       return (state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {})
         .uuid
     }
+  },
+  inatIdToUuid({ getters }, inatId) {
+    const found = [...getters.localRecords, ...getters.remoteRecords].find(
+      e => e.inatId === inatId,
+    )
+    if (!found) {
+      return null
+    }
+    return found.uuid
   },
   async upsertQueuedAction(
     _,
@@ -1471,17 +1480,21 @@ const actions = {
     await Promise.all(idsToCancel.map(currId => deleteDbRecordById(currId)))
     return dispatch('onLocalRecordEvent')
   },
-  async getCurrentOutcomeForWowId({ state }, wowId) {
+  async getCurrentOutcomeForWowId({ dispatch }, wowId) {
+    const found = dispatch('getLocalQueueSummaryRecord', wowId)
+    return found[constants.recordProcessingOutcomeFieldName]
+  },
+  getLocalQueueSummaryRecord({ state }, wowId) {
     const found = state.localQueueSummary.find(
       e => e.inatId === wowId || e.uuid === wowId,
     )
     if (!found) {
       throw new Error(
         `Could not find record with wowId=${wowId} in ` +
-          `localSummary=${JSON.stringify(state.localQueueSummary)}`,
+          `localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
       )
     }
-    return found[constants.recordProcessingOutcomeFieldName]
+    return found
   },
   async transitionToSuccessOutcome({ dispatch }, wowId) {
     return dispatch('_transitionHelper', {
@@ -1778,7 +1791,7 @@ function revokeOldObjectUrls() {
 
 export default {
   namespaced: true,
-  state,
+  state: initialState,
   mutations,
   actions,
   getters,
