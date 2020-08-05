@@ -68,6 +68,12 @@ const args = require('yargs')
     alias: 'v',
     type: 'boolean',
     description: 'Run with verbose logging',
+  })
+  .option('server-max-results', {
+    alias: 'm',
+    type: 'number',
+    description: 'Max results the server will give out for any query',
+    default: 10000,
   }).argv
 
 const devPageLimit = parseInt(process.env.PAGE_LIMIT || 0) // only for dev
@@ -346,8 +352,15 @@ async function getAllPages(baseUrl) {
       if (bodyObj.results.length < args.pageSize) {
         return false
       }
+      if (result.length >= args.serverMaxResults) {
+        console.warn(
+          `[WARNING] hit result limit. We expect server won't serve any more ` +
+            `results for this query. Results so far=${result.length}, ` +
+            `configured server limit=${bodyObj.total_results}`,
+        )
+        return false
+      }
       if (result.length >= bodyObj.total_results) {
-        // this will happen when we hit the 10k limit on the iNat server too
         console.warn(
           `[WARNING] triggered loop sanity check with current result ` +
             `length=${result.length} being greater than or equal to ` +
