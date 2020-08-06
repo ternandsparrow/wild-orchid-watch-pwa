@@ -1481,7 +1481,7 @@ const actions = {
     return dispatch('onLocalRecordEvent')
   },
   async getCurrentOutcomeForWowId({ dispatch }, wowId) {
-    const found = dispatch('getLocalQueueSummaryRecord', wowId)
+    const found = await dispatch('getLocalQueueSummaryRecord', wowId)
     return found[constants.recordProcessingOutcomeFieldName]
   },
   getLocalQueueSummaryRecord({ state }, wowId) {
