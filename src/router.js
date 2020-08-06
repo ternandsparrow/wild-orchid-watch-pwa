@@ -82,7 +82,8 @@ const router = new VueRouter({
         const selectedMethod = 'existing'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
-        return resolveObsByIdOrNotFound(to, from, next)
+        const promise = resolveObsByIdOrNotFound(to, from, next)
+        store.commit('ephemeral/setRouterNavPromise', promise)
       },
       meta: {
         isEdit: true,
@@ -215,51 +216,51 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
-function resolveObsByIdOrNotFound(to, from, next) {
+async function resolveObsByIdOrNotFound(to, from, next) {
   const wowId = isNaN(to.params.id) ? to.params.id : parseInt(to.params.id)
-  ;(async function() {
-    if (!wowId) {
-      return wowId
-    }
-    const isNotNumber = typeof wowId !== 'number'
-    if (isNotNumber) {
-      // it's a UUID
-      return wowId
-    }
-    try {
-      return await store.dispatch('obs/inatIdToUuid', wowId)
-    } catch (err) {
-      console.warn(`Could not find UUID for inatId=${wowId}`)
-      return null // we'll handle the "not found"-ness later
-    }
-  })()
-    .then(uuid => {
-      store.commit('obs/setSelectedObservationUuid', uuid)
-      if (!store.getters['obs/observationDetail']) {
-        console.warn(`Could not find obs record for wowId=${wowId}`)
-        return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
+  try {
+    const uuid = await (async function() {
+      if (!wowId) {
+        return wowId
       }
-      return next()
-    })
-    .catch(err => {
-      store.dispatch('flagGlobalError', {
-        userMsg: 'Failed to navigate to that page',
-        msg: `Failed to resolve wowId=${wowId} during nav`,
-        err,
-      })
-      const matchedComponents = from.matched.map(m => m.components.default)
-      const isNoMatches = !matchedComponents.length
-      if (isNoMatches) {
-        wowWarnHandler(
-          `Tried to reject navigation and send user back to route ` +
-            `(name=${from.name}, path=${from.path}) but could not find Vue ` +
-            `components for route, defaulting to home`,
-        )
-        matchedComponents.push(homeComponent)
+      const isNotNumber = typeof wowId !== 'number'
+      if (isNotNumber) {
+        // it's a UUID
+        return wowId
       }
-      mainStackReplace(matchedComponents)
-      return next(false)
+      try {
+        return await store.dispatch('obs/inatIdToUuid', wowId)
+      } catch (err) {
+        console.warn(`Could not find UUID for inatId=${wowId}`)
+        return null // we'll handle the "not found"-ness later
+      }
+    })()
+    store.commit('obs/setSelectedObservationUuid', uuid)
+    if (!store.getters['obs/observationDetail']) {
+      console.warn(`Could not find obs record for wowId=${wowId}`)
+      return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
+    }
+
+    return next()
+  } catch (err) {
+    store.dispatch('flagGlobalError', {
+      userMsg: 'Failed to navigate to that page',
+      msg: `Failed to resolve wowId=${wowId} during nav`,
+      err,
     })
+    const matchedComponents = from.matched.map(m => m.components.default)
+    const isNoMatches = !matchedComponents.length
+    if (isNoMatches) {
+      wowWarnHandler(
+        `Tried to reject navigation and send user back to route ` +
+          `(name=${from.name}, path=${from.path}) but could not find Vue ` +
+          `components for route, defaulting to home`,
+      )
+      matchedComponents.push(homeComponent)
+    }
+    mainStackReplace(matchedComponents)
+    return next(false)
+  }
 }
 
 export default router

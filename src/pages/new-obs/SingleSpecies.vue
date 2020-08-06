@@ -659,23 +659,14 @@ export default {
     },
   },
   beforeMount() {
-    this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
-    // we cannot use this.taxonQuestionIds here as it's not bound at this stage
-    this.taxonQuestionAutocompleteItems = this.obsFields
-      .filter(f => f.datatype === taxonFieldType)
-      .reduce((accum, curr) => {
-        // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
-        accum[curr.id] = null
-        return accum
-      }, {})
-    const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
-    if (this.isEdit) {
-      this.initForEdit(obsFieldsPromise)
-      this.snapshotExistingRecord()
-    } else {
-      this.initForNew(obsFieldsPromise)
-    }
-    this.setRecentlyUsedTaxa()
+    // as far as I can tell, this promise will always be present before we're
+    // mounted. It may not be resolved, but we can deal with that. If the
+    // resolution is taking too long (noticable in the UI) then you could create a
+    // "loading" modal overlay that stops UI interaction until the promise is
+    // resolved.
+    this.$store.state.ephemeral.routerNavPromise.then(() => {
+      this.initHandler()
+    })
   },
   async created() {
     this.debouncedOnSpeciesGuessInput = _.debounce(
@@ -697,7 +688,27 @@ export default {
     )
   },
   methods: {
+    initHandler() {
+      this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
+      // we cannot use this.taxonQuestionIds here as it's not bound at this stage
+      this.taxonQuestionAutocompleteItems = this.obsFields
+        .filter(f => f.datatype === taxonFieldType)
+        .reduce((accum, curr) => {
+          // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
+          accum[curr.id] = null
+          return accum
+        }, {})
+      const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
+      if (this.isEdit) {
+        this.initForEdit(obsFieldsPromise)
+        this.snapshotExistingRecord()
+      } else {
+        this.initForNew(obsFieldsPromise)
+      }
+      this.setRecentlyUsedTaxa()
+    },
     initForNew(obsFieldsPromise) {
+      console.debug('initialising for "new" mode')
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
@@ -707,11 +718,13 @@ export default {
       this.geolocationErrorMsg = null
     },
     initForEdit(obsFieldsPromise) {
+      console.debug('initialising for "edit" mode')
       this.uuidOfThisObs = this.observationDetail.uuid
       this.rereadCoords()
       this.rereadDatetime()
       this.obsLocAccuracy = this.observationDetail.positional_accuracy
       obsFieldsPromise.then(() => {
+        console.debug('initialising obs field dependent fields for edit')
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()

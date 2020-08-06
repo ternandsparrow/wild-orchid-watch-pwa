@@ -12,6 +12,17 @@ localVue.prototype.$wow = { uiTrace: function() {} }
 const router = new VueRouter()
 
 describe('SingleSpecies', () => {
+  let origConsoleDebug
+
+  beforeAll(function() {
+    origConsoleDebug = console.debug
+    console.debug = () => {}
+  })
+
+  afterAll(function() {
+    console.debug = origConsoleDebug
+  })
+
   it('should be able to do everything required to even run a unit test', () => {
     const wrapper = buildWrapper()
     expect(wrapper.vm.$data.photos.length).toBe(0)
@@ -93,6 +104,9 @@ function buildWrapper() {
       },
       ephemeral: {
         namespaced: true,
+        state: {
+          routerNavPromise: Promise.resolve(),
+        },
         mutations: {
           enableWarnOnLeaveRoute() {},
         },

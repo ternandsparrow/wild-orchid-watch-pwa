@@ -51,6 +51,7 @@ const state = {
   photoOutsideBboxErrorMsg: null,
   photoProcessingTasks: [],
   hadSuccessfulDeviceLocReq: false, // in ephemeral so we only remember it for a session
+  routerNavPromise: null,
 }
 
 const mutations = {
@@ -186,6 +187,7 @@ const mutations = {
   },
   recordSuccessfulDeviceLocReq: state =>
     (state.hadSuccessfulDeviceLocReq = true),
+  setRouterNavPromise: (state, value) => (state.routerNavPromise = value),
 }
 
 const actions = {
