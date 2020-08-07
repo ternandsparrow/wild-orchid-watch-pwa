@@ -2333,7 +2333,7 @@ async function buildDumbContext({ state, getters }) {
     getters: {
       ...getters,
     },
-    dispatch: (actionName, argsObj) => {
+    dispatch: async (actionName, argsObj) => {
       const availableActions = Object.assign({}, objectUnderTest.actions, {
         processLocalQueue: () => Promise.resolve(),
       })
