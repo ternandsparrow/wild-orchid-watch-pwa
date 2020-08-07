@@ -197,6 +197,10 @@ router.beforeEach((to, from, next) => {
       return next(false)
     }
   }
+  return next()
+})
+
+router.afterEach((to, from) => {
   // We're doing this stack replace song and dance for the sake of sane nested
   // routing. For example, assume a user lands directly on (or refreshes the
   // page of) the url /foo/bar. When they press the back button, we want them
@@ -207,13 +211,13 @@ router.beforeEach((to, from, next) => {
   const isNoMatches = !matchedComponents.length
   if (isNoMatches) {
     console.error(
-      `Tried to navigate to route (name=${to.name}, path=${to.path}) that ` +
-        `does not exist, defaulting to home`,
+      `Tried to navigate from (name=${from.name}, path=${from.path}) to ` +
+        `route (name=${to.name}, path=${to.path}) that does not exist, ` +
+        `defaulting to home`,
     )
     matchedComponents.push(homeComponent)
   }
   mainStackReplace(matchedComponents)
-  next()
 })
 
 async function resolveObsByIdOrNotFound(to, from, next) {
