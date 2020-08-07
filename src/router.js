@@ -97,6 +97,7 @@ const router = new VueRouter({
         const selectedMethod = 'photo'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
+        store.commit('ephemeral/setRouterNavPromise', Promise.resolve())
         return next()
       },
       meta: {
@@ -244,7 +245,6 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       console.warn(`Could not find obs record for wowId=${wowId}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
     }
-
     return next()
   } catch (err) {
     store.dispatch('flagGlobalError', {
