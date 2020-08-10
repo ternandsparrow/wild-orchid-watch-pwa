@@ -215,57 +215,15 @@ const actions = {
       .map(e => e.uuid)
     try {
       await Promise.all(
-        dbIdsToDelete.map(currDbId =>
-          (async () => {
-            const blockedAction = await (async () => {
-              const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
-              if (!hasBlockedAction) {
-                return null
-              }
-              const record = await getRecord(currDbId)
-              if (!record) {
-                // I guess this could be TOCTOU related where the DB record is
-                // gone but the queue summary has not yet updated.
-                wowWarnMessage(
-                  `No obs found for ID=${currDbId}. The queue summary ` +
-                    `indicated there was a blocked action for this record but ` +
-                    `when we tried to retrieve the record, nothing was there. ` +
-                    `This shouldn't happen, even if the user deletes the obs, ` +
-                    `as that would be a block action itself.`,
-                )
-                return null
-              }
-              const remoteRecord = state.allRemoteObs.find(
-                e => e.uuid === currDbId,
-              )
-              if (!remoteRecord) {
-                // this is weird because the reason we're processing this
-                // record is *because* we saw it in the list of remote records
-                throw new Error(
-                  `Unable to find remote record with UUID='${currDbId}', ` +
-                    'cannot continue.',
-                )
-              }
-              const blockedActionFromDb =
-                record.wowMeta[constants.blockedActionFieldName]
-              return {
-                ...{
-                  ...record,
-                  inatId: remoteRecord.inatId,
-                },
-                wowMeta: {
-                  ...blockedActionFromDb.wowMeta,
-                  [constants.recordProcessingOutcomeFieldName]:
-                    constants.waitingOutcome,
-                },
-              }
-            })()
-            await deleteDbRecordById(currDbId)
-            if (blockedAction) {
-              await storeRecord(blockedAction)
-            }
-          })(),
-        ),
+        dbIdsToDelete.map(currDbId => {
+          return Promise.all([
+            dispatch('checkForLostPhotos', currDbId),
+            dispatch('cleanLocalRecord', {
+              currDbId,
+              idsWithBlockedActions,
+            }),
+          ])
+        }),
       )
       await dispatch('refreshLocalRecordQueue')
     } catch (err) {
@@ -274,6 +232,100 @@ const actions = {
           `IDs from Db=[${successfulLocalRecordDbIdsToDelete}]`,
         err,
       )
+    }
+  },
+  async cleanLocalRecord({ state }, { currDbId, idsWithBlockedActions }) {
+    const blockedAction = await (async () => {
+      const hasBlockedAction = idsWithBlockedActions.includes(currDbId)
+      if (!hasBlockedAction) {
+        return null
+      }
+      const record = await getRecord(currDbId)
+      if (!record) {
+        // I guess this could be TOCTOU related where the DB record is
+        // gone but the queue summary has not yet updated.
+        wowWarnMessage(
+          `No obs found for ID=${currDbId}. The queue summary ` +
+            `indicated there was a blocked action for this record but ` +
+            `when we tried to retrieve the record, nothing was there. ` +
+            `This shouldn't happen, even if the user deletes the obs, ` +
+            `as that would be a block action itself.`,
+        )
+        return null
+      }
+      const remoteRecord = state.allRemoteObs.find(e => e.uuid === currDbId)
+      if (!remoteRecord) {
+        // this is weird because the reason we're processing this
+        // record is *because* we saw it in the list of remote records
+        throw new Error(
+          `Unable to find remote record with UUID='${currDbId}', ` +
+            'cannot continue.',
+        )
+      }
+      const blockedActionFromDb =
+        record.wowMeta[constants.blockedActionFieldName]
+      return {
+        ...{
+          ...record,
+          inatId: remoteRecord.inatId,
+        },
+        wowMeta: {
+          ...blockedActionFromDb.wowMeta,
+          [constants.recordProcessingOutcomeFieldName]:
+            constants.waitingOutcome,
+        },
+      }
+    })()
+    await deleteDbRecordById(currDbId)
+    if (blockedAction) {
+      await storeRecord(blockedAction)
+    }
+  },
+  checkForLostPhotos({ state, getters }, recordUuid) {
+    // TODO enhancement idea: if we find that we might be losing photos, we
+    // could halt the delete of the local record and give the user the option
+    // to retry to action.
+    const logPrefix = '[photo check]'
+    try {
+      const remoteRecord = state.allRemoteObs.find(e => e.uuid === recordUuid)
+      if (!remoteRecord) {
+        throw namedError(
+          'RecordNotFound',
+          `Could not find remote record for UUID=${recordUuid}`,
+        )
+      }
+      const localRecord = getters.localRecords.find(e => e.uuid === recordUuid)
+      if (!localRecord) {
+        throw namedError(
+          'RecordNotFound',
+          `Could not find local record for UUID=${recordUuid}`,
+        )
+      }
+      const recordType = localRecord.wowMeta[constants.recordTypeFieldName]
+      const isNotRecordTypeWeShouldCheck = !['new', 'edit'].includes(recordType)
+      if (isNotRecordTypeWeShouldCheck) {
+        console.debug(
+          `${logPrefix} Record UUID=${recordUuid} does not need to be checked`,
+        )
+        return
+      }
+      const remotePhotoCount = remoteRecord.photos.length
+      const localPhotoCount = localRecord.photos.length
+      if (remotePhotoCount === localPhotoCount) {
+        console.debug(
+          `${logPrefix} Record UUID=${recordUuid} has all photos ` +
+            `(${remotePhotoCount}) accounted for`,
+        )
+        return
+      }
+      wowWarnMessage(
+        `Found potential lost photos in record ` +
+          `UUID=${recordUuid}/inatId=${remoteRecord.inatId}. Local ` +
+          `count=${localPhotoCount}, remote count=${remotePhotoCount}. Record ` +
+          `type=${recordType}.`,
+      )
+    } catch (err) {
+      wowWarnHandler('Failed while trying to check for lost photos', err)
     }
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
