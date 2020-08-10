@@ -335,16 +335,20 @@ export const photoCompressionThresholdPixels = convertAndAssertInteger(
   process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
 )
 
+export const photoCompressionJpgQuality = convertAndAssertInteger(
+  process.env.VUE_APP_PHOTO_COMP_JPEG_QUAL || 90,
+)
+
 export const swQueuePeriodicTrigger = convertAndAssertInteger(
   process.env.VUE_APP_SW_PERIODIC_SYNC || 30, // seconds
 )
 
 export const bboxLatMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MIN || -43.7,
+  process.env.VUE_APP_BBOX_LAT_MIN || -55,
 )
 
 export const bboxLatMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LAT_MAX || -10.4,
+  process.env.VUE_APP_BBOX_LAT_MAX || -10,
 )
 
 if (bboxLatMin >= bboxLatMax) {
@@ -356,11 +360,11 @@ if (bboxLatMin >= bboxLatMax) {
 }
 
 export const bboxLonMin = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MIN || 112,
+  process.env.VUE_APP_BBOX_LON_MIN || 105,
 )
 
 export const bboxLonMax = convertAndAssertFloat(
-  process.env.VUE_APP_BBOX_LON_MAX || 154,
+  process.env.VUE_APP_BBOX_LON_MAX || 168,
 )
 
 if (bboxLonMin >= bboxLonMax) {
@@ -374,6 +378,8 @@ if (bboxLonMin >= bboxLonMax) {
 export const obsFieldSeparatorChar = process.env.VUE_APP_OBS_FIELD_SEP || '|'
 
 export const appVersion = process.env.VUE_APP_VERSION || 'live.dev'
+
+export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 
 // More "constant" constants from here on
 
@@ -458,6 +464,18 @@ export const photoTypeMicrohabitat = 'micro-habitat'
 export const photoTypeCanopy = 'canopy'
 export const photoTypeFloralVisitors = 'floral-visitors'
 export const photoTypeEpiphyteHostTree = 'host-tree'
+
+export const cryptoConfig = (() => {
+  const algorithm = 'RSA-OAEP'
+  const result = {
+    algorithm,
+    rsaParams: {
+      name: algorithm,
+      hash: 'SHA-256',
+    },
+  }
+  return result
+})()
 
 function convertAndAssertInteger(val) {
   const result = parseInt(val)

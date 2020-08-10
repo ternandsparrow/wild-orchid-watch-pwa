@@ -13,6 +13,12 @@ import {
 
 export const mainStack = []
 
+if (process.env.NODE_ENV !== 'production') {
+  // this is the only way we can inspect this with devtools
+  window.__wowDev = window.__wowDev || {}
+  window.__wowDev.mainStack = mainStack
+}
+
 export function isOnboarderVisible() {
   return isTopOfStack(mainStack, onboarderComponentName)
 }

@@ -609,6 +609,9 @@ export function namedError(name, msg) {
 }
 
 export function convertExifDateStr(exifDateStr) {
+  if (!exifDateStr) {
+    return exifDateStr
+  }
   return exifDateStr.replace(':', '-').replace(':', '-')
 }
 

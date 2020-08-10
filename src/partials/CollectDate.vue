@@ -354,29 +354,6 @@ function nowTime() {
   padding-left: 1em;
 }
 
-.success-alert,
-.info-alert,
-.warning-alert {
-  padding: 1em;
-  border-radius: 10px;
-  margin: 0 auto;
-}
-
-.warning-alert {
-  border: 1px solid orange;
-  background: #ffeabb;
-}
-
-.success-alert {
-  border: 1px solid green;
-  background: #d5ffbf;
-}
-
-.info-alert {
-  border: 1px solid blue;
-  background: #e9f5ff;
-}
-
 .photo-thumb {
   width: 100px;
   max-height: 300px;

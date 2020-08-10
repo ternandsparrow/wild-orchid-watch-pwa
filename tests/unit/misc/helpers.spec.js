@@ -311,6 +311,11 @@ describe('convertExifDateStr', () => {
     const result = objectUnderTest.convertExifDateStr('2020:03:15 13:44:23')
     expect(result).toEqual('2020-03-15 13:44:23')
   })
+
+  it('should handle undefined input', () => {
+    const result = objectUnderTest.convertExifDateStr(undefined)
+    expect(result).toEqual(undefined)
+  })
 })
 
 describe('formatMetricDistance', () => {

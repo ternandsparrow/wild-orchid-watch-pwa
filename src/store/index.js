@@ -36,6 +36,8 @@ const store = new Vuex.Store({
         // Jul 2020 migration to remove old namespaces
         delete cleanedState.missions
         delete cleanedState.news
+        // Aug 2020 remove fields no longer used
+        delete cleanedState.obs.selectedObservationId
         return storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),

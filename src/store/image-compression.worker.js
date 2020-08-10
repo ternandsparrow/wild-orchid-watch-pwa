@@ -2,8 +2,10 @@ import { expose as comlinkExpose } from 'comlink'
 import Jimp from 'jimp'
 import piexif from 'piexifjs'
 import '@/misc/safari-blob-patch'
+import { base64StrToArrayBuffer } from '@/misc/no-deps-helpers'
+import { photoCompressionJpgQuality } from '@/misc/constants'
 
-const defaultJpgQuality = 90 // TODO make env var config
+const defaultJpgQuality = 90
 
 comlinkExpose({
   resize,
@@ -38,7 +40,9 @@ async function resize(blobish, maxWidthOrHeight, quality = defaultJpgQuality) {
     metadata,
     blobType,
   )
-  const resizedBufferWithMetadata = base64StrToArrayBuffer(base64WithMetadata)
+  const resizedBufferWithMetadata = base64JpegStrToArrayBuffer(
+    base64WithMetadata,
+  )
   const result = new Blob([resizedBufferWithMetadata], { type: blobType })
   const newSizeMb = result.size / 1024 / 1024
   console.debug(
@@ -64,16 +68,9 @@ function updateMetadataToMatchNewSize(metadata, resized) {
   }
 }
 
-function base64StrToArrayBuffer(base64Str) {
+function base64JpegStrToArrayBuffer(base64Str) {
   const withoutBase64Prefix = base64Str.replace('data:image/jpeg;base64,', '')
-  // thanks for the conversion https://stackoverflow.com/a/16245768/1410035
-  const byteCharacters = atob(withoutBase64Prefix)
-  const byteNumbers = new Array(byteCharacters.length)
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i)
-  }
-  const byteArray = new Uint8Array(byteNumbers)
-  return byteArray
+  return base64StrToArrayBuffer(withoutBase64Prefix)
 }
 
 function getMetadata(imageAsBlob) {

@@ -40,24 +40,25 @@ let refreshLocalRecordQueueLock = null
 let mapStoreWorker = null
 let taxaIndex = null
 
-const state = {
+const initialState = {
   allRemoteObs: [],
   allRemoteObsLastUpdated: 0,
   isUpdatingRemoteObs: false,
   mySpecies: [],
   mySpeciesLastUpdated: 0,
-  selectedObservationId: null,
+  selectedObservationUuid: null,
   _uiVisibleLocalRecords: [],
   localQueueSummary: [],
   projectInfo: null,
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
   forceQueueProcessingAtNextChance: false,
+  lastUsedResponses: {},
 }
 
 const mutations = {
-  setSelectedObservationId: (state, value) =>
-    (state.selectedObservationId = value),
+  setSelectedObservationUuid: (state, value) =>
+    (state.selectedObservationUuid = value),
   setMySpecies: (state, value) => {
     state.mySpecies = value
     state.mySpeciesLastUpdated = now()
@@ -96,6 +97,7 @@ const mutations = {
   },
   setForceQueueProcessingAtNextChance: (state, value) =>
     (state.forceQueueProcessingAtNextChance = value),
+  setLastUsedResponses: (state, value) => (state.lastUsedResponses = value),
 }
 
 const actions = {
@@ -444,6 +446,15 @@ const actions = {
       return (state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {})
         .uuid
     }
+  },
+  inatIdToUuid({ getters }, inatId) {
+    const found = [...getters.localRecords, ...getters.remoteRecords].find(
+      e => e.inatId === inatId,
+    )
+    if (!found) {
+      return null
+    }
+    return found.uuid
   },
   async upsertQueuedAction(
     _,
@@ -1376,34 +1387,46 @@ const actions = {
     }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
-    const selectedId = state.selectedObservationId
+    const selectedUuid = state.selectedObservationUuid
+    if (!selectedUuid) {
+      throw namedError(
+        'InvalidState',
+        'Tried to delete local record for the selected observation but no ' +
+          'observation is selected',
+      )
+    }
     try {
-      const dbId = await dispatch('findDbIdForWowId', selectedId)
+      const dbId = await dispatch('findDbIdForWowId', selectedUuid)
       await deleteDbRecordById(dbId)
-      commit('setSelectedObservationId', null)
+      commit('setSelectedObservationUuid', null)
       return dispatch('refreshLocalRecordQueue')
     } catch (err) {
       throw new chainedError(
-        `Failed to delete local edit for ID='${selectedId}'`,
+        `Failed to delete local record for UUID='${selectedUuid}'`,
         err,
       )
     }
   },
   async deleteSelectedRecord({ state, dispatch, commit }) {
-    const wowId = state.selectedObservationId
+    const selectedUuid = state.selectedObservationUuid
     const localQueueSummaryForDeleteTarget =
-      state.localQueueSummary.find(e => wowIdOf(e) === wowId) || {}
+      state.localQueueSummary.find(e => e.uuid === selectedUuid) || {}
+    if (!localQueueSummaryForDeleteTarget) {
+      throw namedError(
+        'NoSummaryFound',
+        `Tried to find local summary for UUID='${selectedUuid}' but couldn't.`,
+      )
+    }
     const isProcessingQueuedNow = isObsStateProcessing(
       localQueueSummaryForDeleteTarget[
         constants.recordProcessingOutcomeFieldName
       ],
     )
     const existingRemoteRecord =
-      state.allRemoteObs.find(e => wowIdOf(e) === wowId) || {}
+      state.allRemoteObs.find(e => e.uuid === selectedUuid) || {}
     const record = {
       inatId: existingRemoteRecord.inatId,
-      // if we don't have a remote record, the wowId will be a uuid
-      uuid: existingRemoteRecord.uuid || wowId,
+      uuid: existingRemoteRecord.uuid || selectedUuid,
       wowMeta: {
         [constants.recordTypeFieldName]: recordType('delete'),
       },
@@ -1415,9 +1438,9 @@ const actions = {
       switch (strategyKey) {
         case 'noprocessing.noremote':
           console.debug(
-            `Record with WOW ID='${wowId}' is local-only so deleting right now.`,
+            `Record with UUID='${selectedUuid}' is local-only so deleting right now.`,
           )
-          return dispatch('deleteSelectedLocalRecord', wowId)
+          return dispatch('deleteSelectedLocalRecord')
         case 'noprocessing.remote':
           return dispatch('upsertQueuedAction', { record })
         case 'processing.noremote':
@@ -1431,12 +1454,18 @@ const actions = {
       }
     })()
     await strategyPromise
-    commit('setSelectedObservationId', null)
+    commit('setSelectedObservationUuid', null)
     return dispatch('onLocalRecordEvent')
   },
   async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
-    const selectedId = state.selectedObservationId
-    await dispatch('transitionToWaitingOutcome', selectedId)
+    const selectedUuid = state.selectedObservationUuid
+    if (!selectedUuid) {
+      throw namedError(
+        'InvalidState',
+        'Tried to reset the selected observation but no observation is selected',
+      )
+    }
+    await dispatch('transitionToWaitingOutcome', selectedUuid)
     return dispatch('onLocalRecordEvent')
   },
   async retryFailedDeletes({ getters, dispatch }) {
@@ -1451,17 +1480,21 @@ const actions = {
     await Promise.all(idsToCancel.map(currId => deleteDbRecordById(currId)))
     return dispatch('onLocalRecordEvent')
   },
-  async getCurrentOutcomeForWowId({ state }, wowId) {
+  async getCurrentOutcomeForWowId({ dispatch }, wowId) {
+    const found = await dispatch('getLocalQueueSummaryRecord', wowId)
+    return found[constants.recordProcessingOutcomeFieldName]
+  },
+  getLocalQueueSummaryRecord({ state }, wowId) {
     const found = state.localQueueSummary.find(
       e => e.inatId === wowId || e.uuid === wowId,
     )
     if (!found) {
       throw new Error(
         `Could not find record with wowId=${wowId} in ` +
-          `localSummary=${JSON.stringify(state.localQueueSummary)}`,
+          `localQueueSummary=${JSON.stringify(state.localQueueSummary)}`,
       )
     }
-    return found[constants.recordProcessingOutcomeFieldName]
+    return found
   },
   async transitionToSuccessOutcome({ dispatch }, wowId) {
     return dispatch('_transitionHelper', {
@@ -1557,7 +1590,7 @@ const getters = {
   },
   observationDetail(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
-    const found = allObs.find(e => wowIdOf(e) === state.selectedObservationId)
+    const found = allObs.find(e => e.uuid === state.selectedObservationUuid)
     return found
   },
   waitingForDeleteCount(state) {
@@ -1580,12 +1613,12 @@ const getters = {
     return getters.deletesWithErrorDbIds.length
   },
   localRecords(state) {
-    // TODO refactor this nested loops stuff to be more efficient
+    const remoteRecordLookup = state.allRemoteObs.reduce((accum, curr) => {
+      accum[curr.uuid] = curr
+      return accum
+    }, {})
     return state._uiVisibleLocalRecords.map(currLocal => {
-      const existingValues =
-        state.allRemoteObs.find(
-          currRemote => currRemote.uuid === currLocal.uuid,
-        ) || {}
+      const existingValues = remoteRecordLookup[currLocal.uuid] || {}
       const dontModifyTheOtherObjects = {}
       return Object.assign(dontModifyTheOtherObjects, existingValues, currLocal)
     })
@@ -1601,7 +1634,6 @@ const getters = {
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
   isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
   isSelectedRecordEditOfRemote(state, getters) {
-    const selectedId = state.selectedObservationId
     return getters.localRecords
       .filter(e => {
         const hasRemote = !!e.inatId
@@ -1610,7 +1642,7 @@ const getters = {
           hasRemote
         )
       })
-      .some(e => wowIdOf(e) === selectedId)
+      .some(e => e.uuid === state.selectedObservationUuid)
   },
   isSelectedRecordOnRemote(_, getters) {
     const isRemote = (getters.observationDetail || {}).inatId
@@ -1678,30 +1710,39 @@ function isErrorOutcome(outcome) {
   return [constants.systemErrorOutcome].includes(outcome)
 }
 
-function resolveLocalRecordUuids(ids) {
+async function resolveLocalRecordUuids(ids) {
   photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
   photoObjectUrlsInUse = []
-  const promises = ids
-    .map(async currId => {
-      const currRecord = await getRecord(currId)
-      if (!currRecord) {
-        const msg =
-          `Could not resolve ID=${currId} to a DB record.` +
-          ' Assuming it was deleted while we were busy processing.'
-        wowWarnHandler(msg)
-        const nothingToDoFilterMeOut = null
-        return nothingToDoFilterMeOut
-      }
-      const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
-      const result = {
-        ...currRecord,
-        photos,
-      }
-      commonApiToOurDomainObsMapping(result, currRecord)
-      return result
-    })
-    .filter(e => !!e)
-  return Promise.all(promises)
+  const promises = ids.map(async currId => {
+    const currRecord = await getRecord(currId)
+    if (!currRecord) {
+      const msg =
+        `Could not resolve ID=${currId} to a DB record.` +
+        ' Assuming it was deleted while we were busy processing.'
+      wowWarnHandler(msg)
+      const nothingToDoFilterMeOut = null
+      return nothingToDoFilterMeOut
+    }
+    const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
+    const result = {
+      ...currRecord,
+      photos,
+      wowMeta: {
+        ...currRecord.wowMeta,
+        [constants.photosToAddFieldName]: currRecord.wowMeta[
+          constants.photosToAddFieldName
+        ].map(p => ({
+          // we don't need ArrayBuffers of photos in memory, slowing things down
+          type: p.type,
+          id: p.id,
+          fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
+        })),
+      },
+    }
+    commonApiToOurDomainObsMapping(result, currRecord)
+    return result
+  })
+  return (await Promise.all(promises)).filter(e => !!e)
 }
 
 function mapPhotoFromDbToUi(p) {
@@ -1750,7 +1791,7 @@ function revokeOldObjectUrls() {
 
 export default {
   namespaced: true,
-  state,
+  state: initialState,
   mutations,
   actions,
   getters,

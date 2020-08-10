@@ -132,114 +132,127 @@
             modifier="nodivider"
             :data-debug-field-id="currField.id"
           >
-            <div
-              class="wow-obs-field-input-container input-status-wrapper"
-              :class="{
-                'multiselect-container':
-                  currField.wowDatatype === multiselectFieldType,
-              }"
-            >
-              <v-ons-list v-if="currField.isWideSelect">
-                <v-ons-list-item
-                  v-for="(currOption, $index) in currField.allowedValues"
-                  :key="currField.id + '-' + $index"
-                  tappable
-                >
-                  <label class="left">
-                    <v-ons-radio
-                      v-model="obsFieldValues[currField.id]"
-                      :input-id="'radio-' + currField.id + '-' + $index"
-                      :value="currOption.value"
-                      modifier="material"
+            <div class="center question-wrapper">
+              <div
+                class="wow-obs-field-input-container input-status-wrapper"
+                :class="{
+                  'multiselect-container':
+                    currField.wowDatatype === multiselectFieldType,
+                }"
+              >
+                <v-ons-list v-if="currField.isWideSelect">
+                  <v-ons-list-item
+                    v-for="(currOption, $index) in currField.allowedValues"
+                    :key="currField.id + '-' + $index"
+                    tappable
+                  >
+                    <label class="left">
+                      <v-ons-radio
+                        v-model="obsFieldValues[currField.id]"
+                        :input-id="'radio-' + currField.id + '-' + $index"
+                        :value="currOption.value"
+                        modifier="material"
+                      >
+                      </v-ons-radio>
+                    </label>
+                    <label
+                      :for="'radio-' + currField.id + '-' + $index"
+                      class="center"
                     >
-                    </v-ons-radio>
-                  </label>
-                  <label
-                    :for="'radio-' + currField.id + '-' + $index"
-                    class="center"
+                      {{ currOption.title }}
+                    </label>
+                  </v-ons-list-item>
+                </v-ons-list>
+
+                <v-ons-select
+                  v-else-if="currField.wowDatatype === selectFieldType"
+                  v-model="obsFieldValues[currField.id]"
+                  class="wow-select"
+                >
+                  <option v-if="currField.required" :value="null" disabled>
+                    please select
+                  </option>
+                  <option
+                    v-for="(currOption, $index) in currField.allowedValues"
+                    :key="currField.id + '-' + $index"
+                    :value="currOption.value"
                   >
                     {{ currOption.title }}
-                  </label>
-                </v-ons-list-item>
-              </v-ons-list>
-
-              <v-ons-select
-                v-else-if="currField.wowDatatype === selectFieldType"
-                v-model="obsFieldValues[currField.id]"
-                class="wow-select"
-              >
-                <option v-if="currField.required" :value="null" disabled>
-                  please select
-                </option>
-                <option
-                  v-for="(currOption, $index) in currField.allowedValues"
-                  :key="currField.id + '-' + $index"
-                  :value="currOption.value"
+                  </option>
+                </v-ons-select>
+                <v-ons-input
+                  v-else-if="currField.wowDatatype === numericFieldType"
+                  v-model="obsFieldValues[currField.id]"
+                  float
+                  placeholder="Input value"
+                  type="number"
+                  @change="onNumberChange($event, currField.id)"
+                  @keyup.enter="onNumberInput($event)"
                 >
-                  {{ currOption.title }}
-                </option>
-              </v-ons-select>
-              <v-ons-input
-                v-else-if="currField.wowDatatype === numericFieldType"
-                v-model="obsFieldValues[currField.id]"
-                float
-                placeholder="Input value"
-                type="number"
-                @change="onNumberChange($event, currField.id)"
-                @keyup.enter="onNumberInput($event)"
-              >
-              </v-ons-input>
-              <textarea
-                v-else-if="currField.wowDatatype === 'text'"
-                v-model="obsFieldValues[currField.id]"
-                placeholder="Input value"
-                class="wow-textarea"
-              >
-              </textarea>
-              <wow-autocomplete
-                v-else-if="currField.wowDatatype === taxonFieldType"
-                :items="taxonQuestionAutocompleteItems[currField.id]"
-                :initial-value="obsFieldInitialValues[currField.id]"
-                :is-error="speciesAutocompleteErrors[currField.id]"
-                placeholder-text="e.g. casuarina glauca"
-                :extra-callback-data="currField.id"
-                @change="debouncedOnTaxonQuestionInput"
-                @item-selected="onTaxonQuestionSet"
-              />
-              <template
-                v-else-if="currField.wowDatatype === multiselectFieldType"
-              >
-                <div
-                  v-for="currVal of currField.multiselectValues"
-                  :key="currVal.id"
-                  class="multiselect-value"
+                </v-ons-input>
+                <textarea
+                  v-else-if="currField.wowDatatype === 'text'"
+                  v-model="obsFieldValues[currField.id]"
+                  placeholder="Input value"
+                  class="wow-textarea"
                 >
-                  <v-ons-switch
-                    v-model="obsFieldValues[currVal.id]"
-                    :input-id="currField.id + '-' + currVal.id"
-                    :disabled="fieldIdIsDisabled[currVal.id]"
-                    @change="onMultiselectChange(currField, currVal, $event)"
-                  />
-                  <label
-                    :for="currField.id + '-' + currVal.id"
-                    class="multiselect-question"
-                    ><a>{{ currVal.label }}</a>
-                  </label>
+                </textarea>
+                <wow-autocomplete
+                  v-else-if="currField.wowDatatype === taxonFieldType"
+                  :items="taxonQuestionAutocompleteItems[currField.id]"
+                  :initial-value="obsFieldInitialValues[currField.id]"
+                  :is-error="speciesAutocompleteErrors[currField.id]"
+                  placeholder-text="e.g. casuarina glauca"
+                  :extra-callback-data="currField.id"
+                  @change="debouncedOnTaxonQuestionInput"
+                  @item-selected="onTaxonQuestionSet"
+                />
+                <template
+                  v-else-if="currField.wowDatatype === multiselectFieldType"
+                >
+                  <div
+                    v-for="currVal of currField.multiselectValues"
+                    :key="currVal.id"
+                    class="multiselect-value"
+                  >
+                    <v-ons-switch
+                      v-model="obsFieldValues[currVal.id]"
+                      :input-id="currField.id + '-' + currVal.id"
+                      :disabled="fieldIdIsDisabled[currVal.id]"
+                      @change="
+                        onMultiselectChange(currField, currVal, $event.value)
+                      "
+                    />
+                    <label
+                      :for="currField.id + '-' + currVal.id"
+                      class="multiselect-question"
+                      ><a>{{ currVal.label }}</a>
+                    </label>
+                  </div>
+                </template>
+                <div v-else style="color: red;">
+                  PROGRAMMER, you have work to do - support '{{
+                    currField.wowDatatype
+                  }}' field type
                 </div>
-              </template>
-              <div v-else style="color: red;">
-                PROGRAMMER, you have work to do - support '{{
-                  currField.wowDatatype
-                }}' field type
+                <wow-input-status
+                  v-if="isShowInputStatus(currField)"
+                  :is-ok="!!obsFieldValues[currField.id]"
+                ></wow-input-status>
               </div>
-              <wow-input-status
-                v-if="isShowInputStatus(currField)"
-                :is-ok="!!obsFieldValues[currField.id]"
-              ></wow-input-status>
-            </div>
-            <div class="wow-obs-field-desc">
-              <wow-required-chip v-if="currField.required" />
-              {{ currField.description }}
+              <v-ons-button
+                v-if="isDetailedUserMode && lastUsedResponses[currField.id]"
+                modifier="quiet"
+                class="copy-last-value-btn"
+                @click="onUseLastResponse(currField.id)"
+              >
+                <v-ons-icon icon="fa-copy" />
+                Use last value: {{ lastUsedResponses[currField.id].title }}
+              </v-ons-button>
+              <div class="wow-obs-field-desc">
+                <wow-required-chip v-if="currField.required" />
+                {{ currField.description }}
+              </div>
             </div>
           </v-ons-list-item>
         </template>
@@ -361,6 +374,7 @@ import {
   conservationLanduse,
   countOfIndividualsObsFieldDefault,
   countOfIndividualsObsFieldId,
+  dominantPhenologyObsFieldId,
   epiphyteHeightObsFieldId,
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
@@ -584,6 +598,32 @@ export default {
       })()
       return isForm1Present || isForm2Present
     },
+    lastUsedResponses() {
+      // TODO enhancement idea: add extra context about the saved responses:
+      //  - date/time they were saved
+      //  - geolocation information
+      // ...then you could expire the suggestions when they're too old or too
+      // far away from the current observation.
+      const val = this.$store.state.obs.lastUsedResponses
+      return Object.entries(val).reduce((accum, [k, v]) => {
+        if (!v) {
+          return accum
+        }
+        const isMultiselect = v.constructor === Object
+        if (isMultiselect) {
+          accum[k] = {
+            title: `${Object.values(v).filter(v => !!v).length} selections`,
+            value: v,
+          }
+        } else {
+          accum[k] = {
+            title: v,
+            value: v,
+          }
+        }
+        return accum
+      }, {})
+    },
   },
   watch: {
     [`obsFieldValues.${orchidTypeObsFieldId}`](newVal) {
@@ -619,23 +659,14 @@ export default {
     },
   },
   beforeMount() {
-    this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
-    // we cannot use this.taxonQuestionIds here as it's not bound at this stage
-    this.taxonQuestionAutocompleteItems = this.obsFields
-      .filter(f => f.datatype === taxonFieldType)
-      .reduce((accum, curr) => {
-        // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
-        accum[curr.id] = null
-        return accum
-      }, {})
-    const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
-    if (this.isEdit) {
-      this.initForEdit(obsFieldsPromise)
-      this.snapshotExistingRecord()
-    } else {
-      this.initForNew(obsFieldsPromise)
-    }
-    this.setRecentlyUsedTaxa()
+    // as far as I can tell, this promise will always be present before we're
+    // mounted. It may not be resolved, but we can deal with that. If the
+    // resolution is taking too long (noticable in the UI) then you could create a
+    // "loading" modal overlay that stops UI interaction until the promise is
+    // resolved.
+    this.$store.state.ephemeral.routerNavPromise.then(() => {
+      this.initHandler()
+    })
   },
   async created() {
     this.debouncedOnSpeciesGuessInput = _.debounce(
@@ -657,7 +688,27 @@ export default {
     )
   },
   methods: {
+    initHandler() {
+      this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
+      // we cannot use this.taxonQuestionIds here as it's not bound at this stage
+      this.taxonQuestionAutocompleteItems = this.obsFields
+        .filter(f => f.datatype === taxonFieldType)
+        .reduce((accum, curr) => {
+          // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
+          accum[curr.id] = null
+          return accum
+        }, {})
+      const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
+      if (this.isEdit) {
+        this.initForEdit(obsFieldsPromise)
+        this.snapshotExistingRecord()
+      } else {
+        this.initForNew(obsFieldsPromise)
+      }
+      this.setRecentlyUsedTaxa()
+    },
     initForNew(obsFieldsPromise) {
+      console.debug('initialising for "new" mode')
       obsFieldsPromise.then(() => {
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
@@ -667,11 +718,13 @@ export default {
       this.geolocationErrorMsg = null
     },
     initForEdit(obsFieldsPromise) {
+      console.debug('initialising for "edit" mode')
       this.uuidOfThisObs = this.observationDetail.uuid
       this.rereadCoords()
       this.rereadDatetime()
       this.obsLocAccuracy = this.observationDetail.positional_accuracy
       obsFieldsPromise.then(() => {
+        console.debug('initialising obs field dependent fields for edit')
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
@@ -711,9 +764,11 @@ export default {
           for (const currItem of currMultiselect.multiselectValues) {
             // TODO possible enhancement: check for impossible situation due to
             // edits done outside the app
-            this.onMultiselectChange(currMultiselect, currItem, {
-              value: this.obsFieldValues[currItem.id],
-            })
+            this.onMultiselectChange(
+              currMultiselect,
+              currItem,
+              this.obsFieldValues[currItem.id],
+            )
           }
         }
         this.observationDetail.obsFieldValues
@@ -1069,6 +1124,7 @@ export default {
           this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
           return
         }
+        this.updateLastUsedResponses()
         this.updateRecentlyUsedTaxa()
         const strategyKey = this.isEdit ? 'Edit' : 'New'
         const strategy = this['doSave' + strategyKey]
@@ -1179,6 +1235,88 @@ export default {
           value: paramToPass,
         })
       }
+    },
+    updateLastUsedResponses() {
+      const idWhitelist = this.displayableObsFields
+        .filter(e => e.wowDatatype === selectFieldType)
+        .filter(e => {
+          const isNotIndividualBased = ![
+            accuracyOfPopulationCountObsFieldId,
+            areaOfPopulationObsFieldId,
+            dominantPhenologyObsFieldId,
+          ].includes(e.id)
+          return isNotIndividualBased
+        })
+        .map(e => e.id)
+
+      const multiSelectEnabledSwitches = Object.entries(
+        this.obsFieldValues,
+      ).reduce((accum, [key, isOn]) => {
+        const multiselectParentId = getMultiselectId(key)
+        if (!multiselectParentId) {
+          return accum
+        }
+        const existing = accum[multiselectParentId] || {}
+        existing[key] = isOn
+        accum[multiselectParentId] = existing
+        return accum
+      }, {})
+
+      const newLastUsedReponses = idWhitelist.reduce((accum, curr) => {
+        accum[curr] = this.obsFieldValues[curr]
+        return accum
+      }, multiSelectEnabledSwitches)
+      this.$store.commit('obs/setLastUsedResponses', newLastUsedReponses)
+    },
+    onUseLastResponse(fieldId) {
+      this.$wow.uiTrace(
+        'SingleSpecies',
+        `use last response for field=${fieldId}`,
+      )
+      const val = (this.lastUsedResponses[fieldId] || {}).value
+      if (typeof val === 'undefined' || val === null) {
+        wowWarnHandler(
+          `useLastResponse handler was triggered for fieldId=${fieldId} but ` +
+            `the saved value was empty='${val}'. This should not happen as ` +
+            `we don't show the button when there's no value.`,
+        )
+        return
+      }
+      const multiselectGroupField = this.displayableObsFields.find(
+        e => e.id === fieldId,
+      )
+      const strategies = {
+        String: () => {
+          this.obsFieldValues[fieldId] = val
+        },
+        Object: async () => {
+          for (const [key, isOn] of Object.entries(val)) {
+            this.obsFieldValues[key] = isOn
+            const itemField = multiselectGroupField.multiselectValues.find(
+              e => e.id === parseInt(key),
+            )
+            this.onMultiselectChange(multiselectGroupField, itemField, isOn)
+          }
+        },
+      }
+      const savedValueType = val.constructor.name
+      const strategy = strategies[savedValueType]
+      if (!strategy) {
+        this.$store.dispatch(
+          'flagGlobalError',
+          {
+            msg: `Failed to use saved answer`,
+            err: new Error(
+              `Programmer problem: Tried to use saved value for ` +
+                `fieldId=${fieldId} with saved value type=${savedValueType} ` +
+                `but had no strategy to handle it`,
+            ),
+          },
+          { root: true },
+        )
+        return
+      }
+      strategy()
     },
     async doSaveNew(record) {
       const newUuid = await this.$store.dispatch(
@@ -1399,8 +1537,7 @@ export default {
     isMutuallyExclusive(field) {
       return mutuallyExclusiveMultiselectObsFieldIds.includes(field.id)
     },
-    onMultiselectChange(multiselectGroupField, itemField, $event) {
-      const newVal = $event.value
+    onMultiselectChange(multiselectGroupField, itemField, newVal) {
       const siblingFieldIds = multiselectGroupField.multiselectValues
         .map(e => e.id)
         .filter(e => e !== itemField.id)
@@ -1634,5 +1771,17 @@ $thumbnailSize: 75px;
 .detailed-indicator {
   flex-grow: 1;
   text-align: right;
+}
+
+.question-wrapper {
+  flex-direction: column;
+  align-items: baseline;
+}
+
+.copy-last-value-btn {
+  color: #777;
+  text-transform: none;
+  font-size: 1em;
+  margin-top: 0.5em;
 }
 </style>

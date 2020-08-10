@@ -167,8 +167,8 @@
       </div>
       <div v-if="selectedTab === 1">
         <h3>Geolocation</h3>
-        <!-- FIXME show obscurity box -->
-        <!-- FIXME show accuracy circle -->
+        <!-- TODO show obscurity box -->
+        <!-- TODO show accuracy circle -->
         <div v-if="obsCoords">
           <div class="map-container text-center">
             <google-map :marker-position="obsCoords" />
@@ -183,6 +183,10 @@
               </tr>
             </tbody>
           </table>
+          <p class="info-alert more-margin">
+            <v-ons-icon icon="fa-info-circle"></v-ons-icon>
+            Note: coordinates are exact. Obscuring only affects other users.
+          </p>
         </div>
         <div v-if="!obsCoords" class="text-center no-map-msg">
           No geolocation details available
@@ -529,11 +533,10 @@ export default {
     },
   },
   watch: {
-    '$route.params.id'(val) {
-      // should be able to use beforeRouteUpdate() instead, but couldn't get it to work
-      this.$store.commit('obs/setSelectedObservationId', val)
-    },
     observationDetail(newVal, oldVal) {
+      // this is for when a local observation record gets deleted out from
+      // under us (at the completion of upload) and we need to update to use
+      // the remote record.
       if (newVal) {
         // only act when it was deleted
         return
@@ -986,5 +989,9 @@ table.geolocation-detail {
 
 .edit-modal {
   /* FIXME how do we get this modal to be wider with a proportioned textarea? */
+}
+
+.more-margin {
+  margin: 1em;
 }
 </style>

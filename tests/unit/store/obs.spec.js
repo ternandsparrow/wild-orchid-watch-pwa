@@ -346,6 +346,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     describe('saveNewAndScheduleUpload', () => {
       it('should save a new record without photos', async () => {
         const record = {
@@ -676,7 +680,7 @@ describe('actions', () => {
         })
       })
 
-      it('should save an edit that adds a photo', async () => {
+      it('should save an edit of a remote record that adds a photo', async () => {
         const newPhoto = {
           file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
           type: 'top',
@@ -749,7 +753,7 @@ describe('actions', () => {
         })
       })
 
-      it('should not duplicate photos when saving an edit', async () => {
+      it('should not duplicate photos when saving an edit of a local-only obs', async () => {
         const existingLocalPhoto = {
           id: -1,
           file: {
@@ -1010,9 +1014,6 @@ describe('actions', () => {
           },
         })
       })
-
-      // TODO add test to verify adding obs field. Need support for multiple
-      // obs fields for this to happen
     })
 
     describe('edit strategies', () => {
@@ -1366,6 +1367,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should see a new record as UI visible', async () => {
       const record = {
         uuid: '123A',
@@ -1373,6 +1378,7 @@ describe('actions', () => {
         wowMeta: {
           [constants.recordTypeFieldName]: 'new',
           [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.photosToAddFieldName]: [],
         },
       }
       await obsStore.setItem('123A', record)
@@ -1398,6 +1404,7 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.photosToAddFieldName]: [],
           },
         },
       ])
@@ -1447,49 +1454,9 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
-    async function buildContext(state, capturedCommits) {
-      const result = {
-        state: {
-          _uiVisibleLocalRecords: [],
-          localQueueSummary: [],
-          ...state,
-        },
-        getters: {},
-        commit: (name, value) => {
-          switch (name) {
-            case 'setLocalQueueSummary':
-            case 'setUiVisibleLocalRecords':
-              objectUnderTest.mutations[name](result.state, value)
-              refreshGetters()
-              break
-            default:
-              capturedCommits[name] = value
-          }
-        },
-        dispatch: (actionName, argsObj) => {
-          const availableActions = Object.assign({}, objectUnderTest.actions, {
-            processLocalQueue: () => Promise.resolve(),
-          })
-          const action = availableActions[actionName]
-          if (!action) {
-            console.error(
-              `Cannot find action with name='${actionName}'` +
-                '. Passed args = ',
-              argsObj,
-            )
-            return // can't throw because there's nothing to catch
-          }
-          return action(result, argsObj)
-        },
-      }
-      await objectUnderTest.actions.refreshLocalRecordQueue(result)
-      return result
-      function refreshGetters() {
-        result.getters.localRecords = objectUnderTest.getters.localRecords(
-          result.state,
-        )
-      }
-    }
+    afterAll(async () => {
+      await obsStore.clear()
+    })
 
     it(
       'should directly delete a local-only record that has NOT ' +
@@ -1501,19 +1468,19 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.recordTypeFieldName]: 'new',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
-          selectedObservationId: '123A',
           allRemoteObs: [],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toBeNull()
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
@@ -1527,15 +1494,15 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
             [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
-          selectedObservationId: '123A',
           allRemoteObs: [],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
@@ -1546,19 +1513,24 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
     it('should queue a delete action for the remote record', async () => {
-      await obsStore.setItem('123A', { uuid: '123A', photos: [], wowMeta: {} })
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+        photos: [],
+        wowMeta: {
+          [constants.photosToAddFieldName]: [],
+        },
+      })
       const state = {
-        selectedObservationId: 666,
         allRemoteObs: [{ uuid: '123A', inatId: 666 }],
       }
       const capturedCommits = {}
       await objectUnderTest.actions.deleteSelectedRecord(
-        await buildContext(state, capturedCommits),
+        await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
       )
       const result = await obsStore.getItem('123A')
       expect(result).toEqual({
@@ -1572,7 +1544,7 @@ describe('actions', () => {
           [constants.obsFieldIdsToDeleteFieldName]: [],
         },
       })
-      expect(capturedCommits.setSelectedObservationId).toBeNull()
+      expect(capturedCommits.setSelectedObservationUuid).toBeNull()
     })
 
     it(
@@ -1588,15 +1560,15 @@ describe('actions', () => {
             [constants.photoIdsToDeleteFieldName]: [
               'this should get clobbered',
             ],
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
-          selectedObservationId: 666,
           allRemoteObs: [{ uuid: '123A', inatId: 666 }],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result).toEqual({
@@ -1610,7 +1582,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
 
@@ -1625,15 +1597,15 @@ describe('actions', () => {
           wowMeta: {
             [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
             [constants.recordTypeFieldName]: 'edit',
+            [constants.photosToAddFieldName]: [],
           },
         })
         const state = {
-          selectedObservationId: 666,
           allRemoteObs: [{ uuid: '123A', inatId: 666 }],
         }
         const capturedCommits = {}
         await objectUnderTest.actions.deleteSelectedRecord(
-          await buildContext(state, capturedCommits),
+          await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
@@ -1645,7 +1617,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
           },
         })
-        expect(capturedCommits.setSelectedObservationId).toBeNull()
+        expect(capturedCommits.setSelectedObservationUuid).toBeNull()
       },
     )
   })
@@ -1657,51 +1629,48 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should delete a local record when it exists', async () => {
-      await obsStore.setItem('123A', { uuid: '123A' })
-      const state = {
-        selectedObservationId: '123A',
-        localQueueSummary: [
-          {
-            uuid: '123A',
-          },
-        ],
-      }
-      const capturedCommits = {}
-      await objectUnderTest.actions.deleteSelectedLocalRecord({
-        state,
-        commit: (name, value) => (capturedCommits[name] = value),
-        dispatch: (actionName, argsObj) => {
-          return objectUnderTest.actions[actionName](
-            { state, commit: () => {} },
-            argsObj,
-          )
+      await obsStore.setItem('123A', {
+        uuid: '123A',
+        wowMeta: {
+          [constants.recordProcessingOutcomeFieldName]: 'waiting',
+          [constants.recordTypeFieldName]: 'new',
+          [constants.photosToAddFieldName]: [],
         },
       })
+      const state = {
+        allRemoteObs: [],
+      }
+      const capturedCommits = {}
+      await objectUnderTest.actions.deleteSelectedLocalRecord(
+        await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
+      )
       const result = await obsStore.getItem('123A')
       expect(result).toBeNull()
-      expect(capturedCommits.setSelectedObservationId).toBeNull()
+      expect(capturedCommits.setSelectedObservationUuid).toBeNull()
     })
 
     it('should throw the expected error when we try to delete a non-existent ID', async () => {
       // obsStore is empty
-      const state = {
-        selectedObservationId: 'NOT-REAL-ID',
-        localQueueSummary: [],
-      }
       try {
-        await objectUnderTest.actions.deleteSelectedLocalRecord({
-          state,
-          dispatch: (actionName, argsObj) => {
-            return objectUnderTest.actions[actionName](
-              { state, commit: () => {} },
-              argsObj,
-            )
-          },
-        })
+        const state = {
+          allRemoteObs: [],
+        }
+        const capturedCommits = {}
+        await objectUnderTest.actions.deleteSelectedLocalRecord(
+          await buildAutoQueueRefreshContext(
+            state,
+            capturedCommits,
+            'NOT-REAL-ID',
+          ),
+        )
       } catch (err) {
         expect(err.message).toEqual(
-          expect.stringMatching(/^Failed to delete local edit/),
+          expect.stringMatching(/^Failed to delete local record/),
         )
         return
       }
@@ -1713,6 +1682,10 @@ describe('actions', () => {
     const obsStore = getOrCreateInstance('wow-obs')
 
     beforeEach(async () => {
+      await obsStore.clear()
+    })
+
+    afterAll(async () => {
       await obsStore.clear()
     })
 
@@ -1930,6 +1903,10 @@ describe('actions', () => {
       await obsStore.clear()
     })
 
+    afterAll(async () => {
+      await obsStore.clear()
+    })
+
     it('should find the ID when we provide an inatId', async () => {
       const state = {
         localQueueSummary: [
@@ -2020,7 +1997,7 @@ describe('actions', () => {
       console.warn = () => {}
       await obsStore.setItem(wowId, {
         uuid:
-          'A temping fake. Real LocalForage will not allow numbers ' +
+          'A temp-ing fake. Real LocalForage will not allow numbers ' +
           'as keys, but our test DB will',
       })
       console.warn = origConsoleWarn
@@ -2040,6 +2017,110 @@ describe('actions', () => {
         wowId,
       )
       expect(result).toEqual('WINNER')
+    })
+  })
+
+  describe('inatIdToUuid', () => {
+    it('should find the UUID when a local record exists', async () => {
+      const getters = {
+        localRecords: [
+          {
+            uuid: '123A',
+            inatId: 111,
+          },
+        ],
+        remoteRecords: [],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should find the UUID when a remote record exists', async () => {
+      const getters = {
+        localRecords: [],
+        remoteRecords: [
+          {
+            uuid: '123A',
+            inatId: 111,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toEqual('123A')
+    })
+
+    it('should return null when no record exists', async () => {
+      const getters = {
+        localRecords: [],
+        remoteRecords: [],
+      }
+      const result = await objectUnderTest.actions.inatIdToUuid(
+        await buildDumbContext({ getters }),
+        111,
+      )
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('getCurrentOutcomeForWowId', () => {
+    it('should find the outcome when a record exists and we use UUID', async () => {
+      const state = {
+        localQueueSummary: [
+          {
+            uuid: '123A',
+            inatId: 111,
+            [constants.recordProcessingOutcomeFieldName]:
+              constants.waitingOutcome,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.getCurrentOutcomeForWowId(
+        await buildDumbContext({ state }),
+        '123A',
+      )
+      expect(result).toEqual('waiting')
+    })
+
+    it('should find the outcome when a record exists and we use iNat ID', async () => {
+      const state = {
+        localQueueSummary: [
+          {
+            uuid: '123A',
+            inatId: 111,
+            [constants.recordProcessingOutcomeFieldName]:
+              constants.withServiceWorkerOutcome,
+          },
+        ],
+      }
+      const result = await objectUnderTest.actions.getCurrentOutcomeForWowId(
+        await buildDumbContext({ state }),
+        111,
+      )
+      expect(result).toEqual('withServiceWorker')
+    })
+
+    it('should throw the expected error when no record exists', async () => {
+      const state = {
+        localQueueSummary: [],
+      }
+      try {
+        await objectUnderTest.actions.getCurrentOutcomeForWowId(
+          await buildDumbContext({ state }),
+          'NO-RECORD-WITH-UUID',
+        )
+      } catch (err) {
+        expect(err.message).toEqual(
+          expect.stringMatching(/^Could not find record with wowId=NO-RECORD/),
+        )
+        return
+      }
+      throw new Error('Expected error should have been thrown')
     })
   })
 })
@@ -2241,6 +2322,68 @@ describe('getters', () => {
     })
   })
 })
+
+async function buildDumbContext({ state, getters }) {
+  const result = {
+    state: {
+      allRemoteObs: [],
+      ...state,
+    },
+    commit: () => {},
+    getters: {
+      ...getters,
+    },
+    dispatch: async (actionName, argsObj) => {
+      const availableActions = Object.assign({}, objectUnderTest.actions, {
+        processLocalQueue: () => Promise.resolve(),
+      })
+      const action = availableActions[actionName]
+      if (!action) {
+        console.error(
+          `Cannot find action with name='${actionName}'` + '. Passed args = ',
+          argsObj,
+        )
+        return // can't throw because there's nothing to catch
+      }
+      return action(result, argsObj)
+    },
+  }
+  return result
+}
+
+async function buildAutoQueueRefreshContext(
+  state,
+  capturedCommits,
+  selectedObservationUuid,
+) {
+  const result = await buildDumbContext({
+    state: {
+      _uiVisibleLocalRecords: [],
+      localQueueSummary: [],
+      selectedObservationUuid,
+      allRemoteObs: [],
+      ...state,
+    },
+  })
+  result.commit = (name, value) => {
+    switch (name) {
+      case 'setLocalQueueSummary':
+      case 'setUiVisibleLocalRecords':
+        objectUnderTest.mutations[name](result.state, value)
+        refreshGetters()
+        break
+      default:
+        capturedCommits[name] = value
+    }
+  }
+  await objectUnderTest.actions.refreshLocalRecordQueue(result)
+  return result
+  function refreshGetters() {
+    result.getters.localRecords = objectUnderTest.getters.localRecords(
+      result.state,
+    )
+  }
+}
 
 function wowUpdatedAtToBeCloseToNow(record) {
   const updatedAtStr = record.wowMeta.wowUpdatedAt

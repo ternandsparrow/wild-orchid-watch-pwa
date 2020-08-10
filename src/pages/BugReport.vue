@@ -108,6 +108,7 @@ import { mapGetters } from 'vuex'
 import * as gcpError from 'stackdriver-error-reporting-clientside-js-client'
 import * as constants from '@/misc/constants'
 import { isSwActive, chainedError } from '@/misc/helpers'
+import { encryptAndBase64Encode } from '@/misc/no-deps-helpers'
 
 export default {
   name: 'BugReport',
@@ -232,14 +233,26 @@ export default {
     gatherContextAppStore() {
       this.vuexStoreApp = this.$store.state.app
     },
-    gatherContextAuthStore() {
+    async gatherContextAuthStore() {
       const authState = this.$store.state.auth
+      const encryptedSecrets = await (() => {
+        if (!constants.publicJwk) {
+          return '(no public JWK configured)'
+        }
+        const plainText = JSON.stringify({ apiToken: authState.apiToken })
+        return encryptAndBase64Encode(
+          constants.publicJwk,
+          plainText,
+          constants.cryptoConfig,
+        )
+      })()
       this.vuexStoreAuth = {
         ...authState,
         token: trimAndMeasure(authState.token),
         apiToken: trimAndMeasure(authState.apiToken),
         code_challenge: trimAndMeasure(authState.code_challenge),
         code_verifier: trimAndMeasure(authState.code_verifier),
+        encryptedSecrets,
       }
     },
     gatherContextEphemeralStore() {
