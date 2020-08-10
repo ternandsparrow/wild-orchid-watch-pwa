@@ -28,7 +28,7 @@
     "exif-js": "2.3.0",
     "exif-reader": "^1.0.3",
     "fetch-retry": "^2.2.3",
-    "formdata-polyfill": "https://github.com/ternandsparrow/FormData#safari13.1-attempt2",
+    "formdata-polyfill": "https://github.com/ternandsparrow/FormData#safari13.1-attempt2-installable",
     "fuse.js": "^5.0.10-beta",
     "is_js": "^0.9.0",
     "jimp": "^0.9.3",
