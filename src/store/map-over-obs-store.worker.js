@@ -21,7 +21,7 @@ async function doit() {
       [constants.recordProcessingOutcomeFieldName]:
         r.wowMeta[constants.recordProcessingOutcomeFieldName],
       [constants.hasBlockedActionFieldName]: hasBlockedAction,
-      wowUpdatedAt: r.wowMeta.wowUpdatedAt,
+      wowUpdatedAt: r.wowMeta[constants.wowUpdatedAtFieldName],
       inatId: r.inatId,
       uuid: r.uuid,
     }

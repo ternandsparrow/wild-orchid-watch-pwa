@@ -419,6 +419,7 @@ export const projectIdFieldName = 'projectId'
 export const blockedActionFieldName = 'blockedAction'
 export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
+export const wowUpdatedAtFieldName = 'wowUpdatedAt'
 
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
@@ -450,6 +451,8 @@ export const serviceWorkerUpdateErrorTrackerContextUrl =
   serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
 export const serviceWorkerClearEverythingUrl =
   serviceWorkerMagicUrlPrefix + '/clear-everything'
+export const serviceWorkerObsUuidsInQueueUrl =
+  serviceWorkerMagicUrlPrefix + '/uuids-in-queue'
 
 export const serviceWorkerPlatformTestUrl =
   serviceWorkerMagicUrlPrefix + '/platorm-test'

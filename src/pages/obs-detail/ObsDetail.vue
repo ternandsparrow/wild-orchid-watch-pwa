@@ -358,7 +358,7 @@ import {
   findCommonString,
   formatMetricDistance,
   humanDateString,
-  isPossiblyStuck,
+  isPossiblyStuck as isPossiblyStuckHelper,
   rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
   wowIdOf,
@@ -402,7 +402,7 @@ export default {
       return isObsSystemError(this.nullSafeObs)
     },
     isPossiblyStuck() {
-      return isPossiblyStuck(this.$store, this.observationDetail)
+      return isPossiblyStuckHelper(this.$store, this.observationDetail)
     },
     selectedObsInatId() {
       return this.observationDetail.inatId

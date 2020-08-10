@@ -779,6 +779,48 @@ registerRoute(
   'GET',
 )
 
+registerRoute(
+  constants.serviceWorkerObsUuidsInQueueUrl,
+  async () => {
+    console.debug('[SW] Building list of UUIDs present in queues')
+    try {
+      return jsonResponse(await getObsUuidsInQueues())
+    } catch (err) {
+      const msg = 'Failed to build SW list of UUIDs in queues'
+      wowErrorHandler(msg, err)
+      return jsonResponse({ error: err.message })
+    }
+  },
+  'GET',
+)
+
+async function getObsUuidsInQueues() {
+  const uuids = new Set()
+  const wowQueueEntries = await wowQueue.getAll()
+  wowQueueEntries.forEach(e => uuids.add(e.uuid))
+  await new Promise(async (resolve, reject) => {
+    try {
+      await wowSwStore.iterate(
+        function valueProcessor(r) {
+          uuids.add(r.observation.uuid)
+        },
+        function doneCallback(_, err) {
+          if (!err) {
+            return resolve()
+          }
+          return reject(err)
+        },
+      )
+    } catch (err) {
+      return reject(
+        chainedError('Failed to iterate wowSw IDB to collect UUIDs', err),
+      )
+    }
+  })
+  const result = [...uuids.keys()]
+  return result
+}
+
 // "the web" is not *a* platform. A platform offers a controlled runtime
 // environment. It's a collection of platforms. This tests some of the corner
 // cases that make targeting multiple platforms a challenge. Purely for dev
@@ -1162,7 +1204,7 @@ async function buildHealthcheckObj() {
         if (!err) {
           return resolve(result)
         }
-        // if we do have an error, we've already handled it
+        // if we do have an error, we've already handled it in an inner catch block
         return reject(err)
       })
     } catch (err) {
@@ -1182,6 +1224,7 @@ async function buildHealthcheckObj() {
       count: swStoreItems.length,
       itemSummaries: swStoreItems,
     },
+    uuidsInQueues: await getObsUuidsInQueues(),
   }
   function mapEntries(entries) {
     return entries.map(e => ({

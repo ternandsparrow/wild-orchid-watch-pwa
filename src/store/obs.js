@@ -18,6 +18,7 @@ import {
   buildStaleCheckerFn,
   chainedError,
   fetchSingleRecord,
+  getJson,
   isNoSwActive,
   makeObsRequest,
   namedError,
@@ -54,6 +55,7 @@ const initialState = {
   recentlyUsedTaxa: {},
   forceQueueProcessingAtNextChance: false,
   lastUsedResponses: {},
+  uuidsInSwQueues: [],
 }
 
 const mutations = {
@@ -98,6 +100,7 @@ const mutations = {
   setForceQueueProcessingAtNextChance: (state, value) =>
     (state.forceQueueProcessingAtNextChance = value),
   setLastUsedResponses: (state, value) => (state.lastUsedResponses = value),
+  setUuidsInSwQueues: (state, value) => (state.uuidsInSwQueues = value),
 }
 
 const actions = {
@@ -116,6 +119,7 @@ const actions = {
   },
   async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
+    dispatch('refreshObsUuidsInSwQueue')
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
@@ -152,6 +156,27 @@ const actions = {
       commit('setIsUpdatingRemoteObs', false)
     }
   },
+  async refreshObsUuidsInSwQueue({ commit }) {
+    try {
+      const isNoServiceWorkerAvailable = await isNoSwActive()
+      if (isNoServiceWorkerAvailable) {
+        return
+      }
+      const uuids = await getJson(
+        constants.serviceWorkerObsUuidsInQueueUrl,
+        false,
+      )
+      commit('setUuidsInSwQueues', uuids)
+    } catch (err) {
+      // not using flagGlobalError because we don't need to bother the user
+      wowErrorHandler(
+        'Failed to get list of obs UUIDs that in SW queues, falling back to ' +
+          'an empty array',
+        err,
+      )
+      commit('setUuidsInSwQueues', [])
+    }
+  },
   async cleanSuccessfulLocalRecordsRemoteHasEchoed({
     state,
     getters,
@@ -169,7 +194,7 @@ const actions = {
     )
     const localUpdatedDates = getters.successfulLocalQueueSummary.reduce(
       (accum, curr) => {
-        accum[curr.uuid] = curr.wowUpdatedAt
+        accum[curr.uuid] = curr[constants.wowUpdatedAtFieldName]
         return accum
       },
       {},
@@ -716,7 +741,7 @@ const actions = {
           // warning: relies on the local device time being synchronised. If
           // the clock has drifted forward, our check for updates having
           // occurred on the remote won't work.
-          wowUpdatedAt: new Date().toISOString(),
+          [constants.wowUpdatedAtFieldName]: new Date().toISOString(),
         },
       })
       delete enhancedRecord.addedPhotos
@@ -1595,6 +1620,7 @@ const actions = {
       validFromOutcomes: [
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
+        constants.successOutcome,
         constants.systemErrorOutcome,
       ],
     })

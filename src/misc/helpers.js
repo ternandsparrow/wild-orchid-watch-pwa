@@ -86,19 +86,29 @@ export function postFormDataWithAuth(
   })
 }
 
-export function getJson(url) {
+export function getJson(url, includeCacheBustQueryString) {
   const authHeader = null
-  return getJsonWithAuth(url, authHeader)
+  return getJsonWithAuth(url, authHeader, includeCacheBustQueryString)
 }
 
-export function getJsonWithAuth(url, authHeaderValue) {
+export function getJsonWithAuth(
+  url,
+  authHeaderValue,
+  includeCacheBustQueryString = true,
+) {
   // supplying cache: 'no-store' to fetch() works perfectly except for iOS
   // Safari which explodes, so we have to fall back to this dirty way of cache
   // busting
-  const isQueryStringPresent = url.includes('?')
-  const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
-  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${now()}`
-  return doManagedFetch(urlWithCacheBust, {
+  const urlToUse = (() => {
+    if (!includeCacheBustQueryString) {
+      return url
+    }
+    const isQueryStringPresent = url.includes('?')
+    const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
+    const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${now()}`
+    return urlWithCacheBust
+  })()
+  return doManagedFetch(urlToUse, {
     method: 'GET',
     mode: 'cors',
     headers: {
@@ -138,11 +148,28 @@ export function isPossiblyStuck($store, record) {
   }
   const isAllowedToSync = !$store.getters.isSyncDisabled
   const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
-  // FIXME need to look at records that are withServiceWorker but SW has
-  // nothing in its queue. Need to ask SW for that second bit.
-  return (
+  const isStuckLocally =
     isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
-  )
+  const isStuckInSw = (() => {
+    const wowMeta = record.wowMeta
+    if (!wowMeta) {
+      return false
+    }
+    const updatedAtDatetime = dayjs(wowMeta[constants.wowUpdatedAtFieldName])
+    const waitThreshold = updatedAtDatetime.add(20, 'minutes')
+    const hasBeenLongEnoughSinceUploadAttempt = waitThreshold.isAfter(
+      updatedAtDatetime,
+    )
+    const isSuccess =
+      wowMeta[constants.recordProcessingOutcomeFieldName] ===
+      constants.successOutcome
+    return (
+      hasBeenLongEnoughSinceUploadAttempt &&
+      isSuccess &&
+      !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
+    )
+  })()
+  return isStuckLocally || isStuckInSw
 }
 
 export function deleteWithAuth(url, authHeaderValue, wowUuid) {
