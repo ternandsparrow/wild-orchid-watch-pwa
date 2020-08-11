@@ -1701,18 +1701,22 @@ describe('actions', () => {
           },
         ],
       }
-      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
-        state,
-        getters: {
-          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed(
+        await buildDumbContext(
+          {
             state,
-          ),
-          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
-            state,
-          ),
-        },
-        dispatch: () => {},
-      })
+            getters: {
+              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                state,
+              ),
+              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                state,
+              ),
+            },
+          },
+          ['checkForLostPhotos'],
+        ),
+      )
       const result = await obsStore.getItem('123A')
       expect(result).toBeNull()
     })
@@ -1736,18 +1740,20 @@ describe('actions', () => {
           ],
         }
         await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed(
-          {
-            state,
-            getters: {
-              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
-                state,
-              ),
-              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
-                state,
-              ),
+          await buildDumbContext(
+            {
+              state,
+              getters: {
+                successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                  state,
+                ),
+                deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                  state,
+                ),
+              },
             },
-            dispatch: () => {},
-          },
+            ['checkForLostPhotos'],
+          ),
         )
         const result = await obsStore.getItem('456B')
         expect(result).toBeNull()
@@ -1803,18 +1809,22 @@ describe('actions', () => {
           },
         ],
       }
-      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
-        state,
-        getters: {
-          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed(
+        await buildDumbContext(
+          {
             state,
-          ),
-          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
-            state,
-          ),
-        },
-        dispatch: () => {},
-      })
+            getters: {
+              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                state,
+              ),
+              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                state,
+              ),
+            },
+          },
+          ['checkForLostPhotos'],
+        ),
+      )
       const result = await obsStore.getItem('456B')
       expect(result).toBeNull()
     })
@@ -1831,18 +1841,22 @@ describe('actions', () => {
           },
         ],
       }
-      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
-        state,
-        getters: {
-          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed(
+        await buildDumbContext(
+          {
             state,
-          ),
-          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
-            state,
-          ),
-        },
-        dispatch: () => {},
-      })
+            getters: {
+              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                state,
+              ),
+              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                state,
+              ),
+            },
+          },
+          ['checkForLostPhotos'],
+        ),
+      )
       const result = await obsStore.getItem('456B')
       expect(result).toBeNull()
     })
@@ -1873,18 +1887,22 @@ describe('actions', () => {
           },
         ],
       }
-      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed({
-        state,
-        getters: {
-          successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+      await objectUnderTest.actions.cleanSuccessfulLocalRecordsRemoteHasEchoed(
+        await buildDumbContext(
+          {
             state,
-          ),
-          deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
-            state,
-          ),
-        },
-        dispatch: () => {},
-      })
+            getters: {
+              successfulLocalQueueSummary: objectUnderTest.getters.successfulLocalQueueSummary(
+                state,
+              ),
+              deletesWithErrorDbIds: objectUnderTest.getters.deletesWithErrorDbIds(
+                state,
+              ),
+            },
+          },
+          ['checkForLostPhotos', 'refreshLocalRecordQueue'],
+        ),
+      )
       const result = await obsStore.getItem('456B')
       expect(result.inatId).toEqual(987)
       expect(result.wowMeta).toEqual({
@@ -2323,7 +2341,7 @@ describe('getters', () => {
   })
 })
 
-async function buildDumbContext({ state, getters }) {
+async function buildDumbContext({ state, getters }, stubbedDispatchNames = []) {
   const result = {
     state: {
       allRemoteObs: [],
@@ -2334,6 +2352,9 @@ async function buildDumbContext({ state, getters }) {
       ...getters,
     },
     dispatch: async (actionName, argsObj) => {
+      if (stubbedDispatchNames.includes(actionName)) {
+        return
+      }
       const availableActions = Object.assign({}, objectUnderTest.actions, {
         processLocalQueue: () => Promise.resolve(),
       })

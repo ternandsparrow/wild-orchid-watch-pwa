@@ -274,7 +274,7 @@ export default {
     },
     onNewSingleSpecies() {
       this.$wow.uiTrace('MyObs', 'new single species')
-      this.$store.commit('obs/setSelectedObservationId', null)
+      this.$store.commit('obs/setSelectedObservationUuid', null)
       this.$router.push({ name: 'ObsNewSingleSpecies' })
     },
     traceRefreshAction(done) {
