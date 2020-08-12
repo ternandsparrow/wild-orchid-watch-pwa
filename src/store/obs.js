@@ -174,25 +174,60 @@ const actions = {
       },
       {},
     )
+    const logPrefix = '[clean check]'
     const successfulLocalRecordDbIdsToDelete = getters.successfulLocalQueueSummary
       .filter(e => {
-        const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
-        const isUpdatedOnRemoteAfterLocalUpdate =
-          currUpdatedDateOnRemote &&
-          // remote times are rounded to the second
-          dayjs(currUpdatedDateOnRemote) >=
-            dayjs(localUpdatedDates[e.uuid]).startOf('second')
-        const isNewAndPresent =
-          e[constants.recordTypeFieldName] === recordType('new') &&
-          uuidsOfRemoteRecords.includes(e.uuid)
-        const isEditAndUpdated =
-          e[constants.recordTypeFieldName] === recordType('edit') &&
-          uuidsOfRemoteRecords.includes(e.uuid) &&
-          isUpdatedOnRemoteAfterLocalUpdate
-        const isDeleteAndNotPresent =
-          e[constants.recordTypeFieldName] === recordType('delete') &&
-          !uuidsOfRemoteRecords.includes(e.uuid)
-        return isNewAndPresent || isEditAndUpdated || isDeleteAndNotPresent
+        const theRecordType = e[constants.recordTypeFieldName]
+        switch (theRecordType) {
+          case recordType('new'):
+            return (() => {
+              const isNewAndPresent = uuidsOfRemoteRecords.includes(e.uuid)
+              console.debug(
+                `${logPrefix} UUID=${e.uuid} is new and ` +
+                  `present=${isNewAndPresent}`,
+              )
+              return isNewAndPresent
+            })()
+          case recordType('edit'):
+            return (() => {
+              const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
+              const secondsRemoteUpdateDateIsAheadOfLocal =
+                // remote times are rounded to the second
+                (dayjs(currUpdatedDateOnRemote) -
+                  dayjs(localUpdatedDates[e.uuid]).startOf('second')) /
+                1000
+              const isUpdatedOnRemoteAfterLocalUpdate =
+                currUpdatedDateOnRemote &&
+                secondsRemoteUpdateDateIsAheadOfLocal >= 0
+              const isEditAndUpdated =
+                uuidsOfRemoteRecords.includes(e.uuid) &&
+                isUpdatedOnRemoteAfterLocalUpdate
+              console.debug(
+                `${logPrefix} UUID=${e.uuid} is edit and ` +
+                  `updated=${isEditAndUpdated}, remote is ahead of local by ` +
+                  `${secondsRemoteUpdateDateIsAheadOfLocal}s (${dayjs
+                    .duration(secondsRemoteUpdateDateIsAheadOfLocal, 's')
+                    .humanize(true)})`,
+              )
+              return isEditAndUpdated
+            })()
+          case recordType('delete'):
+            return (() => {
+              const isDeleteAndNotPresent = !uuidsOfRemoteRecords.includes(
+                e.uuid,
+              )
+              console.debug(
+                `${logPrefix} UUID=${e.uuid} is delete and not ` +
+                  `present=${isDeleteAndNotPresent}`,
+              )
+              return isDeleteAndNotPresent
+            })()
+          default:
+            wowWarnMessage(
+              `Programmer problem: unhandled record type=${theRecordType}`,
+            )
+            return false
+        }
       })
       .map(e => e.uuid)
     console.debug(
