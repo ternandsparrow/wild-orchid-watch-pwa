@@ -248,6 +248,10 @@ You'll also want to change some of the default project settings:
   1. under Project settings -> Security & Privacy -> Data Scrubbing, you should
      turn *off* `Data Scrubber` and `Use Default Scrubbers`. We've found they
      scrub information that you need to diagnose issues.
+  1. adding the [GitHub
+     integration](https://docs.sentry.io/product/integrations/github/) is
+     probably a good idea too, so you have extra details about which commits
+     introduce errors.
 
 ### Firebase
 For Firebase, you don't need to deploy from your local machine. We have
