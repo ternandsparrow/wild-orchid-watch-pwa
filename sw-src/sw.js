@@ -112,6 +112,28 @@ async function wowQueueSuccessCb(entry, resp) {
   const obsUuid = entry.metadata.obsUuid
   const strategies = [
     {
+      matcher: (url, method) =>
+        method === 'POST' && url.endsWith('/observation_photos'),
+      action: async function handleSuccessfulObsPhoto() {
+        // nothing to do, the photo is already attached to the obs
+        try {
+          const respBody = await resp.json()
+          const newPhotoId = respBody.id
+          console.debug(
+            `[SW] new photo ID='${newPhotoId}' attached to existing obs with ` +
+              `UUID='${obsUuid}'/inatId='${entry.metadata.obsId}'`,
+          )
+        } catch (err) {
+          throw new chainedError(
+            'Failed to read ID from successful photo upload. We are just ' +
+              'going to log the ID to debug but the fact we cannot read it ' +
+              'might be a cause for concern',
+            err,
+          )
+        }
+      },
+    },
+    {
       matcher: (url, method) => method === 'POST' && url.endsWith('/photos'),
       action: async function handleSuccessfulPhoto() {
         try {
@@ -567,7 +589,7 @@ registerRoute(
     try {
       const newPhotos = payload[constants.photosFieldName]
       verifyPhotos(newPhotos)
-      await processPhotosCreates(newPhotos, obsUuid)
+      await processPhotosCreatesForNewObs(newPhotos, obsUuid)
       await wowQueue.pushRequest({
         metadata: {
           obsUuid: obsUuid,
@@ -624,7 +646,7 @@ registerRoute(
     try {
       const newPhotos = payload[constants.photosFieldName]
       verifyPhotos(newPhotos)
-      await processPhotosCreates(newPhotos, obsUuid)
+      await processPhotosCreatesForEditObs(newPhotos, obsUuid, obsId)
       const photoIdsToDelete = payload[constants.photoIdsToDeleteFieldName]
       const obsFieldIdsToDelete =
         payload[constants.obsFieldIdsToDeleteFieldName]
@@ -1042,7 +1064,7 @@ function jsonResponse(bodyObj, status = 200) {
   })
 }
 
-async function processPhotosCreates(photos, obsUuid) {
+async function processPhotosCreatesForNewObs(photos, obsUuid) {
   for (const curr of photos) {
     const fd = new FormData()
     const photoBuffer = base64js.toByteArray(curr.data)
@@ -1056,6 +1078,28 @@ async function processPhotosCreates(photos, obsUuid) {
         obsUuid: obsUuid,
       },
       request: new Request(constants.apiUrlBase + '/photos', {
+        method: 'POST',
+        mode: 'cors',
+        body: fd._blob ? fd._blob() : fd,
+      }),
+    })
+  }
+}
+
+async function processPhotosCreatesForEditObs(photos, obsUuid, obsId) {
+  for (const curr of photos) {
+    const fd = new FormData()
+    fd.append('observation_photo[observation_id]', obsId)
+    const photoBuffer = base64js.toByteArray(curr.data)
+    const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
+    fd.append('file', theFile)
+    console.debug('Pushing a photo to the queue')
+    await wowQueue.pushRequest({
+      metadata: {
+        obsUuid,
+        obsId,
+      },
+      request: new Request(constants.apiUrlBase + '/observation_photos', {
         method: 'POST',
         mode: 'cors',
         body: fd._blob ? fd._blob() : fd,
