@@ -79,7 +79,8 @@ export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 // during local dev and often Sentry will swallow the error so it makes
 // debugging harder (see https://github.com/vuejs/vue/issues/8433). Of course
 // at some stage you'll need to test that errors are reported as you expect to
-// Sentry.
+// Sentry. DSN values look like a URL:
+//   https://o1111111111111111111111111111111@o222222.ingest.sentry.io/3333333
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
 // The URL where we can load the taxa list for populating the orchid

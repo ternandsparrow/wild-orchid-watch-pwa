@@ -221,16 +221,39 @@ Look in `src/misc/constants.js` for all the values that can be configured. See
 the [CircleCI config](.circleci/config.yml) in the build step, for how we set
 them during CI. The summary is there are a few items that aren't environment
 specific (Firebase token, Sentry DSN, etc) and the rest that are prefixed with
-an environment name like `PROD_` or `DEV_`.
+an environment name like `PROD_`, `BETA_` or `DEV_`.
 
-For Sentry.io, we need two sets of information:
-  1. `SENTRY_{AUTH_TOKEN|ORG|PROJECT}` that will be used during deploy to
-     upload sourcemaps and mark a release. Note that fresh projects don't have
-     an auth token, you'll need to [generate
+### Sentry
+We need two sets of configurations items for Sentry for the two spots that we
+use it. The first is the DSN that we use to report issues from the running app.
+The second are the details that the `sentry-webpack-plugin` uses to mark a
+release during CI/CD and upload the sourcemaps.
+
+These are the env vars that need configuring in CircleCI:
+  1. `SENTRY_AUTH_TOKEN` an API key, different from the DSN. You'll need to [generate
      one](https://sentry.io/settings/account/api/auth-tokens/). The default
      permissions work fine.
-  1. `SENTRY_DSN` that will be deployed in the app for error reporting
+  1. `SENTRY_ORG` Sentry has the concept of an *organisation*, which
+     can contain many projects. If we assume our organisation is called
+     `my-org` then that's the value we use: `SENTRY_ORG=my-org`. Pull the value
+     from the URL when you're using the Sentry dashboard if you aren't sure.
+  1. `SENTRY_PROJECT` If we assume the project for this app is `wow-pwa` then
+     the value to use is `SENTRY_PROJECT=wow-pwa`. Again, pull it from the URL
+     when using the Sentry dashboard.
+  1. `SENTRY_DSN` You get this value when you create a new Sentry project. The
+     value looks like
+     `https://o1111111111111111111111111111111@o222222.ingest.sentry.io/3333333`.
 
+You'll also want to change some of the default project settings:
+  1. under Project settings -> Security & Privacy -> Data Scrubbing, you should
+     turn *off* `Data Scrubber` and `Use Default Scrubbers`. We've found they
+     scrub information that you need to diagnose issues.
+  1. adding the [GitHub
+     integration](https://docs.sentry.io/product/integrations/github/) is
+     probably a good idea too, so you have extra details about which commits
+     introduce errors.
+
+### Firebase
 For Firebase, you don't need to deploy from your local machine. We have
 CircleCI to deploy for us. To achieve this, it needs a token for auth. Get a
 token with:
@@ -257,7 +280,8 @@ param](https://jestjs.io/docs/en/troubleshooting#tests-are-failing-and-you-dont-
 to Jest.
 
 ## Architecture
-See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built.
+See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built
+and why we chose the technologies we did.
 
 ## Why we don't eslint our web workers
 Let the story begin. When we allow linting on web worker files, we get some

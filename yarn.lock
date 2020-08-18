@@ -6912,10 +6912,6 @@ form-data@~2.3.2:
     combined-stream "^1.0.6"
     mime-types "^2.1.12"
 
-"formdata-polyfill@https://github.com/ternandsparrow/FormData#safari13.1-attempt2":
-  version "3.0.20"
-  resolved "https://github.com/ternandsparrow/FormData#290c7a35627cea284e8d7251ea8fd6493264e77e"
-
 "formdata-polyfill@https://github.com/ternandsparrow/FormData#safari13.1-attempt2-installable":
   version "3.0.20"
   resolved "https://github.com/ternandsparrow/FormData#26a6f1f38e2a6befc0acee5672b63137eddc8231"

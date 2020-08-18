@@ -4,9 +4,10 @@ set -euxo pipefail
 cd `dirname "$0"`
 thisDir=`pwd`
 
-: ${SENTRY_AUTH_TOKEN:?}
-: ${SENTRY_ORG:?}
-: ${SENTRY_PROJECT:?}
+# these values are used by the sentry-webpack-plugin
+: ${SENTRY_AUTH_TOKEN:?} # you generate this auth token at https://sentry.io/settings/account/api/auth-tokens/
+: ${SENTRY_ORG:?name of org as appears in the Sentry dashboard URL, e.g. my-org1}
+: ${SENTRY_PROJECT:?name of project as appears in the Sentry dashboard URL, e.g.  my-project1}
 
 $thisDir/gen-version.sh
 export VUE_APP_VERSION=`node -e "ver = require('./current-version.js'); console.log(ver)"`
