@@ -521,7 +521,7 @@ We chose to bake the list into the app for a number of reasons:
 
 
 ## Error tracking strategy
-In Sentry at least, "breadcrumb" are automatically recorded. These are
+In Sentry at least, "breadcrumbs" are automatically recorded. These are
 basically the events (in a loose sense of the term, not a DOM sense) that
 happened leading up to the Sentry report. Things like route changes, UI
 interaction and console messages.
@@ -531,7 +531,7 @@ actually clicked on. CSS selectors aren't the most helpful so instead we can
 make our lives a bit easier by adding a `name` attribute to each button (or
 other element) that we have so we'll more easily be able to tell what the user
 clicked on. These names are purely for this use, so don't get confused when you
-can find any usages of it in our code.
+can't find any usages of it in our code.
 
 
 ## Gathering geolocation
