@@ -300,8 +300,19 @@ export default {
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('obs/refreshRemoteObs')
-        this.$store.dispatch('obs/processLocalQueue')
+        this.$store
+          .dispatch('obs/refreshRemoteObs')
+          .then(() => this.$store.dispatch('obs/processLocalQueue'))
+          .catch(err => {
+            this.$store.dispatch(
+              'flagGlobalError',
+              {
+                msg: `Failed to refresh observations`,
+                err,
+              },
+              { root: true },
+            )
+          })
         triggerSwWowQueue()
       }
       done && typeof done === 'function' && done()
