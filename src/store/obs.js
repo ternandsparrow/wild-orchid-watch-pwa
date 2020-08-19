@@ -191,6 +191,21 @@ const actions = {
           case recordType('edit'):
             return (() => {
               const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
+              if (!currUpdatedDateOnRemote) {
+                console.debug(`${logPrefix} UUID=${e.uuid} is not on remote.`)
+                wowWarnHandler(
+                  `Obs with UUID=${e.uuid}/iNatID=${e.inatId} is not found ` +
+                    `on remote. Maybe it was deleted or removed from the ` +
+                    `project.`,
+                )
+                // TODO not 100% if this is the right response. By returning
+                // true, the record will be cleaned up so it won't be sitting
+                // in the user's obs list in limbo forever. But if something
+                // else has gone wrong, we'd be losing this obervation forever.
+                // The assumption is the obs has been consciously removed
+                // elsewhere so we're also cleaning up here.
+                return true
+              }
               const secondsRemoteUpdateDateIsAheadOfLocal =
                 // remote times are rounded to the second
                 (dayjs(currUpdatedDateOnRemote) -
@@ -1289,7 +1304,7 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch, state }, { dbRecord }) {
+  async processWaitingDbRecordNoSw({ dispatch, getters }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
@@ -1305,7 +1320,7 @@ const actions = {
         return dispatch('_createObservation', {
           obsRecord: makeObsRequest(
             apiRecords.observationPostBody,
-            state.projectInfo.id,
+            getters.projectId,
             localPhotoIds,
           ),
         })
@@ -1359,18 +1374,18 @@ const actions = {
     await dispatch('refreshRemoteObsWithDelay')
   },
   async processWaitingDbRecordWithSw(
-    { state, dispatch, rootState },
+    { dispatch, rootState, getters },
     { dbRecord },
   ) {
     const strategies = {
       [recordType('new')]: async () => {
         const payload = generatePayload(dbRecord)
-        if (!(state.projectInfo || {}).id) {
+        const projectId = getters.projectId
+        if (!projectId) {
           throw new Error(
             'No projectInfo stored, cannot link observation to project without ID',
           )
         }
-        const projectId = state.projectInfo.id
         payload[constants.projectIdFieldName] = projectId
         const resp = await doBundleEndpointFetch(payload, 'POST')
         if (!resp.ok) {
@@ -1444,33 +1459,6 @@ const actions = {
         body: JSON.stringify(payload),
         retries: 0,
       })
-    }
-  },
-  async _linkObsWithProject({ state, dispatch }, { recordId }) {
-    if (!state.projectInfo) {
-      throw new Error(
-        'No projectInfo stored, cannot link observation to project without ID',
-      )
-    }
-    const projectId = state.projectInfo.id
-    try {
-      await dispatch(
-        'doApiPost',
-        {
-          urlSuffix: '/project_observations',
-          data: {
-            project_id: projectId,
-            observation_id: recordId,
-          },
-        },
-        { root: true },
-      )
-    } catch (err) {
-      throw new chainedError(
-        `Failed to link observation ID='${recordId}' ` +
-          `to project ID='${projectId}'`,
-        err,
-      )
     }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
@@ -1790,6 +1778,9 @@ const getters = {
     // the project info has been cached. This stops an error and will
     // auto-magically update when the project info does arrive
     return (state.projectInfo || {}).project_observation_fields || []
+  },
+  projectId(state) {
+    return (state.projectInfo || {}).id
   },
 }
 

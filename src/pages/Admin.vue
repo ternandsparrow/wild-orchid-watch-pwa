@@ -175,6 +175,7 @@
         >
       </div>
     </v-ons-card>
+    <join-leave-project @refresh="doProjectInfoRefresh" />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />

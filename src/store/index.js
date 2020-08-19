@@ -101,17 +101,22 @@ const store = new Vuex.Store({
     },
   },
   getters: {
-    myUserId(state, getters) {
+    myUserId(_, getters) {
       return getters['auth/myUserId']
     },
-    myLocale(state, getters) {
+    myLocale(_, getters) {
       return getters['auth/myLocale']
     },
-    myPlaceId(state, getters) {
+    myPlaceId(_, getters) {
       return getters['auth/myPlaceId']
     },
     isSyncDisabled(state) {
       return state.app.whenToSync === neverUpload
+    },
+    isJoinedProject(state, getters) {
+      const joinedUserIds = (state.obs.projectInfo || {}).user_ids || []
+      const myUserId = getters['myUserId']
+      return joinedUserIds.includes(myUserId)
     },
   },
   modules: {
