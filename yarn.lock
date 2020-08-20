@@ -6256,7 +6256,7 @@ executable@4.1.1:
 
 "exif-js@https://github.com/ternandsparrow/exif-js#gh-63-outside-bounds":
   version "2.3.0"
-  resolved "https://github.com/ternandsparrow/exif-js#cad0ad08fbc122fc3397c1c1ca1d90d2ee94619a"
+  resolved "https://github.com/ternandsparrow/exif-js#4ec7f1fcf6a6fa4461b55ffb2fb2bf09aef0016b"
 
 exif-parser@^0.1.12, exif-parser@^0.1.9:
   version "0.1.12"
