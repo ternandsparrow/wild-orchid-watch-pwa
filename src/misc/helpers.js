@@ -425,11 +425,15 @@ export function formatStorageSize(byteCount) {
 
 export function getExifFromBlob(blobish) {
   return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function() {
+    EXIF.getData(blobish, function(err) {
       try {
-        return resolve(EXIF.getAllTags(this))
+        if (err) {
+          return reject(chainedError('Failed to extract EXIF', err))
+        }
+        const result = EXIF.getAllTags(this)
+        return resolve(result)
       } catch (err) {
-        return reject(err)
+        return reject(chainedError('Failed to work with extracted EXIF', err))
       }
     })
   })
