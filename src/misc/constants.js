@@ -111,7 +111,7 @@ export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
 // how many minutes need to have elapsed before we can consider an obs as stuck
 // with the service worker. Set to 0 to disable check completely.
 export const thresholdForStuckWithSwMinutes = convertAndAssertInteger(
-  (process.env.VUE_APP_STUCK_WITH_SW_MINUTES = 20),
+  process.env.VUE_APP_STUCK_WITH_SW_MINUTES || 20,
 )
 
 // useful for enabling devtools in "production mode" while debugging with a
