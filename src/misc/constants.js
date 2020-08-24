@@ -108,6 +108,12 @@ export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
   process.env.VUE_APP_SW_QUEUE_MAX_RETENTION || 365 * 24 * 60, // one year
 )
 
+// how many minutes need to have elapsed before we can consider an obs as stuck
+// with the service worker. Set to 0 to disable check completely.
+export const thresholdForStuckWithSwMinutes = convertAndAssertInteger(
+  (process.env.VUE_APP_STUCK_WITH_SW_MINUTES = 20),
+)
+
 // useful for enabling devtools in "production mode" while debugging with a
 // service worker
 export const isForceVueDevtools = !!parseInt(
@@ -419,6 +425,8 @@ export const projectIdFieldName = 'projectId'
 export const blockedActionFieldName = 'blockedAction'
 export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
+export const wowUpdatedAtFieldName = 'wowUpdatedAt'
+export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
 
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
@@ -450,6 +458,8 @@ export const serviceWorkerUpdateErrorTrackerContextUrl =
   serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
 export const serviceWorkerClearEverythingUrl =
   serviceWorkerMagicUrlPrefix + '/clear-everything'
+export const serviceWorkerObsUuidsInQueueUrl =
+  serviceWorkerMagicUrlPrefix + '/uuids-in-queue'
 
 export const serviceWorkerPlatformTestUrl =
   serviceWorkerMagicUrlPrefix + '/platorm-test'

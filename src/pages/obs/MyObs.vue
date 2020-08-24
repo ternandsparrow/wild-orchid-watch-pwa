@@ -209,11 +209,11 @@ import { mapState, mapGetters } from 'vuex'
 import dayjs from 'dayjs'
 import {
   humanDateString,
-  isPossiblyStuck,
+  isPossiblyStuck as isPossiblyStuckHelper,
   triggerSwWowQueue,
   wowIdOf,
 } from '@/misc/helpers'
-import { noImagePlaceholderUrl } from '@/misc/constants'
+import * as constants from '@/misc/constants'
 import { isObsSystemError, extractGeolocationText } from '@/store/obs'
 
 export default {
@@ -227,7 +227,7 @@ export default {
     ...mapGetters(['isSyncDisabled']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('ephemeral', ['networkOnLine']),
-    ...mapState('obs', ['allRemoteObsLastUpdated']),
+    ...mapState('obs', ['allRemoteObsLastUpdated', 'uuidsInSwQueues']),
     ...mapGetters('obs', [
       'deletesWithErrorCount',
       'isDoingSync',
@@ -329,7 +329,7 @@ export default {
     },
     firstPhoto(record) {
       if (!record || !record.photos || !record.photos.length) {
-        return noImagePlaceholderUrl
+        return constants.noImagePlaceholderUrl
       }
       return record.photos[0].url
     },
@@ -346,7 +346,7 @@ export default {
       return humanDateString(r.observedAt)
     },
     isPossiblyStuck(record) {
-      return isPossiblyStuck(this.$store, record)
+      return isPossiblyStuckHelper(this.$store, record)
     },
   },
 }
