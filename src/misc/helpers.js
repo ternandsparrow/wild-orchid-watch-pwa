@@ -146,28 +146,46 @@ export function isPossiblyStuck($store, record) {
   if (!record) {
     return false
   }
-  const isAllowedToSync = !$store.getters.isSyncDisabled
-  const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
-  const isStuckLocally =
-    isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
+  const isStuckLocally = (() => {
+    const isAllowedToSync = !$store.getters.isSyncDisabled
+    const isProcessorRunning =
+      $store.getters['ephemeral/isLocalProcessorRunning']
+    return (
+      isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
+    )
+  })()
+  // FIXME need to remove flash of problem marker during normal upload
   const isStuckInSw = (() => {
     const wowMeta = record.wowMeta
     if (!wowMeta) {
       return false
     }
+    const stuckMinutes = constants.thresholdForStuckWithSwMinutes
+    if (!stuckMinutes) {
+      return false
+    }
     const updatedAtDatetime = dayjs(wowMeta[constants.wowUpdatedAtFieldName])
-    const waitThreshold = updatedAtDatetime.add(20, 'minutes')
+    const waitThreshold = updatedAtDatetime.add(stuckMinutes, 'minutes')
     const hasBeenLongEnoughSinceUploadAttempt = waitThreshold.isAfter(
       updatedAtDatetime,
     )
-    const isSuccess =
-      wowMeta[constants.recordProcessingOutcomeFieldName] ===
-      constants.successOutcome
-    return (
-      hasBeenLongEnoughSinceUploadAttempt &&
-      isSuccess &&
+    const isSuccessOrWithSW = [
+      constants.successOutcome,
+      constants.withServiceWorkerOutcome,
+    ].includes(wowMeta[constants.recordProcessingOutcomeFieldName])
+    const isStuckWithoutTimeCheck =
+      isSuccessOrWithSW &&
       !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
-    )
+    if (!isStuckWithoutTimeCheck) {
+      return false
+    }
+    if (!hasBeenLongEnoughSinceUploadAttempt) {
+      console.debug(
+        `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
+          `SW once more time elapses`,
+      )
+    }
+    return hasBeenLongEnoughSinceUploadAttempt
   })()
   return isStuckLocally || isStuckInSw
 }

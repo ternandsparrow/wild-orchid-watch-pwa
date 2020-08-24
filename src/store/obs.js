@@ -874,6 +874,7 @@ const actions = {
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
+          [constants.wowUpdatedAtFieldName]: new Date().toISOString(),
         },
         uuid: newRecordId,
       })
@@ -1449,8 +1450,11 @@ const actions = {
       )
     }
     await strategy()
+    // FIXME should probably mark record with a timestamp of when the last
+    // processing was attempted. Then use that to compare in isStuck
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
+    await dispatch('refreshObsUuidsInSwQueue')
     await triggerSwWowQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)

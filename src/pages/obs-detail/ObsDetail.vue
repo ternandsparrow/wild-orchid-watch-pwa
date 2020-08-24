@@ -599,6 +599,8 @@ export default {
     _resetProcessingOutcome(errMsg) {
       this.$store
         .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
+        // FIXME should we dispatch obs/refreshObsUuidsInSwQueue or whatever is
+        // required to get the alert in the obs list to go away?
         .then(() => {
           this.$ons.notification.toast('Retrying upload', {
             timeout: 3000,

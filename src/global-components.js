@@ -5,6 +5,7 @@ import CollectGeolocation from '@/partials/CollectGeolocation'
 import CollectDate from '@/partials/CollectDate'
 import CustomToolbar from '@/partials/CustomToolbar'
 import DecryptPayload from '@/partials/admin/DecryptPayload'
+import ForceRpo from '@/partials/admin/ForceRpo'
 import GenerateCryptoKeys from '@/partials/admin/GenerateCryptoKeys'
 import GoogleMap from '@/components/googleMap'
 import Help from '@/partials/Help'
@@ -25,6 +26,7 @@ Vue.component('wow-collect-date', CollectDate)
 Vue.component('custom-toolbar', CustomToolbar)
 Vue.component('wow-generate-crypto-keys', GenerateCryptoKeys)
 Vue.component('wow-decrypt-payload', DecryptPayload)
+Vue.component('wow-force-rpo', ForceRpo)
 Vue.component('wow-test-encrypt-payload', TestEncryptPayload)
 Vue.component('google-map', GoogleMap)
 Vue.component('menu-wrapper', MenuWrapper)

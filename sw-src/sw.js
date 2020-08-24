@@ -797,7 +797,7 @@ registerRoute(
 async function getObsUuidsInQueues() {
   const uuids = new Set()
   const wowQueueEntries = await wowQueue.getAll()
-  wowQueueEntries.forEach(e => uuids.add(e.uuid))
+  wowQueueEntries.forEach(e => uuids.add(e.metadata.obsUuid))
   await new Promise(async (resolve, reject) => {
     try {
       await wowSwStore.iterate(
