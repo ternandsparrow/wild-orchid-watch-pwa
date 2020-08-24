@@ -154,7 +154,6 @@ export function isPossiblyStuck($store, record) {
       isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
     )
   })()
-  // FIXME need to remove flash of problem marker during normal upload
   const isStuckInSw = (() => {
     const wowMeta = record.wowMeta
     if (!wowMeta) {
@@ -164,10 +163,16 @@ export function isPossiblyStuck($store, record) {
     if (!stuckMinutes) {
       return false
     }
-    const updatedAtDatetime = dayjs(wowMeta[constants.wowUpdatedAtFieldName])
-    const waitThreshold = updatedAtDatetime.add(stuckMinutes, 'minutes')
-    const hasBeenLongEnoughSinceUploadAttempt = waitThreshold.isAfter(
-      updatedAtDatetime,
+    if (!wowMeta[constants.outcomeLastUpdatedAtFieldName]) {
+      // old record before we introduced this field
+      return false
+    }
+    const lastTouchedDatetime = dayjs(
+      wowMeta[constants.outcomeLastUpdatedAtFieldName],
+    )
+    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
+    const hasBeenLongEnoughSinceUploadAttempt = lastTouchedDatetime.isAfter(
+      waitThreshold,
     )
     const isSuccessOrWithSW = [
       constants.successOutcome,
@@ -180,9 +185,10 @@ export function isPossiblyStuck($store, record) {
       return false
     }
     if (!hasBeenLongEnoughSinceUploadAttempt) {
+      const minutesToWait = waitThreshold.diff(lastTouchedDatetime, 'minute')
       console.debug(
         `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
-          `SW once more time elapses`,
+          `SW once ${minutesToWait} minutes elapse`,
       )
     }
     return hasBeenLongEnoughSinceUploadAttempt

@@ -69,6 +69,9 @@ export async function setRecordProcessingOutcome(dbId, targetOutcome) {
     throw new Error('Could not find record for ID=' + dbId)
   }
   record.wowMeta[constants.recordProcessingOutcomeFieldName] = targetOutcome
+  record.wowMeta[
+    constants.outcomeLastUpdatedAtFieldName
+  ] = new Date().toString()
   return storeRecord(record)
 }
 

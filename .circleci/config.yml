@@ -132,6 +132,7 @@ jobs:
             VUE_APP_ENABLE_WORKBOX_LOGGING=${PROD_ENABLE_WORKBOX_LOGGING:-false}
             VUE_APP_PHOTO_COMP_JPEG_QUAL=${PROD_PHOTO_COMP_JPEG_QUAL}
             VUE_APP_PUBLIC_JWK=${PROD_PUBLIC_JWK}
+            VUE_APP_STUCK_WITH_SW_MINUTES=${PROD_STUCK_WITH_SW_MINUTES}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -215,6 +216,7 @@ jobs:
             VUE_APP_ENABLE_WORKBOX_LOGGING=${BETA_ENABLE_WORKBOX_LOGGING:-true}
             VUE_APP_PHOTO_COMP_JPEG_QUAL=${BETA_PHOTO_COMP_JPEG_QUAL}
             VUE_APP_PUBLIC_JWK=${BETA_PUBLIC_JWK}
+            VUE_APP_STUCK_WITH_SW_MINUTES=${BETA_STUCK_WITH_SW_MINUTES}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile
@@ -298,6 +300,7 @@ jobs:
             VUE_APP_ENABLE_WORKBOX_LOGGING=${DEV_ENABLE_WORKBOX_LOGGING:-true}
             VUE_APP_PHOTO_COMP_JPEG_QUAL=${DEV_PHOTO_COMP_JPEG_QUAL}
             VUE_APP_PUBLIC_JWK=${DEV_PUBLIC_JWK}
+            VUE_APP_STUCK_WITH_SW_MINUTES=${DEV_STUCK_WITH_SW_MINUTES}
             EOF
             echo "[INFO] contents of $theFile"
             cat $theFile

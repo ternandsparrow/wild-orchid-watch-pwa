@@ -426,6 +426,7 @@ export const blockedActionFieldName = 'blockedAction'
 export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const wowUpdatedAtFieldName = 'wowUpdatedAt'
+export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
 
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'

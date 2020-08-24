@@ -741,7 +741,7 @@ const actions = {
           // warning: relies on the local device time being synchronised. If
           // the clock has drifted forward, our check for updates having
           // occurred on the remote won't work.
-          [constants.wowUpdatedAtFieldName]: new Date().toISOString(),
+          [constants.wowUpdatedAtFieldName]: new Date().toString(),
         },
       })
       delete enhancedRecord.addedPhotos
@@ -874,7 +874,7 @@ const actions = {
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
-          [constants.wowUpdatedAtFieldName]: new Date().toISOString(),
+          [constants.wowUpdatedAtFieldName]: new Date().toString(),
         },
         uuid: newRecordId,
       })
@@ -1450,8 +1450,6 @@ const actions = {
       )
     }
     await strategy()
-    // FIXME should probably mark record with a timestamp of when the last
-    // processing was attempted. Then use that to compare in isStuck
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
     await dispatch('refreshObsUuidsInSwQueue')

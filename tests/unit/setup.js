@@ -1,7 +1,22 @@
+import dayjs from 'dayjs'
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
 import { _testonly as obsStoreTestOnly } from '@/store/obs'
 import { _testonly as ephemeralStoreTestOnly } from '@/store/ephemeral'
+
+expect.extend({
+  toBeValidDateString(received) {
+    const isValid = dayjs(received).isValid()
+    return {
+      pass: isValid,
+      // according to the doco
+      // (https://jestjs.io/docs/en/expect#expectextendmatchers) I'm meant to
+      // have two versions of the message, but I don't. Hope that doesn't upset
+      // you.
+      message: () => `expected '${received}' to be a valid date string`,
+    }
+  },
+})
 
 // Enjoy this glorious piece of hackery! JS modules are singletons so we can
 // modify them and it will affect all others that use them too. Comlink has
