@@ -61,7 +61,13 @@ new Vue({
   el: '#app',
   beforeCreate() {
     try {
-      migrateOldStores(this.$store)
+      migrateOldStores(this.$store).catch(err => {
+        this.$store.dispatch('flagGlobalError', {
+          msg: `Failed to perform all Vuex migrations`,
+          userMsg: 'Failed to update app from previous version',
+          err,
+        })
+      })
 
       // Shortcut for Material Design
       Vue.prototype.md = this.$ons.platform.isAndroid()

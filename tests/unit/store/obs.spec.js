@@ -378,6 +378,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
           },
         })
       })
@@ -440,6 +441,7 @@ describe('actions', () => {
             [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
           },
         })
       })
@@ -505,6 +507,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -567,6 +570,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'new',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -675,6 +679,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -748,6 +753,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -866,6 +872,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -939,6 +946,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -1010,6 +1018,7 @@ describe('actions', () => {
             wowMeta: {
               recordType: 'edit',
               [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })

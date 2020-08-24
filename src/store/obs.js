@@ -742,6 +742,7 @@ const actions = {
           // the clock has drifted forward, our check for updates having
           // occurred on the remote won't work.
           [constants.wowUpdatedAtFieldName]: new Date().toString(),
+          [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
       })
       delete enhancedRecord.addedPhotos
@@ -875,6 +876,7 @@ const actions = {
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
           [constants.wowUpdatedAtFieldName]: new Date().toString(),
+          [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
         uuid: newRecordId,
       })
@@ -2143,8 +2145,9 @@ function isAnswer(val) {
   return !['undefined', 'null'].includes(typeof val)
 }
 
-export function migrate(store) {
+export async function migrate(store) {
   migrateRecentlyUsedTaxa(store)
+  await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store)
 
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
@@ -2170,6 +2173,31 @@ function migrateRecentlyUsedTaxa(store) {
     )
   }
   store.commit('obs/setRecentlyUsedTaxa', cleaned)
+}
+
+async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store) {
+  const uuidsToMigrate = (store.state.obs.localQueueSummary || [])
+    .filter(e => !e[constants.outcomeLastUpdatedAtFieldName])
+    .map(e => ({
+      uuid: e.uuid,
+      outcome: e[constants.recordProcessingOutcomeFieldName],
+    }))
+  const logPrefix = '[obs migrate]'
+  if (!uuidsToMigrate.length) {
+    console.debug(`${logPrefix} no records need outcomeLastUpdatedAt migrated`)
+    return
+  }
+  console.debug(
+    `${logPrefix} adding outcomeLastUpdatedAt values to ` +
+      `${uuidsToMigrate.length} records`,
+  )
+  for (const curr of uuidsToMigrate) {
+    console.debug(
+      `${logPrefix} setting outcomeLastUpdatedAt for UUID=${curr.uuid} that ` +
+        `has outcome=${curr.outcome}`,
+    )
+    await setRecordProcessingOutcome(curr.uuid, curr.outcome)
+  }
 }
 
 export function extractGeolocationText(record) {

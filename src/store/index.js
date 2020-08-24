@@ -182,6 +182,6 @@ export default store
  * Add any code here that migrates vuex stores on user devices to match what we
  * expect in this version of the codebase.
  */
-export function migrateOldStores(store) {
-  obsMigrate(store)
+export async function migrateOldStores(store) {
+  await obsMigrate(store)
 }
