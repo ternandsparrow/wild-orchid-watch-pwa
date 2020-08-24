@@ -170,10 +170,9 @@ export function isPossiblyStuck($store, record) {
     const lastTouchedDatetime = dayjs(
       wowMeta[constants.outcomeLastUpdatedAtFieldName],
     )
+    const now = dayjs()
     const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
-    const hasBeenLongEnoughSinceUploadAttempt = lastTouchedDatetime.isAfter(
-      waitThreshold,
-    )
+    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
     const isSuccessOrWithSW = [
       constants.successOutcome,
       constants.withServiceWorkerOutcome,
@@ -185,7 +184,7 @@ export function isPossiblyStuck($store, record) {
       return false
     }
     if (!hasBeenLongEnoughSinceUploadAttempt) {
-      const minutesToWait = waitThreshold.diff(lastTouchedDatetime, 'minute')
+      const minutesToWait = waitThreshold.diff(now, 'minute')
       console.debug(
         `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
           `SW once ${minutesToWait} minutes elapse`,
