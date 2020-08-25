@@ -99,6 +99,35 @@ const store = new Vuex.Store({
     healthcheck({ dispatch }) {
       return dispatch('obs/healthcheck')
     },
+    async autoJoinInatProject({ dispatch, getters }) {
+      const logPrefix = '[project auto-join]'
+      try {
+        await dispatch('obs/waitForProjectInfo')
+        if (getters.isJoinedProject) {
+          console.debug(
+            `${logPrefix} user already in project, no auto-join needed`,
+          )
+          return
+        }
+        console.debug(`${logPrefix} user NOT in project, auto-joining!`)
+        await dispatch('joinInatProject')
+      } catch (err) {
+        // it's not the end of the world, we will still show the nag alert
+        wowErrorHandler(
+          'Failed to auto-join iNat project on OAuth callback',
+          err,
+        )
+      }
+    },
+    async joinInatProject({ dispatch, getters }) {
+      await dispatch('obs/waitForProjectInfo')
+      const projectId = getters['obs/projectId']
+      const resp = await dispatch('doApiPost', {
+        urlSuffix: `/projects/${projectId}/join`,
+      })
+      await dispatch('obs/getProjectInfo')
+      return resp
+    },
   },
   getters: {
     myUserId(_, getters) {

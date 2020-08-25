@@ -1910,6 +1910,8 @@ export const apiTokenHooks = [
     await store.dispatch('obs/refreshRemoteObs')
     await store.dispatch('obs/getMySpecies')
     await store.dispatch('obs/getProjectInfo')
+    // we re-join the user every time they login. We really want them joined
+    await store.dispatch('autoJoinInatProject')
   },
 ]
 

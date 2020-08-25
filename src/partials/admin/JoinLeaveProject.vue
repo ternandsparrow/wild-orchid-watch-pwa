@@ -68,11 +68,7 @@ export default {
     async joinProject() {
       try {
         this.joinResult = 'processing...'
-        await this.$store.dispatch('obs/waitForProjectInfo')
-        const projectId = this.$store.getters['obs/projectId']
-        const resp = await this.$store.dispatch('doApiPost', {
-          urlSuffix: `/projects/${projectId}/join`,
-        })
+        const resp = await this.$store.dispatch('joinInatProject')
         console.debug('Successfully joined project', resp)
         this.joinResult = JSON.stringify(resp, null, 2)
         this.$emit('refresh')

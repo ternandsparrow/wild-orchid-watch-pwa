@@ -15,6 +15,37 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
+      <div
+        v-if="autoJoinGracePeriodExpired && !isJoinedProject"
+        class="info-alert join-info"
+      >
+        <p>
+          <v-ons-icon icon="fa-info-circle" />
+          You need to join the WOW project on iNaturalist.
+        </p>
+        <p>
+          Joining means your data can be used for scientific and conservation
+          efforts. This is <em>the</em> reason that WOW exists!
+        </p>
+        <p class="text-center">
+          <a :href="joinProjectReadMoreUrl" target="_blank" class="space-right">
+            <v-ons-button modifier="quiet"
+              ><v-ons-icon icon="fa-external-link-alt" /> Read
+              more</v-ons-button
+            >
+          </a>
+          <v-ons-button :disabled="isJoinButtonDisabled" @click="joinProject">
+            <span v-show="!isJoinButtonDisabled">Join iNaturalist project</span>
+            <span v-show="isJoinButtonDisabled">Joining</span>
+          </v-ons-button>
+        </p>
+        <div v-if="joinProjectProcessingState === 'fail'" class="error-alert">
+          Something went wrong when trying to join the project. You need an
+          internet connection to perform this action. You can try again
+          otherwise you can also join the project using the
+          <a :href="inatJoinUrl" target="_blank">iNaturalist website</a>.
+        </div>
+      </div>
       <v-ons-list>
         <v-ons-list-item expandable
           ><div class="center summary-bar">
@@ -211,6 +242,7 @@ import {
   humanDateString,
   isPossiblyStuck as isPossiblyStuckHelper,
   triggerSwWowQueue,
+  wowErrorHandler,
   wowIdOf,
 } from '@/misc/helpers'
 import * as constants from '@/misc/constants'
@@ -221,10 +253,12 @@ export default {
   data() {
     return {
       pullHookState: 'initial',
+      joinProjectProcessingState: 'initial',
+      autoJoinGracePeriodExpired: false,
     }
   },
   computed: {
-    ...mapGetters(['isSyncDisabled']),
+    ...mapGetters(['isSyncDisabled', 'isJoinedProject']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('ephemeral', ['networkOnLine']),
     ...mapState('obs', ['allRemoteObsLastUpdated', 'uuidsInSwQueues']),
@@ -261,8 +295,22 @@ export default {
         _key: wowIdOf(e),
       }))
     },
+    joinProjectReadMoreUrl() {
+      return 'https://www.wildorchidwatch.org/faqs/#who-has-access'
+    },
+    inatJoinUrl() {
+      return `${constants.inatUrlBase}/projects/${constants.inatProjectSlug}/join`
+    },
+    isJoinButtonDisabled() {
+      return ['processing', 'success'].includes(this.joinProjectProcessingState)
+    },
   },
   mounted() {
+    setTimeout(() => {
+      // we need to let the auto-join happen and we don't want a flash of the
+      // message to show if it's not needed
+      this.autoJoinGracePeriodExpired = true
+    }, 15000)
     if (this.isRemoteObsStale) {
       this.doRefresh()
     }
@@ -347,6 +395,22 @@ export default {
     },
     isPossiblyStuck(record) {
       return isPossiblyStuckHelper(this.$store, record)
+    },
+    async joinProject() {
+      try {
+        this.joinProjectProcessingState = 'processing'
+        const resp = await this.$store.dispatch('joinInatProject')
+        console.debug('join project result', resp)
+        this.joinProjectProcessingState = 'success'
+        this.$wow.uiTrace('MyObs', `user joined inat project from prompt`)
+        this.$ons.notification.toast('Succesfully joined project, thank you', {
+          timeout: 5000,
+          animation: 'fall',
+        })
+      } catch (err) {
+        this.joinProjectProcessingState = 'fail'
+        wowErrorHandler('Failed to join iNat project', err)
+      }
     },
   },
 }
@@ -443,5 +507,13 @@ export default {
   #toolbar-refresh-btn {
     display: none;
   }
+}
+
+.join-info {
+  margin: 0.5em;
+}
+
+.space-right {
+  margin-right: 1em;
 }
 </style>
