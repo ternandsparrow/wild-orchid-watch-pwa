@@ -239,7 +239,8 @@ async function enqueueObsRequest(entry) {
         )
     }
   })()
-  if (obsRecord.local_photos[0].length === 0) {
+  // yes, it's an object with a key of 0 and an array value
+  if (!obsRecord.local_photos || obsRecord.local_photos[0].length === 0) {
     console.debug(
       `[SW] no new photos added, ensuring we don't lose the old ones`,
     )
