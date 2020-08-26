@@ -15,10 +15,7 @@
       <span v-show="pullHookState === 'action'"> Loading... </span>
     </v-ons-pull-hook>
     <div>
-      <div
-        v-if="autoJoinGracePeriodExpired && !isJoinedProject"
-        class="info-alert join-info"
-      >
+      <div v-if="isShowJoinProjectAlert" class="info-alert join-info">
         <p>
           <v-ons-icon icon="fa-info-circle" />
           You need to join the WOW project on iNaturalist.
@@ -294,6 +291,13 @@ export default {
         ...e,
         _key: wowIdOf(e),
       }))
+    },
+    isShowJoinProjectAlert() {
+      return (
+        this.isUserLoggedIn &&
+        this.autoJoinGracePeriodExpired &&
+        !this.isJoinedProject
+      )
     },
     joinProjectReadMoreUrl() {
       return 'https://www.wildorchidwatch.org/faqs/#who-has-access'
