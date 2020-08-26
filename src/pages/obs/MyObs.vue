@@ -403,10 +403,10 @@ export default {
     async joinProject() {
       try {
         this.joinProjectProcessingState = 'processing'
+        this.$wow.uiTrace('MyObs', `user joined inat project from prompt`)
         const resp = await this.$store.dispatch('joinInatProject')
         console.debug('join project result', resp)
         this.joinProjectProcessingState = 'success'
-        this.$wow.uiTrace('MyObs', `user joined inat project from prompt`)
         this.$ons.notification.toast('Succesfully joined project, thank you', {
           timeout: 5000,
           animation: 'fall',
