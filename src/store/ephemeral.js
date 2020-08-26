@@ -114,14 +114,14 @@ const mutations = {
     state.photoCoords = []
     state.deviceCoords = null
     state.manualCoords = null
-    state.geolocationMethod = geolocationMethod
+    state.geolocationMethod = geolocationMethod || 'photo'
     state.photoOutsideBboxErrorMsg = null
   },
   setGeolocationMethod: (state, method) => (state.geolocationMethod = method),
   resetDatetimeState: (state, datetimeMethod) => {
     state.photoDatetimes = []
     state.manualDatetime = null
-    state.datetimeMethod = datetimeMethod
+    state.datetimeMethod = datetimeMethod || 'photo'
   },
   resetPhotoProcessingTasks: state => {
     state.photoProcessingTasks = []
