@@ -916,7 +916,10 @@ registerRoute(
       }
       const localForageSizeBeforeClear = await wowSwStore.length()
       await wowSwStore.clear()
-      wowSwStore.dropInstance() // no await because it's flakey. See indexeddb/storage-manager.js
+      // we don't call wowSwStore.dropInstance() because doing so bumps the
+      // version number. That doesn't actually cause an issue but it seems
+      // needless. Plus, the call doesn't even drop the whole DB as the
+      // 'local-forage-detect-blob-support' store persists.
       return jsonResponse({
         wowQueueEntriesDiscarded: wowQueueEntries.length,
         swStoreItemsCleared: localForageSizeBeforeClear,

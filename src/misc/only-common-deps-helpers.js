@@ -39,19 +39,25 @@ export function chainedError(msg, err) {
     )
   }
   if (typeof err === 'object') {
-    // FIXME can we detect and handle a ProgressEvent and get details from
+    // TODO can we detect and handle a ProgressEvent and get details from
     // err.target.error.code (and lookup name of error by getting key for the
     // code on .error)
     const newMsg = `${msg}\nCaused by: ${err.message}`
+    if (isImmutableError(err)) {
+      // we can't construct a new DOMException because support for the
+      // constructor isn't great.
+      return new Error(
+        newMsg +
+          `\nOriginal stack (immutable original error forced ` +
+          `creation of a new Error with new stack):\n${err.stack}`,
+      )
+    }
     try {
       err.message = newMsg
       return err
     } catch (err2) {
-      // Store a blob in Safari's IndexedDB on iOS (not macOS) and it will
-      // throw an error with message = "An unknown error occurred within
-      // Indexed Database.". That error will have the 'message' property set as
-      // readonly and that's how you get here. Probably any DOMException is the
-      // same.
+      // We get here by trying to modify an immutable Error. DOMException seems
+      // to always be but there may be others.
       console.warn(
         `While handling the first error:\n` +
           `  [name=${err.name}, type=${
@@ -69,6 +75,10 @@ export function chainedError(msg, err) {
     }
   }
   return new Error(`${msg}\nCaused by: ${err}`)
+}
+
+function isImmutableError(err) {
+  return self.DOMException && err instanceof DOMException
 }
 
 export function now() {
@@ -111,9 +121,11 @@ export function iterateIdb(
 ) {
   return new Promise((resolve, reject) => {
     const openRequest = indexedDB.open(dbName, dbVersion)
+    let dontPanicWeCalledTheAbort = false
     openRequest.onupgradeneeded = e => {
       // if an upgrade is needed, the requested DB version did NOT exist
       e.target.transaction.abort()
+      dontPanicWeCalledTheAbort = true
       console.debug(
         `IndexedDB database ${dbName}, version ${dbVersion}, does not exist, ` +
           `skipping migration`,
@@ -121,12 +133,18 @@ export function iterateIdb(
       return resolve([])
     }
     openRequest.onerror = () => {
-      reject(
-        chainedError(
-          `Failed to open IndexedDB '${dbName}' (version ${dbVersion})`,
-          openRequest.error,
-        ),
+      if (dontPanicWeCalledTheAbort) {
+        return
+      }
+      const isVersionError = openRequest.error.name === 'VersionError'
+      const newErr = chainedError(
+        `Failed to open IndexedDB '${dbName}' (version ${dbVersion})`,
+        openRequest.error,
       )
+      if (isVersionError) {
+        newErr.isVersionError = true
+      }
+      reject(newErr)
     }
     openRequest.onsuccess = e => {
       const database = e.target.result
