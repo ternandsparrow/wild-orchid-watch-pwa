@@ -182,7 +182,8 @@
           <div class="success-alert">
             <v-ons-icon icon="fa-clock" />
             Date/time successfully captured from
-            {{ datetimeMethod }}.
+            {{ datetimeMethod }}.<br />
+            Value = {{ formattedDatetime }}.
           </div>
         </div>
       </div>
@@ -244,10 +245,18 @@ export default {
       },
     },
     isDatetimeAlreadyCaptured() {
-      return !!this.theDatetime
+      return !!(this.theDatetime || {}).value
     },
     theDatetime() {
       return this.datetimeForCurrentlyEditingObs
+    },
+    formattedDatetime() {
+      const val = (this.theDatetime || {}).value
+      if (!val) {
+        return null
+      }
+      const d = dayjs(val)
+      return `${d.format('DD-MMM-YYYY HH:mm')}  (${d.fromNow()})`
     },
     datetimeFromPhotoState() {
       if (this.isDatetimeAlreadyCaptured) {

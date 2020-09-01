@@ -340,14 +340,14 @@ const actions = {
       const blockedActionFromDb =
         record.wowMeta[constants.blockedActionFieldName]
       return {
-        ...{
-          ...record,
-          inatId: remoteRecord.inatId,
-        },
+        // note: the record body has already been updated in-place, it's just
+        // the wowMeta changes that store the blocked action. That's why we use
+        // the record body as-is.
+        ...record,
+        inatId: remoteRecord.inatId,
         wowMeta: {
           ...blockedActionFromDb.wowMeta,
-          [constants.recordProcessingOutcomeFieldName]:
-            constants.waitingOutcome,
+          [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
       }
     })()
@@ -591,8 +591,6 @@ const actions = {
       ...record,
       wowMeta: {
         ...record.wowMeta,
-        // we're writing to the record, it *will* be waiting to be processed when we're done!
-        [constants.recordProcessingOutcomeFieldName]: constants.waitingOutcome,
         [constants.photoIdsToDeleteFieldName]: (
           record.wowMeta[constants.photoIdsToDeleteFieldName] || []
         ).concat(photoIdsToDelete),
@@ -632,9 +630,7 @@ const actions = {
         [constants.blockedActionFieldName]: {
           wowMeta: {
             ...existingBlockedActionWowMeta,
-            ...record.wowMeta,
-            [constants.recordTypeFieldName]:
-              record.wowMeta[constants.recordTypeFieldName],
+            ...record.wowMeta, // stuff from this save
             [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
             [constants.photosToAddFieldName]: mergedPhotosToAdd,
             [constants.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
@@ -646,7 +642,7 @@ const actions = {
   },
   async saveEditAndScheduleUpdate(
     { state, dispatch, getters },
-    { record, photoIdsToDelete, obsFieldIdsToDelete },
+    { record, photoIdsToDelete, obsFieldIdsToDelete, isDraft },
   ) {
     const editedUuid = record.uuid
     if (!editedUuid) {
@@ -655,6 +651,7 @@ const actions = {
           'as we do not know what we are editing',
       )
     }
+    const outcome = isDraft ? constants.draftOutcome : constants.waitingOutcome
     // TODO might need some sort of mutex/lock here (a Promise stored in
     // store/ephemeral that the local queue processor awaits before reading a
     // record from DB). The following race condition could happen:
@@ -707,20 +704,41 @@ const actions = {
             'cannot continue without at least one',
         )
       }
-      const newPhotos = await (async () => {
-        const photosAddedInThisEdit =
-          (await processPhotos(record.addedPhotos)) || []
-        const existingLocalPhotos =
-          (existingDbRecord.wowMeta || {})[constants.photosToAddFieldName] || []
-        return [...photosAddedInThisEdit, ...existingLocalPhotos]
-      })()
+      const newPhotos = (await processPhotos(record.addedPhotos)) || []
       const photos = (() => {
         const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
+        const wowMeta = existingDbRecord.wowMeta || {}
+        const blockedAction = wowMeta[constants.blockedActionFieldName]
+        const existingLocalPhotos =
+          wowMeta[constants.photosToAddFieldName] || []
+        const existingBlockedLocalPhotos = (() => {
+          if (!blockedAction) {
+            return []
+          }
+          const photosAddedInBlockedAction =
+            blockedAction.wowMeta[constants.photosToAddFieldName]
+          return photosAddedInBlockedAction || []
+        })()
         const photosWithDeletesApplied = [
           ...existingRemotePhotos,
+          ...existingLocalPhotos,
+          ...existingBlockedLocalPhotos,
           ...newPhotos,
         ].filter(p => {
-          const isPhotoDeleted = photoIdsToDelete.includes(p.id)
+          const photoDeletesFromBlockedAction = (() => {
+            if (!blockedAction) {
+              return []
+            }
+            return (
+              blockedAction.wowMeta[constants.photoIdsToDeleteFieldName] || []
+            )
+          })()
+          const allPendingPhotoDeletes = [
+            ...photoIdsToDelete,
+            ...(wowMeta[constants.photoIdsToDeleteFieldName] || []),
+            ...photoDeletesFromBlockedAction,
+          ]
+          const isPhotoDeleted = allPendingPhotoDeletes.includes(p.id)
           return !isPhotoDeleted
         })
         // note: this fixIds call is side-effecting the newPhotos items
@@ -742,6 +760,7 @@ const actions = {
           // the clock has drifted forward, our check for updates having
           // occurred on the remote won't work.
           [constants.wowUpdatedAtFieldName]: new Date().toString(),
+          [constants.recordProcessingOutcomeFieldName]: outcome,
           [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
       })
@@ -860,8 +879,11 @@ const actions = {
       )
     }
   },
-  async saveNewAndScheduleUpload({ dispatch }, record) {
+  async saveNewAndScheduleUpload({ dispatch }, { record, isDraft }) {
     try {
+      const outcome = isDraft
+        ? constants.draftOutcome
+        : constants.waitingOutcome
       const newRecordId = uuid()
       const newPhotos = await processPhotos(record.addedPhotos)
       const enhancedRecord = Object.assign(record, {
@@ -870,8 +892,7 @@ const actions = {
         photos: newPhotos,
         wowMeta: {
           [constants.recordTypeFieldName]: recordType('new'),
-          [constants.recordProcessingOutcomeFieldName]:
-            constants.waitingOutcome,
+          [constants.recordProcessingOutcomeFieldName]: outcome,
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
@@ -1533,6 +1554,7 @@ const actions = {
       uuid: existingRemoteRecord.uuid || selectedUuid,
       wowMeta: {
         [constants.recordTypeFieldName]: recordType('delete'),
+        [constants.recordProcessingOutcomeFieldName]: constants.waitingOutcome,
       },
     }
     const strategyKey =

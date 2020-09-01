@@ -208,6 +208,10 @@
                   src="@/assets/img/cloud-wait.svg"
                   class="wow-icon"
                 />
+                <span v-if="curr.isDraft" class="wow-badge">
+                  <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
+                  Draft
+                </span>
                 <span v-if="curr.commentCount" class="wow-badge">
                   <v-ons-icon icon="fa-comment"> </v-ons-icon>
                   {{ curr.commentCount }}
@@ -280,7 +284,12 @@ export default {
       return [
         ...this.localRecords.map(r => ({
           ...r,
-          isWaiting: true,
+          isWaiting:
+            r.wowMeta[constants.recordProcessingOutcomeFieldName] ===
+            constants.waitingOutcome,
+          isDraft:
+            r.wowMeta[constants.recordProcessingOutcomeFieldName] ===
+            constants.draftOutcome,
         })),
         ...this.remoteRecords.map(r => ({
           ...r,

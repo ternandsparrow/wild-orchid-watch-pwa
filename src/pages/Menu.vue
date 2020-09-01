@@ -74,7 +74,6 @@ import {
   isBugReportFeatureEnabled,
   isMissionsFeatureEnabled,
   isNewsFeatureEnabled,
-  isSearchFeatureEnabled,
 } from '@/misc/constants'
 
 export default {
@@ -131,12 +130,6 @@ export default {
           icon: 'fa-newspaper',
           target: { name: 'News' },
           isDisabled: !isNewsFeatureEnabled,
-        },
-        {
-          title: 'Search',
-          icon: 'fa-search',
-          target: { name: 'Search' },
-          isDisabled: !isSearchFeatureEnabled,
         },
         {
           title: 'Missions',

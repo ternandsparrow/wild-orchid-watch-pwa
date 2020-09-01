@@ -134,8 +134,8 @@ export const isNewsFeatureEnabled = parseBoolean(
   process.env.VUE_APP_FEATURE_FLAG_NEWS,
 )
 
-export const isSearchFeatureEnabled = parseBoolean(
-  process.env.VUE_APP_FEATURE_FLAG_SEARCH,
+export const isDraftFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_DRAFT,
 )
 
 export const isBugReportFeatureEnabled = parseBoolean(
@@ -439,6 +439,7 @@ export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
 export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
 
 // Record processing outcomes
+export const draftOutcome = 'draft' // incomplete observation
 export const waitingOutcome = 'waiting' // waiting to be processed
 export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
 export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet

@@ -322,7 +322,20 @@
         <ul class="error-msg-list">
           <li v-for="curr of formErrorMsgs" :key="curr">{{ curr }}</li>
         </ul>
+        <p v-if="isDraftFeatureEnabled">
+          This observation is still missing required data. You should fill that
+          in now if you can. If you can't, because later you'll be adding
+          photos, coordinates, etc from an external device (DSLR, DGPS, etc)
+          then you can save this observation as a <em>draft</em>. Note: if you
+          save a draft, that observation will <strong>never</strong> be uploaded
+          until you edit the observation and add the missing data.
+        </p>
       </div>
+      <v-ons-alert-dialog-button
+        v-if="isDraftFeatureEnabled"
+        @click="onSaveDraft"
+        >Save as draft (finish it later)</v-ons-alert-dialog-button
+      >
       <v-ons-alert-dialog-button @click="onDismissFormError"
         >Ok</v-ons-alert-dialog-button
       >
@@ -379,6 +392,7 @@ import {
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
   immediateLanduseObsFieldId,
+  isDraftFeatureEnabled,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
@@ -460,6 +474,7 @@ export default {
       isValidatedAtLeastOnce: false,
       uuidOfThisObs: null,
       observedAt: null,
+      isDraftFeatureEnabled,
     }
   },
   computed: {
@@ -1124,17 +1139,8 @@ export default {
           this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
           return
         }
-        this.updateLastUsedResponses()
-        this.updateRecentlyUsedTaxa()
-        const strategyKey = this.isEdit ? 'Edit' : 'New'
-        const strategy = this['doSave' + strategyKey]
-        if (!strategy) {
-          throw new Error(
-            `Programmer error: unhandled strategy='${strategyKey}'`,
-          )
-        }
-        const record = this.buildRecordToSave()
-        await strategy(record)
+        await this.finishSaving(false)
+        this.$wow.uiTrace('SingleSpecies', `successful save of valid record`)
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
           msg: 'Failed to save observation to local store',
@@ -1145,6 +1151,30 @@ export default {
         this.isSaveModalVisible = false
         clearTimeout(timeoutId)
       }
+    },
+    async onSaveDraft() {
+      try {
+        this.$wow.uiTrace('SingleSpecies', `save draft`)
+        this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
+        await this.finishSaving(true)
+      } catch (err) {
+        this.$store.dispatch('flagGlobalError', {
+          msg: 'Failed to save draft observation to local store',
+          userMsg: 'Error while trying to save draft observation',
+          err,
+        })
+      }
+    },
+    async finishSaving(isDraft) {
+      this.updateLastUsedResponses()
+      this.updateRecentlyUsedTaxa()
+      const strategyKey = this.isEdit ? 'Edit' : 'New'
+      const strategy = this['doSave' + strategyKey]
+      if (!strategy) {
+        throw new Error(`Programmer error: unhandled strategy='${strategyKey}'`)
+      }
+      const record = this.buildRecordToSave()
+      await strategy(record, isDraft)
     },
     buildRecordToSave() {
       const obsFieldValues = this.displayableObsFields.reduce(
@@ -1211,7 +1241,7 @@ export default {
         })),
         speciesGuess: this.speciesGuessValue,
         obsFieldValues,
-        observedAt: new Date(this.observedAt),
+        observedAt: this.observedAt ? new Date(this.observedAt) : null,
         description: this.notes,
         lat: this.obsLat,
         lng: this.obsLng,
@@ -1318,16 +1348,16 @@ export default {
       }
       strategy()
     },
-    async doSaveNew(record) {
+    async doSaveNew(record, isDraft) {
       const newUuid = await this.$store.dispatch(
         'obs/saveNewAndScheduleUpload',
-        record,
+        { record, isDraft },
       )
       this.toastSavedMsg()
       console.debug(`Navigating user to detail page for '${newUuid}'`)
       this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
     },
-    async doSaveEdit(record) {
+    async doSaveEdit(record, isDraft) {
       // note: swapping from detailed to basic mode will NOT delete the fields
       // that are no longer visible. Users shouldn't be frequently swapping
       // between the two but even if they do, losing data is probably not want
@@ -1364,6 +1394,7 @@ export default {
           ),
           photoIdsToDelete: this.photoIdsToDelete,
           obsFieldIdsToDelete,
+          isDraft,
         },
       )
       this.toastSavedMsg()

@@ -47,6 +47,15 @@
         >
       </p>
     </v-ons-card>
+    <v-ons-card v-show="isDraft" class="warn-card">
+      <div class="title">Draft observation</div>
+      <p>
+        <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
+        This observation is only a draft as it doesn't yet have all the required
+        data. It will <em>never</em> be uploaded to iNaturalist until you edit
+        it and add the missing data.
+      </p>
+    </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
         v-if="isPhotos"
@@ -344,16 +353,7 @@
 <script>
 import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
-import {
-  approxAreaSearchedObsFieldId,
-  areaOfPopulationObsFieldId,
-  getMultiselectId,
-  inatUrlBase,
-  noImagePlaceholderUrl,
-  noValue,
-  notCollected,
-  yesValue,
-} from '@/misc/constants'
+import * as constants from '@/misc/constants'
 import {
   findCommonString,
   formatMetricDistance,
@@ -369,7 +369,7 @@ export default {
   name: 'ObsDetail',
   data() {
     return {
-      noImagePlaceholderUrl,
+      noImagePlaceholderUrl: constants.noImagePlaceholderUrl,
       carouselIndex: 0,
       extraDotsStyle: {
         color: '#5d5d5d',
@@ -381,8 +381,8 @@ export default {
         { icon: 'fa-comments' },
       ],
       obsFieldSorterFn: null,
-      yesValue,
-      noValue,
+      yesValue: constants.yesValue,
+      noValue: constants.noValue,
       newCommentBody: null,
       isSavingComment: false,
       editCommentRecord: {},
@@ -404,13 +404,20 @@ export default {
     isPossiblyStuck() {
       return isPossiblyStuckHelper(this.$store, this.observationDetail)
     },
+    isDraft() {
+      const wowMeta = this.nullSafeObs.wowMeta || {}
+      return (
+        wowMeta[constants.recordProcessingOutcomeFieldName] ===
+        constants.draftOutcome
+      )
+    },
     selectedObsInatId() {
       return this.observationDetail.inatId
     },
     nullSafeObs() {
       const valueMappers = {
-        [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
-        [areaOfPopulationObsFieldId]: rectangleAlongPathAreaValueToTitle,
+        [constants.approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
+        [constants.areaOfPopulationObsFieldId]: rectangleAlongPathAreaValueToTitle,
       }
       const result = _.cloneDeep(this.observationDetail || {})
       if (result.obsFieldValues) {
@@ -419,7 +426,7 @@ export default {
           const defaultStrat = v => v
           const strategy = valueMappers[curr.fieldId] || defaultStrat
           const mappedValue = strategy(val)
-          const multiselectId = getMultiselectId(curr.fieldId)
+          const multiselectId = constants.getMultiselectId(curr.fieldId)
           const isMultiselect = !!multiselectId
           if (!isMultiselect) {
             accum.push({
@@ -431,7 +438,7 @@ export default {
                 // around our conditionally required fields and use that knowledge
                 // here. But this is easy and has the same effect because required
                 // fields can't be not collected
-                const isNotCollected = curr.value === notCollected
+                const isNotCollected = curr.value === constants.notCollected
                 const isDefinitelyDetailed = this.detailedModeOnlyObsFieldIds[
                   curr.fieldId
                 ]
@@ -529,7 +536,7 @@ export default {
       return !(this.nullSafeObs.idsAndComments || []).length
     },
     obsOnInatUrl() {
-      return `${inatUrlBase}/observations/${this.nullSafeObs.inatId}`
+      return `${constants.inatUrlBase}/observations/${this.nullSafeObs.inatId}`
     },
   },
   watch: {
@@ -774,7 +781,7 @@ export default {
       return humanDateString(item)
     },
     identificationPhotoUrl(identification) {
-      return identification.taxonPhotoUrl || noImagePlaceholderUrl
+      return identification.taxonPhotoUrl || constants.noImagePlaceholderUrl
     },
     async onNewComment() {
       this.$wow.uiTrace('ObsDetail', `create new comment`)

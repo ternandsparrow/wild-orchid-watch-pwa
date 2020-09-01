@@ -501,7 +501,7 @@ export default {
         'isForceVueDevtools',
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
-        'isSearchFeatureEnabled',
+        'isDraftFeatureEnabled',
         'isBugReportFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',

@@ -23,7 +23,6 @@ import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
 import Onboarder from '@/pages/Onboarder'
 import OrchidScience from '@/pages/orchid-science/index'
-import Search from '@/pages/Search'
 import Settings from '@/pages/Settings'
 import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Species from '@/pages/obs/Species'
@@ -128,11 +127,6 @@ const router = new VueRouter({
       path: '/faq',
       name: 'FAQ',
       component: FAQ,
-    },
-    {
-      path: '/search',
-      name: 'Search',
-      component: Search,
     },
     {
       path: '/missions',
