@@ -84,6 +84,9 @@ function getMetadata(imageAsBlob) {
         return reject(err)
       }
     }
+    reader.onerror = function(err) {
+      return reject(err)
+    }
     reader.readAsDataURL(imageAsBlob)
   })
 }
@@ -99,6 +102,9 @@ function writeMetadata(imageAsArrayBuffer, metadataObj, blobType) {
       } catch (err) {
         return reject(err)
       }
+    }
+    reader.onerror = function(err) {
+      return reject(err)
     }
     const theBlob = new Blob([imageAsArrayBuffer], { type: blobType })
     reader.readAsDataURL(theBlob)

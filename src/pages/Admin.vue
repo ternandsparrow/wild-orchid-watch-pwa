@@ -175,6 +175,7 @@
         >
       </div>
     </v-ons-card>
+    <join-leave-project @refresh="doProjectInfoRefresh" />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />
@@ -260,31 +261,7 @@
         <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
       </p>
     </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Reset recordProcessingOutcome to "waiting" for obs
-      </div>
-      <div>
-        <v-ons-button @click="prepResetRpoList"
-          >Get list of resettable obs</v-ons-button
-        >
-      </div>
-      <div>
-        Obs to reset
-        <select v-model="resetRpoUuid">
-          <option
-            v-for="curr of resetRpoList"
-            :key="curr.uuid"
-            :value="curr.uuid"
-            >{{ curr.title }}</option
-          >
-        </select>
-      </div>
-      <div>
-        <v-ons-button @click="doRpoReset">Reset</v-ons-button>
-      </div>
-      <div>Status = {{ rpoResetStatus }}</div>
-    </v-ons-card>
+    <wow-force-rpo />
     <v-ons-card>
       <div class="title">
         Trigger queue processing
@@ -473,9 +450,6 @@ export default {
       cloneCount: 30,
       cloneSubjectUuid: null,
       cloneStatus: 'not started',
-      rpoResetStatus: null,
-      resetRpoList: [],
-      resetRpoUuid: null,
       remoteJsUuid: null,
       platformTestResult: '(not run yet)',
       swCheckResult: '(not run yet)',
@@ -823,27 +797,6 @@ export default {
     prepCloneList() {
       this.cloneList = this.$store.state.obs._uiVisibleLocalRecords.map(e => ({
         title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
-        uuid: e.uuid,
-      }))
-    },
-    async doRpoReset() {
-      this.rpoResetStatus = 'starting'
-      try {
-        await this.$store.dispatch(
-          'obs/transitionToWaitingOutcome',
-          this.resetRpoUuid,
-        )
-        this.rpoResetStatus = 'refreshing'
-        await this.$store.dispatch('obs/refreshLocalRecordQueue')
-        this.rpoResetStatus = 'done'
-      } catch (err) {
-        console.error('Failed to reset status of obs', err)
-        this.rpoResetStatus = 'error: ' + err.message
-      }
-    },
-    prepResetRpoList() {
-      this.resetRpoList = this.$store.getters['obs/localRecords'].map(e => ({
-        title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
     },

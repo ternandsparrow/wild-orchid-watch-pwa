@@ -91,6 +91,12 @@
               >Privacy Policy</a
             >.
           </p>
+          <p>
+            You also agree to join the
+            <a :href="projectHref" target="_blank">WOW iNaturalist project</a>
+            and grant access to the accurate observation coordinates
+            <em>only</em> to the trusted managers of the project.
+          </p>
           <p class="spaced-lines">
             For more information please see
             <a href="www.wildorchidwatch.org/wowapp" target="_blank"
@@ -115,7 +121,12 @@
 </template>
 
 <script>
-import { onboarderComponentName, appVersion } from '@/misc/constants'
+import {
+  onboarderComponentName,
+  appVersion,
+  inatUrlBase,
+  inatProjectSlug,
+} from '@/misc/constants'
 
 export default {
   name: onboarderComponentName,
@@ -137,6 +148,9 @@ export default {
   computed: {
     isIos() {
       return navigator.userAgent.match(/(iPod|iPhone|iPad)/)
+    },
+    projectHref() {
+      return `${inatUrlBase}/projects/${inatProjectSlug}`
     },
   },
   mounted() {

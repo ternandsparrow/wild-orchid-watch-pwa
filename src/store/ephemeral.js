@@ -244,12 +244,9 @@ const actions = {
           category: 'store/ephemeral',
           action: `error reading EXIF from attached photo`,
         })
-        // TODO enhancement idea: brute force meansure image dimensions to do
+        // TODO enhancement idea: brute force measure image dimensions to do
         // resizing, or find them elsewhere?
-        return {
-          data: blobish,
-          location: { isPresent: false },
-        }
+        return blobish
       }
       ;(function debugMetadata() {
         const slightlyTerserMetadata = Object.assign({}, originalMetadata)

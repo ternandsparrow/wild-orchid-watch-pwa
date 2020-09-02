@@ -32,6 +32,13 @@ export async function doMigrations(context) {
       `[SW] migrations complete, ${updatedRecordCount} observations affected`,
     )
   } catch (err) {
+    if (err.isVersionError) {
+      console.debug(
+        `[SW] error during migration is a 'versioning' error, which means our ` +
+          `migrations aren't needed.`,
+      )
+      return
+    }
     throw chainedError('Failed during SW migrations', err)
   } finally {
     const elapsed = Date.now() - start
@@ -52,7 +59,7 @@ async function do2020JulMigrationToBulkObsFields() {
 
   const bundleUuids = await iterateIdb(
     'wow-sw',
-    2,
+    2, // hardcoding because the version we migrate *from* will never change
     'keyvaluepairs',
     cursor => {
       const key = cursor.key
@@ -83,7 +90,7 @@ async function do2020JulMigrationToBulkObsFields() {
     'workbox-background-sync',
     // we get this version from
     // https://github.com/GoogleChrome/workbox/blob/v5.1.3/packages/workbox-background-sync/src/lib/QueueStore.ts#L15
-    3,
+    3, // hardcoding because the version we migrate *from* will never change
     'requests',
     cursor => {
       const val = cursor.value

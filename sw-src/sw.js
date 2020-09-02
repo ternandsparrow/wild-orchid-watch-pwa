@@ -112,6 +112,28 @@ async function wowQueueSuccessCb(entry, resp) {
   const obsUuid = entry.metadata.obsUuid
   const strategies = [
     {
+      matcher: (url, method) =>
+        method === 'POST' && url.endsWith('/observation_photos'),
+      action: async function handleSuccessfulObsPhoto() {
+        // nothing to do, the photo is already attached to the obs
+        try {
+          const respBody = await resp.json()
+          const newPhotoId = respBody.id
+          console.debug(
+            `[SW] new photo ID='${newPhotoId}' attached to existing obs with ` +
+              `UUID='${obsUuid}'/inatId='${entry.metadata.obsId}'`,
+          )
+        } catch (err) {
+          throw new chainedError(
+            'Failed to read ID from successful photo upload. We are just ' +
+              'going to log the ID to debug but the fact we cannot read it ' +
+              'might be a cause for concern',
+            err,
+          )
+        }
+      },
+    },
+    {
       matcher: (url, method) => method === 'POST' && url.endsWith('/photos'),
       action: async function handleSuccessfulPhoto() {
         try {
@@ -217,7 +239,8 @@ async function enqueueObsRequest(entry) {
         )
     }
   })()
-  if (obsRecord.local_photos[0].length === 0) {
+  // yes, it's an object with a key of 0 and an array value
+  if (!obsRecord.local_photos || obsRecord.local_photos[0].length === 0) {
     console.debug(
       `[SW] no new photos added, ensuring we don't lose the old ones`,
     )
@@ -567,7 +590,7 @@ registerRoute(
     try {
       const newPhotos = payload[constants.photosFieldName]
       verifyPhotos(newPhotos)
-      await processPhotosCreates(newPhotos, obsUuid)
+      await processPhotosCreatesForNewObs(newPhotos, obsUuid)
       await wowQueue.pushRequest({
         metadata: {
           obsUuid: obsUuid,
@@ -624,7 +647,7 @@ registerRoute(
     try {
       const newPhotos = payload[constants.photosFieldName]
       verifyPhotos(newPhotos)
-      await processPhotosCreates(newPhotos, obsUuid)
+      await processPhotosCreatesForEditObs(newPhotos, obsUuid, obsId)
       const photoIdsToDelete = payload[constants.photoIdsToDeleteFieldName]
       const obsFieldIdsToDelete =
         payload[constants.obsFieldIdsToDeleteFieldName]
@@ -757,6 +780,48 @@ registerRoute(
   'GET',
 )
 
+registerRoute(
+  constants.serviceWorkerObsUuidsInQueueUrl,
+  async () => {
+    console.debug('[SW] Building list of UUIDs present in queues')
+    try {
+      return jsonResponse(await getObsUuidsInQueues())
+    } catch (err) {
+      const msg = 'Failed to build SW list of UUIDs in queues'
+      wowErrorHandler(msg, err)
+      return jsonResponse({ error: err.message })
+    }
+  },
+  'GET',
+)
+
+async function getObsUuidsInQueues() {
+  const uuids = new Set()
+  const wowQueueEntries = await wowQueue.getAll()
+  wowQueueEntries.forEach(e => uuids.add(e.metadata.obsUuid))
+  await new Promise(async (resolve, reject) => {
+    try {
+      await wowSwStore.iterate(
+        function valueProcessor(r) {
+          uuids.add(r.observation.uuid)
+        },
+        function doneCallback(_, err) {
+          if (!err) {
+            return resolve()
+          }
+          return reject(err)
+        },
+      )
+    } catch (err) {
+      return reject(
+        chainedError('Failed to iterate wowSw IDB to collect UUIDs', err),
+      )
+    }
+  })
+  const result = [...uuids.keys()]
+  return result
+}
+
 // "the web" is not *a* platform. A platform offers a controlled runtime
 // environment. It's a collection of platforms. This tests some of the corner
 // cases that make targeting multiple platforms a challenge. Purely for dev
@@ -851,7 +916,10 @@ registerRoute(
       }
       const localForageSizeBeforeClear = await wowSwStore.length()
       await wowSwStore.clear()
-      wowSwStore.dropInstance() // no await because it's flakey. See indexeddb/storage-manager.js
+      // we don't call wowSwStore.dropInstance() because doing so bumps the
+      // version number. That doesn't actually cause an issue but it seems
+      // needless. Plus, the call doesn't even drop the whole DB as the
+      // 'local-forage-detect-blob-support' store persists.
       return jsonResponse({
         wowQueueEntriesDiscarded: wowQueueEntries.length,
         swStoreItemsCleared: localForageSizeBeforeClear,
@@ -1042,7 +1110,7 @@ function jsonResponse(bodyObj, status = 200) {
   })
 }
 
-async function processPhotosCreates(photos, obsUuid) {
+async function processPhotosCreatesForNewObs(photos, obsUuid) {
   for (const curr of photos) {
     const fd = new FormData()
     const photoBuffer = base64js.toByteArray(curr.data)
@@ -1056,6 +1124,28 @@ async function processPhotosCreates(photos, obsUuid) {
         obsUuid: obsUuid,
       },
       request: new Request(constants.apiUrlBase + '/photos', {
+        method: 'POST',
+        mode: 'cors',
+        body: fd._blob ? fd._blob() : fd,
+      }),
+    })
+  }
+}
+
+async function processPhotosCreatesForEditObs(photos, obsUuid, obsId) {
+  for (const curr of photos) {
+    const fd = new FormData()
+    fd.append('observation_photo[observation_id]', obsId)
+    const photoBuffer = base64js.toByteArray(curr.data)
+    const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
+    fd.append('file', theFile)
+    console.debug('Pushing a photo to the queue')
+    await wowQueue.pushRequest({
+      metadata: {
+        obsUuid,
+        obsId,
+      },
+      request: new Request(constants.apiUrlBase + '/observation_photos', {
         method: 'POST',
         mode: 'cors',
         body: fd._blob ? fd._blob() : fd,
@@ -1118,7 +1208,7 @@ async function buildHealthcheckObj() {
         if (!err) {
           return resolve(result)
         }
-        // if we do have an error, we've already handled it
+        // if we do have an error, we've already handled it in an inner catch block
         return reject(err)
       })
     } catch (err) {
@@ -1138,6 +1228,7 @@ async function buildHealthcheckObj() {
       count: swStoreItems.length,
       itemSummaries: swStoreItems,
     },
+    uuidsInQueues: await getObsUuidsInQueues(),
   }
   function mapEntries(entries) {
     return entries.map(e => ({

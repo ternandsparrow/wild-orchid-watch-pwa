@@ -25,7 +25,7 @@
     "core-js": "3.6.4",
     "dayjs": "^1.8.26",
     "dms2dec": "^1.1.0",
-    "exif-js": "2.3.0",
+    "exif-js": "https://github.com/ternandsparrow/exif-js#gh-63-outside-bounds",
     "exif-reader": "^1.0.3",
     "fetch-retry": "^2.2.3",
     "formdata-polyfill": "https://github.com/ternandsparrow/FormData#safari13.1-attempt2-installable",

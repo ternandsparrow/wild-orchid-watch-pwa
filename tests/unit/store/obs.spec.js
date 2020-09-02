@@ -3,8 +3,6 @@ import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 
-const dateTimestampRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/
-
 describe('mutations', () => {
   describe('addRecentlyUsedTaxa', () => {
     it('should create the type key when it does not already exist', () => {
@@ -379,6 +377,8 @@ describe('actions', () => {
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
           },
         })
       })
@@ -440,6 +440,8 @@ describe('actions', () => {
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.obsFieldIdsToDeleteFieldName]: [],
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
+            [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
           },
         })
       })
@@ -504,7 +506,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -566,7 +569,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'new',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -674,7 +678,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -747,7 +752,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -865,7 +871,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -938,7 +945,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })
@@ -1009,7 +1017,8 @@ describe('actions', () => {
             uuid: '123A',
             wowMeta: {
               recordType: 'edit',
-              wowUpdatedAt: expect.stringMatching(dateTimestampRegex),
+              [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
+              [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
             },
           },
         })

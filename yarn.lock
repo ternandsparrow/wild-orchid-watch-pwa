@@ -6424,10 +6424,9 @@ executable@4.1.1:
   dependencies:
     pify "^2.2.0"
 
-exif-js@2.3.0:
+"exif-js@https://github.com/ternandsparrow/exif-js#gh-63-outside-bounds":
   version "2.3.0"
-  resolved "https://registry.yarnpkg.com/exif-js/-/exif-js-2.3.0.tgz#9d10819bf571f873813e7640241255ab9ce1a814"
-  integrity sha1-nRCBm/Vx+HOBPnZAJBJVq5zhqBQ=
+  resolved "https://github.com/ternandsparrow/exif-js#4ec7f1fcf6a6fa4461b55ffb2fb2bf09aef0016b"
 
 exif-parser@^0.1.12, exif-parser@^0.1.9:
   version "0.1.12"

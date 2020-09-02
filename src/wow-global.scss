@@ -85,6 +85,7 @@ body {
 
 .success-alert,
 .info-alert,
+.error-alert,
 .warning-alert {
   padding: 1em;
   border-radius: 10px;
@@ -104,4 +105,9 @@ body {
 .info-alert {
   border: 1px solid blue;
   background: #e9f5ff;
+}
+
+.error-alert {
+  border: 1px solid red;
+  background: #ffdcdc;
 }

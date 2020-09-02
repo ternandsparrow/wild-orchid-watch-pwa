@@ -18,6 +18,7 @@ import {
   buildStaleCheckerFn,
   chainedError,
   fetchSingleRecord,
+  getJson,
   isNoSwActive,
   makeObsRequest,
   namedError,
@@ -54,6 +55,7 @@ const initialState = {
   recentlyUsedTaxa: {},
   forceQueueProcessingAtNextChance: false,
   lastUsedResponses: {},
+  uuidsInSwQueues: [],
 }
 
 const mutations = {
@@ -98,6 +100,7 @@ const mutations = {
   setForceQueueProcessingAtNextChance: (state, value) =>
     (state.forceQueueProcessingAtNextChance = value),
   setLastUsedResponses: (state, value) => (state.lastUsedResponses = value),
+  setUuidsInSwQueues: (state, value) => (state.uuidsInSwQueues = value),
 }
 
 const actions = {
@@ -116,6 +119,7 @@ const actions = {
   },
   async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
+    dispatch('refreshObsUuidsInSwQueue')
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
@@ -152,6 +156,27 @@ const actions = {
       commit('setIsUpdatingRemoteObs', false)
     }
   },
+  async refreshObsUuidsInSwQueue({ commit }) {
+    try {
+      const isNoServiceWorkerAvailable = await isNoSwActive()
+      if (isNoServiceWorkerAvailable) {
+        return
+      }
+      const uuids = await getJson(
+        constants.serviceWorkerObsUuidsInQueueUrl,
+        false,
+      )
+      commit('setUuidsInSwQueues', uuids)
+    } catch (err) {
+      // not using flagGlobalError because we don't need to bother the user
+      wowErrorHandler(
+        'Failed to get list of obs UUIDs that in SW queues, falling back to ' +
+          'an empty array',
+        err,
+      )
+      commit('setUuidsInSwQueues', [])
+    }
+  },
   async cleanSuccessfulLocalRecordsRemoteHasEchoed({
     state,
     getters,
@@ -169,7 +194,7 @@ const actions = {
     )
     const localUpdatedDates = getters.successfulLocalQueueSummary.reduce(
       (accum, curr) => {
-        accum[curr.uuid] = curr.wowUpdatedAt
+        accum[curr.uuid] = curr[constants.wowUpdatedAtFieldName]
         return accum
       },
       {},
@@ -191,6 +216,21 @@ const actions = {
           case recordType('edit'):
             return (() => {
               const currUpdatedDateOnRemote = lastUpdatedDatesOnRemote[e.uuid]
+              if (!currUpdatedDateOnRemote) {
+                console.debug(`${logPrefix} UUID=${e.uuid} is not on remote.`)
+                wowWarnHandler(
+                  `Obs with UUID=${e.uuid}/iNatID=${e.inatId} is not found ` +
+                    `on remote. Maybe it was deleted or removed from the ` +
+                    `project.`,
+                )
+                // TODO not 100% if this is the right response. By returning
+                // true, the record will be cleaned up so it won't be sitting
+                // in the user's obs list in limbo forever. But if something
+                // else has gone wrong, we'd be losing this obervation forever.
+                // The assumption is the obs has been consciously removed
+                // elsewhere so we're also cleaning up here.
+                return true
+              }
               const secondsRemoteUpdateDateIsAheadOfLocal =
                 // remote times are rounded to the second
                 (dayjs(currUpdatedDateOnRemote) -
@@ -701,7 +741,8 @@ const actions = {
           // warning: relies on the local device time being synchronised. If
           // the clock has drifted forward, our check for updates having
           // occurred on the remote won't work.
-          wowUpdatedAt: new Date().toISOString(),
+          [constants.wowUpdatedAtFieldName]: new Date().toString(),
+          [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
       })
       delete enhancedRecord.addedPhotos
@@ -834,6 +875,8 @@ const actions = {
           [constants.photosToAddFieldName]: newPhotos,
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
+          [constants.wowUpdatedAtFieldName]: new Date().toString(),
+          [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
         },
         uuid: newRecordId,
       })
@@ -1289,7 +1332,7 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch, state }, { dbRecord }) {
+  async processWaitingDbRecordNoSw({ dispatch, getters }, { dbRecord }) {
     await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
     const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
@@ -1305,7 +1348,7 @@ const actions = {
         return dispatch('_createObservation', {
           obsRecord: makeObsRequest(
             apiRecords.observationPostBody,
-            state.projectInfo.id,
+            getters.projectId,
             localPhotoIds,
           ),
         })
@@ -1359,18 +1402,18 @@ const actions = {
     await dispatch('refreshRemoteObsWithDelay')
   },
   async processWaitingDbRecordWithSw(
-    { state, dispatch, rootState },
+    { dispatch, rootState, getters },
     { dbRecord },
   ) {
     const strategies = {
       [recordType('new')]: async () => {
         const payload = generatePayload(dbRecord)
-        if (!(state.projectInfo || {}).id) {
+        const projectId = getters.projectId
+        if (!projectId) {
           throw new Error(
             'No projectInfo stored, cannot link observation to project without ID',
           )
         }
-        const projectId = state.projectInfo.id
         payload[constants.projectIdFieldName] = projectId
         const resp = await doBundleEndpointFetch(payload, 'POST')
         if (!resp.ok) {
@@ -1411,6 +1454,7 @@ const actions = {
     await strategy()
     await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
     await dispatch('refreshLocalRecordQueue')
+    await dispatch('refreshObsUuidsInSwQueue')
     await triggerSwWowQueue()
     function generatePayload(dbRecordParam) {
       const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
@@ -1444,33 +1488,6 @@ const actions = {
         body: JSON.stringify(payload),
         retries: 0,
       })
-    }
-  },
-  async _linkObsWithProject({ state, dispatch }, { recordId }) {
-    if (!state.projectInfo) {
-      throw new Error(
-        'No projectInfo stored, cannot link observation to project without ID',
-      )
-    }
-    const projectId = state.projectInfo.id
-    try {
-      await dispatch(
-        'doApiPost',
-        {
-          urlSuffix: '/project_observations',
-          data: {
-            project_id: projectId,
-            observation_id: recordId,
-          },
-        },
-        { root: true },
-      )
-    } catch (err) {
-      throw new chainedError(
-        `Failed to link observation ID='${recordId}' ` +
-          `to project ID='${projectId}'`,
-        err,
-      )
     }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
@@ -1607,6 +1624,7 @@ const actions = {
       validFromOutcomes: [
         constants.withLocalProcessorOutcome,
         constants.withServiceWorkerOutcome,
+        constants.successOutcome,
         constants.systemErrorOutcome,
       ],
     })
@@ -1791,6 +1809,9 @@ const getters = {
     // auto-magically update when the project info does arrive
     return (state.projectInfo || {}).project_observation_fields || []
   },
+  projectId(state) {
+    return (state.projectInfo || {}).id
+  },
 }
 
 function isErrorOutcome(outcome) {
@@ -1889,6 +1910,8 @@ export const apiTokenHooks = [
     await store.dispatch('obs/refreshRemoteObs')
     await store.dispatch('obs/getMySpecies')
     await store.dispatch('obs/getProjectInfo')
+    // we re-join the user every time they login. We really want them joined
+    await store.dispatch('autoJoinInatProject')
   },
 ]
 
@@ -2124,8 +2147,9 @@ function isAnswer(val) {
   return !['undefined', 'null'].includes(typeof val)
 }
 
-export function migrate(store) {
+export async function migrate(store) {
   migrateRecentlyUsedTaxa(store)
+  await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store)
 
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
@@ -2151,6 +2175,31 @@ function migrateRecentlyUsedTaxa(store) {
     )
   }
   store.commit('obs/setRecentlyUsedTaxa', cleaned)
+}
+
+async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store) {
+  const uuidsToMigrate = (store.state.obs.localQueueSummary || [])
+    .filter(e => !e[constants.outcomeLastUpdatedAtFieldName])
+    .map(e => ({
+      uuid: e.uuid,
+      outcome: e[constants.recordProcessingOutcomeFieldName],
+    }))
+  const logPrefix = '[obs migrate]'
+  if (!uuidsToMigrate.length) {
+    console.debug(`${logPrefix} no records need outcomeLastUpdatedAt migrated`)
+    return
+  }
+  console.debug(
+    `${logPrefix} adding outcomeLastUpdatedAt values to ` +
+      `${uuidsToMigrate.length} records`,
+  )
+  for (const curr of uuidsToMigrate) {
+    console.debug(
+      `${logPrefix} setting outcomeLastUpdatedAt for UUID=${curr.uuid} that ` +
+        `has outcome=${curr.outcome}`,
+    )
+    await setRecordProcessingOutcome(curr.uuid, curr.outcome)
+  }
 }
 
 export function extractGeolocationText(record) {

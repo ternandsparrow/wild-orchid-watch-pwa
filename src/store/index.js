@@ -99,19 +99,53 @@ const store = new Vuex.Store({
     healthcheck({ dispatch }) {
       return dispatch('obs/healthcheck')
     },
+    async autoJoinInatProject({ dispatch, getters }) {
+      const logPrefix = '[project auto-join]'
+      try {
+        await dispatch('obs/waitForProjectInfo')
+        if (getters.isJoinedProject) {
+          console.debug(
+            `${logPrefix} user already in project, no auto-join needed`,
+          )
+          return
+        }
+        console.debug(`${logPrefix} user NOT in project, auto-joining!`)
+        await dispatch('joinInatProject')
+      } catch (err) {
+        // it's not the end of the world, we will still show the nag alert
+        wowErrorHandler(
+          'Failed to auto-join iNat project on OAuth callback',
+          err,
+        )
+      }
+    },
+    async joinInatProject({ dispatch, getters }) {
+      await dispatch('obs/waitForProjectInfo')
+      const projectId = getters['obs/projectId']
+      const resp = await dispatch('doApiPost', {
+        urlSuffix: `/projects/${projectId}/join`,
+      })
+      await dispatch('obs/getProjectInfo')
+      return resp
+    },
   },
   getters: {
-    myUserId(state, getters) {
+    myUserId(_, getters) {
       return getters['auth/myUserId']
     },
-    myLocale(state, getters) {
+    myLocale(_, getters) {
       return getters['auth/myLocale']
     },
-    myPlaceId(state, getters) {
+    myPlaceId(_, getters) {
       return getters['auth/myPlaceId']
     },
     isSyncDisabled(state) {
       return state.app.whenToSync === neverUpload
+    },
+    isJoinedProject(state, getters) {
+      const joinedUserIds = (state.obs.projectInfo || {}).user_ids || []
+      const myUserId = getters['myUserId']
+      return joinedUserIds.includes(myUserId)
     },
   },
   modules: {
@@ -177,6 +211,6 @@ export default store
  * Add any code here that migrates vuex stores on user devices to match what we
  * expect in this version of the codebase.
  */
-export function migrateOldStores(store) {
-  obsMigrate(store)
+export async function migrateOldStores(store) {
+  await obsMigrate(store)
 }

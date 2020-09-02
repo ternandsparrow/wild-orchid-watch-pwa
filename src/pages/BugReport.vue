@@ -309,23 +309,6 @@ function trimAndMeasure(str) {
 </script>
 
 <style lang="scss" scoped>
-.success-alert,
-.error-alert {
-  padding: 1em;
-  border-radius: 10px;
-  margin: 0 auto;
-}
-
-.error-alert {
-  border: 1px solid red;
-  background: #ffdcdc;
-}
-
-.success-alert {
-  border: 1px solid green;
-  background: #d5ffbf;
-}
-
 .wow-textarea {
   padding: 12px 16px 14px;
   border-radius: 4px;

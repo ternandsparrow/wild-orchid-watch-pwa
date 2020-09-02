@@ -86,19 +86,29 @@ export function postFormDataWithAuth(
   })
 }
 
-export function getJson(url) {
+export function getJson(url, includeCacheBustQueryString) {
   const authHeader = null
-  return getJsonWithAuth(url, authHeader)
+  return getJsonWithAuth(url, authHeader, includeCacheBustQueryString)
 }
 
-export function getJsonWithAuth(url, authHeaderValue) {
+export function getJsonWithAuth(
+  url,
+  authHeaderValue,
+  includeCacheBustQueryString = true,
+) {
   // supplying cache: 'no-store' to fetch() works perfectly except for iOS
   // Safari which explodes, so we have to fall back to this dirty way of cache
   // busting
-  const isQueryStringPresent = url.includes('?')
-  const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
-  const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${now()}`
-  return doManagedFetch(urlWithCacheBust, {
+  const urlToUse = (() => {
+    if (!includeCacheBustQueryString) {
+      return url
+    }
+    const isQueryStringPresent = url.includes('?')
+    const cacheBustSeparator = isQueryStringPresent ? '&' : '?'
+    const urlWithCacheBust = `${url}${cacheBustSeparator}cache-bust=${now()}`
+    return urlWithCacheBust
+  })()
+  return doManagedFetch(urlToUse, {
     method: 'GET',
     mode: 'cors',
     headers: {
@@ -136,13 +146,53 @@ export function isPossiblyStuck($store, record) {
   if (!record) {
     return false
   }
-  const isAllowedToSync = !$store.getters.isSyncDisabled
-  const isProcessorRunning = $store.getters['ephemeral/isLocalProcessorRunning']
-  // FIXME need to look at records that are withServiceWorker but SW has
-  // nothing in its queue. Need to ask SW for that second bit.
-  return (
-    isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
-  )
+  const isStuckLocally = (() => {
+    const isAllowedToSync = !$store.getters.isSyncDisabled
+    const isProcessorRunning =
+      $store.getters['ephemeral/isLocalProcessorRunning']
+    return (
+      isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
+    )
+  })()
+  const isStuckInSw = (() => {
+    const wowMeta = record.wowMeta
+    if (!wowMeta) {
+      return false
+    }
+    const stuckMinutes = constants.thresholdForStuckWithSwMinutes
+    if (!stuckMinutes) {
+      return false
+    }
+    if (!wowMeta[constants.outcomeLastUpdatedAtFieldName]) {
+      // old record before we introduced this field
+      return false
+    }
+    const lastTouchedDatetime = dayjs(
+      wowMeta[constants.outcomeLastUpdatedAtFieldName],
+    )
+    const now = dayjs()
+    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
+    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
+    const isSuccessOrWithSW = [
+      constants.successOutcome,
+      constants.withServiceWorkerOutcome,
+    ].includes(wowMeta[constants.recordProcessingOutcomeFieldName])
+    const isStuckWithoutTimeCheck =
+      isSuccessOrWithSW &&
+      !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
+    if (!isStuckWithoutTimeCheck) {
+      return false
+    }
+    if (!hasBeenLongEnoughSinceUploadAttempt) {
+      const minutesToWait = waitThreshold.diff(now, 'minute')
+      console.debug(
+        `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
+          `SW once ${minutesToWait} minutes elapse`,
+      )
+    }
+    return hasBeenLongEnoughSinceUploadAttempt
+  })()
+  return isStuckLocally || isStuckInSw
 }
 
 export function deleteWithAuth(url, authHeaderValue, wowUuid) {
@@ -425,11 +475,15 @@ export function formatStorageSize(byteCount) {
 
 export function getExifFromBlob(blobish) {
   return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function() {
+    EXIF.getData(blobish, function(err) {
       try {
-        return resolve(EXIF.getAllTags(this))
+        if (err) {
+          return reject(chainedError('Failed to extract EXIF', err))
+        }
+        const result = EXIF.getAllTags(this)
+        return resolve(result)
       } catch (err) {
-        return reject(err)
+        return reject(chainedError('Failed to work with extracted EXIF', err))
       }
     })
   })
