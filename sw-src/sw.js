@@ -143,25 +143,10 @@ async function wowQueueSuccessCb(entry, resp) {
             `[SW] adding uploaded photo ID='${newPhotoId}' to obs with ` +
               `UUID='${obsUuid}'`,
           )
-          const obsRecord = await wowSwStore.getItem(obsUuid)
-          if (!obsRecord) {
-            const availableUuids = await (async () => {
-              try {
-                const result = await getObsUuidsInQueues()
-                return JSON.stringify(result)
-              } catch (err) {
-                const msg =
-                  'Error while handling another error: could not get list of ' +
-                  'obs UUIDS in queue'
-                console.warn(msg, err)
-                return `(${msg}. Caused by: ${err.message})`
-              }
-            })()
-            throw new Error(
-              `SW could not find a pending obs with UUID=${obsUuid} to add a ` +
-                `photo to. Available obs UUIDS: ${availableUuids}`,
-            )
-          }
+          const obsRecord = await getObsRecordByUuid(
+            obsUuid,
+            'to add a photo to',
+          )
           addPhotoIdToObsReq(obsRecord, newPhotoId)
           await wowSwStore.setItem(obsUuid, obsRecord)
         } catch (err) {
@@ -227,7 +212,10 @@ async function enqueueObsRequest(entry) {
   console.debug(
     '[SW] found magic poison pill indicating end of obs photos group',
   )
-  const obsRecord = await wowSwStore.getItem(obsUuid)
+  const obsRecord = await wowSwStore.getItem(
+    obsUuid,
+    'to enqueue HTTP request for after being trigger by a poison pill',
+  )
   const httpMethod = entry.metadata.methodToUse
   if (!httpMethod) {
     throw new Error(
@@ -842,6 +830,32 @@ async function getObsUuidsInQueues() {
   })
   const result = [...uuids.keys()]
   return result
+}
+
+async function getObsUuidsInQueuesForErrorMsg() {
+  try {
+    const result = await getObsUuidsInQueues()
+    return JSON.stringify(result)
+  } catch (err) {
+    const msg =
+      'Error while handling another error: could not get list of ' +
+      'obs UUIDS in queue'
+    console.warn(msg, err)
+    return `(${msg}. Caused by: ${err.message})`
+  }
+}
+
+async function getObsRecordByUuid(obsUuid, errMsgFragment) {
+  const result = await wowSwStore.getItem(obsUuid)
+  if (result) {
+    return result
+  }
+  const availableUuids = await getObsUuidsInQueuesForErrorMsg()
+  throw new Error(
+    `[SW] could not find a pending obs record with UUID=${obsUuid}. ` +
+      `Available obs UUIDS: ${availableUuids}. During action: ` +
+      `${errMsgFragment}`,
+  )
 }
 
 // "the web" is not *a* platform. A platform offers a controlled runtime
