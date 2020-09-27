@@ -438,9 +438,9 @@ async function onSyncWithPerItemCallback(
         const is4xxStatusCode = statusCode >= 400 && statusCode < 500
         if (is4xxStatusCode) {
           console.debug(
-            `Response (status=${statusCode}) for '${resp.method} ${resp.url}'` +
-              ` indicates client error. Calling cleanup callback, then ` +
-              `continuing processing the queue`,
+            `Response (status=${statusCode}) for '${entry.request.method} ` +
+              `${resp.url}' indicates client error. Calling cleanup ` +
+              `callback, then continuing processing the queue`,
           )
           const cbResult = await clientErrorCb(entry, resp)
           const isIgnoreDepsForId =
