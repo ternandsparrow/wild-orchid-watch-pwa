@@ -34,7 +34,7 @@
     "jimp": "^0.9.3",
     "jwt-decode": "^2.2.0",
     "localforage": "^1.9.0",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.19",
     "ml5": "^0.5.0",
     "onsenui": "^2.11.1",
     "piexifjs": "^1.0.6",
