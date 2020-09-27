@@ -815,7 +815,17 @@ async function getObsUuidsInQueues() {
     try {
       await wowSwStore.iterate(
         function valueProcessor(r) {
-          uuids.add(r.observation.uuid)
+          const theProp = 'observation'
+          const theUuid = (r[theProp] || {}).uuid
+          if (!theUuid) {
+            wowWarnMessage(
+              `Trying to iterate DB for observations but have a record with ` +
+                `a falsy '${theProp}' property, the record is: ` +
+                `${JSON.stringify(r)}`,
+            )
+            return
+          }
+          uuids.add(theUuid)
         },
         function doneCallback(_, err) {
           if (!err) {
