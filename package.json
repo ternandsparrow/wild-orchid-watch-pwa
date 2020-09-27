@@ -36,7 +36,7 @@
     "localforage": "^1.7.3",
     "lodash": "^4.17.11",
     "ml5": "^0.5.0",
-    "onsenui": "^2.10.9",
+    "onsenui": "^2.11.1",
     "piexifjs": "^1.0.6",
     "pkce-challenge": "^2",
     "pwacompat": "^2.0.9",
