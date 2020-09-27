@@ -145,9 +145,21 @@ async function wowQueueSuccessCb(entry, resp) {
           )
           const obsRecord = await wowSwStore.getItem(obsUuid)
           if (!obsRecord) {
+            const availableUuids = await (async () => {
+              try {
+                const result = await getObsUuidsInQueues()
+                return JSON.stringify(result)
+              } catch (err) {
+                const msg =
+                  'Error while handling another error: could not get list of ' +
+                  'obs UUIDS in queue'
+                console.warn(msg, err)
+                return `(${msg}. Caused by: ${err.message})`
+              }
+            })()
             throw new Error(
               `SW could not find a pending obs with UUID=${obsUuid} to add a ` +
-                `photo to`,
+                `photo to. Available obs UUIDS: ${availableUuids}`,
             )
           }
           addPhotoIdToObsReq(obsRecord, newPhotoId)
