@@ -356,6 +356,18 @@
         >
       </p>
     </v-ons-modal>
+    <v-ons-modal :visible="!isProjectInfoReady">
+      <p class="text-center">
+        Loading <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
+      </p>
+      <p class="text-center">
+        Downloading list of "questions to ask" from iNaturalist. We cannot
+        continue without this. If you do not currently have an internet
+        connection, you won't be able to make observations until you get
+        internet access and this data is downloaded. If you think this is stuck,
+        feel free to refresh the webpage/restart the app.
+      </p>
+    </v-ons-modal>
     <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModalPostShow">
       <wow-help ref="wowHelp" @close="closeHelpModal" />
     </v-ons-modal>
@@ -638,6 +650,9 @@ export default {
         }
         return accum
       }, {})
+    },
+    isProjectInfoReady() {
+      return !!(this.displayableObsFields || []).length
     },
   },
   watch: {
@@ -1177,6 +1192,13 @@ export default {
       await strategy(record, isDraft)
     },
     buildRecordToSave() {
+      if (!(this.displayableObsFields || []).length) {
+        wowWarnHandler(
+          `Saving observation when we have no list of obs fields. This is ` +
+            `bad because we're saving an invalid record that *will* fail ` +
+            `during upload. This should never happen.`,
+        )
+      }
       const obsFieldValues = this.displayableObsFields.reduce(
         (accum, currField) => {
           const isNotSavable =
