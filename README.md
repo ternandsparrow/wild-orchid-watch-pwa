@@ -283,6 +283,10 @@ to Jest.
 See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built
 and why we chose the technologies we did.
 
+
+## Useful links
+  - [iNat OAuth client](https://www.inaturalist.org/oauth/applications/329).
+
 ## Why we don't eslint our web workers
 Let the story begin. When we allow linting on web worker files, we get some
 weird behaviour. The build is certainly capable of working because the webpack

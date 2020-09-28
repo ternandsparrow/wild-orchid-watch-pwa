@@ -598,3 +598,39 @@ We use option 3 and we call these types of question "multiselects". This is
 because there are an enumerated set of options and you can select 0 to many of
 them. We also treat them specially in the UI, with some UI sugar, to make them
 nicer to interact with.
+
+# Project risks
+## iNaturalist shuts down
+Highly unlikely | Medium impact
+If another system takes its place, update the WOW app to use the new system
+(significant code changes required). If no other system is available, fork the
+open-source iNat code and start a WOW specific iNat instance. The app will only
+need configuration changes and everything will be running again.
+
+## iNaturalist makes breaking changes to its API
+Unlikely | Medium impact
+Code changes would be required to update the WOW app to work with the new iNat
+API. If this happens, it's almost certainly a bug and not the desired outcome
+so reporting the situation to the iNat team would be wise. Then they can fix
+the problem and support the V1 API contract that we use.
+
+## A new web browser, or new version of an existing web browser is unable to load the app
+Unlikely | Low impact
+No action is required if its acceptable that users of that browser cannot use
+the app. You could ask that users use a supported browser if that's feasible.
+If support is needed, code changes to the app would be required to add support.
+
+## NPM dependencies that we use are removed from NPM
+Highly unlikely | Medium impact
+This will have no impact on the running app as it's already bundled with
+everything it needs during build. For any new versions of the app that are to be
+released, alternative dependencies would need to be found (or the old version
+pulled from an archive).
+
+## Our web hosting platform is shutdown
+Unlikely | High impact
+It's likely that the product would be seamlessly replaced with another
+comparable one. But worst case scenario, this app can be served from any web
+server that can serve static assets. The only special requirement is that URLs
+for documents that would 404 are instead redirected to the main index page so
+the SPA component can take over.
