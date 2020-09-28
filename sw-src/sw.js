@@ -212,7 +212,7 @@ async function enqueueObsRequest(entry) {
   console.debug(
     '[SW] found magic poison pill indicating end of obs photos group',
   )
-  const obsRecord = await wowSwStore.getItem(
+  const obsRecord = await getObsRecordByUuid(
     obsUuid,
     'to enqueue HTTP request for after being trigger by a poison pill',
   )
