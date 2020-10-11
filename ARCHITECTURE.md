@@ -572,7 +572,13 @@ to run so it's best to read the source code before running it.
 One limitation of observation fields is that they're owned by a single iNat
 user, with no option for transfer. Ideally they would be owned by the project
 and any curator of the project could maintain them but that's not currently the
-case. As a workaround, we've created an iNat users purely to own the fields.
+case. As a workaround, we've created an iNat user purely to own the fields.
+
+It's not a good idea to make changes to the observation fields once they
+already have observations that use them. iNaturalist tells you this on the edit
+page for a given obs field too. The only changes you can safely make are to add
+a new obs field or add a new value to an existing obs field. Any other change
+is going to disrupt things in a bad way.
 
 
 ## Multiselect observation fields
