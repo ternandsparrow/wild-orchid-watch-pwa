@@ -60,11 +60,12 @@ export default {
   methods: {
     async doSetRpo() {
       this.setRpoStatus = 'starting'
+      const anyOutcome = []
       try {
         await this.$store.dispatch('obs/_transitionHelper', {
           wowId: this.setRpoSelectedUuid,
           targetOutcome: this.setRpoSelectedOutcome,
-          validFromOutcomes: this.setRpoAvailableOutcomes,
+          validFromOutcomes: anyOutcome,
         })
         this.setRpoStatus = 'refreshing'
         await this.$store.dispatch('obs/refreshLocalRecordQueue')

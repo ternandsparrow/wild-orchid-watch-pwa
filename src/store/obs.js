@@ -34,6 +34,7 @@ import {
 import { deserialise } from '@/misc/taxon-s11n'
 
 const isRemotePhotoFieldName = 'isRemote'
+const anyFromOutcome = []
 
 let photoObjectUrlsInUse = []
 let photoObjectUrlsNoLongerInUse = []
@@ -1643,12 +1644,7 @@ const actions = {
     return dispatch('_transitionHelper', {
       wowId,
       targetOutcome: constants.waitingOutcome,
-      validFromOutcomes: [
-        constants.withLocalProcessorOutcome,
-        constants.withServiceWorkerOutcome,
-        constants.successOutcome,
-        constants.systemErrorOutcome,
-      ],
+      validFromOutcomes: anyFromOutcome,
     })
   },
   async transitionToWithServiceWorkerOutcome({ dispatch }, wowId) {
@@ -1673,8 +1669,9 @@ const actions = {
     { dispatch },
     { wowId, targetOutcome, validFromOutcomes },
   ) {
+    const isRestrictFromOutcomes = (validFromOutcomes || []).length
     const fromOutcome = await dispatch('getCurrentOutcomeForWowId', wowId)
-    if (!validFromOutcomes.includes(fromOutcome)) {
+    if (isRestrictFromOutcomes && !validFromOutcomes.includes(fromOutcome)) {
       throw new Error(
         `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
       )
