@@ -167,6 +167,13 @@ const actions = {
         constants.serviceWorkerObsUuidsInQueueUrl,
         false,
       )
+      if (!Array.isArray(uuids)) {
+        throw new Error(
+          `Unexpected value. uuids=${JSON.stringify(
+            uuids,
+          )} should be an array but seems to not be.`,
+        )
+      }
       commit('setUuidsInSwQueues', uuids)
     } catch (err) {
       // not using flagGlobalError because we don't need to bother the user
