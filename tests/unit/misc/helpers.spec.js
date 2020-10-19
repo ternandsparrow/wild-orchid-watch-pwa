@@ -394,8 +394,6 @@ describe('verifyWowDomainPhoto', () => {
     const record = {
       id: 1,
       url: 'http://blah',
-      licenseCode: 'cc-by-nc',
-      attribution: '(c) user, some rights reserved (CC BY-NC)',
     }
     objectUnderTest.verifyWowDomainPhoto(record)
     // expect nothing is thrown
@@ -405,8 +403,6 @@ describe('verifyWowDomainPhoto', () => {
     const record = {
       // no 'id'
       url: 'http://blah',
-      licenseCode: 'cc-by-nc',
-      attribution: '(c) user, some rights reserved (CC BY-NC)',
     }
     try {
       objectUnderTest.verifyWowDomainPhoto(record)
@@ -420,8 +416,6 @@ describe('verifyWowDomainPhoto', () => {
     const record = {
       id: 33,
       // no URL
-      licenseCode: 'cc-by-nc',
-      attribution: '(c) user, some rights reserved (CC BY-NC)',
     }
     try {
       objectUnderTest.verifyWowDomainPhoto(record)
@@ -429,28 +423,6 @@ describe('verifyWowDomainPhoto', () => {
     } catch (err) {
       // success
     }
-  })
-
-  it('should NOT fail a record missing a license code', () => {
-    const record = {
-      id: 33,
-      url: 'http://some.ph/oto.jpg',
-      // no licenseCode
-      attribution: '(c) user, some rights reserved (CC BY-NC)',
-    }
-    objectUnderTest.verifyWowDomainPhoto(record)
-    // expect nothing is thrown
-  })
-
-  it('should NOT fail a record missing an attribution', () => {
-    const record = {
-      id: 33,
-      url: 'http://some.ph/oto.jpg',
-      licenseCode: 'cc-by-nc',
-      // no attribution
-    }
-    objectUnderTest.verifyWowDomainPhoto(record)
-    // expect nothing is thrown
   })
 })
 

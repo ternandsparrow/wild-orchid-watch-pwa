@@ -327,18 +327,13 @@ async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
  * Using a verifier seems more maintainable than a mapper function. A mapper
  * would have a growing list of either unnamed params or named params which
  * would already be the result object. A verifier lets your freehand map the
- * object but it still shows linkage between all the locations we do mapping
+ * object but it still shows linkage between all the locations we map
  * (hopefully not many).
  */
 export function verifyWowDomainPhoto(photo) {
   let msg = ''
   assertFieldPresent('id')
   assertFieldPresent('url')
-  // note: we can't make licenseCode required because users can set "no
-  // license" on a photo - either manually or via default settings in iNat -
-  // and the value will be null.
-  // optional field: licenseCode
-  // optional field: attribution
   if (msg) {
     throw new Error(msg)
   }

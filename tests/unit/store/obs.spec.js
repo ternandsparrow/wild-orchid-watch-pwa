@@ -407,24 +407,20 @@ describe('actions', () => {
         )
         const result = await obsStore.getItem(newRecordId)
         const expectedPhoto1 = {
-          attribution: 'default',
           file: {
             data: {}, // doesn't show up in str representation
             mime: 'image/jpeg',
           },
           id: -1,
-          licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
         const expectedPhoto2 = {
-          attribution: 'default',
           file: {
             data: {}, // doesn't show up in str representation
             mime: 'image/jpeg',
           },
           id: -2,
-          licenseCode: 'default',
           type: 'habitat',
           url: '(set at render time)',
         }
@@ -738,13 +734,11 @@ describe('actions', () => {
         )
         const result = dispatchedStuff.upsertQueuedAction
         const expectedPhoto1 = {
-          attribution: 'default',
           file: {
             data: expect.any(ArrayBuffer),
             mime: 'image/jpeg',
           },
           id: -1,
-          licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
@@ -830,13 +824,11 @@ describe('actions', () => {
         const expectedExistingLocalPhoto = { id: -2, tag: 'photo1 placeholder' }
         const result = dispatchedStuff.upsertQueuedAction
         const expectedNewPhoto = {
-          attribution: 'default',
           file: {
             data: expect.any(ArrayBuffer),
             mime: 'image/jpeg',
           },
           id: -3,
-          licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
@@ -890,8 +882,6 @@ describe('actions', () => {
                   url: 'https://blah...',
                   uuid: 'dc813734-7182-46a5-a58a-7cb2d81cea4f',
                   id: 841,
-                  licenseCode: 'cc-by-nc',
-                  attribution: '(c) user, some rights reserved (CC BY-NC)',
                   isRemote: true,
                 },
               ],
@@ -1192,13 +1182,11 @@ describe('actions', () => {
         )
         const result = dispatchedStuff.upsertBlockedAction
         const expectedPhoto1 = {
-          attribution: 'default',
           file: {
             data: expect.any(ArrayBuffer),
             mime: 'image/jpeg',
           },
           id: -4,
-          licenseCode: 'default',
           type: 'top',
           url: '(set at render time)',
         }
@@ -2950,19 +2938,15 @@ describe('mapObsFromApiIntoOurDomain', () => {
       {
         id: 13,
         uuid: 'd7e2c89a-0741-4ce8-8b9c-c5992bfe6727',
-        licenseCode: 'cc-by-nc',
         url:
           'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
-        attribution: '(c) tom, some rights reserved (CC BY-NC)',
         isRemote: true,
       },
       {
         id: 14,
         uuid: '557fc632-637f-4093-ad2f-74540c980fc1',
-        licenseCode: 'cc-by-nc',
         url:
           'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
-        attribution: '(c) tom, some rights reserved (CC BY-NC)',
         isRemote: true,
       },
     ])

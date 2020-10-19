@@ -1994,8 +1994,6 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
       url: p.photo.url,
       uuid: p.uuid,
       id: p.id,
-      licenseCode: p.photo.license_code,
-      attribution: p.photo.attribution,
       [isRemotePhotoFieldName]: true,
     }
     verifyWowDomainPhoto(result)
@@ -2159,9 +2157,6 @@ async function processPhotos(photos) {
           data: photoDataAsArrayBuffer,
           mime: curr.file.type,
         },
-        // TODO read and use user's default settings for these:
-        licenseCode: 'default',
-        attribution: 'default',
       }
       verifyWowDomainPhoto(photo)
       return photo
