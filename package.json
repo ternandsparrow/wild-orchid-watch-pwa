@@ -1,6 +1,6 @@
 {
   "name": "wild-orchid-watch-pwa",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -15,7 +15,8 @@
     "build:serve:watch": "nodemon --ext vue,js,mjs,json --delay 2 --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
     "test:e2e:headless": "vue-cli-service test:e2e --headless",
-    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/vue-cli-service test:unit --runInBand"
+    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/vue-cli-service test:unit --runInBand",
+    "analyse-bundle": "yarn build && webpack-bundle-analyzer dist/stats.json"
   },
   "dependencies": {
     "@sentry/browser": "^5.24.2",
@@ -31,13 +32,11 @@
     "formdata-polyfill": "https://github.com/ternandsparrow/FormData#safari13.1-attempt2-installable",
     "fuse.js": "^5.0.10-beta",
     "is_js": "^0.9.0",
-    "jimp": "^0.9.3",
     "jwt-decode": "^2.2.0",
     "localforage": "^1.9.0",
     "lodash": "^4.17.11",
     "ml5": "^0.5.0",
     "onsenui": "^2.11.1",
-    "piexifjs": "^1.0.6",
     "pkce-challenge": "^2",
     "pwacompat": "^2.0.9",
     "register-service-worker": "^1.6.2",

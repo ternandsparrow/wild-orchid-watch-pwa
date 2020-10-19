@@ -6,7 +6,6 @@ const state = {
   whenToSync: alwaysUpload,
   isDetailedUserMode: false,
   addToHomeIosPromptLastDate: null,
-  isEnablePhotoCompression: false,
   isEnableHighAccuracy: false,
 }
 
@@ -16,8 +15,6 @@ const mutations = {
   setIsDetailedUserMode: (state, value) => (state.isDetailedUserMode = value),
   setAddToHomeIosPromptLastDate: (state, value) =>
     (state.addToHomeIosPromptLastDate = value),
-  setEnablePhotoCompression: (state, value) =>
-    (state.isEnablePhotoCompression = value),
   setEnableHighAccuracy: (state, value) => (state.isEnableHighAccuracy = value),
 }
 

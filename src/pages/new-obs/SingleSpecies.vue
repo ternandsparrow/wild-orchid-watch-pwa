@@ -345,10 +345,8 @@
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
       </p>
       <p v-show="isShowModalForceClose" class="text-center">
-        Hmmm, this is taking a while. If you have photo compression enabled and
-        you're attaching large photo (10s of megapixels), it can take a while to
-        compress them. It's best to wait for saving to finish, but if you're
-        sure something has gone wrong, you can
+        Hmmm, this is taking a while. It's best to wait for saving to finish,
+        but if you're sure something has gone wrong, you can
         <v-ons-button
           name="force-close-modal-btn"
           @click="isSaveModalVisible = false"
@@ -492,7 +490,7 @@ export default {
   computed: {
     ...mapGetters('obs', ['observationDetail', 'obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
-    ...mapGetters('ephemeral', ['photosStillCompressingCount']),
+    ...mapGetters('ephemeral', ['photosStillProcessingCount']),
     isDetailedUserMode: {
       get() {
         return this.$store.state.app.isDetailedUserMode
@@ -1140,13 +1138,13 @@ export default {
       try {
         this.isSaveModalVisible = true
         this.isShowModalForceClose = false
-        while (this.photosStillCompressingCount > 0) {
+        while (this.photosStillProcessingCount > 0) {
           await new Promise(resolve => {
             // TODO do we need a sanity check that breaks out after N tests?
-            const waitForImageCompressionMs = 333
+            const waitForImageProcessingMs = 333
             setTimeout(() => {
               return resolve()
-            }, waitForImageCompressionMs)
+            }, waitForImageProcessingMs)
           })
         }
         if (!this.validateInputs()) {
@@ -1461,43 +1459,20 @@ export default {
         if (!file) {
           continue
         }
+        // this UUID is only used locally. The server won't accept our UUID for
+        // a photo, it always assigns its own.
         const theUuid = uuid()
         const photoObj = {
           type,
           file,
-          url: URL.createObjectURL(file),
+          url: URL.createObjectURL(file), // FIXME where do we revoke this?
           uuid: theUuid,
         }
         this.photos.push(photoObj)
-        // here we use the full size photo but send it for compression/resizing in
-        // the worker (background) so we don't block the UI.
-        this.$store
-          .dispatch('ephemeral/processPhoto', photoObj)
-          .then(photoBlobish => {
-            const found = this.photos.find(e => e.uuid === theUuid)
-            if (!found) {
-              // guess the photo has already been deleted?
-              return
-            }
-            found.file = photoBlobish
-            const oldUrl = found.url
-            const newUrl = URL.createObjectURL(photoBlobish)
-            if (oldUrl === newUrl) {
-              // createObjectURL seems to always generate a new URL, but just to
-              // be safe, we'll check. Don't wanna revoke the one we're using.
-              return
-            }
-            found.url = newUrl
-            // we don't want our thumbnail to be using a revoked blob URL
-            this.$store.commit('ephemeral/updateUrlForPhotoCoordsAndDatetime', {
-              uuid: photoObj.uuid,
-              newUrl,
-            })
-            URL.revokeObjectURL(oldUrl)
-          })
-          .catch(err => {
-            wowWarnHandler('Failed to compress/resize an image', err)
-          })
+        // we process photos with the worker so we don't block the UI.
+        this.$store.dispatch('ephemeral/processPhoto', photoObj).catch(err => {
+          wowWarnHandler('Failed to process an image', err)
+        })
       }
     },
     async _onSpeciesGuessInput(data) {

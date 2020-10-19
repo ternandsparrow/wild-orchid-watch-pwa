@@ -234,7 +234,7 @@ export default {
     ...mapGetters('ephemeral', [
       'datetimeOfOldestPhoto',
       'datetimeForCurrentlyEditingObs',
-      'photosStillCompressingCount',
+      'photosStillProcessingCount',
     ]),
     datetimeMethod: {
       get() {
@@ -262,7 +262,7 @@ export default {
       if (this.isDatetimeAlreadyCaptured) {
         return this.datetimeMethod === 'photo' ? 'captured' : 'not-from-photo'
       }
-      const isPhotosStillProcessing = !!this.photosStillCompressingCount
+      const isPhotosStillProcessing = !!this.photosStillProcessingCount
       if (isPhotosStillProcessing) {
         return 'processing'
       }

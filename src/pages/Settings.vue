@@ -22,23 +22,6 @@
         </div>
       </ons-list-item>
       <ons-list-item>
-        <label class="center" for="compressSwitch">
-          <span class="list-item__title"><a>Compress/resize photos</a></span
-          ><span class="list-item__subtitle"
-            >Enabling this setting will use less storage space on your phone and
-            less data during upload. The tradeoff is observations will take a
-            bit longer to save while your device makes the photos smaller.</span
-          >
-        </label>
-        <div class="right">
-          <v-ons-switch
-            v-model="isEnablePhotoCompression"
-            input-id="compressSwitch"
-          >
-          </v-ons-switch>
-        </div>
-      </ons-list-item>
-      <ons-list-item>
         <label class="center" for="accuracySwitch">
           <span class="list-item__title"><a>Use High Accuracy GPS</a></span
           ><span class="list-item__subtitle"
@@ -194,14 +177,6 @@ export default {
       },
       set(newValue) {
         this.$store.commit('app/setWhenToSync', newValue)
-      },
-    },
-    isEnablePhotoCompression: {
-      get() {
-        return this.$store.state.app.isEnablePhotoCompression
-      },
-      set(newValue) {
-        this.$store.commit('app/setEnablePhotoCompression', newValue)
       },
     },
     isDetailedUserMode: {

@@ -1,6 +1,5 @@
 import { isNil } from 'lodash'
 import dayjs from 'dayjs'
-import { wrap as comlinkWrap } from 'comlink'
 import dms2dec from 'dms2dec'
 import * as constants from '@/misc/constants'
 import {
@@ -18,8 +17,6 @@ import {
  *  - doesn't serialise well, like functions or references
  *  - shouldn't be saved between sessions, like "are we online" flag
  */
-
-let imageCompressionWorker = null
 
 const state = {
   // not sure if GA and Sentry belong here but it's easier to pass from UI to
@@ -155,19 +152,6 @@ const mutations = {
     }
     state.photoCoords.splice(indexOfPhoto, 1)
   },
-  updateUrlForPhotoCoordsAndDatetime: (state, { uuid, newUrl }) => {
-    doIt('photoDatetimes')
-    doIt('photoCoords')
-
-    function doIt(stateFieldName) {
-      const found = state[stateFieldName].find(p => p.photoUuid === uuid)
-      if (!found) {
-        // we don't have anything stored for this photo, nothing to do
-        return
-      }
-      found.url = newUrl
-    }
-  },
   setManualCoords: (state, coords) => (state.manualCoords = coords),
   setManualDatetime: (state, datetime) => (state.manualDatetime = datetime),
   addPhotoProcessingTask: (state, taskTracker) =>
@@ -222,7 +206,7 @@ const actions = {
     }
     return true
   },
-  async processPhoto({ commit, dispatch, rootState }, photoObj) {
+  async processPhoto({ commit, dispatch }, photoObj) {
     const tracker = { uuid: photoObj.uuid, isDone: false }
     commit('addPhotoProcessingTask', tracker)
     try {
@@ -244,8 +228,6 @@ const actions = {
           category: 'store/ephemeral',
           action: `error reading EXIF from attached photo`,
         })
-        // TODO enhancement idea: brute force measure image dimensions to do
-        // resizing, or find them elsewhere?
         return blobish
       }
       ;(function debugMetadata() {
@@ -261,59 +243,9 @@ const actions = {
           JSON.stringify(slightlyTerserMetadata, null, 2),
         )
       })()
-      const originalImageSizeMb = blobish.size / 1024 / 1024
       await dispatch('processExifCoords', { originalMetadata, photoObj })
       await dispatch('processExifDatetime', { originalMetadata, photoObj })
-      if (!rootState.app.isEnablePhotoCompression) {
-        console.debug('Photo compression disabled, using original photo')
-        return blobish
-      }
-      const maxWidthOrHeight = constants.photoCompressionThresholdPixels
-      const dimensionX = originalMetadata.PixelXDimension
-      const dimensionY = originalMetadata.PixelYDimension
-      const hasDimensionsInExif = dimensionX && dimensionY
-      const isPhotoAlreadySmallEnoughDimensions =
-        hasDimensionsInExif &&
-        dimensionX < maxWidthOrHeight &&
-        dimensionY < maxWidthOrHeight
-      const isPhotoAlreadySmallEnoughStorage =
-        originalImageSizeMb <= constants.photoCompressionThresholdMb
-      if (
-        isPhotoAlreadySmallEnoughDimensions ||
-        isPhotoAlreadySmallEnoughStorage
-      ) {
-        // don't bother compressing an image that's already small enough
-        const dimMsg = hasDimensionsInExif
-          ? `X=${dimensionX}, Y=${dimensionY}`
-          : '(No EXIF dimensions)'
-        console.debug(
-          `No compresion needed for ${dimMsg},` +
-            ` ${originalImageSizeMb.toFixed(3)} MB image`,
-        )
-        return blobish
-      }
-      try {
-        if (!imageCompressionWorker) {
-          imageCompressionWorker = interceptableFns.buildWorker()
-        }
-        const compressedBlobish = await imageCompressionWorker.resize(
-          blobish,
-          maxWidthOrHeight,
-          constants.photoCompressionJpgQuality,
-        )
-        return compressedBlobish
-      } catch (err) {
-        wowWarnHandler(
-          `Failed to compress a photo with MIME=${blobish.type}, ` +
-            `size=${blobish.size} and EXIF=${JSON.stringify(
-              originalMetadata,
-            )}. ` +
-            'Falling back to original image.',
-          err,
-        )
-        // fallback to using the fullsize image
-        return blobish
-      }
+      return blobish
     } finally {
       commit('markPhotoProcessingTaskDone', photoObj.uuid)
     }
@@ -516,7 +448,7 @@ const getters = {
   datetimeOfOldestPhoto(state) {
     return state.photoDatetimes[0]
   },
-  photosStillCompressingCount(state) {
+  photosStillProcessingCount(state) {
     return state.photoProcessingTasks.filter(e => !e.isDone).length
   },
 }
@@ -542,18 +474,4 @@ function extractGps(parsedExif) {
   }
   const [latDec, lonDec] = dms2dec(...theArgs)
   return { lat: latDec, lng: lonDec }
-}
-
-const interceptableFns = {
-  buildWorker() {
-    return comlinkWrap(
-      new Worker('./image-compression.worker.js', {
-        type: 'module',
-      }),
-    )
-  },
-}
-
-export const _testonly = {
-  interceptableFns,
 }

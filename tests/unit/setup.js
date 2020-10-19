@@ -2,7 +2,6 @@ import dayjs from 'dayjs'
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
 import { _testonly as obsStoreTestOnly } from '@/store/obs'
-import { _testonly as ephemeralStoreTestOnly } from '@/store/ephemeral'
 
 expect.extend({
   toBeValidDateString(received) {
@@ -24,9 +23,6 @@ expect.extend({
 // function that uses Comlink completely in tests.
 obsStoreTestOnly.interceptableFns.buildWorker = function() {
   return require('@/store/map-over-obs-store.worker.js')._testonly
-}
-ephemeralStoreTestOnly.interceptableFns.buildWorker = function() {
-  return require('@/store/image-compression.worker.js')._testonly
 }
 
 // we stub indexedDB below, which is required for workbox, but we don't want
@@ -57,7 +53,7 @@ class LocalStorageMock {
 
 global.localStorage = new LocalStorageMock()
 
-// stubs so browser-image-compression and workbox don't complain
+// various stubs
 global.Worker = function() {}
 global.URL = (function() {
   const result = URL

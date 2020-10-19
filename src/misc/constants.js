@@ -334,18 +334,6 @@ export const obsPageSize = convertAndAssertInteger(
   process.env.VUE_APP_OBS_PAGE_SIZE || 100,
 )
 
-export const photoCompressionThresholdMb = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_MB || 1,
-)
-
-export const photoCompressionThresholdPixels = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
-)
-
-export const photoCompressionJpgQuality = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMP_JPEG_QUAL || 90,
-)
-
 export const swQueuePeriodicTrigger = convertAndAssertInteger(
   process.env.VUE_APP_SW_PERIODIC_SYNC || 30, // seconds
 )

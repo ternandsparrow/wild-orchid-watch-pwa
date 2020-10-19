@@ -250,7 +250,7 @@ export default {
     ...mapGetters('ephemeral', [
       'oldestPhotoCoords',
       'coordsForCurrentlyEditingObs',
-      'photosStillCompressingCount',
+      'photosStillProcessingCount',
     ]),
     geolocationMethod: {
       get() {
@@ -278,7 +278,7 @@ export default {
           ? 'captured'
           : 'not-from-photo'
       }
-      const isPhotosStillProcessing = !!this.photosStillCompressingCount
+      const isPhotosStillProcessing = !!this.photosStillProcessingCount
       if (isPhotosStillProcessing) {
         return 'processing'
       }

@@ -101,13 +101,12 @@ function getItems() {
     },
     {
       q: 'Will the app use up all my phone storage?',
-      a: `This mainly depends on how large your photos are. A 6mp photo is
-          around 1-2MB whereas a 16mp photo is 6-9MB. An observation requires
-          at least 3 photos but can have as many youd like to attach. The
-          WOW app can resize photos automatically so they both take up less
-          storage and use less data when uploading. The tradeoff is this will use
-          more battery power and take longer to save. See the settings menu for
-          this option.`,
+      a: `This mainly depends on how large your photos are and how much free
+          space you have on the phone. A 6mp photo is around 1-2MB whereas a 16mp
+          photo is 6-9MB. An observation requires at least 3 photos but can have as
+          many as you'd like to attach. This space is only used while the
+          observation is waiting to upload to the cloud. Once it's uploaded, the
+          space is freed up.`,
     },
     {
       q: 'Will the pictures I take be stored on my phone also, for me?',
