@@ -13,7 +13,6 @@ import {
 } from '@/indexeddb/obs-store-common'
 import * as constants from '@/misc/constants'
 import {
-  arrayBufferToBlob,
   blobToArrayBuffer,
   buildStaleCheckerFn,
   chainedError,
@@ -33,13 +32,16 @@ import {
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
-const isRemotePhotoFieldName = 'isRemote'
 const anyFromOutcome = []
 
-let photoObjectUrlsInUse = []
-let photoObjectUrlsNoLongerInUse = []
 let refreshLocalRecordQueueLock = null
 let mapStoreWorker = null
+function getMapStoreWorker() {
+  if (!mapStoreWorker) {
+    mapStoreWorker = interceptableFns.buildWorker()
+  }
+  return mapStoreWorker
+}
 let taxaIndex = null
 
 const initialState = {
@@ -966,22 +968,30 @@ const actions = {
     return refreshLocalRecordQueueLock
     async function worker() {
       try {
-        if (!mapStoreWorker) {
-          mapStoreWorker = interceptableFns.buildWorker()
-        }
-        const localQueueSummary = await mapStoreWorker.doit()
+        const {
+          localQueueSummary,
+          uiVisibleLocalRecords,
+        } = await getMapStoreWorker().getData()
         commit('setLocalQueueSummary', localQueueSummary)
-        const uiVisibleLocalUuids = localQueueSummary
-          .filter(e => !e[constants.isEventuallyDeletedFieldName])
-          .map(e => e.uuid)
-        const records = await resolveLocalRecordUuids(uiVisibleLocalUuids)
-        commit('setUiVisibleLocalRecords', records)
+        commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
         // TODO do we need to wait for nextTick before revoking the old URLs?
-        revokeOldObjectUrls()
       } catch (err) {
         throw chainedError('Failed to refresh localRecordQueue', err)
       }
     }
+  },
+  async getPhotosForObs({ state }, obsUuid) {
+    const dbPhotos = await getMapStoreWorker().getDbPhotosForObs(obsUuid)
+    if (dbPhotos.length) {
+      return dbPhotos
+    }
+    const remotePhotos = (
+      state.allRemoteObs.find(e => e.uuid === obsUuid) || {}
+    ).photos
+    return remotePhotos || []
+  },
+  cleanupPhotosForObs() {
+    return getMapStoreWorker().cleanupPhotosForObs()
   },
   /**
    * Process actions (new/edit/delete) in the local queue.
@@ -1844,85 +1854,6 @@ function isErrorOutcome(outcome) {
   return [constants.systemErrorOutcome].includes(outcome)
 }
 
-async function resolveLocalRecordUuids(ids) {
-  photoObjectUrlsNoLongerInUse = photoObjectUrlsInUse
-  photoObjectUrlsInUse = []
-  const promises = ids.map(async currId => {
-    const currRecord = await getRecord(currId)
-    if (!currRecord) {
-      const msg =
-        `Could not resolve ID=${currId} to a DB record.` +
-        ' Assuming it was deleted while we were busy processing.'
-      wowWarnHandler(msg)
-      const nothingToDoFilterMeOut = null
-      return nothingToDoFilterMeOut
-    }
-    const photos = (currRecord.photos || []).map(mapPhotoFromDbToUi)
-    const result = {
-      ...currRecord,
-      photos,
-      wowMeta: {
-        ...currRecord.wowMeta,
-        [constants.photosToAddFieldName]: currRecord.wowMeta[
-          constants.photosToAddFieldName
-        ].map(p => ({
-          // we don't need ArrayBuffers of photos in memory, slowing things down
-          type: p.type,
-          id: p.id,
-          fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
-        })),
-      },
-    }
-    commonApiToOurDomainObsMapping(result, currRecord)
-    return result
-  })
-  return (await Promise.all(promises)).filter(e => !!e)
-}
-
-function mapPhotoFromDbToUi(p) {
-  const isRemotePhoto = p[isRemotePhotoFieldName]
-  if (isRemotePhoto) {
-    return p
-  }
-  const objectUrl = mintObjectUrl(p.file)
-  const result = {
-    ...p,
-    url: objectUrl,
-  }
-  return result
-}
-
-function mintObjectUrl(blobAsArrayBuffer) {
-  if (!blobAsArrayBuffer) {
-    throw new Error(
-      'Supplied blob is falsey/nullish, refusing to even try to use it',
-    )
-  }
-  try {
-    const blob = arrayBufferToBlob(
-      blobAsArrayBuffer.data,
-      blobAsArrayBuffer.mime,
-    )
-    const result = (window.webkitURL || window.URL || {}).createObjectURL(blob)
-    photoObjectUrlsInUse.push(result)
-    return result
-  } catch (err) {
-    throw chainedError(
-      // Don't get distracted, the MIME has no impact. If it fails, it's due to
-      // something else, the MIME will just help you debug (hopefully)
-      `Failed to mint object URL for blob with MIME='${blobAsArrayBuffer.mime}'`,
-      err,
-    )
-  }
-}
-
-function revokeOldObjectUrls() {
-  while (photoObjectUrlsNoLongerInUse.length) {
-    const curr = photoObjectUrlsNoLongerInUse.shift()
-    URL.revokeObjectURL(curr)
-  }
-}
-
 export default {
   namespaced: true,
   state: initialState,
@@ -1963,14 +1894,6 @@ function isObsStateProcessing(state) {
 }
 
 /**
- * Common in the sense that we use it both for items from the API *and* items
- * from our local DB
- */
-function commonApiToOurDomainObsMapping(result, obsFromApi) {
-  result.geolocationAccuracy = obsFromApi.positional_accuracy
-}
-
-/**
  * Maps an API record into our app domain.
  */
 function mapObsFromApiIntoOurDomain(obsFromApi) {
@@ -1994,7 +1917,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
       url: p.photo.url,
       uuid: p.uuid,
       id: p.id,
-      [isRemotePhotoFieldName]: true,
+      [constants.isRemotePhotoFieldName]: true,
     }
     verifyWowDomainPhoto(result)
     return result
@@ -2009,7 +1932,8 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
   result.notes = obsFromApi.description
-  commonApiToOurDomainObsMapping(result, obsFromApi)
+  result.geolocationAccuracy = obsFromApi.positional_accuracy
+  delete result.positional_accuracy
   const { lat, lng } = mapGeojsonToLatLng(
     obsFromApi.private_geojson || obsFromApi.geojson,
   )

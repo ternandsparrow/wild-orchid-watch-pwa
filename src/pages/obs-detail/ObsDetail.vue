@@ -77,7 +77,18 @@
         </v-ons-carousel-item>
       </v-ons-carousel>
       <div v-if="!isPhotos" class="photo-container">
-        <div class="text-center no-photo">
+        <div v-if="isLoadingPhotos" class="text-center no-photo">
+          <v-ons-progress-circular indeterminate />
+          <p>
+            Loading photos...
+          </p>
+          <img
+            :src="noImagePlaceholderUrl"
+            class="a-photo"
+            alt="placeholder image as photos are loading"
+          />
+        </div>
+        <div v-else class="text-center no-photo">
           <p>No photos</p>
           <img
             :src="noImagePlaceholderUrl"
@@ -370,6 +381,8 @@ export default {
   data() {
     return {
       noImagePlaceholderUrl: constants.noImagePlaceholderUrl,
+      photos: [],
+      isLoadingPhotos: false,
       carouselIndex: 0,
       extraDotsStyle: {
         color: '#5d5d5d',
@@ -491,15 +504,7 @@ export default {
       return result
     },
     isPhotos() {
-      return (this.nullSafeObs.photos || []).length
-    },
-    photos() {
-      return (this.nullSafeObs.photos || []).map((e, index) => ({
-        // while photos are still processing, they all have the same URL so
-        // we'll make a unique ID
-        id: 'photo-' + index,
-        url: e.url.replace('square', 'medium'),
-      }))
+      return this.photos.length
     },
     isShowDots() {
       return this.photos.length > 1
@@ -563,8 +568,27 @@ export default {
     )
     // TODO enhancement idea: when landing from gallery, could preselect the
     // referrer photo.
+    this.isLoadingPhotos = true
+    this.loadPhotos().then(() => (this.isLoadingPhotos = false))
+  },
+  beforeDestroy() {
+    this.$store.dispatch('obs/cleanupPhotosForObs')
   },
   methods: {
+    async loadPhotos() {
+      const uuid = this.nullSafeObs.uuid
+      if (!uuid) {
+        return []
+      }
+      this.photos = (
+        await this.$store.dispatch('obs/getPhotosForObs', uuid)
+      ).map((e, index) => ({
+        // while photos are still processing, they all have the same URL so
+        // we'll make a unique ID
+        id: 'photo-' + index,
+        url: e.url.replace('square', 'medium'),
+      }))
+    },
     async navigateToNewDetailPage(uuid) {
       // the record to be deleted doesn't have the iNat ID and we don't have
       // access to the new record that will replace it so we need to look up the

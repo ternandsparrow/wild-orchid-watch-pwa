@@ -183,7 +183,7 @@
             @click="push(curr)"
           >
             <div class="left">
-              <img class="list-item__thumbnail" :src="firstPhoto(curr)" />
+              <img class="list-item__thumbnail" :src="thumbnailPhoto(curr)" />
             </div>
             <div class="center">
               <span class="list-item__title"
@@ -388,11 +388,10 @@ export default {
       this.$wow.uiTrace('MyObs', 'cancel failed deletes')
       this.$store.dispatch('obs/cancelFailedDeletes')
     },
-    firstPhoto(record) {
-      if (!record || !record.photos || !record.photos.length) {
-        return constants.noImagePlaceholderUrl
-      }
-      return record.photos[0].url
+    thumbnailPhoto(record) {
+      const localPhotoUrl = record.thumbnailUrl
+      const remotePhotoUrl = ((record.photos || [])[0] || {}).url
+      return localPhotoUrl || remotePhotoUrl || constants.noImagePlaceholderUrl
     },
     speciesGuess(record) {
       return record.speciesGuess || '(No species name)'

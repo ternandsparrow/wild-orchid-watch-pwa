@@ -455,6 +455,8 @@ export const serviceWorkerPlatformTestUrl =
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
 
+export const isRemotePhotoFieldName = 'isRemote'
+
 export const photoTypeWholePlant = 'whole-plant'
 export const photoTypeFlower = 'flower'
 export const photoTypeLeaf = 'leaf'

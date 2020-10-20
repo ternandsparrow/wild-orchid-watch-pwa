@@ -2043,7 +2043,7 @@ describe('actions', () => {
       expect(committedState.setUiVisibleLocalRecords).toEqual([
         {
           geolocationAccuracy: undefined,
-          photos: [],
+          thumbnailUrl: undefined,
           uuid: '123A',
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
