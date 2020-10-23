@@ -815,8 +815,17 @@ export default {
       if (this.observationDetail.notes) {
         this.notes = this.observationDetail.notes
       }
-      // pre-populate photos
-      this.uploadedPhotos = this.observationDetail.photos
+      this.loadPhotos()
+    },
+    async loadPhotos() {
+      const uuid = this.observationDetail.uuid
+      if (!uuid) {
+        return []
+      }
+      this.uploadedPhotos = await this.$store.dispatch(
+        'obs/getPhotosForObs',
+        uuid,
+      )
     },
     onNumberChange(event, fieldId) {
       // we should be able to use the Vue "watch" to achieve this but I
