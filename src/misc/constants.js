@@ -380,7 +380,8 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 
-export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder-3.png'
+export const noProfilePicPlaceholderUrl =
+  '/img/no-profile-pic-placeholder-3.png'
 
 export const onboarderComponentName = 'Onboarder'
 export const onboarderPath = '/onboarder'
