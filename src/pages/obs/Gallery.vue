@@ -17,6 +17,8 @@
 import { mapGetters } from 'vuex'
 import { wowIdOf } from '@/misc/helpers'
 
+const galleryImgSize = 'small'
+
 export default {
   name: 'Gallery',
   computed: {
@@ -27,12 +29,17 @@ export default {
     allPhotos() {
       return [...this.localRecords, ...this.remoteRecords].reduce(
         (accum, currRecord) => {
-          for (const currPhoto of currRecord.photos) {
+          // FIXME we only include uploaded photos. Including local photos
+          // means loading them all into memory, which can get pretty big
+          // pretty fast.
+          for (const currPhoto of currRecord.photos || []) {
             accum.push({
               _id: `${currRecord.uuid}_${currPhoto.id}`,
               wowId: wowIdOf(currRecord),
-              // FIXME should we get a bigger image than "square"?
-              photo: currPhoto,
+              photo: {
+                ...currPhoto,
+                url: currPhoto.url.replace('square', galleryImgSize),
+              },
             })
           }
           return accum
@@ -45,7 +52,7 @@ export default {
     handleClick(record) {
       const url = record.photo.url
       this.$store.commit('ephemeral/previewPhoto', {
-        url: url.indexOf('square') > 0 ? url.replace('square', 'medium') : url,
+        url: url.replace(galleryImgSize, 'medium'),
         wowId: record.wowId,
       })
     },
