@@ -175,58 +175,20 @@
             </div>
           </div>
         </v-ons-list-item>
-        <template v-if="!isNoRecords">
-          <v-ons-list-item
-            v-for="curr in allRecords"
-            :key="(curr.isWaiting ? 'waiting-' : '') + curr._key"
-            modifier="chevron"
-            @click="push(curr)"
+      </v-ons-list>
+      <!-- Don't join these two lists because the menu bar gets sucked into the
+        middle of the lazy-load -->
+      <v-ons-list>
+        <template v-if="isRecords">
+          <v-ons-lazy-repeat
+            :render-item="renderItem"
+            :length="allRecords.length"
           >
-            <div class="left">
-              <img class="list-item__thumbnail" :src="thumbnailPhoto(curr)" />
-            </div>
-            <div class="center">
-              <span class="list-item__title"
-                ><a>{{ speciesGuess(curr) }}</a></span
-              ><span class="list-item__subtitle">{{ placeGuess(curr) }}</span>
-              <span class="list-item__subtitle">{{ dateInfo(curr) }}</span>
-              <span
-                v-show="isSystemError(curr)"
-                class="list-item__subtitle error-indicator"
-                >Error uploading record</span
-              >
-              <span
-                v-show="isPossiblyStuck(curr)"
-                class="list-item__subtitle warn-indicator"
-              >
-                <v-ons-icon icon="fa-exclamation-triangle"></v-ons-icon>
-                Possible problem</span
-              >
-              <div class="obs-badges">
-                <img
-                  v-if="curr.isWaiting"
-                  src="@/assets/img/cloud-wait.svg"
-                  class="wow-icon"
-                />
-                <span v-if="curr.isDraft" class="wow-badge">
-                  <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
-                  Draft
-                </span>
-                <span v-if="curr.commentCount" class="wow-badge">
-                  <v-ons-icon icon="fa-comment"> </v-ons-icon>
-                  {{ curr.commentCount }}
-                </span>
-                <span v-if="curr.idCount" class="wow-badge">
-                  <v-ons-icon icon="fa-dna"> </v-ons-icon>
-                  {{ curr.idCount }}
-                </span>
-              </div>
-            </div>
-          </v-ons-list-item>
+          </v-ons-lazy-repeat>
         </template>
       </v-ons-list>
       <no-records-msg
-        v-if="isNoRecords"
+        v-if="!isRecords"
         fragment="You haven't created any observations"
       />
     </div>
@@ -237,25 +199,37 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState, mapGetters } from 'vuex'
 import dayjs from 'dayjs'
-import {
-  humanDateString,
-  isPossiblyStuck as isPossiblyStuckHelper,
-  triggerSwWowQueue,
-  wowErrorHandler,
-  wowIdOf,
-} from '@/misc/helpers'
+import { triggerSwWowQueue, wowErrorHandler, wowIdOf } from '@/misc/helpers'
 import * as constants from '@/misc/constants'
-import { isObsSystemError, extractGeolocationText } from '@/store/obs'
 
 export default {
   name: 'MyObs',
   data() {
+    const parent = this
     return {
       pullHookState: 'initial',
       joinProjectProcessingState: 'initial',
       autoJoinGracePeriodExpired: false,
+      renderItem: i =>
+        new Vue({
+          store: parent.$store,
+          router: parent.$router,
+          // this approach of dynamically compiling is required for the lazy-load
+          // but at the cost of being harder to debug as vue devtools can't
+          // inspect the components. We have the minimum code here and push as
+          // much as possible into a .vue file so it's nicer to code.
+          data() {
+            return {
+              record: parent.allRecords[i],
+            }
+          },
+          template: `
+            <wow-obs-list-item :record="record" />
+          `,
+        }),
     }
   },
   computed: {
@@ -274,8 +248,8 @@ export default {
     humanLastSyncDate() {
       return dayjs(this.allRemoteObsLastUpdated).format('DD-MMM-YYYY HH:mm')
     },
-    isNoRecords() {
-      return (this.allRecords || []).length === 0
+    isRecords() {
+      return (this.allRecords || []).length > 0
     },
     isShowDeleteDetails() {
       return this.waitingForDeleteCount || this.deletesWithErrorCount
@@ -329,10 +303,6 @@ export default {
     }
   },
   methods: {
-    push(record) {
-      const obsId = wowIdOf(record)
-      this.$router.push({ name: 'ObsDetail', params: { id: obsId } })
-    },
     onNewSingleSpecies() {
       this.$wow.uiTrace('MyObs', 'new single species')
       this.$store.commit('obs/setSelectedObservationUuid', null)
@@ -388,26 +358,6 @@ export default {
       this.$wow.uiTrace('MyObs', 'cancel failed deletes')
       this.$store.dispatch('obs/cancelFailedDeletes')
     },
-    thumbnailPhoto(record) {
-      const localPhotoUrl = record.thumbnailUrl
-      const remotePhotoUrl = ((record.photos || [])[0] || {}).url
-      return localPhotoUrl || remotePhotoUrl || constants.noImagePlaceholderUrl
-    },
-    speciesGuess(record) {
-      return record.speciesGuess || '(No species name)'
-    },
-    placeGuess(record) {
-      return extractGeolocationText(record)
-    },
-    isSystemError(record) {
-      return isObsSystemError(record)
-    },
-    dateInfo(r) {
-      return humanDateString(r.observedAt)
-    },
-    isPossiblyStuck(record) {
-      return isPossiblyStuckHelper(this.$store, record)
-    },
     async joinProject() {
       try {
         this.joinProjectProcessingState = 'processing'
@@ -453,20 +403,6 @@ export default {
 
 .warn-indicator {
   color: $wowWarnOrange;
-}
-
-.obs-badges {
-  color: #888;
-
-  .wow-badge {
-    margin-right: 0.2em;
-    white-space: nowrap;
-  }
-}
-
-.wow-icon {
-  width: 26px;
-  vertical-align: bottom;
 }
 
 .summary-bar {

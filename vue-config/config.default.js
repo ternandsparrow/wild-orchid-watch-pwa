@@ -5,6 +5,7 @@ const KillVueCliManifestPlugin = require('./KillVueCliManifestPlugin')
 const DumpVueEnvVarsWebpackPlugin = require('./DumpVueEnvVarsWebpackPlugin.js')
 
 module.exports = {
+  runtimeCompiler: true, // we need this for Onsen lazy-load
   configureWebpack: {
     plugins: [
       new DumpVueEnvVarsWebpackPlugin({ filename: 'wow-env-vars.js' }),
