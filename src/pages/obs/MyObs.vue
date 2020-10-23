@@ -202,7 +202,7 @@
 import Vue from 'vue'
 import { mapState, mapGetters } from 'vuex'
 import dayjs from 'dayjs'
-import { triggerSwWowQueue, wowErrorHandler, wowIdOf } from '@/misc/helpers'
+import { triggerSwWowQueue, wowErrorHandler } from '@/misc/helpers'
 import * as constants from '@/misc/constants'
 
 export default {
@@ -270,10 +270,7 @@ export default {
           commentCount: (r.comments || []).length,
           idCount: (r.identifications || []).length,
         })),
-      ].map(e => ({
-        ...e,
-        _key: wowIdOf(e),
-      }))
+      ]
     },
     isShowJoinProjectAlert() {
       return (
@@ -290,6 +287,14 @@ export default {
     },
     isJoinButtonDisabled() {
       return ['processing', 'success'].includes(this.joinProjectProcessingState)
+    },
+  },
+  watch: {
+    allRecords() {
+      // the v-ons-lazy-repeat is listening for this. Without it, it seems the
+      // components in it are *not* responsive to data changes. So we'll trigger
+      // a refresh when we think it's needed.
+      this.$emit('refresh')
     },
   },
   mounted() {
