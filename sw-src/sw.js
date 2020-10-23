@@ -163,7 +163,29 @@ async function wowQueueSuccessCb(entry, resp) {
         ['POST', 'PUT', 'DELETE'].includes(method) &&
         /observations(\/\d+)?$/.test(url),
       action: async function handleSuccessfulObservation() {
-        // FIXME for POST/PUT, confirm (obsResp.project_ids || []).includes(<projectId>)
+        try {
+          const httpMethod = entry.metadata.methodToUse
+          if (['POST', 'PUT'].includes(httpMethod)) {
+            const respBody = await resp.json()
+            // note: we only store the project slug in config, the ID is read
+            // at runtime and it's in the Vuex store. This check is good enough
+            // for something that should never happen.
+            const isProbablyLinkedToWowProject =
+              (respBody.project_ids || []).length > 0
+            if (!isProbablyLinkedToWowProject) {
+              wowWarnMessage(
+                `Is success handler for POST/PUT /observations we have an ` +
+                  `obs that is not linked to any projects, ` +
+                  `UUID=${respBody.uuid}/iNatID=${respBody.id}`,
+              )
+            }
+          }
+        } catch (err) {
+          wowWarnHandler(
+            'Failed while checking if response indicates project is linked',
+            err,
+          )
+        }
         await setRecordProcessingOutcome(
           entry.metadata.obsUuid,
           constants.successOutcome,
@@ -178,13 +200,7 @@ async function wowQueueSuccessCb(entry, resp) {
         method === 'DELETE' &&
         /\/observation_(field_values|photos)\/\d+$/.test(url),
       action: async function handleSuccessfulFieldOrPhotoDelete() {
-        await setRecordProcessingOutcome(
-          entry.metadata.obsUuid,
-          constants.successOutcome,
-        )
-        await sendMessageToAllClients({
-          id: constants.refreshObsMsg,
-        })
+        // nothing to do, the poison pill marks the end
       },
     },
     {

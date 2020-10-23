@@ -338,6 +338,9 @@ const actions = {
         )
         return null
       }
+      console.debug(
+        `[cleanLocalRecord] enqueuing blocked action for UUID=${currDbId}`,
+      )
       const remoteRecord = state.allRemoteObs.find(e => e.uuid === currDbId)
       if (!remoteRecord) {
         // this is weird because the reason we're processing this
