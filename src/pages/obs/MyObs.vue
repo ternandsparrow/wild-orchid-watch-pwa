@@ -259,8 +259,8 @@ export default {
         ...this.localRecords.map(r => ({
           ...r,
           isWaiting:
-            r.wowMeta[constants.recordProcessingOutcomeFieldName] ===
-            constants.waitingOutcome,
+            r.wowMeta[constants.recordProcessingOutcomeFieldName] !==
+            constants.successOutcome,
           isDraft:
             r.wowMeta[constants.recordProcessingOutcomeFieldName] ===
             constants.draftOutcome,
