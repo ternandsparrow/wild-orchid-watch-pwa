@@ -176,6 +176,7 @@
       </div>
     </v-ons-card>
     <join-leave-project @refresh="doProjectInfoRefresh" />
+    <wow-extract-thumbnail-from-exif />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />

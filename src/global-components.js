@@ -5,6 +5,7 @@ import CollectDate from '@/partials/CollectDate'
 import CollectGeolocation from '@/partials/CollectGeolocation'
 import CustomToolbar from '@/partials/CustomToolbar'
 import DecryptPayload from '@/partials/admin/DecryptPayload'
+import ExtractThumbnailFromExif from '@/partials/admin/ExtractThumbnailFromExif'
 import ForceRpo from '@/partials/admin/ForceRpo'
 import GenerateCryptoKeys from '@/partials/admin/GenerateCryptoKeys'
 import GoogleMap from '@/components/googleMap'
@@ -32,6 +33,7 @@ Vue.component('wow-autocomplete', WowAutocomplete)
 Vue.component('wow-collect-date', CollectDate)
 Vue.component('wow-collect-geolocation', CollectGeolocation)
 Vue.component('wow-decrypt-payload', DecryptPayload)
+Vue.component('wow-extract-thumbnail-from-exif', ExtractThumbnailFromExif)
 Vue.component('wow-force-rpo', ForceRpo)
 Vue.component('wow-generate-crypto-keys', GenerateCryptoKeys)
 Vue.component('wow-header', WowHeader)
