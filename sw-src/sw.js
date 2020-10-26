@@ -12,6 +12,7 @@ import {
   chainedError,
   makeObsRequest,
   wowErrorHandler,
+  wowWarnHandler,
   wowWarnMessage,
 } from '../src/misc/only-common-deps-helpers'
 import * as devHelpers from '../src/misc/dev-helpers'
