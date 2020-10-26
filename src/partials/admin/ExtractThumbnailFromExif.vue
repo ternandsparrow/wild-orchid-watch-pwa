@@ -68,46 +68,50 @@ export default {
   },
   methods: {
     async doBenchmark() {
-      const start = Date.now()
-      const blobs = []
-      const dataShape = await mapOverObsStore(r => {
-        const photos = r.wowMeta[constants.photosToAddFieldName] || []
-        const photoShape = []
-        for (const curr of photos) {
-          blobs.push(new Blob([new Uint8Array(curr.file.data)]))
-          photoShape.push(1)
-        }
-        return photoShape
-      })
-      this.thumbs = []
-      for (const curr of blobs) {
-        // FIXME try-catch
-        const currStart = Date.now()
-        const exif = await getExifFromBlob(curr)
-        const hasAnyExif = Object.keys(exif).length
-        if (!hasAnyExif) {
-          continue
-        }
-        const hasThumbnail = !!exif.thumbnail
-        if (!hasThumbnail) {
-          continue
-        }
-        const thumbBlob = exif.thumbnail.blob
-        this.thumbs.push({
-          blob: thumbBlob,
-          originalSize: curr.size,
-          thumbSize: thumbBlob.size,
-          thumbUrl: URL.createObjectURL(thumbBlob), // this is memory leak by not revoking, but it's only a test
-          elapsed: Date.now() - currStart,
+      try {
+        const start = Date.now()
+        const blobs = []
+        const dataShape = await mapOverObsStore(r => {
+          const photos = r.wowMeta[constants.photosToAddFieldName] || []
+          const photoShape = []
+          for (const curr of photos) {
+            blobs.push(new Blob([new Uint8Array(curr.file.data)]))
+            photoShape.push(1)
+          }
+          return photoShape
         })
+        this.thumbs = []
+        for (const curr of blobs) {
+          const currStart = Date.now()
+          const exif = await getExifFromBlob(curr)
+          const hasAnyExif = Object.keys(exif).length
+          if (!hasAnyExif) {
+            continue
+          }
+          const hasThumbnail = !!exif.thumbnail
+          if (!hasThumbnail) {
+            continue
+          }
+          const thumbBlob = exif.thumbnail.blob
+          this.thumbs.push({
+            blob: thumbBlob,
+            originalSize: curr.size,
+            thumbSize: thumbBlob.size,
+            // this is memory leak by not revoking, but it's only a test
+            thumbUrl: URL.createObjectURL(thumbBlob),
+            elapsed: Date.now() - currStart,
+          })
+        }
+        this.totalElapsedTime = Date.now() - start
+        this.obsRecordsProcessed = dataShape.length
+        this.photosProcessed = dataShape.reduce((accum, curr) => {
+          accum += curr.length
+          return accum
+        }, 0)
+        this.photosWithExif = this.thumbs.length
+      } catch (err) {
+        console.error('Failed to run thumbnail benchmark', err)
       }
-      this.totalElapsedTime = Date.now() - start
-      this.obsRecordsProcessed = dataShape.length
-      this.photosProcessed = dataShape.reduce((accum, curr) => {
-        accum += curr.length
-        return accum
-      }, 0)
-      this.photosWithExif = this.thumbs.length
     },
   },
 }
