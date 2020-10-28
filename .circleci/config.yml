@@ -4,6 +4,9 @@ executors:
   default-executor:
     docker:
       - image: cypress/base:10
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
 
 jobs:
   install-dependencies:
