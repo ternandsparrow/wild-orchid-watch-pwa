@@ -146,6 +146,14 @@ used for the orchid species autocomplete. Then commit the the result of the
 script. The CI/CD build pipeline will then do a deploy and users will recieve
 the new list when they update.
 
+If you've already run the script, you might want to force a refresh of the taxa
+data from iNat otherwise it'll just rebuild the list from your local cache. To
+do this:
+```bash
+./scripts/build-taxa-index.js --force-cache-refresh
+# run with --help for full list of options
+```
+
 This script reads species from observations made in iNat so as more observations
 are made, the list will change.  Nothing will break if you don't do it, but by
 doing it regularly, users will have a better experience because they'll have a
