@@ -1,7 +1,7 @@
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
-import { _testonly as workerTestOnly } from '@/store/map-over-obs-store.worker'
+import { _testonly as workerTestOnly } from '@/store/obs-store.worker'
 
 _testonly.interceptableFns.buildWorker = function() {
   return workerTestOnly.exposed

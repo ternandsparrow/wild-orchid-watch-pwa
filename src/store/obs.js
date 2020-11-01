@@ -33,12 +33,12 @@ import { deserialise } from '@/misc/taxon-s11n'
 const anyFromOutcome = []
 
 let refreshLocalRecordQueueLock = null
-let mapStoreWorker = null
-function getMapStoreWorker() {
-  if (!mapStoreWorker) {
-    mapStoreWorker = interceptableFns.buildWorker()
+let obsStoreWorker = null
+function getObsStoreWorker() {
+  if (!obsStoreWorker) {
+    obsStoreWorker = interceptableFns.buildWorker()
   }
-  return mapStoreWorker
+  return obsStoreWorker
 }
 let taxaIndex = null
 
@@ -599,7 +599,7 @@ const actions = {
     { state, dispatch, getters },
     { record, photoIdsToDelete, obsFieldIdsToDelete, isDraft },
   ) {
-    const worker = getMapStoreWorker()
+    const worker = getObsStoreWorker()
     // reduce chance of TOCTOU race condition by refreshing the queue right
     // before we use it
     await dispatch('refreshLocalRecordQueue')
@@ -618,7 +618,7 @@ const actions = {
     return result
   },
   async saveNewAndScheduleUpload({ dispatch }, { record, isDraft }) {
-    const worker = getMapStoreWorker()
+    const worker = getObsStoreWorker()
     const result = await worker.saveNewAndScheduleUpload({
       record,
       isDraft,
@@ -659,7 +659,7 @@ const actions = {
         const {
           localQueueSummary,
           uiVisibleLocalRecords,
-        } = await getMapStoreWorker().getData()
+        } = await getObsStoreWorker().getData()
         commit('setLocalQueueSummary', localQueueSummary)
         commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
         // TODO do we need to wait for nextTick before revoking the old URLs?
@@ -669,7 +669,7 @@ const actions = {
     }
   },
   async getPhotosForObs({ state }, obsUuid) {
-    const dbPhotos = await getMapStoreWorker().getDbPhotosForObs(obsUuid)
+    const dbPhotos = await getObsStoreWorker().getDbPhotosForObs(obsUuid)
     if (dbPhotos.length) {
       return dbPhotos
     }
@@ -679,7 +679,7 @@ const actions = {
     return remotePhotos || []
   },
   cleanupPhotosForObs() {
-    return getMapStoreWorker().cleanupPhotosForObs()
+    return getObsStoreWorker().cleanupPhotosForObs()
   },
   /**
    * Process actions (new/edit/delete) in the local queue.
@@ -1218,14 +1218,14 @@ const actions = {
     }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
-    const worker = getMapStoreWorker()
+    const worker = getObsStoreWorker()
     const selectedUuid = state.selectedObservationUuid
     await worker.deleteSelectedLocalRecord(selectedUuid)
     commit('setSelectedObservationUuid', null)
     return dispatch('refreshLocalRecordQueue')
   },
   async deleteSelectedRecord({ state, dispatch, commit }) {
-    const worker = getMapStoreWorker()
+    const worker = getObsStoreWorker()
     const context = {
       selectedUuid: state.selectedObservationUuid,
       localQueueSummary: state.localQueueSummary,
@@ -1794,7 +1794,7 @@ function startTimer(task) {
 const interceptableFns = {
   buildWorker() {
     return comlinkWrap(
-      new Worker('./map-over-obs-store.worker.js', {
+      new Worker('./obs-store.worker.js', {
         type: 'module',
       }),
     )

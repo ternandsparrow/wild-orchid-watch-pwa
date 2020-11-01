@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
-import { _testonly } from '@/store/map-over-obs-store.worker'
+import { _testonly } from '@/store/obs-store.worker'
 
 const objectUnderTest = _testonly.exposed
 
