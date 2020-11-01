@@ -451,7 +451,7 @@ export default {
       speciesGuessSelectedItem: null,
       speciesGuessValue: null,
       photos: [],
-      uploadedPhotos: [],
+      existingPhotos: [],
       obsFieldValues: {},
       obsFieldInitialValues: {}, // for comparing after edit
       obsFieldVisibility: {},
@@ -604,7 +604,7 @@ export default {
       return this.isEdit ? 'Edit observation' : 'New observation'
     },
     allPhotosByType() {
-      const allPhotos = [...this.uploadedPhotos, ...this.photos]
+      const allPhotos = [...this.existingPhotos, ...this.photos]
       return allPhotos.reduce((accum, curr) => {
         const type = this.computeType(curr).id || this.otherType
         const photoCollection = accum[type] || []
@@ -822,7 +822,7 @@ export default {
       if (!uuid) {
         return []
       }
-      this.uploadedPhotos = await this.$store.dispatch(
+      this.existingPhotos = await this.$store.dispatch(
         'obs/getPhotosForObs',
         uuid,
       )
@@ -961,7 +961,7 @@ export default {
       if (record.isRemote || isLocalFromPreviousEdit) {
         const id = record.id
         this.photoIdsToDelete.push(id)
-        this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
+        this.existingPhotos = this.existingPhotos.filter(p => p.id !== id)
         this.closePhotoPreview()
         return
       }
@@ -1206,63 +1206,7 @@ export default {
             `during upload. This should never happen.`,
         )
       }
-      const obsFieldValues = this.displayableObsFields.reduce(
-        (accum, currField) => {
-          const isNotSavable =
-            !this.isDetailedUserMode && currField.isDetailedModeField
-          if (isNotSavable) {
-            return accum
-          }
-          const isMultiselect = currField.wowDatatype === multiselectFieldType
-          if (isMultiselect) {
-            for (const currSubField of currField.multiselectValues) {
-              const currSubFieldId = currSubField.id
-              const mappedValue = (() => {
-                const v = this.obsFieldValues[currSubFieldId]
-                // here we're fixing up the booleans that come out of switches
-                if (v === true) {
-                  return yesValue
-                }
-                if (v === false) {
-                  return noValue
-                }
-                throw new Error(
-                  `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
-                )
-              })()
-              accum.push({
-                fieldId: parseInt(currSubFieldId),
-                name: `${currField.name} - ${currSubField.label}`,
-                value: mappedValue,
-                // datatype: // don't need this
-              })
-            }
-            return accum
-          }
-          const currFieldId = currField.id
-          const obsFieldDef = this.getObsFieldDef(currFieldId)
-          let value = this.obsFieldValues[currFieldId]
-          if (isDeletedObsFieldValue(value)) {
-            return accum
-          }
-          if (
-            obsFieldDef.datatype === taxonFieldType &&
-            // in edit mode when the user doesn't change the value, we'll
-            // only have the string value, not the full selected item
-            typeof value === 'object'
-          ) {
-            value = value.preferredCommonName
-          }
-          accum.push({
-            fieldId: parseInt(currFieldId),
-            name: obsFieldDef.name,
-            value: value,
-            datatype: obsFieldDef.datatype,
-          })
-          return accum
-        },
-        [],
-      )
+      const obsFieldValues = this.buildObsFieldValuesToSave()
       const result = {
         addedPhotos: this.photos.map(curr => ({
           type: curr.type,
@@ -1277,6 +1221,62 @@ export default {
         positional_accuracy: this.obsLocAccuracy,
       }
       return result
+    },
+    buildObsFieldValuesToSave() {
+      return this.displayableObsFields.reduce((accum, currField) => {
+        const isNotSavable =
+          !this.isDetailedUserMode && currField.isDetailedModeField
+        if (isNotSavable) {
+          return accum
+        }
+        const isMultiselect = currField.wowDatatype === multiselectFieldType
+        if (isMultiselect) {
+          for (const currSubField of currField.multiselectValues) {
+            const currSubFieldId = currSubField.id
+            const mappedValue = (() => {
+              const v = this.obsFieldValues[currSubFieldId]
+              // here we're fixing up the booleans that come out of switches
+              if (v === true) {
+                return yesValue
+              }
+              if (v === false) {
+                return noValue
+              }
+              throw new Error(
+                `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
+              )
+            })()
+            accum.push({
+              fieldId: parseInt(currSubFieldId),
+              name: `${currField.name} - ${currSubField.label}`,
+              value: mappedValue,
+              // datatype: // don't need this
+            })
+          }
+          return accum
+        }
+        const currFieldId = currField.id
+        const obsFieldDef = this.getObsFieldDef(currFieldId)
+        let value = this.obsFieldValues[currFieldId]
+        if (isDeletedObsFieldValue(value)) {
+          return accum
+        }
+        if (
+          obsFieldDef.datatype === taxonFieldType &&
+          // in edit mode when the user doesn't change the value, we'll
+          // only have the string value, not the full selected item
+          typeof value === 'object'
+        ) {
+          value = value.preferredCommonName
+        }
+        accum.push({
+          fieldId: parseInt(currFieldId),
+          name: obsFieldDef.name,
+          value: value,
+          datatype: obsFieldDef.datatype,
+        })
+        return accum
+      }, [])
     },
     updateRecentlyUsedTaxa() {
       this.$store.commit('obs/addRecentlyUsedTaxa', {

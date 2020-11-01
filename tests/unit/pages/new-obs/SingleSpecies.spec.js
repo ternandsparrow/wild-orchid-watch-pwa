@@ -59,13 +59,13 @@ describe('SingleSpecies', () => {
         'present from previous edits',
       () => {
         const wrapper = buildWrapper()
-        wrapper.vm.$data.uploadedPhotos.push({
+        wrapper.vm.$data.existingPhotos.push({
           url: 'https://...snip.../961/square/wow-whole-plant.jpeg?1582694789',
         })
-        wrapper.vm.$data.uploadedPhotos.push({
+        wrapper.vm.$data.existingPhotos.push({
           url: 'https://...snip.../962/square/wow-habitat.jpeg?1582694789',
         })
-        wrapper.vm.$data.uploadedPhotos.push({
+        wrapper.vm.$data.existingPhotos.push({
           url:
             'https://...snip.../963/square/wow-micro-habitat.jpeg?1582694789',
         })
