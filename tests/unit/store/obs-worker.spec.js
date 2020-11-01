@@ -584,7 +584,6 @@ describe('things that need a datastore', () => {
           speciesGuess: 'species new',
           addedPhotos: [],
         }
-        let result
         expect(
           objectUnderTest.saveEditAndScheduleUpdate(
             // no record in the store, it was deleted (by WOW in another browser
@@ -606,7 +605,7 @@ describe('things that need a datastore', () => {
               photoIdsToDelete: [],
               obsFieldIdsToDelete: [],
             },
-            (_, params) => (result = params),
+            stubRunStrategy,
           ),
         ).rejects.toThrow(`Failed to save edited record with UUID='123A'`)
       },
