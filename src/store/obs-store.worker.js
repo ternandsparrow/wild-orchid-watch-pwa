@@ -1,6 +1,7 @@
 import { expose as comlinkExpose } from 'comlink'
+import _ from 'lodash'
 import uuid from 'uuid/v1'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   deleteDbRecordById,
   getRecord,
@@ -36,7 +37,7 @@ let obsDetailObjectUrls = []
 async function getData() {
   const localQueueSummary = await getLocalQueueSummary()
   const uiVisibleLocalUuids = localQueueSummary
-    .filter(e => !e[constants.isEventuallyDeletedFieldName])
+    .filter(e => !e[cc.isEventuallyDeletedFieldName])
     .map(e => e.uuid)
   thumbnailObjectUrlsNoLongerInUse = thumbnailObjectUrlsInUse
   thumbnailObjectUrlsInUse = []
@@ -52,22 +53,21 @@ async function getData() {
 
 async function getLocalQueueSummary() {
   const result = await mapOverObsStore(r => {
-    const hasBlockedAction = !!r.wowMeta[constants.blockedActionFieldName]
+    const hasBlockedAction = !!r.wowMeta[cc.blockedActionFieldName]
     const isEventuallyDeleted = hasBlockedAction
-      ? r.wowMeta[constants.blockedActionFieldName].wowMeta[
-          constants.recordTypeFieldName
-        ] === recordType('delete')
-      : r.wowMeta[constants.recordTypeFieldName] === recordType('delete')
+      ? r.wowMeta[cc.blockedActionFieldName].wowMeta[cc.recordTypeFieldName] ===
+        recordType('delete')
+      : r.wowMeta[cc.recordTypeFieldName] === recordType('delete')
     return {
-      [constants.recordTypeFieldName]: r.wowMeta[constants.recordTypeFieldName],
-      [constants.isEventuallyDeletedFieldName]: isEventuallyDeleted,
-      [constants.recordProcessingOutcomeFieldName]:
-        r.wowMeta[constants.recordProcessingOutcomeFieldName],
-      [constants.hasBlockedActionFieldName]: hasBlockedAction,
-      [constants.outcomeLastUpdatedAtFieldName]:
-        r.wowMeta[constants.outcomeLastUpdatedAtFieldName],
+      [cc.recordTypeFieldName]: r.wowMeta[cc.recordTypeFieldName],
+      [cc.isEventuallyDeletedFieldName]: isEventuallyDeleted,
+      [cc.recordProcessingOutcomeFieldName]:
+        r.wowMeta[cc.recordProcessingOutcomeFieldName],
+      [cc.hasBlockedActionFieldName]: hasBlockedAction,
+      [cc.outcomeLastUpdatedAtFieldName]:
+        r.wowMeta[cc.outcomeLastUpdatedAtFieldName],
       // at time of writing, this isn't used but it's useful for debugging
-      wowUpdatedAt: r.wowMeta[constants.wowUpdatedAtFieldName],
+      wowUpdatedAt: r.wowMeta[cc.wowUpdatedAtFieldName],
       inatId: r.inatId,
       uuid: r.uuid,
     }
@@ -99,8 +99,8 @@ async function getUiVisibleLocalRecords(uuids) {
       thumbnailUrl,
       wowMeta: {
         ...currRecord.wowMeta,
-        [constants.photosToAddFieldName]: currRecord.wowMeta[
-          constants.photosToAddFieldName
+        [cc.photosToAddFieldName]: currRecord.wowMeta[
+          cc.photosToAddFieldName
         ].map(p => ({
           // we don't need ArrayBuffers of photos in memory, slowing things down
           type: p.type,
@@ -139,7 +139,7 @@ function cleanupPhotosForObs() {
 }
 
 function mapPhotoFromDbToUi(p, urlCallbackFn) {
-  const isRemotePhoto = p[constants.isRemotePhotoFieldName]
+  const isRemotePhoto = p[cc.isRemotePhotoFieldName]
   if (isRemotePhoto) {
     return p
   }
@@ -191,7 +191,7 @@ function zUrl() {
 
 async function saveNewAndScheduleUpload({ record, isDraft }) {
   try {
-    const outcome = isDraft ? constants.draftOutcome : constants.waitingOutcome
+    const outcome = isDraft ? cc.draftOutcome : cc.waitingOutcome
     const newRecordId = uuid()
     const newPhotos = await processPhotos(record.addedPhotos)
     const enhancedRecord = Object.assign(record, {
@@ -199,13 +199,13 @@ async function saveNewAndScheduleUpload({ record, isDraft }) {
       geoprivacy: 'obscured',
       photos: newPhotos,
       wowMeta: {
-        [constants.recordTypeFieldName]: recordType('new'),
-        [constants.recordProcessingOutcomeFieldName]: outcome,
-        [constants.photosToAddFieldName]: newPhotos,
-        [constants.photoIdsToDeleteFieldName]: [],
-        [constants.obsFieldIdsToDeleteFieldName]: [],
-        [constants.wowUpdatedAtFieldName]: new Date().toString(),
-        [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+        [cc.recordTypeFieldName]: recordType('new'),
+        [cc.recordProcessingOutcomeFieldName]: outcome,
+        [cc.photosToAddFieldName]: newPhotos,
+        [cc.photoIdsToDeleteFieldName]: [],
+        [cc.obsFieldIdsToDeleteFieldName]: [],
+        [cc.wowUpdatedAtFieldName]: new Date().toString(),
+        [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
       },
       uuid: newRecordId,
     })
@@ -248,96 +248,63 @@ async function saveEditAndScheduleUpdate(
         'as we do not know what we are editing',
     )
   }
-  const outcome = isDraft ? constants.draftOutcome : constants.waitingOutcome
+  const outcome = isDraft ? cc.draftOutcome : cc.waitingOutcome
   try {
-    const existingLocalRecord = localRecords.find(e => e.uuid === editedUuid)
     const existingRemoteRecord = allRemoteObs.find(e => e.uuid === editedUuid)
-    const existingDbRecord = await (async () => {
-      if (existingLocalRecord) {
-        const result = await getRecord(editedUuid)
-        if (!result) {
-          const err = new Error(
-            `Failed to find record with UUID=${editedUuid} in DB. We ` +
-              `refreshed right before checking the queue summary, found a ` +
-              `matching record='${JSON.stringify(
-                existingLocalRecord,
-              )}' but then got nothing when we went to the DB. Cannot ` +
-              `continue as we have no local record to update. Possibly ` +
-              `another instance of this app cleaned the DB and the record ` +
-              `is now on the remote but we can't guarantee that we have ` +
-              `access to refresh the remote right now.`,
-            // although maybe we can just read it from Vuex's persisted copy
-            // to localStorage but that feels brittle.
-          )
-          err.name = 'NoDbRecordError'
-          throw err
+    const { dbRecord, isExistingLocalRecord } = await (async () => {
+      const existingLocalRecord = localRecords.find(e => e.uuid === editedUuid)
+      if (!existingLocalRecord) {
+        const baseForNewDbRecord = {
+          inatId: existingRemoteRecord.inatId,
+          uuid: editedUuid,
         }
-        return result
+        return { dbRecord: baseForNewDbRecord, isExistingLocalRecord: false }
       }
-      return { inatId: existingRemoteRecord.inatId, uuid: editedUuid }
+      const result = await getRecord(editedUuid)
+      if (!result) {
+        const err = new Error(
+          `Failed to find record with UUID=${editedUuid} in DB. We ` +
+            `refreshed right before checking the queue summary, found a ` +
+            `matching record='${JSON.stringify(
+              existingLocalRecord,
+            )}' but then got nothing when we went to the DB. Cannot ` +
+            `continue as we have no local record to update. Possibly ` +
+            `another instance of this app cleaned the DB and the record ` +
+            `is now on the remote but we can't guarantee that we have ` +
+            `access to refresh the remote right now.`,
+          // although maybe we can just read it from Vuex's persisted copy
+          // to localStorage but that feels brittle.
+        )
+        err.name = 'NoDbRecordError'
+        throw err
+      }
+      return { dbRecord: result, isExistingLocalRecord: true }
     })()
-    if (!existingLocalRecord && !existingRemoteRecord) {
+    if (!isExistingLocalRecord && !existingRemoteRecord) {
       throw new Error(
         'Data problem: Cannot find existing local or remote record,' +
           'cannot continue without at least one',
       )
     }
     const newPhotos = (await processPhotos(record.addedPhotos)) || []
-    const photos = (() => {
-      // FIXME adding new photos clobbers old photos
-      const existingRemotePhotos = (existingRemoteRecord || {}).photos || []
-      const wowMeta = existingDbRecord.wowMeta || {}
-      const blockedAction = wowMeta[constants.blockedActionFieldName]
-      const existingLocalPhotos = wowMeta[constants.photosToAddFieldName] || []
-      const existingBlockedLocalPhotos = (() => {
-        if (!blockedAction) {
-          return []
-        }
-        const photosAddedInBlockedAction =
-          blockedAction.wowMeta[constants.photosToAddFieldName]
-        return photosAddedInBlockedAction || []
-      })()
-      const photoDeletesFromBlockedAction = (() => {
-        if (!blockedAction) {
-          return []
-        }
-        return blockedAction.wowMeta[constants.photoIdsToDeleteFieldName] || []
-      })()
-      const allPendingPhotoDeletes = [
-        ...photoIdsToDelete,
-        ...(wowMeta[constants.photoIdsToDeleteFieldName] || []),
-        ...photoDeletesFromBlockedAction,
-      ]
-      const photosWithDeletesApplied = [
-        ...existingRemotePhotos,
-        ...existingLocalPhotos,
-        ...existingBlockedLocalPhotos,
-        ...newPhotos,
-      ].filter(p => {
-        const isPhotoDeleted = allPendingPhotoDeletes.includes(p.id)
-        return !isPhotoDeleted
-      })
-      // note: this fixIds call is side-effecting the newPhotos items
-      return fixIds(photosWithDeletesApplied)
-      function fixIds(thePhotos) {
-        return thePhotos.map((e, $index) => {
-          const isPhotoLocalOnly = e.id < 0
-          e.id = isPhotoLocalOnly ? -1 * ($index + 1) : e.id
-          return e
-        })
-      }
-    })()
-    const enhancedRecord = Object.assign(existingDbRecord, record, {
+    const photos = computePhotos(
+      existingRemoteRecord,
+      dbRecord,
+      photoIdsToDelete,
+      newPhotos,
+    )
+    const enhancedRecord = Object.assign(dbRecord, record, {
       photos,
       uuid: editedUuid,
       wowMeta: {
-        [constants.recordTypeFieldName]: recordType('edit'),
+        ...dbRecord.wowMeta,
+        [cc.recordTypeFieldName]: recordType('edit'),
         // warning: relies on the local device time being synchronised. If
         // the clock has drifted forward, our check for updates having
         // occurred on the remote won't work.
-        [constants.wowUpdatedAtFieldName]: new Date().toString(),
-        [constants.recordProcessingOutcomeFieldName]: outcome,
-        [constants.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+        [cc.wowUpdatedAtFieldName]: new Date().toString(),
+        [cc.recordProcessingOutcomeFieldName]: outcome,
+        [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
       },
     })
     delete enhancedRecord.addedPhotos
@@ -345,13 +312,11 @@ async function saveEditAndScheduleUpdate(
       const localQueueSummaryForEditTarget =
         localQueueSummary.find(e => e.uuid === enhancedRecord.uuid) || {}
       const isProcessingQueuedNow = isObsStateProcessing(
-        localQueueSummaryForEditTarget[
-          constants.recordProcessingOutcomeFieldName
-        ],
+        localQueueSummaryForEditTarget[cc.recordProcessingOutcomeFieldName],
       )
-      const isThisIdQueued = !!existingLocalRecord
+      const isThisIdQueued = !!isExistingLocalRecord
       const isExistingBlockedAction =
-        localQueueSummaryForEditTarget[constants.hasBlockedActionFieldName]
+        localQueueSummaryForEditTarget[cc.hasBlockedActionFieldName]
       const strategyKey =
         `${isProcessingQueuedNow ? '' : 'no'}processing.` +
         `${isThisIdQueued ? '' : 'no'}queued.` +
@@ -382,9 +347,7 @@ async function saveEditAndScheduleUpdate(
             // edits of local-only records *need* to result in a 'new' typed
             // record so we process them with a POST. We can't PUT when
             // there's nothing to update. TODO this side-effect is hacky
-            enhancedRecord.wowMeta[constants.recordTypeFieldName] = recordType(
-              'new',
-            )
+            enhancedRecord.wowMeta[cc.recordTypeFieldName] = recordType('new')
             return upsertQueuedAction
           case 'noprocessing.noqueued.noexistingblocked.remote':
             // direct edit of remote
@@ -462,14 +425,14 @@ async function upsertQueuedAction({
     ...record,
     wowMeta: {
       ...record.wowMeta,
-      [constants.photoIdsToDeleteFieldName]: (
-        record.wowMeta[constants.photoIdsToDeleteFieldName] || []
+      [cc.photoIdsToDeleteFieldName]: (
+        record.wowMeta[cc.photoIdsToDeleteFieldName] || []
       ).concat(photoIdsToDelete),
-      [constants.photosToAddFieldName]: (
-        record.wowMeta[constants.photosToAddFieldName] || []
+      [cc.photosToAddFieldName]: (
+        record.wowMeta[cc.photosToAddFieldName] || []
       ).concat(newPhotos),
-      [constants.obsFieldIdsToDeleteFieldName]: (
-        record.wowMeta[constants.obsFieldIdsToDeleteFieldName] || []
+      [cc.obsFieldIdsToDeleteFieldName]: (
+        record.wowMeta[cc.obsFieldIdsToDeleteFieldName] || []
       ).concat(obsFieldIdsToDelete),
     },
   }
@@ -484,30 +447,31 @@ async function upsertBlockedAction({
 }) {
   const key = record.uuid
   const existingStoreRecord = await getRecord(key)
-  const existingWowMeta = existingStoreRecord.wowMeta
-  const existingBlockedActionWowMeta =
-    (existingStoreRecord.wowMeta[constants.blockedActionFieldName] || {})
-      .wowMeta || {}
+  const existingBlockedActionWowMeta = _.get(
+    existingStoreRecord,
+    `wowMeta.${cc.blockedActionFieldName}.wowMeta`,
+    {},
+  )
   const mergedPhotoIdsToDelete = (
-    existingBlockedActionWowMeta[constants.photoIdsToDeleteFieldName] || []
+    existingBlockedActionWowMeta[cc.photoIdsToDeleteFieldName] || []
   ).concat(photoIdsToDelete)
   const mergedPhotosToAdd = (
-    existingBlockedActionWowMeta[constants.photosToAddFieldName] || []
+    existingBlockedActionWowMeta[cc.photosToAddFieldName] || []
   ).concat(newPhotos)
   const mergedObsFieldIdsToDelete = (
-    existingBlockedActionWowMeta[constants.obsFieldIdsToDeleteFieldName] || []
+    existingBlockedActionWowMeta[cc.obsFieldIdsToDeleteFieldName] || []
   ).concat(obsFieldIdsToDelete)
   const mergedRecord = {
     ...record, // passed record is new source of truth
     wowMeta: {
-      ...existingWowMeta, // don't touch wowMeta as it's being processed
-      [constants.blockedActionFieldName]: {
+      ...existingStoreRecord.wowMeta, // don't touch wowMeta as it's being processed
+      [cc.blockedActionFieldName]: {
         wowMeta: {
           ...existingBlockedActionWowMeta,
           ...record.wowMeta, // stuff from this save
-          [constants.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
-          [constants.photosToAddFieldName]: mergedPhotosToAdd,
-          [constants.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
+          [cc.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
+          [cc.photosToAddFieldName]: mergedPhotosToAdd,
+          [cc.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
         },
       },
     },
@@ -537,8 +501,8 @@ async function processPhotos(photos) {
 
 function isObsStateProcessing(state) {
   const processingStates = [
-    constants.withLocalProcessorOutcome,
-    constants.withServiceWorkerOutcome,
+    cc.withLocalProcessorOutcome,
+    cc.withServiceWorkerOutcome,
   ]
   return processingStates.includes(state)
 }
@@ -574,9 +538,7 @@ async function deleteSelectedRecord(
     )
   }
   const isProcessingQueuedNow = isObsStateProcessing(
-    localQueueSummaryForDeleteTarget[
-      constants.recordProcessingOutcomeFieldName
-    ],
+    localQueueSummaryForDeleteTarget[cc.recordProcessingOutcomeFieldName],
   )
   const existingRemoteRecord =
     allRemoteObs.find(e => e.uuid === selectedUuid) || {}
@@ -584,8 +546,8 @@ async function deleteSelectedRecord(
     inatId: existingRemoteRecord.inatId,
     uuid: existingRemoteRecord.uuid || selectedUuid,
     wowMeta: {
-      [constants.recordTypeFieldName]: recordType('delete'),
-      [constants.recordProcessingOutcomeFieldName]: constants.waitingOutcome,
+      [cc.recordTypeFieldName]: recordType('delete'),
+      [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
     },
   }
   const strategyKey =
@@ -616,6 +578,58 @@ async function deleteSelectedRecord(
 function realRunStrategy(strategyFn, ...args) {
   // only exists so we stub it during tests
   return strategyFn(...args)
+}
+
+function computePhotos(
+  existingRemoteRecord,
+  dbRecord,
+  photoIdsToDelete,
+  newPhotos,
+) {
+  const existingRemotePhotos = _.get(existingRemoteRecord, 'photos', [])
+  const existingLocalPhotos = _.get(
+    dbRecord,
+    `wowMeta.${cc.photosToAddFieldName}`,
+    [],
+  )
+  const existingQueuedDeletes = _.get(
+    dbRecord,
+    `wowMeta.${cc.photoIdsToDeleteFieldName}`,
+    [],
+  )
+  const existingBlockedLocalPhotos = _.get(
+    dbRecord,
+    `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
+    [],
+  )
+  const photoDeletesFromBlockedAction = _.get(
+    dbRecord,
+    `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
+    [],
+  )
+  const allPendingPhotoDeletes = [
+    ...photoIdsToDelete,
+    ...existingQueuedDeletes,
+    ...photoDeletesFromBlockedAction,
+  ]
+  const photosWithDeletesApplied = [
+    ...existingRemotePhotos,
+    ...existingLocalPhotos,
+    ...existingBlockedLocalPhotos,
+    ...newPhotos,
+  ].filter(p => {
+    const isPhotoDeleted = allPendingPhotoDeletes.includes(p.id)
+    return !isPhotoDeleted
+  })
+  // note: this fixIds call is side-effecting the newPhotos items
+  return fixIds(photosWithDeletesApplied)
+  function fixIds(thePhotos) {
+    return thePhotos.map((e, $index) => {
+      const isPhotoLocalOnly = e.id < 0
+      e.id = isPhotoLocalOnly ? -1 * ($index + 1) : e.id
+      return e
+    })
+  }
 }
 
 // eslint-disable-next-line import/prefer-default-export

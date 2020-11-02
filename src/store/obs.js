@@ -364,7 +364,6 @@ const actions = {
     })()
     await deleteDbRecordById(currDbId)
     if (blockedAction) {
-      // FIXME no new photos added here
       await storeRecord(blockedAction)
     }
   },

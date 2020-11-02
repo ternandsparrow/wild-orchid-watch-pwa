@@ -529,12 +529,20 @@ describe('things that need a datastore', () => {
       const record = {
         uuid: '123A',
         speciesGuess: 'species new',
-        addedPhotos: [],
+        addedPhotos: [
+          {
+            file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
+            type: 'top',
+          },
+        ],
       }
       obsStore.setItem('123A', {
         uuid: '123A',
         speciesGuess: 'species old',
-        photos: [],
+        photos: ['photo1'],
+        wowMeta: {
+          [constants.photosToAddFieldName]: [{ id: -1, testTag: 'photo1' }],
+        },
       })
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
@@ -557,12 +565,21 @@ describe('things that need a datastore', () => {
         },
         (_, params) => (result = params),
       )
+      const expectedPhoto = {
+        file: {
+          data: expect.any(ArrayBuffer),
+          mime: 'image/jpeg',
+        },
+        id: -2,
+        type: 'top',
+        url: '(set at render time)',
+      }
       expect(result).toEqual({
-        newPhotos: [],
+        newPhotos: [expectedPhoto],
         photoIdsToDelete: [],
         obsFieldIdsToDelete: [],
         record: {
-          photos: [],
+          photos: [{ id: -1, testTag: 'photo1' }, expectedPhoto],
           speciesGuess: 'species new',
           uuid: '123A',
           wowMeta: {
@@ -570,6 +587,7 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [{ id: -1, testTag: 'photo1' }],
           },
         },
       })
@@ -808,6 +826,7 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [expectedExistingLocalPhoto],
           },
         },
       })
@@ -991,6 +1010,14 @@ describe('things that need a datastore', () => {
       )
       expect(result.newPhotos).toHaveLength(0)
       expect(result.record.photos).toHaveLength(3)
+      const expectedExistingLocalPhoto = {
+        tag: 'photo1 placeholder', // existing local photo
+        id: -2,
+      }
+      const expectedExistingBlockedPhoto = {
+        tag: 'photo2 placeholder', // existing local blocked photo
+        id: -3,
+      }
       expect(result).toEqual({
         photoIdsToDelete: [],
         newPhotos: [],
@@ -1003,14 +1030,8 @@ describe('things that need a datastore', () => {
               isRemote: true,
               url: 'http://whatever...',
             },
-            {
-              tag: 'photo1 placeholder', // existing local photo
-              id: -2,
-            },
-            {
-              tag: 'photo2 placeholder', // existing local blocked photo
-              id: -3,
-            },
+            expectedExistingLocalPhoto,
+            expectedExistingBlockedPhoto,
           ],
           speciesGuess: 'species blah',
           uuid: '123A',
@@ -1020,6 +1041,15 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [expectedExistingLocalPhoto],
+            [constants.blockedActionFieldName]: {
+              wowMeta: {
+                recordType: 'edit',
+                [constants.photosToAddFieldName]: [
+                  expectedExistingBlockedPhoto,
+                ],
+              },
+            },
           },
         },
       })
@@ -1097,6 +1127,14 @@ describe('things that need a datastore', () => {
       }
       expect(result.newPhotos).toHaveLength(1)
       expect(result.record.photos).toHaveLength(4)
+      const expectedExistingLocalPhoto = {
+        tag: 'photo1 placeholder', // existing local photo
+        id: -2,
+      }
+      const expectedExistingBlockedPhoto = {
+        tag: 'photo2 placeholder', // existing local blocked photo
+        id: -3,
+      }
       expect(result).toEqual({
         photoIdsToDelete: [],
         newPhotos: [expectedPhoto1],
@@ -1109,14 +1147,8 @@ describe('things that need a datastore', () => {
               isRemote: true,
               url: 'http://whatever...',
             },
-            {
-              tag: 'photo1 placeholder', // existing local photo
-              id: -2,
-            },
-            {
-              tag: 'photo2 placeholder', // existing local blocked photo
-              id: -3,
-            },
+            expectedExistingLocalPhoto,
+            expectedExistingBlockedPhoto,
             expectedPhoto1,
           ],
           speciesGuess: 'species blah',
@@ -1126,6 +1158,15 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [expectedExistingLocalPhoto],
+            [constants.blockedActionFieldName]: {
+              wowMeta: {
+                recordType: 'edit',
+                [constants.photosToAddFieldName]: [
+                  expectedExistingBlockedPhoto,
+                ],
+              },
+            },
           },
         },
       })
@@ -1191,6 +1232,13 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'draft',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [],
+            [constants.blockedActionFieldName]: {
+              wowMeta: {
+                recordType: 'edit',
+                [constants.photosToAddFieldName]: [],
+              },
+            },
           },
         },
       })
@@ -1263,6 +1311,13 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [],
+            [constants.blockedActionFieldName]: {
+              wowMeta: {
+                recordType: 'edit',
+                [constants.photosToAddFieldName]: [],
+              },
+            },
           },
         },
       })
@@ -1336,6 +1391,14 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [],
+            [constants.blockedActionFieldName]: {
+              wowMeta: {
+                recordType: 'edit',
+                [constants.photosToAddFieldName]: [],
+                [constants.photoIdsToDeleteFieldName]: [888],
+              },
+            },
           },
         },
       })
@@ -1408,6 +1471,8 @@ describe('things that need a datastore', () => {
             [constants.recordProcessingOutcomeFieldName]: 'waiting',
             [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.photosToAddFieldName]: [],
+            [constants.photoIdsToDeleteFieldName]: [888],
           },
         },
       })
