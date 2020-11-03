@@ -9,10 +9,19 @@ expect.extend({
     return {
       pass: isValid,
       // according to the doco
-      // (https://jestjs.io/docs/en/expect#expectextendmatchers) I'm meant to
+      // (https://jestjs.io/docs/en/expect#expectextendmatchers), we're meant to
       // have two versions of the message, but I don't. Hope that doesn't upset
       // you.
       message: () => `expected '${received}' to be a valid date string`,
+    }
+  },
+})
+
+expect.extend({
+  toBeUuidString(received) {
+    return {
+      pass: expect.stringMatching(/^.{36}$/).asymmetricMatch(received),
+      message: () => `expected '${received}' to be a UUID string`,
     }
   },
 })
@@ -22,12 +31,12 @@ expect.extend({
 // dependencies that make it hard to run in Node so we just replace the
 // function that uses Comlink completely in tests.
 obsStoreTestOnly.interceptableFns.buildWorker = function() {
-  return require('@/store/map-over-obs-store.worker.js')._testonly
+  return require('@/store/obs-store.worker.js')._testonly
 }
 
-// we stub indexedDB below, which is required for workbox, but we don't want
-// localForage to try to use it because it's just a stub
-_testonly.forceLocalForageDriver(localForage.LOCALSTORAGE)
+// we load "fake-indexeddb/auto" in the test setupFiles, but just to make sure
+// we'll force localForage to use the fake IndexedDB.
+_testonly.forceLocalForageDriver(localForage.INDEXEDDB)
 
 class LocalStorageMock {
   constructor() {
@@ -43,7 +52,7 @@ class LocalStorageMock {
   }
 
   setItem(key, value) {
-    this.store[key] = value.toString()
+    this.store[key] = value // localForage will handle serialisation
   }
 
   removeItem(key) {

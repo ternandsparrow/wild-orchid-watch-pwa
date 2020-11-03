@@ -2,10 +2,24 @@ import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 import { _testonly as workerTestOnly } from '@/store/obs-store.worker'
+import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
 
 _testonly.interceptableFns.buildWorker = function() {
   return workerTestOnly.exposed
 }
+
+const originalFn = obsStoreCommonTestOnly.interceptableFns.storePhotoRecord
+beforeAll(() => {
+  // stub blob handling to avoid supplying full, valid Blobs for every test.
+  obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = (_, r) => ({
+    ...r,
+    thumb: true,
+  })
+})
+
+afterAll(() => {
+  obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn
+})
 
 describe('mutations', () => {
   describe('addRecentlyUsedTaxa', () => {
@@ -342,7 +356,7 @@ describe('actions', () => {
   })
 
   describe('things that need a datastore', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -469,7 +483,7 @@ describe('actions', () => {
   })
 
   describe('refreshLocalRecordQueue', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -507,7 +521,7 @@ describe('actions', () => {
       expect(committedState.setUiVisibleLocalRecords).toEqual([
         {
           geolocationAccuracy: undefined,
-          thumbnailUrl: undefined,
+          thumbnailUrl: null,
           uuid: '123A',
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
@@ -556,7 +570,7 @@ describe('actions', () => {
   })
 
   describe('deleteSelectedRecord', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -733,7 +747,7 @@ describe('actions', () => {
   })
 
   describe('deleteSelectedLocalRecord', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -781,7 +795,7 @@ describe('actions', () => {
   })
 
   describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -964,17 +978,22 @@ describe('actions', () => {
     })
 
     it('should trigger a blocked action', async () => {
+      const existingLocalPhoto = { id: 11, testTag: 'photo1 placeholder' }
+      const existingBlockedLocalPhoto = {
+        id: 22,
+        testTag: 'photo2 placeholder',
+      }
       await obsStore.setItem('456B', {
         uuid: '456B',
-        photos: ['photo1 placeholder', 'photo2 placeholder'],
+        photos: [existingLocalPhoto, existingBlockedLocalPhoto],
         wowMeta: {
-          [constants.photosToAddFieldName]: ['photo1 placeholder'],
+          [constants.photosToAddFieldName]: [existingLocalPhoto],
           [constants.blockedActionFieldName]: {
             wowMeta: {
               [constants.recordTypeFieldName]: 'edit',
               [constants.photoIdsToDeleteFieldName]: [111],
               [constants.recordProcessingOutcomeFieldName]: 'waiting',
-              [constants.photosToAddFieldName]: ['photo2 placeholder'],
+              [constants.photosToAddFieldName]: [existingBlockedLocalPhoto],
             },
           },
         },
@@ -1012,14 +1031,20 @@ describe('actions', () => {
         [constants.recordTypeFieldName]: 'edit',
         [constants.recordProcessingOutcomeFieldName]: 'waiting',
         [constants.photoIdsToDeleteFieldName]: [111],
-        [constants.photosToAddFieldName]: ['photo2 placeholder'],
+        [constants.photosToAddFieldName]: [
+          {
+            id: 22,
+            testTag: 'photo2 placeholder',
+            thumb: true,
+          },
+        ],
         [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
       })
     })
   })
 
   describe('findDbIdForWowId', () => {
-    const obsStore = getOrCreateInstance('wow-obs')
+    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()

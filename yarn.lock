@@ -6400,7 +6400,7 @@ face-api.js@0.20.1:
     tfjs-image-recognition-base "^0.6.1"
     tslib "^1.10.0"
 
-fake-indexeddb@^3.0.0:
+fake-indexeddb@^3.1.2:
   version "3.1.2"
   resolved "https://registry.yarnpkg.com/fake-indexeddb/-/fake-indexeddb-3.1.2.tgz#8073a12ed3b254f7afc064f3cc2629f0110a5303"
   integrity sha512-W60eRBrE8r9o/EePyyUc63sr2I/MI9p3zVwLlC1WI1xdmQVqqM6+wec9KDWDz2EZyvJKhrDvy3cGC6hK8L1pfg==

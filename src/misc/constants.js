@@ -379,6 +379,7 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 // More "constant" constants from here on
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
+export const noPreviewAvailableUrl = '/img/no-preview-available.png'
 
 export const noProfilePicPlaceholderUrl =
   '/img/no-profile-pic-placeholder-3.png'
@@ -394,6 +395,7 @@ export const neverUpload = 'NEVER'
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
 export const lfWowObsStoreName = 'wow-obs'
+export const lfWowPhotoStoreName = 'wow-photo'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 

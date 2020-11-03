@@ -71,14 +71,16 @@ export default {
       try {
         const start = Date.now()
         const blobs = []
-        const dataShape = await mapOverObsStore(r => {
+        const photoPresence = await mapOverObsStore(r => {
           const photos = r.wowMeta[constants.photosToAddFieldName] || []
-          const photoShape = []
+          const isPresentFlags = []
           for (const curr of photos) {
             blobs.push(new Blob([new Uint8Array(curr.file.data)]))
-            photoShape.push(1)
+            // we're collecting "how many records have photos" and "how many
+            // photos" at the same time.
+            isPresentFlags.push(1)
           }
-          return photoShape
+          return isPresentFlags
         })
         this.thumbs = []
         for (const curr of blobs) {
@@ -103,8 +105,8 @@ export default {
           })
         }
         this.totalElapsedTime = Date.now() - start
-        this.obsRecordsProcessed = dataShape.length
-        this.photosProcessed = dataShape.reduce((accum, curr) => {
+        this.obsRecordsProcessed = photoPresence.length
+        this.photosProcessed = photoPresence.reduce((accum, curr) => {
           accum += curr.length
           return accum
         }, 0)

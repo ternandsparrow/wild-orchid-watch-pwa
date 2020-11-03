@@ -2,31 +2,47 @@ import dayjs from 'dayjs'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as constants from '@/misc/constants'
 import { _testonly } from '@/store/obs-store.worker'
+import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
+import {
+  byteLengthOfThumbnail,
+  getPhotoWithThumbnail,
+  sizeOfPhotoWithExifThumbnail,
+} from '@/../tests/unit/test-helpers'
 
 const objectUnderTest = _testonly.exposed
 
 describe('things that need a datastore', () => {
   let origConsoleDebug
-  const obsStore = getOrCreateInstance('wow-obs')
+  const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(constants.lfWowPhotoStoreName)
+
+  const originalFn = obsStoreCommonTestOnly.interceptableFns.storePhotoRecord
+  function stubStorePhotoRecordFn() {
+    // stub blob handling to avoid supplying full, valid Blobs for every test.
+    obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = async (_, r) => {
+      await photoStore.setItem(r.id, r)
+      return {
+        ...r,
+        thumb: true,
+      }
+    }
+  }
 
   beforeAll(function() {
+    stubStorePhotoRecordFn()
     origConsoleDebug = console.debug
     console.debug = () => {}
   })
 
   beforeEach(async () => {
     await obsStore.clear()
+    await photoStore.clear()
   })
 
   afterAll(async () => {
     await obsStore.clear()
+    await photoStore.clear()
     console.debug = origConsoleDebug
-  })
-
-  it('should reset localForage store for each test', async () => {
-    // not completely foolproof but a canary to verify beforeEach
-    const result = (await obsStore.keys()).length
-    expect(result).toEqual(0)
   })
 
   describe('upsertBlockedAction', () => {
@@ -100,20 +116,26 @@ describe('things that need a datastore', () => {
     )
 
     it('should not duplicate added photos when editing a blocked action', async () => {
-      await obsStore.setItem('123A', {
+      const existingLocalPhoto = { id: '11', testTag: 'photo1 placeholder' }
+      const existingBlockedPhoto = { id: '22', testTag: 'photo2 placeholder' }
+      const baseRecord = {
         uuid: '123A',
+        photos: [existingLocalPhoto, existingBlockedPhoto],
+      }
+      await obsStore.setItem('123A', {
+        ...baseRecord,
         wowMeta: {
           [constants.recordTypeFieldName]: 'new',
-          [constants.photosToAddFieldName]: ['photo1 placeholder'],
+          [constants.photosToAddFieldName]: [existingLocalPhoto],
           [constants.blockedActionFieldName]: {
             wowMeta: {
-              [constants.photosToAddFieldName]: ['photo2 placeholder'],
+              [constants.photosToAddFieldName]: [existingBlockedPhoto],
             },
           },
         },
       })
       const record = {
-        uuid: '123A',
+        ...baseRecord,
         wowMeta: {
           [constants.recordTypeFieldName]: 'edit',
         },
@@ -125,51 +147,62 @@ describe('things that need a datastore', () => {
       })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[constants.photosToAddFieldName]).toEqual([
-        'photo1 placeholder',
+        { id: '11', testTag: 'photo1 placeholder', thumb: true },
       ])
       expect(
         result.wowMeta[constants.blockedActionFieldName].wowMeta[
           constants.photosToAddFieldName
         ],
-      ).toEqual(['photo2 placeholder'])
+      ).toEqual([{ id: '22', testTag: 'photo2 placeholder', thumb: true }])
     })
 
     it(
       'should only merge the newPhotos with the existing ' +
         'blocked action, but leave the record wowMeta values alone',
       async () => {
-        await obsStore.setItem('123A', {
+        const existingLocalPhoto = { id: '11', testTag: 'photo1 placeholder' }
+        const existingBlockedPhoto = { id: '22', testTag: 'photo2 placeholder' }
+        const baseRecord = {
           uuid: '123A',
+          photos: [existingLocalPhoto, existingBlockedPhoto],
+        }
+        await obsStore.setItem('123A', {
+          ...baseRecord,
           wowMeta: {
             [constants.recordTypeFieldName]: 'new',
-            [constants.photosToAddFieldName]: ['photo1 placeholder'],
+            [constants.photosToAddFieldName]: [existingLocalPhoto],
             [constants.blockedActionFieldName]: {
               wowMeta: {
-                [constants.photosToAddFieldName]: ['photo2 placeholder'],
+                [constants.photosToAddFieldName]: [existingBlockedPhoto],
               },
             },
           },
         })
+        const newPhoto = { id: '33', testTag: 'photo3 placeholder' }
         const record = {
           uuid: '123A',
+          photos: [...baseRecord.photos, newPhoto],
           wowMeta: {
             [constants.recordTypeFieldName]: 'edit',
           },
         }
-        const newPhotos = ['photo3 placeholder']
+        const newPhotos = [newPhoto]
         await _testonly.upsertBlockedAction({
           record,
           newPhotos,
         })
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[constants.photosToAddFieldName]).toEqual([
-          'photo1 placeholder',
+          { id: '11', testTag: 'photo1 placeholder', thumb: true },
         ])
         expect(
           result.wowMeta[constants.blockedActionFieldName].wowMeta[
             constants.photosToAddFieldName
           ],
-        ).toEqual(['photo2 placeholder', 'photo3 placeholder'])
+        ).toEqual([
+          { id: '22', testTag: 'photo2 placeholder', thumb: true },
+          { id: '33', testTag: 'photo3 placeholder', thumb: true },
+        ])
       },
     )
 
@@ -316,41 +349,46 @@ describe('things that need a datastore', () => {
     })
 
     it('should set newPhotos when none are already pending', async () => {
+      const newPhoto = { id: '11', testTag: 'photo 1' }
       const record = {
         uuid: '123A',
+        photos: [newPhoto],
         wowMeta: {
           [constants.photosToAddFieldName]: null,
         },
       }
       await obsStore.setItem('123A', record)
-      const newPhotos = [{ testTag: 'photo 1' }]
+      const newPhotos = [newPhoto]
       await _testonly.upsertQueuedAction({
         record,
         newPhotos,
       })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[constants.photosToAddFieldName]).toEqual([
-        { testTag: 'photo 1' },
+        { id: '11', testTag: 'photo 1', thumb: true },
       ])
     })
 
     it('should merge newPhotos when some are already pending', async () => {
+      const existingPhoto = { id: '11', testTag: 'photo 1' }
+      const newPhoto = { id: '22', testTag: 'photo 2' }
       const record = {
         uuid: '123A',
+        photos: [existingPhoto, newPhoto],
         wowMeta: {
-          [constants.photosToAddFieldName]: [{ testTag: 'photo 1' }],
+          [constants.photosToAddFieldName]: [existingPhoto],
         },
       }
       await obsStore.setItem('123A', record)
-      const newPhotos = [{ testTag: 'photo 2' }]
+      const newPhotos = [newPhoto]
       await _testonly.upsertQueuedAction({
         record,
         newPhotos,
       })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[constants.photosToAddFieldName]).toEqual([
-        { testTag: 'photo 1' },
-        { testTag: 'photo 2' },
+        { id: '11', testTag: 'photo 1', thumb: true },
+        { id: '22', testTag: 'photo 2', thumb: true },
       ])
     })
 
@@ -384,10 +422,10 @@ describe('things that need a datastore', () => {
         addedPhotos: [],
         observedAt: 1595491950028,
       }
-      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload(
-        { record, isDraft: true },
-        stubRunStrategy,
-      )
+      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload({
+        record,
+        isDraft: true,
+      })
       const result = await obsStore.getItem(newRecordId)
       expect(result).toEqual({
         captive_flag: false,
@@ -409,39 +447,40 @@ describe('things that need a datastore', () => {
     })
 
     it('should save a new record with photos', async () => {
+      obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn // undo stub
       const record = {
         speciesGuess: 'species new',
         addedPhotos: [
           {
-            file: getMinimalJpegBlob(),
+            file: getPhotoWithThumbnail(),
             type: 'top',
           },
           {
-            file: getMinimalJpegBlob(),
+            file: getPhotoWithThumbnail(),
             type: 'habitat',
           },
         ],
       }
-      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload(
-        { record, isDraft: false },
-        stubRunStrategy,
-      )
+      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload({
+        record,
+        isDraft: false,
+      })
       const result = await obsStore.getItem(newRecordId)
       const expectedPhoto1 = {
         file: {
-          data: {}, // doesn't show up in str representation
+          data: expect.any(ArrayBuffer),
           mime: 'image/jpeg',
         },
-        id: -1,
+        id: expect.toBeUuidString(),
         type: 'top',
         url: '(set at render time)',
       }
       const expectedPhoto2 = {
         file: {
-          data: {}, // doesn't show up in str representation
+          data: expect.any(ArrayBuffer),
           mime: 'image/jpeg',
         },
-        id: -2,
+        id: expect.toBeUuidString(),
         type: 'habitat',
         url: '(set at render time)',
       }
@@ -461,12 +500,29 @@ describe('things that need a datastore', () => {
           [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
         },
       })
+      expect(result.photos[0].file.data.byteLength).toEqual(
+        byteLengthOfThumbnail,
+      )
+      expect(result.photos[1].file.data.byteLength).toEqual(
+        byteLengthOfThumbnail,
+      )
+      const resultPhoto1 = await photoStore.getItem(result.photos[0].id)
+      expect(resultPhoto1).toEqual(expectedPhoto1)
+      expect(resultPhoto1.file.data.byteLength).toEqual(
+        sizeOfPhotoWithExifThumbnail,
+      )
+      const resultPhoto2 = await photoStore.getItem(result.photos[1].id)
+      expect(resultPhoto2).toEqual(expectedPhoto2)
+      expect(resultPhoto2.file.data.byteLength).toEqual(
+        sizeOfPhotoWithExifThumbnail,
+      )
+      stubStorePhotoRecordFn()
     })
   })
 
   describe('saveEditAndScheduleUpdate', () => {
     it('should save an edit that changes the speciesGuess on an existing local edit', async () => {
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         inatId: 666,
         speciesGuess: 'species old',
@@ -536,7 +592,7 @@ describe('things that need a datastore', () => {
           },
         ],
       }
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         speciesGuess: 'species old',
         photos: ['photo1'],
@@ -566,11 +622,8 @@ describe('things that need a datastore', () => {
         (_, params) => (result = params),
       )
       const expectedPhoto = {
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: -2,
+        file: expect.any(Blob),
+        id: expect.toBeUuidString(),
         type: 'top',
         url: '(set at render time)',
       }
@@ -709,11 +762,8 @@ describe('things that need a datastore', () => {
         (_, params) => (result = params),
       )
       const expectedPhoto1 = {
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: -1,
+        file: expect.any(Blob),
+        id: expect.toBeUuidString(),
         type: 'top',
         url: '(set at render time)',
       }
@@ -738,7 +788,7 @@ describe('things that need a datastore', () => {
 
     it('should not duplicate photos when saving an edit of a local-only obs', async () => {
       const existingLocalPhoto = { id: -1, tag: 'photo1 placeholder' }
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         speciesGuess: 'species blah',
         photos: [existingLocalPhoto],
@@ -791,11 +841,8 @@ describe('things that need a datastore', () => {
       )
       const expectedExistingLocalPhoto = { id: -2, tag: 'photo1 placeholder' }
       const expectedNewPhoto = {
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: -3,
+        file: expect.any(Blob),
+        id: expect.toBeUuidString(),
         type: 'top',
         url: '(set at render time)',
       }
@@ -955,7 +1002,7 @@ describe('things that need a datastore', () => {
     it('should handle editing a blocked action without adding a photo', async () => {
       const existingLocalPhoto = { id: -1, tag: 'photo1 placeholder' }
       const existingBlockedLocalPhoto = { id: -2, tag: 'photo2 placeholder' }
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         speciesGuess: 'species blah',
         photos: [existingLocalPhoto],
@@ -1058,7 +1105,7 @@ describe('things that need a datastore', () => {
     it('should handle editing a blocked action and adding a photo', async () => {
       const existingLocalPhoto = { id: -1, tag: 'photo1 placeholder' }
       const existingBlockedLocalPhoto = { id: -2, tag: 'photo2 placeholder' }
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         speciesGuess: 'species blah',
         photos: [existingLocalPhoto],
@@ -1117,11 +1164,8 @@ describe('things that need a datastore', () => {
         (_, params) => (result = params),
       )
       const expectedPhoto1 = {
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: -4,
+        file: expect.any(Blob),
+        id: expect.toBeUuidString(),
         type: 'top',
         url: '(set at render time)',
       }
@@ -1173,7 +1217,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should handle editing a blocked action with a draft', async () => {
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         photos: [],
         wowMeta: {
@@ -1245,7 +1289,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should handle editing a blocked action and deleting a photo', async () => {
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         photos: [],
         wowMeta: {
@@ -1324,7 +1368,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should handle editing a blocked action that has a pending photo delete', async () => {
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         photos: [],
         wowMeta: {
@@ -1405,7 +1449,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should handle a two edits, that both delete a photo', async () => {
-      obsStore.setItem('123A', {
+      await obsStore.setItem('123A', {
         uuid: '123A',
         photos: [{ id: 889 }],
         wowMeta: {
@@ -1478,6 +1522,12 @@ describe('things that need a datastore', () => {
       })
     })
   })
+
+  it('should reset localForage store for each test', async () => {
+    // not completely foolproof but a canary to verify beforeEach
+    const result = (await obsStore.keys()).length
+    expect(result).toEqual(0)
+  })
 })
 
 function stubRunStrategy() {
@@ -1506,20 +1556,4 @@ function wowUpdatedAtToBeCloseToNow(record) {
   function failReallyLoudly(msg) {
     throw new Error(`AssertionFail: ${msg}`)
   }
-}
-
-function getMinimalJpegBlob() {
-  // thanks for the tiny JPEG https://github.com/mathiasbynens/small/blob/master/jpeg.jpg
-  const tinyJpegBase64Enc =
-    '/9j/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA' +
-    '8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wA' +
-    'BgAQEAX/2gAIAQEAAD8A0s8g/9k='
-  // thanks for the conversion https://stackoverflow.com/a/16245768/1410035
-  const byteCharacters = atob(tinyJpegBase64Enc)
-  const byteNumbers = new Array(byteCharacters.length)
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i)
-  }
-  const byteArray = new Uint8Array(byteNumbers)
-  return new Blob([byteArray], { type: 'image/jpeg' })
 }

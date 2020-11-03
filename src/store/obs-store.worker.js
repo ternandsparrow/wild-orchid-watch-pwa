@@ -1,16 +1,17 @@
 import { expose as comlinkExpose } from 'comlink'
 import _ from 'lodash'
 import uuid from 'uuid/v1'
+import sentryInit from '@/misc/sentry-init'
 import * as cc from '@/misc/constants'
 import {
   deleteDbRecordById,
   getRecord,
   mapOverObsStore,
+  registerWarnHandler,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
 import {
   arrayBufferToBlob,
-  blobToArrayBuffer,
   chainedError,
   namedError,
   recordTypeEnum as recordType,
@@ -18,6 +19,12 @@ import {
   wowIdOf,
   wowWarnMessage,
 } from '@/misc/helpers'
+
+// we don't need a reference to Sentry, but we do need it initialised so our
+// error handlers work as expected.
+sentryInit('SW')
+
+registerWarnHandler(wowWarnMessage)
 
 const exposed = {
   cleanupPhotosForObs,
@@ -87,13 +94,19 @@ async function getUiVisibleLocalRecords(uuids) {
       const nothingToDoFilterMeOut = null
       return nothingToDoFilterMeOut
     }
-    let thumbnailUrl
-    const photos = currRecord.photos || []
-    if (photos.length) {
-      thumbnailUrl = mapPhotoFromDbToUi(photos[0], u =>
+    const thumbnailUrl = (() => {
+      const photos = currRecord.photos || []
+      if (!photos.length) {
+        return null
+      }
+      const firstPhotoWithThumbnail = photos.find(e => !!e.file)
+      if (!firstPhotoWithThumbnail) {
+        return cc.noPreviewAvailableUrl
+      }
+      return mapPhotoFromDbToUi(firstPhotoWithThumbnail, u =>
         thumbnailObjectUrlsInUse.push(u),
       ).url
-    }
+    })()
     const result = {
       ...currRecord,
       thumbnailUrl,
@@ -102,10 +115,13 @@ async function getUiVisibleLocalRecords(uuids) {
         [cc.photosToAddFieldName]: currRecord.wowMeta[
           cc.photosToAddFieldName
         ].map(p => ({
-          // we don't need ArrayBuffers of photos in memory, slowing things down
           type: p.type,
           id: p.id,
-          fileSummary: `mime=${p.file.mime}, size=${p.file.data.byteLength}`,
+          // we'll load the photos, even if only thumbnails, when we need them.
+          fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
+            p,
+            'file.data.byteLength',
+          )}`,
         })),
       },
     }
@@ -142,6 +158,12 @@ function mapPhotoFromDbToUi(p, urlCallbackFn) {
   const isRemotePhoto = p[cc.isRemotePhotoFieldName]
   if (isRemotePhoto) {
     return p
+  }
+  if (!p.file) {
+    return {
+      ...p,
+      url: cc.noPreviewAvailableUrl,
+    }
   }
   const objectUrl = mintObjectUrl(p.file)
   urlCallbackFn(objectUrl)
@@ -218,7 +240,7 @@ async function saveNewAndScheduleUpload({ record, isDraft }) {
           ...p,
           file: '(removed for logging)',
         })),
-        obsFieldValues: enhancedRecord.obsFieldValues.map(o => ({
+        obsFieldValues: (enhancedRecord.obsFieldValues || []).map(o => ({
           // ignore info available elsewhere. Long traces get truncated :(
           fieldId: o.fieldId,
           value: o.value,
@@ -479,24 +501,17 @@ async function upsertBlockedAction({
   return storeRecord(mergedRecord)
 }
 
-async function processPhotos(photos) {
-  return Promise.all(
-    photos.map(async (curr, $index) => {
-      const tempId = -1 * ($index + 1)
-      const photoDataAsArrayBuffer = await blobToArrayBuffer(curr.file)
-      const photo = {
-        id: tempId,
-        url: '(set at render time)',
-        type: curr.type,
-        file: {
-          data: photoDataAsArrayBuffer,
-          mime: curr.file.type,
-        },
-      }
-      verifyWowDomainPhoto(photo)
-      return photo
-    }),
-  )
+function processPhotos(photos) {
+  return photos.map(curr => {
+    const photo = {
+      id: uuid(),
+      url: '(set at render time)',
+      type: curr.type,
+      file: curr.file,
+    }
+    verifyWowDomainPhoto(photo)
+    return photo
+  })
 }
 
 function isObsStateProcessing(state) {

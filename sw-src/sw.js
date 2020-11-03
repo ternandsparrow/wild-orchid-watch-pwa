@@ -1,10 +1,10 @@
 import 'formdata-polyfill'
-import * as Sentry from '@sentry/browser'
 import { Queue } from 'workbox-background-sync/Queue'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
 import { registerRoute } from 'workbox-routing/registerRoute'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
 import base64js from 'base64-js'
+import sentryInit from '../src/misc/sentry-init'
 import { getOrCreateInstance } from '../src/indexeddb/storage-manager'
 import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
 import {
@@ -19,22 +19,7 @@ import * as devHelpers from '../src/misc/dev-helpers'
 import * as constants from '../src/misc/constants'
 import { doMigrations } from './migrations'
 
-function initErrorTracker() {
-  if (constants.sentryDsn === 'off') {
-    console.debug('No sentry DSN provided, refusing to init Sentry in SW')
-  } else {
-    Sentry.init({
-      dsn: constants.sentryDsn,
-      release: constants.appVersion,
-    })
-    Sentry.configureScope(scope => {
-      scope.setTag('environment', constants.deployedEnvName)
-    })
-  }
-}
-if (process.env.NODE_ENV !== 'test') {
-  initErrorTracker()
-}
+const Sentry = sentryInit('SW')
 
 /**
  * Some situations mean we can't see console messages from the SW (sometimes we

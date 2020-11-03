@@ -7,11 +7,11 @@ import Vue from 'vue'
 import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
 import VueAnalytics from 'vue-analytics'
 import 'pwacompat'
-import * as Sentry from '@sentry/browser'
 import * as Integrations from '@sentry/integrations'
 import * as VueGoogleMaps from 'vue2-google-maps'
 import smoothscroll from 'smoothscroll-polyfill'
 
+import sentryInit from '@/misc/sentry-init'
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
 import initAppleInstallPrompt from '@/misc/handle-apple-install-prompt'
@@ -42,20 +42,9 @@ if (constants.googleAnalyticsTrackerCode !== 'off') {
   })
 }
 
-if (constants.sentryDsn === 'off') {
-  console.debug(
-    'No sentry DSN provided, refusing to init Sentry in main thread',
-  )
-} else {
-  Sentry.init({
-    dsn: constants.sentryDsn,
-    integrations: [new Integrations.Vue({ Vue, attachProps: true })],
-    release: constants.appVersion,
-  })
-  Sentry.configureScope(scope => {
-    scope.setTag('environment', constants.deployedEnvName)
-  })
-}
+const Sentry = sentryInit('main thread', {
+  integrations: [new Integrations.Vue({ Vue, attachProps: true })],
+})
 
 new Vue({
   el: '#app',

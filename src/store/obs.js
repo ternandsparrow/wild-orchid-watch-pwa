@@ -7,6 +7,7 @@ import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
+  registerWarnHandler,
   setRecordProcessingOutcome,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
@@ -30,8 +31,8 @@ import {
 } from '@/misc/helpers'
 import { deserialise } from '@/misc/taxon-s11n'
 
+registerWarnHandler(wowWarnMessage)
 const anyFromOutcome = []
-
 let refreshLocalRecordQueueLock = null
 let obsStoreWorker = null
 function getObsStoreWorker() {
@@ -364,6 +365,9 @@ const actions = {
     })()
     await deleteDbRecordById(currDbId)
     if (blockedAction) {
+      // FIXME do we need to explicitly delete photos from the replaced record?
+      // We could leverage the storeRecord fn by injecting the IDs into the
+      // record.
       await storeRecord(blockedAction)
     }
   },
@@ -1476,7 +1480,7 @@ const getters = {
     // there's a race condition where you can get to an obs detail page before
     // the project info has been cached. This stops an error and will
     // auto-magically update when the project info does arrive
-    return (state.projectInfo || {}).project_observation_fields || []
+    return _.get(state, 'projectInfo.project_observation_fields', [])
   },
   projectId(state) {
     return (state.projectInfo || {}).id
@@ -1513,7 +1517,7 @@ export const networkHooks = [
 
 export function isObsSystemError(record) {
   return (
-    (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
+    _.get(record, `wowMeta.${constants.recordProcessingOutcomeFieldName}`) ===
     constants.systemErrorOutcome
   )
 }
