@@ -1,6 +1,6 @@
 // Functions related to the dealing with our observation store that are required
-// by both the client and the service worker. We don't want the SW to import
-// the vuex code hence this module
+// by the client, worker(s) and the service worker. We don't want the workers
+// to import the vuex code hence this module.
 import _ from 'lodash'
 import {
   blobToArrayBuffer,
@@ -20,6 +20,8 @@ export function registerWarnHandler(handler) {
 }
 
 async function storeRecordImpl(obsStore, photoStore, record) {
+  // enhancement idea: when clobbering an existing record, we could calculate
+  // if any photos are implicity deleted (orphaned) and delete them.
   const key = record.uuid
   try {
     if (!key) {
@@ -30,60 +32,57 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
     )
-    const newPhotos = _.get(record, `wowMeta.${cc.photosToAddFieldName}`, [])
-    if (newPhotos.length) {
-      const thumbnails = await savePhotosAndReplaceWithThumbnails(newPhotos)
-      record.wowMeta[cc.photosToAddFieldName] = thumbnails
-    }
-    const blockedActionPhotos = _.get(
+    await savePhotosAndReplaceWithThumbnails(
+      record,
+      `wowMeta.${cc.photosToAddFieldName}`,
+    )
+    await savePhotosAndReplaceWithThumbnails(
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
-      [],
     )
-    if (blockedActionPhotos.length) {
-      const thumbnails = await savePhotosAndReplaceWithThumbnails(
-        blockedActionPhotos,
-      )
-      record.wowMeta[cc.blockedActionFieldName].wowMeta[
-        cc.photosToAddFieldName
-      ] = thumbnails
-    }
     return obsStore.setItem(key, record)
   } catch (err) {
     throw chainedError(`Failed to store db record with ID='${key}'`, err)
   }
-  async function savePhotosAndReplaceWithThumbnails(photos) {
-    const thumbnails = []
-    for (const currIndex in photos) {
-      const curr = photos[currIndex]
+  async function savePhotosAndReplaceWithThumbnails(record, propPath) {
+    const photos = _.get(record, propPath, [])
+    if (!photos.length) {
+      return
+    }
+    const result = []
+    for (const curr of photos) {
       // FIXME this won't work for migration
       const isAlreadyThumbnail =
         _.get(curr, 'file.data.constructor') === ArrayBuffer ||
         curr.file === null
       if (isAlreadyThumbnail) {
-        thumbnails.push(curr)
+        result.push(curr)
         continue
       }
       const currThumb = await interceptableFns.storePhotoRecord(
         photoStore,
         curr,
       )
-      thumbnails.push(currThumb)
+      result.push(currThumb)
       // update the array of all photos to use the thumbnail
-      record.photos.splice(currIndex, 1, currThumb)
+      const foundIndex = record.photos.findIndex(e => e.id === curr.id)
+      if (!~foundIndex) {
+        throw new Error(
+          `Inconsistent data error: could not find photo with ` +
+            `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
+            ` available photo IDs=${JSON.stringify(photos.map(e => e.id))}`,
+        )
+      }
+      record.photos.splice(foundIndex, 1, currThumb)
     }
-    return thumbnails
+    _.set(record, propPath, result)
   }
   async function deleteLocalPhotos(record, propPath) {
     const ids = _.get(record, propPath, [])
     if (!ids.length) {
       return
     }
-    const idsToDelete = ids.filter(e => {
-      // we use strings for photo IDs locally, iNat uses numbers
-      const isLocalPhoto = typeof e === 'string'
-      return isLocalPhoto
-    })
+    const idsToDelete = ids.filter(isLocalPhotoId)
     for (const curr of idsToDelete) {
       console.debug(`Deleting local photo with ID=${curr}`)
       await photoStore.removeItem(curr)
@@ -134,23 +133,39 @@ async function getRecordImpl(store, recordId) {
   }
 }
 
-export async function deleteDbRecordById(id) {
-  // FIXME need to also delete photos
-  const store = getOrCreateInstance(cc.lfWowObsStoreName)
+export function deleteDbRecordById(id) {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return deleteDbRecordByIdImpl(obsStore, photoStore, id)
+}
+
+async function deleteDbRecordByIdImpl(obsStore, photoStore, id) {
   try {
-    return store.removeItem(id)
+    const existingObsRecord = await obsStore.getItem(id)
+    if (!existingObsRecord) {
+      // nothing to do
+      return
+    }
+    const idsToDelete = (existingObsRecord.photos || [])
+      .map(e => e.id)
+      .filter(isLocalPhotoId)
+    for (const curr of idsToDelete) {
+      console.debug(`Deleting local photo with ID=${curr}`)
+      await photoStore.removeItem(curr)
+    }
+    return obsStore.removeItem(id)
   } catch (err) {
     throw chainedError(`Failed to delete db record with ID='${id}'`, err)
   }
 }
 
-export async function storeRecord(record) {
+export function storeRecord(record) {
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
   const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
   return storeRecordImpl(obsStore, photoStore, record)
 }
 
-export async function getRecord(recordId) {
+export function getRecord(recordId) {
   const store = getOrCreateInstance(cc.lfWowObsStoreName)
   return getRecordImpl(store, recordId)
 }
@@ -186,11 +201,17 @@ export function healthcheckStore() {
   return store.ready()
 }
 
+function isLocalPhotoId(id) {
+  // we use strings for photo IDs locally, iNat uses numbers
+  return typeof id === 'string'
+}
+
 const interceptableFns = {
   storePhotoRecord,
 }
 
 export const _testonly = {
+  deleteDbRecordByIdImpl,
   getRecordImpl,
   interceptableFns,
   storeRecordImpl,

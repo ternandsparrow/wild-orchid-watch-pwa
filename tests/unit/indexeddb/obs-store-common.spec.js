@@ -281,9 +281,53 @@ describe('obs-store-common', () => {
       expect(await testPhotoStore.getItem(photoDbId)).toBeNull()
     })
 
-    // FIXME handle record delete that also deletes photos
-
-    // FIXME handle implicit photo delete on obs record clobber
+    it('should delete all linked photos when an obs is deleted', async () => {
+      const recordId = '666B'
+      // set up fixture
+      const photo1 = {
+        file: getPhotoWithThumbnail(),
+        id: '1111',
+        type: 'top',
+      }
+      const photo2 = {
+        file: getPhotoWithThumbnail(),
+        id: '2222',
+        type: 'flower',
+      }
+      const record = {
+        uuid: recordId,
+        photos: [photo1, photo2],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [photo1],
+          [cc.blockedActionFieldName]: {
+            wowMeta: {
+              [cc.photosToAddFieldName]: [photo2],
+            },
+          },
+        },
+      }
+      await objectUnderTest.storeRecordImpl(
+        testObsStore,
+        testPhotoStore,
+        record,
+      )
+      const savedRecord = await testObsStore.getItem(recordId)
+      // confirm the obs and photos were saved
+      expect(savedRecord).toBeTruthy()
+      for (const curr of savedRecord.photos) {
+        expect(await testPhotoStore.getItem(curr.id)).toBeTruthy()
+      }
+      // now we delete the obs record
+      await objectUnderTest.deleteDbRecordByIdImpl(
+        testObsStore,
+        testPhotoStore,
+        recordId,
+      )
+      expect(await testObsStore.getItem(recordId)).toBeNull()
+      for (const curr of savedRecord.photos) {
+        expect(await testPhotoStore.getItem(curr.id)).toBeNull()
+      }
+    })
 
     // FIXME handle migration to move existing photos to separate storage
 
