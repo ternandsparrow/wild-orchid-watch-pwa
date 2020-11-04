@@ -38,7 +38,7 @@ const store = new Vuex.Store({
         delete cleanedState.news
         // Aug 2020 remove fields no longer used
         delete cleanedState.obs.selectedObservationId
-        return storage.setItem(key, JSON.stringify(cleanedState))
+        storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),
   ],
