@@ -11,6 +11,7 @@ import {
   iterateIdb,
   makeObsRequest,
   now,
+  recordTypeEnum,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
   // wowErrorHandler eventually
   wowErrorHandler,
@@ -26,6 +27,7 @@ export {
   iterateIdb,
   makeObsRequest,
   now,
+  recordTypeEnum,
   wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
@@ -419,28 +421,6 @@ export function rectangleAlongPathAreaValueToTitle(v) {
     return `${val}m² (i.e. ${x}x${y} or similar)`
   }
 }
-
-/**
- * Takes an array of valid values and returns a validator function. The
- * validator function takes a single param and returns it as-is if valid,
- * otherwise throws an error.
- */
-export function makeEnumValidator(validValues) {
-  if (!Array.isArray(validValues) || !validValues.length) {
-    throw new Error('Input must be a non-empty array!')
-  }
-  return function(enumItem) {
-    const isValid = validValues.includes(enumItem)
-    if (!isValid) {
-      throw new Error(
-        `Invalid enum value='${enumItem}' is not in valid values=[${validValues}]`,
-      )
-    }
-    return enumItem
-  }
-}
-
-export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
 
 export function humanDateString(dateStr) {
   if (!dateStr) {

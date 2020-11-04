@@ -3,14 +3,18 @@ import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
 import {
+  // importing this module implicitly calls sentryInit()
   deleteDbRecordById,
   getRecord,
+  isMigrationDone,
+  mapObsFromOurDomainOntoApi,
   mapOverObsStore,
+  markMigrationDone,
   performMigrationsInWorker,
-  registerWarnHandler,
   registerUuidGenerator,
+  registerWarnHandler,
+  setRecordProcessingOutcome as setRPO,
   storeRecord,
-  // importing this module implicitly calls sentryInit()
 } from '@/indexeddb/obs-store-common'
 import {
   arrayBufferToBlob,
@@ -29,11 +33,15 @@ const exposed = {
   cleanupPhotosForObs,
   deleteSelectedLocalRecord,
   deleteSelectedRecord,
+  doEditRecordStrategy,
+  doNewRecordStrategy,
   getData,
   getDbPhotosForObs,
+  migrateLocalRecordsWithoutOutcomeLastUpdatedAt,
   performMigrations,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
+  setRecordProcessingOutcome,
 }
 comlinkExpose(exposed)
 
@@ -659,6 +667,105 @@ function computePhotos(
       e.id = isPhotoLocalOnly ? -1 * ($index + 1) : e.id
       return e
     })
+  }
+}
+
+async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+  localQueueSummary,
+) {
+  if (await isMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)) {
+    return
+  }
+  const uuidsToMigrate = (localQueueSummary || [])
+    .filter(e => !e[cc.outcomeLastUpdatedAtFieldName])
+    .map(e => ({
+      uuid: e.uuid,
+      outcome: e[cc.recordProcessingOutcomeFieldName],
+    }))
+  const logPrefix = '[obs migrate]'
+  if (!uuidsToMigrate.length) {
+    console.debug(`${logPrefix} no records need outcomeLastUpdatedAt migrated`)
+    await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
+    return
+  }
+  console.debug(
+    `${logPrefix} adding outcomeLastUpdatedAt values to ` +
+      `${uuidsToMigrate.length} records`,
+  )
+  for (const curr of uuidsToMigrate) {
+    console.debug(
+      `${logPrefix} setting outcomeLastUpdatedAt for UUID=${curr.uuid} that ` +
+        `has outcome=${curr.outcome}`,
+    )
+    await setRecordProcessingOutcome(curr.uuid, curr.outcome)
+  }
+  await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
+}
+
+async function setRecordProcessingOutcome(dbId, outcome) {
+  await setRPO(dbId, outcome)
+}
+
+async function doNewRecordStrategy(recordId, projectId, apiToken) {
+  const payload = await generatePayload(recordId)
+  payload[cc.projectIdFieldName] = projectId
+  const resp = await doBundleEndpointFetch(payload, 'POST', apiToken)
+  if (!resp.ok) {
+    throw new Error(
+      `POST to bundle endpoint worked at an HTTP level,` +
+        ` but the status code indicates an error. Status=${resp.status}.` +
+        ` Message=${await getBundleErrorMsg(resp)}`,
+    )
+  }
+}
+
+async function doEditRecordStrategy(recordId, apiToken) {
+  const payload = await generatePayload(recordId)
+  const resp = await doBundleEndpointFetch(payload, 'PUT', apiToken)
+  if (!resp.ok) {
+    throw new Error(
+      `PUT to bundle endpoint worked at an HTTP level,` +
+        ` but the status code indicates an error. Status=${resp.status}` +
+        ` Message=${await getBundleErrorMsg(resp)}`,
+    )
+  }
+}
+
+async function generatePayload(recordId) {
+  const dbRecord = await getRecord(recordId)
+  if (!dbRecord) {
+    throw new Error(`Could not find DB record with ID=${recordId}`)
+  }
+  const apiRecords = await mapObsFromOurDomainOntoApi(dbRecord)
+  const result = {}
+  result[cc.obsFieldName] = apiRecords.observationPostBody
+  result[cc.photoIdsToDeleteFieldName] =
+    dbRecord.wowMeta[cc.photoIdsToDeleteFieldName]
+  result[cc.photosFieldName] = apiRecords.photoPostBodyPartials
+  result[cc.obsFieldIdsToDeleteFieldName] =
+    dbRecord.wowMeta[cc.obsFieldIdsToDeleteFieldName]
+  return result
+}
+
+function doBundleEndpointFetch(payload, method, apiToken) {
+  return fetch(cc.serviceWorkerBundleMagicUrl, {
+    method,
+    headers: {
+      Authorization: apiToken,
+    },
+    body: JSON.stringify(payload),
+    retries: 0,
+  })
+}
+
+async function getBundleErrorMsg(resp) {
+  try {
+    const body = await resp.json()
+    return body.msg
+  } catch (err) {
+    const msg = 'Bundle resp was not JSON, could not extract message'
+    console.debug(msg, err)
+    return `(${msg})`
   }
 }
 

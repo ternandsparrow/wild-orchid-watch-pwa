@@ -226,3 +226,25 @@ export function blobToArrayBuffer(blob) {
     reader.readAsArrayBuffer(blob)
   })
 }
+
+export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
+
+/**
+ * Takes an array of valid values and returns a validator function. The
+ * validator function takes a single param and returns it as-is if valid,
+ * otherwise throws an error.
+ */
+export function makeEnumValidator(validValues) {
+  if (!Array.isArray(validValues) || !validValues.length) {
+    throw new Error('Input must be a non-empty array!')
+  }
+  return function(enumItem) {
+    const isValid = validValues.includes(enumItem)
+    if (!isValid) {
+      throw new Error(
+        `Invalid enum value='${enumItem}' is not in valid values=[${validValues}]`,
+      )
+    }
+    return enumItem
+  }
+}

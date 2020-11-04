@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import base64js from 'base64-js'
 import dayjs from 'dayjs'
 import Fuse from 'fuse.js'
 import { wrap as comlinkWrap } from 'comlink'
@@ -7,10 +6,8 @@ import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
-  isMigrationDone,
-  markMigrationDone,
+  mapObsFromOurDomainOntoApi,
   registerWarnHandler,
-  setRecordProcessingOutcome,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
 import * as constants from '@/misc/constants'
@@ -571,6 +568,8 @@ const actions = {
       // and use that as the DB ID. The ID that is passed in will therefore
       // already be a DB ID but we're confirming.
       const possibleDbId = wowId
+      // FIXME this call hurts performance on the main thread. Either don't do
+      // it or move the call onto the worker.
       if (await getRecord(possibleDbId)) {
         return possibleDbId
       }
@@ -744,16 +743,13 @@ const actions = {
       }
       const idToProcess = waitingQueue[0].uuid
       try {
-        // the DB record may be further edited while we're processing but that
-        // won't affect our snapshot here
-        const dbRecordSnapshot = await getRecord(idToProcess)
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
         const strategy = isNoServiceWorkerAvailable
           ? 'processWaitingDbRecordNoSw'
           : 'processWaitingDbRecordWithSw'
-        await dispatch(strategy, { dbRecord: dbRecordSnapshot })
+        await dispatch(strategy, idToProcess)
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
@@ -1064,9 +1060,12 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch, getters }, { dbRecord }) {
-    await dispatch('transitionToWithLocalProcessorOutcome', wowIdOf(dbRecord))
-    const apiRecords = mapObsFromOurDomainOntoApi(dbRecord)
+  async processWaitingDbRecordNoSw({ dispatch, getters }, recordId) {
+    await dispatch('transitionToWithLocalProcessorOutcome', recordId)
+    // the DB record may be further edited while we're processing but that
+    // won't affect our snapshot here
+    const dbRecord = await getRecord(recordId)
+    const apiRecords = await mapObsFromOurDomainOntoApi(dbRecord)
     const strategies = {
       [recordType('new')]: async () => {
         const localPhotoIds = []
@@ -1134,48 +1133,45 @@ const actions = {
     await dispatch('refreshRemoteObsWithDelay')
   },
   async processWaitingDbRecordWithSw(
-    { dispatch, rootState, getters },
-    { dbRecord },
+    { dispatch, rootState, getters, state },
+    recordId,
   ) {
+    const recordSummary = state.localQueueSummary.find(e => (e.uuid = recordId))
+    if (!recordSummary) {
+      const ids = JSON.stringify(state.localQueueSummary.map(e => e.uuid))
+      throw new Error(
+        `Could not find record summary for UUID=${recordId} from IDs=${ids}`,
+      )
+    }
     const strategies = {
       [recordType('new')]: async () => {
-        const payload = generatePayload(dbRecord)
+        const apiToken = rootState.auth.apiToken
         const projectId = getters.projectId
         if (!projectId) {
           throw new Error(
             'No projectInfo stored, cannot link observation to project without ID',
           )
         }
-        payload[constants.projectIdFieldName] = projectId
-        const resp = await doBundleEndpointFetch(payload, 'POST')
-        if (!resp.ok) {
-          throw new Error(
-            `POST to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${resp.status}.` +
-              ` Message=${await getBundleErrorMsg(resp)}`,
-          )
-        }
+        await getObsStoreWorker().doNewRecordStrategy(
+          recordId,
+          projectId,
+          apiToken,
+        )
       },
       [recordType('edit')]: async () => {
-        const payload = generatePayload(dbRecord)
-        const resp = await doBundleEndpointFetch(payload, 'PUT')
-        if (!resp.ok) {
-          throw new Error(
-            `PUT to bundle endpoint worked at an HTTP level,` +
-              ` but the status code indicates an error. Status=${resp.status}` +
-              ` Message=${await getBundleErrorMsg(resp)}`,
-          )
-        }
+        const apiToken = rootState.auth.apiToken
+        await getObsStoreWorker().doEditRecordStrategy(recordId, apiToken)
       },
       [recordType('delete')]: () => {
+        const inatId = recordSummary.inatId
         return dispatch('_deleteObservation', {
-          inatRecordId: dbRecord.inatId,
-          recordUuid: dbRecord.uuid,
+          inatRecordId: inatId,
+          recordUuid: recordId,
         })
       },
     }
-    const key = dbRecord.wowMeta[constants.recordTypeFieldName]
-    console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
+    const key = recordSummary[constants.recordTypeFieldName]
+    console.debug(`DB record with UUID='${recordId}' is type='${key}'`)
     const strategy = strategies[key]
     if (!strategy) {
       throw new Error(
@@ -1184,43 +1180,10 @@ const actions = {
       )
     }
     await strategy()
-    await dispatch('transitionToWithServiceWorkerOutcome', dbRecord.uuid)
+    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
     await dispatch('refreshLocalRecordQueue')
     await dispatch('refreshObsUuidsInSwQueue')
     await triggerSwWowQueue()
-    function generatePayload(dbRecordParam) {
-      const apiRecords = mapObsFromOurDomainOntoApi(dbRecordParam)
-      const result = {}
-      result[constants.obsFieldName] = apiRecords.observationPostBody
-      result[constants.photoIdsToDeleteFieldName] =
-        dbRecordParam.wowMeta[constants.photoIdsToDeleteFieldName]
-      result[constants.photosFieldName] = apiRecords.photoPostBodyPartials.map(
-        curr => {
-          const photoType = `wow-${curr.type}`
-          const base64Data = base64js.fromByteArray(
-            new Uint8Array(curr.file.data),
-          )
-          return {
-            mime: curr.file.mime,
-            data: base64Data,
-            wowType: photoType,
-          }
-        },
-      )
-      result[constants.obsFieldIdsToDeleteFieldName] =
-        dbRecordParam.wowMeta[constants.obsFieldIdsToDeleteFieldName]
-      return result
-    }
-    function doBundleEndpointFetch(payload, method) {
-      return fetch(constants.serviceWorkerBundleMagicUrl, {
-        method,
-        headers: {
-          Authorization: rootState.auth.apiToken,
-        },
-        body: JSON.stringify(payload),
-        retries: 0,
-      })
-    }
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
     const worker = getObsStoreWorker()
@@ -1333,7 +1296,7 @@ const actions = {
       )
     }
     const dbId = await dispatch('findDbIdForWowId', wowId)
-    await setRecordProcessingOutcome(dbId, targetOutcome)
+    await getObsStoreWorker().setRecordProcessingOutcome(dbId, targetOutcome)
     await dispatch('refreshLocalRecordQueue')
   },
   findObsInatIdForUuid({ state }, uuid) {
@@ -1636,73 +1599,6 @@ function processObsFieldName(fieldName) {
   return (fieldName || '').replace(constants.obsFieldNamePrefix, '')
 }
 
-function mapObsFromOurDomainOntoApi(dbRecord) {
-  const ignoredKeys = [
-    'id',
-    'inatId',
-    'lat',
-    'lng',
-    'obsFieldValues',
-    'observedAt',
-    'photos',
-    'placeGuess',
-    'speciesGuess',
-    'wowMeta',
-  ]
-  const createObsTask = 1
-  const result = {
-    totalTaskCount: createObsTask,
-  }
-  const isRecordToUpload =
-    dbRecord.wowMeta[constants.recordTypeFieldName] !== recordType('delete')
-  if (!isRecordToUpload) {
-    return {}
-  }
-  const recordIdObjFragment = (() => {
-    const inatId = dbRecord.inatId
-    if (inatId) {
-      return { id: inatId }
-    }
-    return {}
-  })()
-  result.observationPostBody = {
-    observation: Object.keys(dbRecord).reduce(
-      (accum, currKey) => {
-        const isNotIgnored = !ignoredKeys.includes(currKey)
-        const value = dbRecord[currKey]
-        if (isNotIgnored && isAnswer(value)) {
-          accum[currKey] = value
-        }
-        return accum
-      },
-      {
-        ...recordIdObjFragment,
-        latitude: dbRecord.lat,
-        longitude: dbRecord.lng,
-        observed_on_string: dbRecord.observedAt,
-        species_guess: dbRecord.speciesGuess,
-        observation_field_values_attributes: (
-          dbRecord.obsFieldValues || []
-        ).reduce((accum, curr, index) => {
-          accum[index] = {
-            observation_field_id: curr.fieldId,
-            value: curr.value,
-          }
-          return accum
-        }, {}),
-      },
-    ),
-  }
-  result.photoPostBodyPartials =
-    dbRecord.wowMeta[constants.photosToAddFieldName] || []
-  result.totalTaskCount += result.photoPostBodyPartials.length
-  return result
-}
-
-function isAnswer(val) {
-  return !['undefined', 'null'].includes(typeof val)
-}
-
 export async function migrate(store) {
   const qPP = store.state.ephemeral.queueProcessorPromise
   if (qPP) {
@@ -1717,7 +1613,9 @@ export async function migrate(store) {
   console.debug(`Blocking queue processing with migration promise`)
   const migrationPromise = async () => {
     migrateRecentlyUsedTaxa(store)
-    await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store)
+    await getObsStoreWorker().migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+      store.state.obs.localQueueSummary,
+    )
     await getObsStoreWorker().performMigrations()
   }
   store.commit('ephemeral/setQueueProcessorPromise', migrationPromise)
@@ -1752,35 +1650,6 @@ function migrateRecentlyUsedTaxa(store) {
   store.commit('obs/setRecentlyUsedTaxa', cleaned)
 }
 
-async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store) {
-  if (await isMigrationDone(constants.noOutcomeLastUpdatedMigrationKey)) {
-    return
-  }
-  const uuidsToMigrate = (store.state.obs.localQueueSummary || [])
-    .filter(e => !e[constants.outcomeLastUpdatedAtFieldName])
-    .map(e => ({
-      uuid: e.uuid,
-      outcome: e[constants.recordProcessingOutcomeFieldName],
-    }))
-  const logPrefix = '[obs migrate]'
-  if (!uuidsToMigrate.length) {
-    console.debug(`${logPrefix} no records need outcomeLastUpdatedAt migrated`)
-    return
-  }
-  console.debug(
-    `${logPrefix} adding outcomeLastUpdatedAt values to ` +
-      `${uuidsToMigrate.length} records`,
-  )
-  for (const curr of uuidsToMigrate) {
-    console.debug(
-      `${logPrefix} setting outcomeLastUpdatedAt for UUID=${curr.uuid} that ` +
-        `has outcome=${curr.outcome}`,
-    )
-    await setRecordProcessingOutcome(curr.uuid, curr.outcome)
-  }
-  await markMigrationDone(constants.noOutcomeLastUpdatedMigrationKey)
-}
-
 export function extractGeolocationText(record) {
   const coordString = (() => {
     const isCoords = record.lng && record.lat
@@ -1797,17 +1666,6 @@ export function extractGeolocationText(record) {
 
 function trimDecimalPlaces(val) {
   return parseFloat(val).toFixed(6)
-}
-
-async function getBundleErrorMsg(resp) {
-  try {
-    const body = await resp.json()
-    return body.msg
-  } catch (err) {
-    const msg = 'Bundle resp was not JSON, could not extract message'
-    console.debug(msg, err)
-    return `(${msg})`
-  }
 }
 
 function startTimer(task) {
@@ -1832,5 +1690,4 @@ const interceptableFns = {
 export const _testonly = {
   interceptableFns,
   mapObsFromApiIntoOurDomain,
-  mapObsFromOurDomainOntoApi,
 }

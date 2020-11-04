@@ -1,10 +1,6 @@
 import _ from 'lodash'
 import uuid from 'uuid/v1'
-import {
-  _testonly as objectUnderTest,
-  registerWarnHandler,
-  registerUuidGenerator,
-} from '@/indexeddb/obs-store-common'
+import * as objectUnderTest from '@/indexeddb/obs-store-common'
 import { blobToArrayBuffer } from '@/misc/only-common-deps-helpers'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
@@ -18,7 +14,7 @@ import {
   sizeOfPhotoWithExifThumbnail,
 } from '@/../tests/unit/test-helpers'
 
-registerUuidGenerator(uuid)
+objectUnderTest.registerUuidGenerator(uuid)
 
 describe('obs-store-common', () => {
   let origConsoleDebug
@@ -50,13 +46,39 @@ describe('obs-store-common', () => {
         foo: 'bar',
         wowMeta: {},
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
       )
       const result = await testObsStore.getItem('123A')
       expect(result.foo).toEqual('bar')
+    })
+
+    it('should be able to get a stored photo', async () => {
+      const photoId = '33888'
+      const newPhoto = {
+        file: getPhotoWithThumbnail(),
+        id: photoId,
+        type: 'top',
+      }
+      const record = {
+        uuid: '123A',
+        photos: [newPhoto],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [newPhoto],
+        },
+      }
+      await objectUnderTest._testonly.storeRecordImpl(
+        testObsStore,
+        testPhotoStore,
+        record,
+      )
+      const result = await objectUnderTest._testonly.getPhotoRecordImpl(
+        testPhotoStore,
+        photoId,
+      )
+      expect(result.file.data.byteLength).toEqual(sizeOfPhotoWithExifThumbnail)
     })
 
     it('should store a record and extract the photos to a separate store', async () => {
@@ -72,7 +94,7 @@ describe('obs-store-common', () => {
           [cc.photosToAddFieldName]: [newPhoto],
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -110,8 +132,8 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      registerWarnHandler(warnHandler)
-      await objectUnderTest.storeRecordImpl(
+      objectUnderTest.registerWarnHandler(warnHandler)
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -150,8 +172,8 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      registerWarnHandler(warnHandler)
-      await objectUnderTest.storeRecordImpl(
+      objectUnderTest.registerWarnHandler(warnHandler)
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -188,8 +210,8 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      registerWarnHandler(warnHandler)
-      await objectUnderTest.storeRecordImpl(
+      objectUnderTest.registerWarnHandler(warnHandler)
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -224,7 +246,7 @@ describe('obs-store-common', () => {
           [cc.photosToAddFieldName]: [],
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         editedRecord,
@@ -270,7 +292,7 @@ describe('obs-store-common', () => {
           },
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         editedRecord,
@@ -315,7 +337,7 @@ describe('obs-store-common', () => {
           },
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -327,7 +349,7 @@ describe('obs-store-common', () => {
         expect(await testPhotoStore.getItem(curr.id)).toBeTruthy()
       }
       // now we delete the obs record
-      await objectUnderTest.deleteDbRecordByIdImpl(
+      await objectUnderTest._testonly.deleteDbRecordByIdImpl(
         testObsStore,
         testPhotoStore,
         recordId,
@@ -374,7 +396,7 @@ describe('obs-store-common', () => {
       // confirm the obs was saved
       expect(savedRecord).toBeTruthy()
       // now we do the migration
-      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
         testObsStore,
         testPhotoStore,
         testMetaStore,
@@ -426,7 +448,7 @@ describe('obs-store-common', () => {
           },
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         record,
@@ -435,7 +457,7 @@ describe('obs-store-common', () => {
       // confirm the obs was saved
       expect(savedRecord).toBeTruthy()
       // now we do the migration
-      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
         testObsStore,
         testPhotoStore,
         testMetaStore,
@@ -445,7 +467,7 @@ describe('obs-store-common', () => {
 
     it(`should not migrate when it's already been done`, async () => {
       await testMetaStore.setItem(cc.gh69MigrationKey, new Date().toISOString())
-      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
         {
           keys: async () => {
             throw new Error('Should not be called')
@@ -483,7 +505,7 @@ describe('obs-store-common', () => {
           ],
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         editedRecord,
@@ -553,7 +575,7 @@ describe('obs-store-common', () => {
           },
         },
       }
-      await objectUnderTest.storeRecordImpl(
+      await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
         editedRecord,
@@ -599,7 +621,7 @@ describe('obs-store-common', () => {
         // no 'uuid' set
       }
       try {
-        await objectUnderTest.storeRecordImpl(
+        await objectUnderTest._testonly.storeRecordImpl(
           testObsStore,
           testPhotoStore,
           record,
@@ -619,12 +641,15 @@ describe('obs-store-common', () => {
         uuid: '123A',
         foo: 'bar',
       })
-      const result = await objectUnderTest.getRecordImpl(testObsStore, '123A')
+      const result = await objectUnderTest._testonly.getRecordImpl(
+        testObsStore,
+        '123A',
+      )
       expect(result.foo).toEqual('bar')
     })
 
     it('should not throw an error when we request a non-existant record', async () => {
-      const result = await objectUnderTest.getRecordImpl(
+      const result = await objectUnderTest._testonly.getRecordImpl(
         testObsStore,
         'NOTHING-WITH-THIS-KEY',
       )
@@ -638,13 +663,139 @@ describe('obs-store-common', () => {
         },
       }
       try {
-        await objectUnderTest.getRecordImpl(store, 'SOME-KEY')
+        await objectUnderTest._testonly.getRecordImpl(store, 'SOME-KEY')
       } catch (err) {
-        if (err.message.startsWith('Failed to get db record')) {
+        if (err.message.startsWith('Failed to get DB record')) {
           return
         }
       }
       throw new Error('Fail! expected a thrown error')
+    })
+  })
+})
+
+describe('mapObsFromOurDomainOntoApi', () => {
+  it('should map all the top level properties for a non-delete record', async () => {
+    const record = {
+      uuid: '111A',
+      speciesGuess: 'some species',
+      description: 'some desc',
+      captive_flag: false,
+      lat: -35.123,
+      lng: 138.123,
+      geoprivacy: 'obscured',
+      observedAt: '2020-01-03T05:18:10.702Z',
+      positional_accuracy: 1234,
+      photos: [],
+      obsFieldValues: [],
+      wowMeta: { recordType: 'new' },
+    }
+    const result = await objectUnderTest.mapObsFromOurDomainOntoApi(record)
+    expect(result.photoPostBodyPartials).toEqual([])
+    expect(result.observationPostBody).toEqual({
+      observation: {
+        uuid: '111A',
+        species_guess: 'some species',
+        captive_flag: false,
+        description: 'some desc',
+        geoprivacy: 'obscured',
+        latitude: -35.123,
+        longitude: 138.123,
+        observed_on_string: '2020-01-03T05:18:10.702Z',
+        positional_accuracy: 1234,
+        observation_field_values_attributes: {},
+      },
+    })
+  })
+
+  it('should map a delete record', async () => {
+    const record = {
+      inatId: 544,
+      uuid: 'd3635120-1669-11ea-bce5-695a028863dd',
+      wowMeta: {
+        recordType: 'delete',
+        recordProcessingOutcome: 'waiting',
+        [cc.photoIdsToDeleteFieldName]: [],
+      },
+    }
+    const result = await objectUnderTest.mapObsFromOurDomainOntoApi(record)
+    expect(result).toEqual({})
+  })
+
+  it('should map a record with photos to save', async () => {
+    const photo1 = {
+      id: '22',
+      type: 'test1',
+      file: {
+        data: new Uint8Array([0xff, 0xd8]),
+        mime: 'image/jpeg',
+      },
+    }
+    const record = {
+      uuid: '111A',
+      speciesGuess: 'some species',
+      lat: -35.123,
+      lng: 138.123,
+      observedAt: '2020-01-03T05:18:10.702Z',
+      photos: [
+        { id: 11, testTag: 'ignore remote photos', isRemote: true },
+        photo1,
+      ],
+      obsFieldValues: [],
+      wowMeta: {
+        recordType: 'new',
+        [cc.photosToAddFieldName]: [photo1],
+      },
+    }
+    const result = await objectUnderTest.mapObsFromOurDomainOntoApi(
+      record,
+      id => record.photos.find(e => e.id === id),
+    )
+    expect(result).toEqual({
+      observationPostBody: {
+        observation: {
+          latitude: -35.123,
+          longitude: 138.123,
+          observed_on_string: '2020-01-03T05:18:10.702Z',
+          species_guess: 'some species',
+          uuid: '111A',
+          observation_field_values_attributes: {},
+        },
+      },
+      photoPostBodyPartials: [
+        { wowType: 'wow-test1', mime: 'image/jpeg', data: '/9g=' },
+      ],
+      totalTaskCount: 2,
+    })
+  })
+
+  it('should map a record with obsFields to save', async () => {
+    const record = {
+      uuid: '111A',
+      speciesGuess: 'some species',
+      lat: -35.123,
+      lng: 138.123,
+      observedAt: '2020-01-03T05:18:10.702Z',
+      photos: [],
+      obsFieldValues: [{ fieldId: 11, value: 'blah' }],
+      wowMeta: { recordType: 'new' },
+    }
+    const result = await objectUnderTest.mapObsFromOurDomainOntoApi(record)
+    expect(result).toEqual({
+      observationPostBody: {
+        observation: {
+          latitude: -35.123,
+          longitude: 138.123,
+          observed_on_string: '2020-01-03T05:18:10.702Z',
+          species_guess: 'some species',
+          uuid: '111A',
+          observation_field_values_attributes: {
+            0: { observation_field_id: 11, value: 'blah' },
+          },
+        },
+      },
+      photoPostBodyPartials: [],
+      totalTaskCount: 1,
     })
   })
 })
@@ -667,8 +818,8 @@ async function getRecordWithExistingPhoto(
       [cc.photosToAddFieldName]: [existingPhoto],
     },
   }
-  await objectUnderTest.storeRecordImpl(obsStore, photoStore, record)
-  return objectUnderTest.getRecordImpl(obsStore, recordId)
+  await objectUnderTest._testonly.storeRecordImpl(obsStore, photoStore, record)
+  return objectUnderTest._testonly.getRecordImpl(obsStore, recordId)
 }
 
 async function getRecordWithExistingBlockedPhoto(
@@ -693,6 +844,6 @@ async function getRecordWithExistingBlockedPhoto(
       },
     },
   }
-  await objectUnderTest.storeRecordImpl(obsStore, photoStore, record)
-  return objectUnderTest.getRecordImpl(obsStore, recordId)
+  await objectUnderTest._testonly.storeRecordImpl(obsStore, photoStore, record)
+  return objectUnderTest._testonly.getRecordImpl(obsStore, recordId)
 }

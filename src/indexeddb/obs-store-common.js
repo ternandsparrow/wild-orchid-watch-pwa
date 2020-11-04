@@ -2,10 +2,12 @@
 // by the client, worker(s) and the service worker. We don't want the workers
 // to import the vuex code hence this module.
 import _ from 'lodash'
+import base64js from 'base64-js'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
   chainedError,
+  recordTypeEnum as recordType,
   getExifFromBlob,
 } from '@/misc/only-common-deps-helpers'
 import * as cc from '@/misc/constants'
@@ -140,7 +142,23 @@ async function getRecordImpl(store, recordId) {
     }
     return store.getItem(recordId)
   } catch (err) {
-    throw chainedError(`Failed to get db record with ID='${recordId}'`, err)
+    throw chainedError(`Failed to get DB record with ID='${recordId}'`, err)
+  }
+}
+
+async function getPhotoRecordImpl(store, recordId) {
+  try {
+    if (!recordId) {
+      throw new Error(
+        `No photo record ID='${recordId}' supplied, cannot continue`,
+      )
+    }
+    return store.getItem(recordId)
+  } catch (err) {
+    throw chainedError(
+      `Failed to get photo DB record with ID='${recordId}'`,
+      err,
+    )
   }
 }
 
@@ -179,6 +197,11 @@ export function storeRecord(record) {
 export function getRecord(recordId) {
   const store = getOrCreateInstance(cc.lfWowObsStoreName)
   return getRecordImpl(store, recordId)
+}
+
+export function getPhotoRecord(recordId) {
+  const store = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return getPhotoRecordImpl(store, recordId)
 }
 
 export function mapOverObsStore(mapperFn) {
@@ -324,6 +347,95 @@ function isMigrationDoneImpl(metaStore, key) {
   return metaStore.getItem(key)
 }
 
+export async function mapObsFromOurDomainOntoApi(
+  dbRecord,
+  photoRecordGetter = getPhotoRecord,
+) {
+  const ignoredKeys = [
+    'id',
+    'inatId',
+    'lat',
+    'lng',
+    'obsFieldValues',
+    'observedAt',
+    'photos',
+    'placeGuess',
+    'speciesGuess',
+    'wowMeta',
+  ]
+  const createObsTask = 1
+  const result = {
+    totalTaskCount: createObsTask,
+  }
+  const isRecordToUpload =
+    dbRecord.wowMeta[cc.recordTypeFieldName] !== recordType('delete')
+  if (!isRecordToUpload) {
+    return {}
+  }
+  const recordIdObjFragment = (() => {
+    const inatId = dbRecord.inatId
+    if (inatId) {
+      return { id: inatId }
+    }
+    return {}
+  })()
+  result.observationPostBody = {
+    observation: Object.keys(dbRecord).reduce(
+      (accum, currKey) => {
+        const isNotIgnored = !ignoredKeys.includes(currKey)
+        const value = dbRecord[currKey]
+        if (isNotIgnored && isAnswer(value)) {
+          accum[currKey] = value
+        }
+        return accum
+      },
+      {
+        ...recordIdObjFragment,
+        latitude: dbRecord.lat,
+        longitude: dbRecord.lng,
+        observed_on_string: dbRecord.observedAt,
+        species_guess: dbRecord.speciesGuess,
+        observation_field_values_attributes: (
+          dbRecord.obsFieldValues || []
+        ).reduce((accum, curr, index) => {
+          accum[index] = {
+            observation_field_id: curr.fieldId,
+            value: curr.value,
+          }
+          return accum
+        }, {}),
+      },
+    ),
+  }
+  const photoDbRecords = []
+  for (const currId of (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
+    e => e.id,
+  )) {
+    const photo = await photoRecordGetter(currId)
+    if (!photo) {
+      // FIXME should we try to push on if a photo is missing?
+      console.warn(`Could not load photo with ID=${currId}`)
+      continue
+    }
+    photoDbRecords.push(photo)
+  }
+  result.photoPostBodyPartials = photoDbRecords.map(curr => {
+    const photoType = `wow-${curr.type}`
+    const base64Data = base64js.fromByteArray(new Uint8Array(curr.file.data))
+    return {
+      mime: curr.file.mime,
+      data: base64Data,
+      wowType: photoType,
+    }
+  })
+  result.totalTaskCount += result.photoPostBodyPartials.length
+  return result
+}
+
+function isAnswer(val) {
+  return !['undefined', 'null'].includes(typeof val)
+}
+
 const interceptableFns = {
   storePhotoRecord,
 }
@@ -332,6 +444,7 @@ export const _testonly = {
   deleteDbRecordByIdImpl,
   doGh69SeparatingPhotosMigration,
   getRecordImpl,
+  getPhotoRecordImpl,
   interceptableFns,
   storeRecordImpl,
 }

@@ -245,7 +245,10 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       console.warn(`Could not find obs record for wowId=${wowId}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
     }
-    if (_.get(found, `wowMeta.${versionFieldName}`) !== currentRecordVersion) {
+    const isNonMigratedLocalRecord =
+      !!found.wowMeta &&
+      _.get(found, `wowMeta.${versionFieldName}`) !== currentRecordVersion
+    if (isNonMigratedLocalRecord) {
       // enhancement: use something nicer than alert
       alert(
         'Record is currently locked while updating to suit newest app ' +
