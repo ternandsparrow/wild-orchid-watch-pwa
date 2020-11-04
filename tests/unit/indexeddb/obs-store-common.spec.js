@@ -1,7 +1,11 @@
+import _ from 'lodash'
+import uuid from 'uuid/v1'
 import {
   _testonly as objectUnderTest,
   registerWarnHandler,
+  registerUuidGenerator,
 } from '@/indexeddb/obs-store-common'
+import { blobToArrayBuffer } from '@/misc/only-common-deps-helpers'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
 import {
@@ -14,25 +18,29 @@ import {
   sizeOfPhotoWithExifThumbnail,
 } from '@/../tests/unit/test-helpers'
 
+registerUuidGenerator(uuid)
+
 describe('obs-store-common', () => {
   let origConsoleDebug
   const testObsStore = getOrCreateInstance('test-store')
   const testPhotoStore = getOrCreateInstance('test-photo-store')
+  const testMetaStore = getOrCreateInstance('test-meta-store')
+  async function clearStores() {
+    await testObsStore.clear()
+    await testPhotoStore.clear()
+    await testMetaStore.clear()
+  }
 
   beforeAll(function() {
     origConsoleDebug = console.debug
     console.debug = () => {}
   })
 
-  beforeEach(async () => {
-    await testObsStore.clear()
-    await testPhotoStore.clear()
-  })
+  beforeEach(clearStores)
 
   afterAll(async () => {
     console.debug = origConsoleDebug
-    await testObsStore.clear()
-    await testPhotoStore.clear()
+    await clearStores()
   })
 
   describe('storeRecord', () => {
@@ -40,6 +48,7 @@ describe('obs-store-common', () => {
       const record = {
         uuid: '123A',
         foo: 'bar',
+        wowMeta: {},
       }
       await objectUnderTest.storeRecordImpl(
         testObsStore,
@@ -329,7 +338,124 @@ describe('obs-store-common', () => {
       }
     })
 
-    // FIXME handle migration to move existing photos to separate storage
+    it('should migrate a non-migrated obs record', async () => {
+      const recordId = '92818C'
+      // set up fixture
+      const photo1 = {
+        file: {
+          data: await blobToArrayBuffer(getPhotoWithThumbnail()),
+          mime: 'image/jpeg',
+        },
+        id: -1,
+        type: 'top',
+      }
+      const photo2 = {
+        file: {
+          data: await blobToArrayBuffer(getPhotoWithThumbnail()),
+          mime: 'image/jpeg',
+        },
+        id: -2,
+        type: 'flower',
+      }
+      const record = {
+        uuid: recordId,
+        photos: [photo1, photo2],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [photo1],
+          [cc.blockedActionFieldName]: {
+            wowMeta: {
+              [cc.photosToAddFieldName]: [photo2],
+            },
+          },
+        },
+      }
+      await testObsStore.setItem(recordId, record)
+      const savedRecord = await testObsStore.getItem(recordId)
+      // confirm the obs was saved
+      expect(savedRecord).toBeTruthy()
+      // now we do the migration
+      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+        testObsStore,
+        testPhotoStore,
+        testMetaStore,
+      )
+      expect(migratedIds[0]).toEqual(recordId)
+      const photoIds = _.get(
+        await testObsStore.getItem(recordId),
+        'photos',
+        [],
+      ).map(e => e.id)
+      try {
+        expect(
+          photoIds.every(e => {
+            const isMigratedPhotoId = typeof e === 'string'
+            return isMigratedPhotoId
+          }),
+        ).toEqual(true)
+      } catch (err) {
+        console.warn(`Failed expect Photo IDs=${JSON.stringify(photoIds)}`)
+        throw err
+      }
+      for (const curr of photoIds) {
+        expect(await testPhotoStore.getItem(curr)).toBeTruthy()
+      }
+    })
+
+    it('should not migrate an already migrated obs record', async () => {
+      const recordId = '88828Z'
+      // set up fixture
+      const photo1 = {
+        file: getPhotoWithThumbnail(),
+        id: '111',
+        type: 'top',
+      }
+      const photo2 = {
+        file: getPhotoWithThumbnail(),
+        id: '112',
+        type: 'flower',
+      }
+      const record = {
+        uuid: recordId,
+        photos: [photo1, photo2],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [photo1],
+          [cc.blockedActionFieldName]: {
+            wowMeta: {
+              [cc.photosToAddFieldName]: [photo2],
+            },
+          },
+        },
+      }
+      await objectUnderTest.storeRecordImpl(
+        testObsStore,
+        testPhotoStore,
+        record,
+      )
+      const savedRecord = await testObsStore.getItem(recordId)
+      // confirm the obs was saved
+      expect(savedRecord).toBeTruthy()
+      // now we do the migration
+      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+        testObsStore,
+        testPhotoStore,
+        testMetaStore,
+      )
+      expect(migratedIds.length).toEqual(0)
+    })
+
+    it(`should not migrate when it's already been done`, async () => {
+      await testMetaStore.setItem(cc.gh69MigrationKey, new Date().toISOString())
+      const migratedIds = await objectUnderTest.doGh69SeparatingPhotosMigration(
+        {
+          keys: async () => {
+            throw new Error('Should not be called')
+          },
+        },
+        null,
+        testMetaStore,
+      )
+      expect(migratedIds.length).toEqual(0)
+    })
 
     it('should only thumbnail-ify any given photo once', async () => {
       const recordId = '123A'

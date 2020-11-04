@@ -455,6 +455,7 @@ describe('actions', () => {
             [constants.recordProcessingOutcomeFieldName]: 'test-outcome',
             allBlockedObjFields: 'yep',
             [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [constants.versionFieldName]: constants.currentRecordVersion,
           },
         })
       })
@@ -665,6 +666,7 @@ describe('actions', () => {
           [constants.photoIdsToDeleteFieldName]: [],
           [constants.photosToAddFieldName]: [],
           [constants.obsFieldIdsToDeleteFieldName]: [],
+          [constants.versionFieldName]: constants.currentRecordVersion,
         },
       })
       expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -703,6 +705,7 @@ describe('actions', () => {
             [constants.photoIdsToDeleteFieldName]: [],
             [constants.photosToAddFieldName]: [],
             [constants.obsFieldIdsToDeleteFieldName]: [],
+            [constants.versionFieldName]: constants.currentRecordVersion,
           },
         })
         expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -1039,6 +1042,7 @@ describe('actions', () => {
           },
         ],
         [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+        [constants.versionFieldName]: constants.currentRecordVersion,
       })
     })
   })

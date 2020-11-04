@@ -394,8 +394,13 @@ export const neverUpload = 'NEVER'
 
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
-export const lfWowObsStoreName = 'wow-obs'
-export const lfWowPhotoStoreName = 'wow-photo'
+export const lfWowObsStoreName = 'wow-obs' // observations
+export const lfWowPhotoStoreName = 'wow-photo' // photos
+export const lfWowMetaStoreName = 'wow-meta' // things about the app
+
+export const gh69MigrationKey = 'gh69-migration'
+export const noOutcomeLastUpdatedMigrationKey =
+  'no-outcome-last-updated-migration'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 
@@ -418,6 +423,7 @@ export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const wowUpdatedAtFieldName = 'wowUpdatedAt'
 export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
+export const versionFieldName = 'version'
 
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const refreshObsMsg = 'REFRESH_OBS'
@@ -469,6 +475,9 @@ export const photoTypeMicrohabitat = 'micro-habitat'
 export const photoTypeCanopy = 'canopy'
 export const photoTypeFloralVisitors = 'floral-visitors'
 export const photoTypeEpiphyteHostTree = 'host-tree'
+
+// gives the UI a cheap way to tell if the record is pre-migration
+export const currentRecordVersion = 2
 
 export const cryptoConfig = (() => {
   const algorithm = 'RSA-OAEP'

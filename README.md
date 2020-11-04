@@ -307,4 +307,6 @@ throws errors. See my reproduction of this issue:
 https://github.com/tomsaleeba/worker-plugin-eslint-test. When [this
 commit](https://github.com/vuejs/vue-cli/commit/36e500d266cf0e6a7ef63fe6cca609178116e08e#diff-1a7306af1d2ca3b9b8c4809621c598d87bc00f02a175cc250f32175c20280039R27)
 gets merged, we'll move up two major versions of eslint-loader (from 2.x to
-4.x), which will hopefully help.
+4.x), which will hopefully help. In the meantime, we're forcing a lint on the
+workers during `yarn lint`. It won't catch errors in the dev server but it will
+fail the CI build.

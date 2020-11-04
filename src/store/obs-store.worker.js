@@ -6,7 +6,9 @@ import {
   deleteDbRecordById,
   getRecord,
   mapOverObsStore,
+  performMigrationsInWorker,
   registerWarnHandler,
+  registerUuidGenerator,
   storeRecord,
   // importing this module implicitly calls sentryInit()
 } from '@/indexeddb/obs-store-common'
@@ -21,6 +23,7 @@ import {
 } from '@/misc/helpers'
 
 registerWarnHandler(wowWarnMessage)
+registerUuidGenerator(uuid)
 
 const exposed = {
   cleanupPhotosForObs,
@@ -28,6 +31,7 @@ const exposed = {
   deleteSelectedRecord,
   getData,
   getDbPhotosForObs,
+  performMigrations,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
 }
@@ -36,6 +40,10 @@ comlinkExpose(exposed)
 let thumbnailObjectUrlsInUse = []
 let thumbnailObjectUrlsNoLongerInUse = []
 let obsDetailObjectUrls = []
+
+async function performMigrations() {
+  await performMigrationsInWorker()
+}
 
 async function getData() {
   const localQueueSummary = await getLocalQueueSummary()
@@ -73,6 +81,7 @@ async function getLocalQueueSummary() {
       wowUpdatedAt: r.wowMeta[cc.wowUpdatedAtFieldName],
       inatId: r.inatId,
       uuid: r.uuid,
+      [cc.versionFieldName]: r.wowMeta[cc.versionFieldName],
     }
   })
   return result
@@ -95,7 +104,17 @@ async function getUiVisibleLocalRecords(uuids) {
       if (!photos.length) {
         return null
       }
-      const firstPhotoWithThumbnail = photos.find(e => !!e.file)
+      // the spec (http://www.exif.org/Exif2-2.PDF) on page 27 tells us that
+      // "Compressed thumbnails shall be recorded in no more than 64KB,
+      // including all other data to be recorded in APP1." So if it's bigger,
+      // it's *not* a thumbnail.
+      const maxSizeForExifThumbnail = 64000
+      const firstPhotoWithThumbnail = photos.find(e => {
+        const fileSize = _.get(e, 'file.data.byteLength', 0)
+        const hasThumnailSizedImage =
+          fileSize && fileSize < maxSizeForExifThumbnail
+        return hasThumnailSizedImage
+      })
       if (!firstPhotoWithThumbnail) {
         return cc.noPreviewAvailableUrl
       }
@@ -373,7 +392,7 @@ async function saveEditAndScheduleUpdate(
           case 'noprocessing.queued.existingblocked.remote':
           case 'noprocessing.queued.existingblocked.noremote':
             // I thought that things NOT processing cannot have a blocked
-            // action, but it has happened in production. I think this
+            // action, but it has happened in production. I think this is
             // because the recently introduced migration can reset obs back
             // to "noprocessing".
             return upsertBlockedAction

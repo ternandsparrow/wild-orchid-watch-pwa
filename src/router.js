@@ -1,12 +1,17 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
+import _ from 'lodash'
 
 import store from '@/store'
 import {
   mainStackReplace,
   isOnboarderVisible as isOnboarderVisibleFn,
 } from '@/misc/nav-stacks'
-import { onboarderPath } from '@/misc/constants'
+import {
+  onboarderPath,
+  versionFieldName,
+  currentRecordVersion,
+} from '@/misc/constants'
 import { wowWarnHandler } from '@/misc/helpers'
 
 import Admin from '@/pages/Admin'
@@ -235,9 +240,18 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       }
     })()
     store.commit('obs/setSelectedObservationUuid', uuid)
-    if (!store.getters['obs/observationDetail']) {
+    const found = store.getters['obs/observationDetail']
+    if (!found) {
       console.warn(`Could not find obs record for wowId=${wowId}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
+    }
+    if (_.get(found, `wowMeta.${versionFieldName}`) !== currentRecordVersion) {
+      // enhancement: use something nicer than alert
+      alert(
+        'Record is currently locked while updating to suit newest app ' +
+          'version. Sorry, try again in a few minutes.',
+      )
+      return next({ name: 'Home' })
     }
     return next()
   } catch (err) {

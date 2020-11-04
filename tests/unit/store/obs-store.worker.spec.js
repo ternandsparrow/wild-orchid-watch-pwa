@@ -442,6 +442,7 @@ describe('things that need a datastore', () => {
           [constants.recordProcessingOutcomeFieldName]: 'draft',
           [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
           [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+          [constants.versionFieldName]: constants.currentRecordVersion,
         },
       })
     })
@@ -498,6 +499,7 @@ describe('things that need a datastore', () => {
           [constants.recordProcessingOutcomeFieldName]: 'waiting',
           [constants.wowUpdatedAtFieldName]: expect.toBeValidDateString(),
           [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+          [constants.versionFieldName]: constants.currentRecordVersion,
         },
       })
       expect(result.photos[0].file.data.byteLength).toEqual(

@@ -18,7 +18,10 @@ export default {
     alias({
       entries: [{ find: '@', replacement: __dirname + '/src' }],
     }),
-    nodeResolve(), // lets us find dependencies in node_modules
+    nodeResolve({
+      jail: __dirname,
+      preferBuiltins: false, // we're running in the browser so we can't use builtins (I think)
+    }), // lets us find dependencies in node_modules
     commonjs(),
     injectProcess(['NODE_ENV', /VUE_APP_.*/]),
     sourcesmaps(),

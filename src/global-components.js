@@ -8,6 +8,7 @@ import DecryptPayload from '@/partials/admin/DecryptPayload'
 import ExtractThumbnailFromExif from '@/partials/admin/ExtractThumbnailFromExif'
 import ForceRpo from '@/partials/admin/ForceRpo'
 import GenerateCryptoKeys from '@/partials/admin/GenerateCryptoKeys'
+import Gh69MigrationTest from '@/partials/admin/Gh69MigrationTest'
 import GoogleMap from '@/components/googleMap'
 import Help from '@/partials/Help'
 import JoinLeaveProject from '@/partials/admin/JoinLeaveProject'
@@ -36,6 +37,7 @@ Vue.component('wow-decrypt-payload', DecryptPayload)
 Vue.component('wow-extract-thumbnail-from-exif', ExtractThumbnailFromExif)
 Vue.component('wow-force-rpo', ForceRpo)
 Vue.component('wow-generate-crypto-keys', GenerateCryptoKeys)
+Vue.component('wow-gh69-migration-test', Gh69MigrationTest)
 Vue.component('wow-header', WowHeader)
 Vue.component('wow-help', Help)
 Vue.component('wow-input-status', WowInputStatus)

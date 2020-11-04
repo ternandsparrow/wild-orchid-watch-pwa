@@ -3,6 +3,7 @@
 // to import the vuex code hence this module.
 import _ from 'lodash'
 import {
+  arrayBufferToBlob,
   blobToArrayBuffer,
   chainedError,
   getExifFromBlob,
@@ -17,6 +18,16 @@ import { getOrCreateInstance } from './storage-manager'
 let warnHandler = console.warn
 export function registerWarnHandler(handler) {
   warnHandler = handler
+}
+
+// rationale: ideally we'd import 'uuid/v1' here but rollup doesn't play nice
+// with that. We don't actually need this function in the SW so we'll just let
+// the worker supply it.
+let uuidGenerator = () => {
+  throw new Error('Programmer error: pass a real generator in')
+}
+export function registerUuidGenerator(fn) {
+  uuidGenerator = fn
 }
 
 async function storeRecordImpl(obsStore, photoStore, record) {
@@ -40,6 +51,7 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
     )
+    record.wowMeta[cc.versionFieldName] = cc.currentRecordVersion
     return obsStore.setItem(key, record)
   } catch (err) {
     throw chainedError(`Failed to store db record with ID='${key}'`, err)
@@ -51,7 +63,6 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     }
     const result = []
     for (const curr of photos) {
-      // FIXME this won't work for migration
       const isAlreadyThumbnail =
         _.get(curr, 'file.data.constructor') === ArrayBuffer ||
         curr.file === null
@@ -172,10 +183,14 @@ export function getRecord(recordId) {
 
 export function mapOverObsStore(mapperFn) {
   const store = getOrCreateInstance(cc.lfWowObsStoreName)
+  return mapOverObsStoreImpl(store, mapperFn)
+}
+
+export function mapOverObsStoreImpl(obsStore, mapperFn) {
   return new Promise(async (resolve, reject) => {
     try {
       const result = []
-      await store.iterate(r => {
+      await obsStore.iterate(r => {
         result.push(mapperFn(r))
       })
       return resolve(result)
@@ -206,12 +221,116 @@ function isLocalPhotoId(id) {
   return typeof id === 'string'
 }
 
+export async function performMigrationsInWorker() {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  const migratedIds = await doGh69SeparatingPhotosMigration(
+    obsStore,
+    photoStore,
+    metaStore,
+  )
+  if (migratedIds.length) {
+    warnHandler(`Migrated ${migratedIds.length} records in GH-69 migration`)
+  }
+}
+
+async function doGh69SeparatingPhotosMigration(
+  obsStore,
+  photoStore,
+  metaStore,
+) {
+  const start = Date.now()
+  const migrationName = '"GH-69 separating photos"'
+  console.debug(`Starting ${migrationName} migration`)
+  const isAlreadyMigrated = await isMigrationDoneImpl(
+    metaStore,
+    cc.gh69MigrationKey,
+  )
+  const migratedIds = []
+  if (isAlreadyMigrated) {
+    console.debug(
+      `Already done ${migrationName} migration previously, skipping`,
+    )
+    return migratedIds
+  }
+  const obsIds = await obsStore.keys()
+  for (const currId of obsIds) {
+    const record = await obsStore.getItem(currId)
+    const isMigrationRequired1 = await prepForMigration(
+      record,
+      `wowMeta.${cc.photosToAddFieldName}`,
+    )
+    const isMigrationRequired2 = await prepForMigration(
+      record,
+      `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
+    )
+    if (!isMigrationRequired1 && !isMigrationRequired2) {
+      continue
+    }
+    console.debug(`Doing ${migrationName} migration for UUID=${record.uuid}`)
+    await storeRecordImpl(obsStore, photoStore, record)
+    migratedIds.push(record.uuid)
+  }
+  const elapsedMsg = `Took ${Date.now() - start}ms.`
+  if (!migratedIds.length) {
+    console.debug(
+      `Migration ${migrationName} found no records needing migration. ${elapsedMsg}`,
+    )
+  } else {
+    console.debug(
+      `Successfully performed ${migrationName} migration on IDs=${JSON.stringify(
+        migratedIds,
+      )}. ${elapsedMsg}`,
+    )
+  }
+  await markMigrationDoneImpl(metaStore, cc.gh69MigrationKey)
+  return migratedIds
+}
+
+async function prepForMigration(obsRecord, propPath) {
+  const photos = _.get(obsRecord, propPath, [])
+  if (!photos.length) {
+    return false
+  }
+  let isMigrationRequired = false
+  for (const curr of photos) {
+    const isMigratedLocalPhoto = isLocalPhotoId(curr.id)
+    if (isMigratedLocalPhoto) {
+      continue
+    }
+    curr.id = uuidGenerator()
+    curr.file = await arrayBufferToBlob(curr.file.data, curr.file.mime)
+    isMigrationRequired = true
+  }
+  return isMigrationRequired
+}
+
+export function markMigrationDone(key) {
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  return markMigrationDoneImpl(metaStore, key)
+}
+
+function markMigrationDoneImpl(metaStore, key) {
+  return metaStore.setItem(key, new Date().toISOString())
+}
+
+export function isMigrationDone(key) {
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  return isMigrationDoneImpl(metaStore, key)
+}
+
+function isMigrationDoneImpl(metaStore, key) {
+  return metaStore.getItem(key)
+}
+
 const interceptableFns = {
   storePhotoRecord,
 }
 
 export const _testonly = {
   deleteDbRecordByIdImpl,
+  doGh69SeparatingPhotosMigration,
   getRecordImpl,
   interceptableFns,
   storeRecordImpl,

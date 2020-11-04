@@ -7,6 +7,8 @@ import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
+  isMigrationDone,
+  markMigrationDone,
   registerWarnHandler,
   setRecordProcessingOutcome,
   storeRecord,
@@ -1702,8 +1704,27 @@ function isAnswer(val) {
 }
 
 export async function migrate(store) {
-  migrateRecentlyUsedTaxa(store)
-  await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store)
+  const qPP = store.state.ephemeral.queueProcessorPromise
+  if (qPP) {
+    // as the migrations are fired off as the page loads, it would be weird for
+    // the pipeline to already be running.
+    wowWarnMessage(
+      'Waiting for queueProcessorPromise before migrating. Did not expect ' +
+        'this to happen.',
+    )
+    await qPP
+  }
+  console.debug(`Blocking queue processing with migration promise`)
+  const migrationPromise = async () => {
+    migrateRecentlyUsedTaxa(store)
+    await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store)
+    await getObsStoreWorker().performMigrations()
+  }
+  store.commit('ephemeral/setQueueProcessorPromise', migrationPromise)
+  await migrationPromise()
+  console.debug(`Unblocking queue processing as migration is done`)
+  store.commit('ephemeral/setQueueProcessorPromise', null)
+  await store.dispatch('obs/refreshLocalRecordQueue')
 
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
@@ -1732,6 +1753,9 @@ function migrateRecentlyUsedTaxa(store) {
 }
 
 async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store) {
+  if (await isMigrationDone(constants.noOutcomeLastUpdatedMigrationKey)) {
+    return
+  }
   const uuidsToMigrate = (store.state.obs.localQueueSummary || [])
     .filter(e => !e[constants.outcomeLastUpdatedAtFieldName])
     .map(e => ({
@@ -1754,6 +1778,7 @@ async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(store) {
     )
     await setRecordProcessingOutcome(curr.uuid, curr.outcome)
   }
+  await markMigrationDone(constants.noOutcomeLastUpdatedMigrationKey)
 }
 
 export function extractGeolocationText(record) {
