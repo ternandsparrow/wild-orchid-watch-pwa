@@ -1,5 +1,5 @@
 import localForage from 'localforage'
-import { chainedError } from '../misc/only-common-deps-helpers'
+import { chainedError } from '@/misc/only-common-deps-helpers'
 
 const knownInstances = {}
 // we don't support localStorage because need to store binary data. We could

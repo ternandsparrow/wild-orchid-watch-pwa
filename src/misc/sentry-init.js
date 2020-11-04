@@ -1,7 +1,13 @@
 import * as Sentry from '@sentry/browser'
 import * as constants from '@/misc/constants'
 
+let isInited = false
+
 export default function sentryInit(initLocationName, extraInitArgs = {}) {
+  if (isInited) {
+    return Sentry
+  }
+  isInited = true
   if (process.env.NODE_ENV === 'test') {
     return Sentry
   }

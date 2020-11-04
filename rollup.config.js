@@ -2,6 +2,7 @@ import nodeResolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
 import sourcesmaps from 'rollup-plugin-sourcemaps'
 import injectProcess from './rollup-plugin-inject-process'
+import alias from '@rollup/plugin-alias'
 
 export default {
   input: 'sw-src/sw.js',
@@ -14,6 +15,9 @@ export default {
     },
   ],
   plugins: [
+    alias({
+      entries: [{ find: '@', replacement: __dirname + '/src' }],
+    }),
     nodeResolve(), // lets us find dependencies in node_modules
     commonjs(),
     injectProcess(['NODE_ENV', /VUE_APP_.*/]),

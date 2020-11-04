@@ -1,7 +1,12 @@
 // in an effort to keep the SW small, we need to stop an exploding number of
 // transient imports. This module is essentially the same as helpers.js but
 // with only the imports that both the SW and main code use.
-import * as Sentry from '@sentry/browser' // piggybacks on the config done in whatever thread imports us
+import EXIF from 'exif-js'
+import sentryInit from '@/misc/sentry-init'
+
+// it's not ideal that we have to pass this param as we really want to know
+// where this module was imported from, but that's difficult.
+const Sentry = sentryInit('only-obs-common-deps-helpers')
 
 export function wowErrorHandler(msg, err) {
   console.error(msg, err || '(no error object passed)')
@@ -182,5 +187,42 @@ export function iterateIdb(
         )
       }
     }
+  })
+}
+
+export function getExifFromBlob(blobish) {
+  return new Promise((resolve, reject) => {
+    EXIF.getData(blobish, function(err) {
+      try {
+        if (err) {
+          return reject(chainedError('Failed to extract EXIF', err))
+        }
+        const result = EXIF.getAllTags(this)
+        return resolve(result)
+      } catch (err) {
+        return reject(chainedError('Failed to work with extracted EXIF', err))
+      }
+    })
+  })
+}
+
+// Thanks for these two functions:
+// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
+//
+// Safari on iOS cannot store Blobs, which are what we get from the file input
+// UI control. So we have to convert them to ArrayBuffers, which do have
+// support. If we ever stop supporting Safari 10, I think these can be removed.
+export function arrayBufferToBlob(buffer, type) {
+  return new Blob([buffer], { type: type })
+}
+
+export function blobToArrayBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('loadend', () => {
+      resolve(reader.result)
+    })
+    reader.addEventListener('error', reject)
+    reader.readAsArrayBuffer(blob)
   })
 }

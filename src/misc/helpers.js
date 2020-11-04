@@ -2,10 +2,12 @@ import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { isNil } from 'lodash'
-import EXIF from 'exif-js'
 import * as constants from '@/misc/constants'
 import {
+  arrayBufferToBlob,
+  blobToArrayBuffer,
   chainedError,
+  getExifFromBlob,
   iterateIdb,
   makeObsRequest,
   now,
@@ -17,7 +19,10 @@ import {
 } from './only-common-deps-helpers'
 
 export {
+  arrayBufferToBlob,
+  blobToArrayBuffer,
   chainedError,
+  getExifFromBlob,
   iterateIdb,
   makeObsRequest,
   now,
@@ -468,22 +473,6 @@ export function formatStorageSize(byteCount) {
   return (byteCount / oneGb).toFixed(1) + 'GB'
 }
 
-export function getExifFromBlob(blobish) {
-  return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function(err) {
-      try {
-        if (err) {
-          return reject(chainedError('Failed to extract EXIF', err))
-        }
-        const result = EXIF.getAllTags(this)
-        return resolve(result)
-      } catch (err) {
-        return reject(chainedError('Failed to work with extracted EXIF', err))
-      }
-    })
-  })
-}
-
 export function wowIdOf(record) {
   return record.inatId || record.uuid
 }
@@ -600,27 +589,6 @@ export function unregisterAllServiceWorkers() {
     for (const curr of regs) {
       curr.unregister()
     }
-  })
-}
-
-// Thanks for these two functions:
-// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-//
-// Safari on iOS cannot store Blobs, which are what we get from the file input
-// UI control. So we have to convert them to ArrayBuffers, which do have
-// support. If we ever stop supporting Safari 10, I think these can be removed.
-export function arrayBufferToBlob(buffer, type) {
-  return new Blob([buffer], { type: type })
-}
-
-export function blobToArrayBuffer(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('loadend', () => {
-      resolve(reader.result)
-    })
-    reader.addEventListener('error', reject)
-    reader.readAsArrayBuffer(blob)
   })
 }
 

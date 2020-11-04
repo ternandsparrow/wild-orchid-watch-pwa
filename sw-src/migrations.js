@@ -1,12 +1,12 @@
-import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
+import { setRecordProcessingOutcome } from '@/indexeddb/obs-store-common'
 import {
   chainedError,
   iterateIdb,
   wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
-} from '../src/misc/only-common-deps-helpers'
-import * as constants from '../src/misc/constants'
+} from '@/misc/only-common-deps-helpers'
+import * as constants from '@/misc/constants'
 
 // eslint-disable-next-line import/prefer-default-export
 export async function doMigrations(context) {

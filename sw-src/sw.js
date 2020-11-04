@@ -4,9 +4,9 @@ import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/
 import { registerRoute } from 'workbox-routing/registerRoute'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
 import base64js from 'base64-js'
-import sentryInit from '../src/misc/sentry-init'
-import { getOrCreateInstance } from '../src/indexeddb/storage-manager'
-import { setRecordProcessingOutcome } from '../src/indexeddb/obs-store-common'
+import sentryInit from '@/misc/sentry-init'
+import { getOrCreateInstance } from '@/indexeddb/storage-manager'
+import { setRecordProcessingOutcome } from '@/indexeddb/obs-store-common'
 import {
   addPhotoIdToObsReq,
   chainedError,
@@ -14,9 +14,9 @@ import {
   wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
-} from '../src/misc/only-common-deps-helpers'
-import * as devHelpers from '../src/misc/dev-helpers'
-import * as constants from '../src/misc/constants'
+} from '@/misc/only-common-deps-helpers'
+import * as devHelpers from '@/misc/dev-helpers'
+import * as constants from '@/misc/constants'
 import { doMigrations } from './migrations'
 
 const Sentry = sentryInit('SW')

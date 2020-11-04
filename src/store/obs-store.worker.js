@@ -1,7 +1,6 @@
 import { expose as comlinkExpose } from 'comlink'
 import _ from 'lodash'
 import uuid from 'uuid/v1'
-import sentryInit from '@/misc/sentry-init'
 import * as cc from '@/misc/constants'
 import {
   deleteDbRecordById,
@@ -9,6 +8,7 @@ import {
   mapOverObsStore,
   registerWarnHandler,
   storeRecord,
+  // importing this module implicitly calls sentryInit()
 } from '@/indexeddb/obs-store-common'
 import {
   arrayBufferToBlob,
@@ -19,10 +19,6 @@ import {
   wowIdOf,
   wowWarnMessage,
 } from '@/misc/helpers'
-
-// we don't need a reference to Sentry, but we do need it initialised so our
-// error handlers work as expected.
-sentryInit('SW')
 
 registerWarnHandler(wowWarnMessage)
 

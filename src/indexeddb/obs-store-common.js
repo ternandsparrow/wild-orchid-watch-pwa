@@ -2,12 +2,15 @@
 // by both the client and the service worker. We don't want the SW to import
 // the vuex code hence this module
 import _ from 'lodash'
-import { blobToArrayBuffer, getExifFromBlob } from '@/misc/helpers'
-import { chainedError } from '@/misc/only-common-deps-helpers'
+import {
+  blobToArrayBuffer,
+  chainedError,
+  getExifFromBlob,
+} from '@/misc/only-common-deps-helpers'
 import * as cc from '@/misc/constants'
 import { getOrCreateInstance } from './storage-manager'
 
-// rationale: we want to emit warning but:
+// rationale: we want to emit a warning but:
 //   1. we don't want to pass a handler all the way down the chain
 //   2. we don't want to import Sentry or our wrappers of Sentry here
 //   3. we can't throw an error
