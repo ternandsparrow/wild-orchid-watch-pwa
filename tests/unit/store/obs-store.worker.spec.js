@@ -1525,6 +1525,29 @@ describe('things that need a datastore', () => {
     })
   })
 
+  describe('getUiVisibleLocalRecords', () => {
+    it('should sort records by observedAt date, newest first', async () => {
+      const uuids = [
+        await createObs('222B', '2020-02-22T22:22:22.222Z'),
+        await createObs('111A', '2020-01-11T11:11:11.111Z'),
+        await createObs('333C', '2020-03-03T03:33:33.333Z'),
+      ]
+      const result = await _testonly.getUiVisibleLocalRecords(uuids)
+      expect(result.length).toEqual(3)
+      expect(result.map(e => e.uuid)).toEqual(['333C', '222B', '111A'])
+      async function createObs(uuid, observedAtString) {
+        await obsStore.setItem(uuid, {
+          uuid,
+          observedAt: new Date(observedAtString),
+          wowMeta: {
+            [constants.photosToAddFieldName]: [],
+          },
+        })
+        return uuid
+      }
+    })
+  })
+
   it('should reset localForage store for each test', async () => {
     // not completely foolproof but a canary to verify beforeEach
     const result = (await obsStore.keys()).length

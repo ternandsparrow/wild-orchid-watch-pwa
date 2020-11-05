@@ -159,7 +159,9 @@ async function getUiVisibleLocalRecords(uuids) {
     delete result.positional_accuracy
     return result
   })
-  return (await Promise.all(promises)).filter(e => !!e)
+  const unsortedResult = (await Promise.all(promises)).filter(e => !!e)
+  const sortedOldestFirst = _.sortBy(unsortedResult, ['observedAt'])
+  return _.reverse(sortedOldestFirst)
 }
 
 async function getDbPhotosForObs(obsUuid) {
@@ -778,6 +780,7 @@ async function getBundleErrorMsg(resp) {
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
   exposed,
+  getUiVisibleLocalRecords,
   upsertBlockedAction,
   upsertQueuedAction,
 }
