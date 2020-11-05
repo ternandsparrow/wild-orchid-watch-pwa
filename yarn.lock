@@ -9540,6 +9540,12 @@ localforage@^1.9.0:
   dependencies:
     lie "3.1.1"
 
+localforage@ternandsparrow/localForage#gh-910:
+  version "1.9.0"
+  resolved "https://codeload.github.com/ternandsparrow/localForage/tar.gz/d68b990866c5f8e9fcf707bbc72722f85820f5e1"
+  dependencies:
+    lie "3.1.1"
+
 locate-path@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/locate-path/-/locate-path-2.0.0.tgz#2b568b265eec944c6d9c0de9c3dbbbca0354cd8e"

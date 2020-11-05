@@ -1634,6 +1634,14 @@ export async function migrate(store) {
     )
     await refreshLocalRecordQueueLock
   } finally {
+    // note: we're running a fork of localForage so we don't mask the reason
+    // for Safari aborting transactions on localForage.setItem:
+    //   TypeError: Attempted to add a non-object key to a WeakSet
+    // On the main localForage, we were seeing this masking error:
+    //   InvalidStateError: Failed to read the 'error' property from 'IDBRequest': The request has not finished.
+    // That is triggered by this localForage.setItem code:
+    // https://github.com/localForage/localForage/blob/c1cc34f/dist/localforage.js#L1060.
+    // Now to figure out what's offending the WeakSet.
     console.debug(`Unblocking queue processing as migration is done`)
     store.commit('ephemeral/setQueueProcessorPromise', null)
     console.debug(
