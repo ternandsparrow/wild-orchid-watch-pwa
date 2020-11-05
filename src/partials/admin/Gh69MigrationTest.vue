@@ -50,13 +50,13 @@ export default {
       // between versions of the app.
       try {
         let recordsCreated = 0
-        this.runStatus = 'fetching photo bytes...'
+        log('fetching photo bytes...')
         const photoBytes = await this.getPhotoBytes()
-        this.runStatus = 'opening indexeddb...'
+        log('opening indexeddb...')
         const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
         while (recordsCreated < this.recordsCount) {
           recordsCreated += 1
-          this.runStatus = `creating record ${recordsCreated}...`
+          log(`creating record ${recordsCreated}...`)
           const recordId = uuid()
           const newPhotos = [
             cc.photoTypeWholePlant,
@@ -116,19 +116,23 @@ export default {
           await obsStore.setItem(recordId, record)
         }
         this.$store.dispatch('obs/refreshLocalRecordQueue')
-        this.runStatus = 'Clearing migration flag'
+        log('Clearing migration flag')
         const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
         await metaStore.removeItem(cc.gh69MigrationKey)
+        log('done :D')
       } catch (err) {
         console.error('Failed to run', err)
-        this.runStatus = 'Failed. ' + err.message
+        log('Failed. ' + err.message)
       }
-      this.runStatus = 'done :D'
+      function log(msg) {
+        console.debug(msg)
+        this.runStatus = msg
+      }
     },
     async getPhotoBytes() {
       // we need a photo that's pretty big so we fill up memory quick.
       const url =
-        'http://testdata.techotom.com/originals/samsung-s20-ultra-108mp-photo.jpg'
+        'https://testdata.techotom.com/originals/samsung-s20-ultra-108mp-photo.jpg'
       const resp = await fetch(url)
       return resp.arrayBuffer()
     },
