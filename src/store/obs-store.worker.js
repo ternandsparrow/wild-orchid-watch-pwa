@@ -6,10 +6,8 @@ import {
   // importing this module implicitly calls sentryInit()
   deleteDbRecordById,
   getRecord,
-  isMigrationDone,
   mapObsFromOurDomainOntoApi,
   mapOverObsStore,
-  markMigrationDone,
   performMigrationsInWorker,
   registerUuidGenerator,
   registerWarnHandler,
@@ -37,7 +35,6 @@ const exposed = {
   doNewRecordStrategy,
   getData,
   getDbPhotosForObs,
-  migrateLocalRecordsWithoutOutcomeLastUpdatedAt,
   performMigrations,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
@@ -676,38 +673,6 @@ function computePhotos(
       return e
     })
   }
-}
-
-async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-  localQueueSummary,
-) {
-  if (await isMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)) {
-    return
-  }
-  const uuidsToMigrate = (localQueueSummary || [])
-    .filter(e => !e[cc.outcomeLastUpdatedAtFieldName])
-    .map(e => ({
-      uuid: e.uuid,
-      outcome: e[cc.recordProcessingOutcomeFieldName],
-    }))
-  const logPrefix = '[obs migrate]'
-  if (!uuidsToMigrate.length) {
-    console.debug(`${logPrefix} no records need outcomeLastUpdatedAt migrated`)
-    await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
-    return
-  }
-  console.debug(
-    `${logPrefix} adding outcomeLastUpdatedAt values to ` +
-      `${uuidsToMigrate.length} records`,
-  )
-  for (const curr of uuidsToMigrate) {
-    console.debug(
-      `${logPrefix} setting outcomeLastUpdatedAt for UUID=${curr.uuid} that ` +
-        `has outcome=${curr.outcome}`,
-    )
-    await setRecordProcessingOutcome(curr.uuid, curr.outcome)
-  }
-  await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
 }
 
 async function setRecordProcessingOutcome(dbId, outcome) {

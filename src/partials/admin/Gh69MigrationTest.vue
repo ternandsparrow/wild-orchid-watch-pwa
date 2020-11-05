@@ -25,6 +25,14 @@
       <v-ons-button @click="doIt">Create observations</v-ons-button>
     </p>
     <p>{{ runStatus }}</p>
+    <hr />
+    <p>
+      You can refresh the page and the migration run, or click this button to
+      trigger it now. This runs *all* migrations, not just the GH-69 one. This
+      shouldn't matter but at least you know if it does.
+    </p>
+    <v-ons-button @click="doMigration">Trigger migration now</v-ons-button>
+    <p>{{ migrateStatus }}</p>
   </v-ons-card>
 </template>
 
@@ -33,6 +41,7 @@ import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import { recordTypeEnum as recordType } from '@/misc/helpers'
+import { migrate } from '@/store/obs'
 
 export default {
   name: 'ExtractThumbnailFromExif',
@@ -40,6 +49,7 @@ export default {
     return {
       runStatus: '(not yet run)',
       recordsCount: 20,
+      migrateStatus: '(not yet run)',
     }
   },
   methods: {
@@ -135,6 +145,16 @@ export default {
         'https://testdata.techotom.com/originals/samsung-s20-ultra-108mp-photo.jpg'
       const resp = await fetch(url)
       return resp.arrayBuffer()
+    },
+    async doMigration() {
+      try {
+        this.migrateStatus = 'starting...'
+        await migrate(this.$store)
+        this.migrateStatus = 'done :D'
+      } catch (err) {
+        console.error('Failed to migrate', err)
+        this.migrateStatus = 'Failed. ' + err.message
+      }
     },
   },
 }

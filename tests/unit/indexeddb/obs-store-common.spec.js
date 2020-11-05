@@ -360,6 +360,99 @@ describe('obs-store-common', () => {
       }
     })
 
+    it('should only thumbnail-ify any given photo once for blocked photos', async () => {
+      const recordId = '456A'
+      const photoId = '1234'
+      const savedRecord = await getRecordWithExistingBlockedPhoto(
+        testObsStore,
+        testPhotoStore,
+        recordId,
+        photoId,
+      )
+      // now we simulate a record edit that adds a photo to the blocked action
+      const newPhoto = {
+        file: getPhotoWithThumbnail(),
+        id: '5678',
+        type: 'flower',
+      }
+      const editedRecord = {
+        ...savedRecord,
+        photos: [...savedRecord.photos, newPhoto],
+        wowMeta: {
+          ...savedRecord.wowMeta,
+          [cc.blockedActionFieldName]: {
+            wowMeta: {
+              [cc.photosToAddFieldName]: [
+                ...savedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
+                  cc.photosToAddFieldName
+                ],
+                newPhoto,
+              ],
+            },
+          },
+        },
+      }
+      await objectUnderTest._testonly.storeRecordImpl(
+        testObsStore,
+        testPhotoStore,
+        editedRecord,
+      )
+      const result = await testObsStore.getItem(recordId)
+      const photos =
+        result.wowMeta[cc.blockedActionFieldName].wowMeta[
+          cc.photosToAddFieldName
+        ]
+      expect(photos.map(e => e.id)).toEqual([photoId, '5678'])
+      expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
+      expect(photos[1].file.data.byteLength).toEqual(byteLengthOfThumbnail)
+      const firstPhotoDbId = photos[0].id
+      const firstPhotoRecord = await testPhotoStore.getItem(firstPhotoDbId)
+      expect(firstPhotoRecord).toEqual({
+        file: {
+          data: expect.any(ArrayBuffer),
+          mime: 'image/jpeg',
+        },
+        id: firstPhotoDbId,
+        type: 'top',
+      })
+      expect(firstPhotoRecord.file.data.byteLength).toEqual(
+        sizeOfPhotoWithExifThumbnail,
+      )
+      const secondPhotoDbId = photos[1].id
+      const secondPhotoRecord = await testPhotoStore.getItem(secondPhotoDbId)
+      expect(secondPhotoRecord).toEqual({
+        file: {
+          data: expect.any(ArrayBuffer),
+          mime: 'image/jpeg',
+        },
+        id: secondPhotoDbId,
+        type: 'flower',
+      })
+      expect(secondPhotoRecord.file.data.byteLength).toEqual(
+        sizeOfPhotoWithExifThumbnail,
+      )
+    })
+
+    it('should throw an error when we pass a record without a key', async () => {
+      const record = {
+        // no 'uuid' set
+      }
+      try {
+        await objectUnderTest._testonly.storeRecordImpl(
+          testObsStore,
+          testPhotoStore,
+          record,
+        )
+      } catch (err) {
+        if (err.message.startsWith('Failed to store db record')) {
+          return
+        }
+      }
+      throw new Error('Fail! expected a thrown error')
+    })
+  })
+
+  describe('doGh69SeparatingPhotosMigration', () => {
     it('should migrate a non-migrated obs record', async () => {
       const recordId = '92818C'
       // set up fixture
@@ -478,160 +571,69 @@ describe('obs-store-common', () => {
       )
       expect(migratedIds.length).toEqual(0)
     })
+  })
 
-    it('should only thumbnail-ify any given photo once', async () => {
-      const recordId = '123A'
-      const photoId = '1234'
-      const savedRecord = await getRecordWithExistingPhoto(
-        testObsStore,
-        testPhotoStore,
-        recordId,
-        photoId,
-      )
-      // now we simulate a record edit that adds a photo
-      const newPhoto = {
-        file: getPhotoWithThumbnail(),
-        id: '5678',
-        type: 'flower',
-      }
-      const editedRecord = {
-        ...savedRecord,
-        photos: [...savedRecord.photos, newPhoto],
+  describe('migrateLocalRecordsWithoutOutcomeLastUpdatedAt', () => {
+    it('should migrate a non-migrated obs record', async () => {
+      const recordId = '92818C'
+      // set up fixture
+      const record = {
+        uuid: recordId,
+        photos: [],
         wowMeta: {
-          ...savedRecord.wowMeta,
-          [cc.photosToAddFieldName]: [
-            ...savedRecord.wowMeta[cc.photosToAddFieldName],
-            newPhoto,
-          ],
+          [cc.photosToAddFieldName]: [],
         },
       }
-      await objectUnderTest._testonly.storeRecordImpl(
+      await testObsStore.setItem(recordId, record)
+      // now we do the migration
+      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
         testObsStore,
         testPhotoStore,
-        editedRecord,
+        testMetaStore,
       )
-      const result = await testObsStore.getItem(recordId)
-      const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual([photoId, '5678'])
-      expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
-      expect(photos[1].file.data.byteLength).toEqual(byteLengthOfThumbnail)
-      const firstPhotoDbId = photos[0].id
-      const firstPhotoRecord = await testPhotoStore.getItem(firstPhotoDbId)
-      expect(firstPhotoRecord).toEqual({
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: firstPhotoDbId,
-        type: 'top',
-      })
-      expect(firstPhotoRecord.file.data.byteLength).toEqual(
-        sizeOfPhotoWithExifThumbnail,
-      )
-      const secondPhotoDbId = photos[1].id
-      const secondPhotoRecord = await testPhotoStore.getItem(secondPhotoDbId)
-      expect(secondPhotoRecord).toEqual({
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: secondPhotoDbId,
-        type: 'flower',
-      })
-      expect(secondPhotoRecord.file.data.byteLength).toEqual(
-        sizeOfPhotoWithExifThumbnail,
-      )
+      expect(migratedIds[0]).toEqual(recordId)
+      const migratedRecord = await testObsStore.getItem(recordId)
+      expect(
+        migratedRecord.wowMeta[cc.outcomeLastUpdatedAtFieldName],
+      ).toBeTruthy()
     })
 
-    it('should only thumbnail-ify any given photo once for blocked photos', async () => {
-      const recordId = '456A'
-      const photoId = '1234'
-      const savedRecord = await getRecordWithExistingBlockedPhoto(
+    it('should not migrate a migrated obs record', async () => {
+      const recordId = '228836'
+      // set up fixture
+      const record = {
+        uuid: recordId,
+        photos: [],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [],
+          [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+        },
+      }
+      await testObsStore.setItem(recordId, record)
+      // now we do the migration
+      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
         testObsStore,
         testPhotoStore,
-        recordId,
-        photoId,
+        testMetaStore,
       )
-      // now we simulate a record edit that adds a photo to the blocked action
-      const newPhoto = {
-        file: getPhotoWithThumbnail(),
-        id: '5678',
-        type: 'flower',
-      }
-      const editedRecord = {
-        ...savedRecord,
-        photos: [...savedRecord.photos, newPhoto],
-        wowMeta: {
-          ...savedRecord.wowMeta,
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photosToAddFieldName]: [
-                ...savedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
-                  cc.photosToAddFieldName
-                ],
-                newPhoto,
-              ],
-            },
+      expect(migratedIds.length).toEqual(0)
+    })
+
+    it(`should not migrate when it's already been done`, async () => {
+      await testMetaStore.setItem(
+        cc.noOutcomeLastUpdatedMigrationKey,
+        new Date().toISOString(),
+      )
+      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+        {
+          keys: async () => {
+            throw new Error('Should not be called')
           },
         },
-      }
-      await objectUnderTest._testonly.storeRecordImpl(
-        testObsStore,
-        testPhotoStore,
-        editedRecord,
+        null,
+        testMetaStore,
       )
-      const result = await testObsStore.getItem(recordId)
-      const photos =
-        result.wowMeta[cc.blockedActionFieldName].wowMeta[
-          cc.photosToAddFieldName
-        ]
-      expect(photos.map(e => e.id)).toEqual([photoId, '5678'])
-      expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
-      expect(photos[1].file.data.byteLength).toEqual(byteLengthOfThumbnail)
-      const firstPhotoDbId = photos[0].id
-      const firstPhotoRecord = await testPhotoStore.getItem(firstPhotoDbId)
-      expect(firstPhotoRecord).toEqual({
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: firstPhotoDbId,
-        type: 'top',
-      })
-      expect(firstPhotoRecord.file.data.byteLength).toEqual(
-        sizeOfPhotoWithExifThumbnail,
-      )
-      const secondPhotoDbId = photos[1].id
-      const secondPhotoRecord = await testPhotoStore.getItem(secondPhotoDbId)
-      expect(secondPhotoRecord).toEqual({
-        file: {
-          data: expect.any(ArrayBuffer),
-          mime: 'image/jpeg',
-        },
-        id: secondPhotoDbId,
-        type: 'flower',
-      })
-      expect(secondPhotoRecord.file.data.byteLength).toEqual(
-        sizeOfPhotoWithExifThumbnail,
-      )
-    })
-
-    it('should throw an error when we pass a record without a key', async () => {
-      const record = {
-        // no 'uuid' set
-      }
-      try {
-        await objectUnderTest._testonly.storeRecordImpl(
-          testObsStore,
-          testPhotoStore,
-          record,
-        )
-      } catch (err) {
-        if (err.message.startsWith('Failed to store db record')) {
-          return
-        }
-      }
-      throw new Error('Fail! expected a thrown error')
+      expect(migratedIds.length).toEqual(0)
     })
   })
 

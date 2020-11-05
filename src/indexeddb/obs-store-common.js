@@ -40,20 +40,25 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     if (!key) {
       throw new Error('Record has no key, cannot continue')
     }
+    log('Processing photo deletes')
     await deleteLocalPhotos(record, `wowMeta.${cc.photoIdsToDeleteFieldName}`)
+    log('Processing photo deletes in the blocked action')
     await deleteLocalPhotos(
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
     )
+    log('Processing photo adds')
     await savePhotosAndReplaceWithThumbnails(
       record,
       `wowMeta.${cc.photosToAddFieldName}`,
     )
+    log('Processing photo adds in blocked action')
     await savePhotosAndReplaceWithThumbnails(
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
     )
     record.wowMeta[cc.versionFieldName] = cc.currentRecordVersion
+    log('Saving record')
     return obsStore.setItem(key, record)
   } catch (err) {
     throw chainedError(`Failed to store db record with ID='${key}'`, err)
@@ -101,6 +106,9 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       await photoStore.removeItem(curr)
     }
     _.set(record, propPath, _.difference(ids, idsToDelete))
+  }
+  function log(msg) {
+    console.debug(`[saveRecordImpl] ${msg}`)
   }
 }
 
@@ -223,15 +231,31 @@ export function mapOverObsStoreImpl(obsStore, mapperFn) {
   })
 }
 
-export async function setRecordProcessingOutcome(dbId, targetOutcome) {
+export function setRecordProcessingOutcome(dbId, targetOutcome) {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return setRecordProcessingOutcomeImpl(
+    obsStore,
+    photoStore,
+    dbId,
+    targetOutcome,
+  )
+}
+
+async function setRecordProcessingOutcomeImpl(
+  obsStore,
+  photoStore,
+  dbId,
+  targetOutcome,
+) {
   console.debug(`Transitioning dbId=${dbId} to outcome=${targetOutcome}`)
-  const record = await getRecord(dbId)
+  const record = await getRecordImpl(obsStore, dbId)
   if (!record) {
     throw new Error('Could not find record for ID=' + dbId)
   }
   record.wowMeta[cc.recordProcessingOutcomeFieldName] = targetOutcome
   record.wowMeta[cc.outcomeLastUpdatedAtFieldName] = new Date().toString()
-  return storeRecord(record)
+  return storeRecordImpl(obsStore, photoStore, record)
 }
 
 export function healthcheckStore() {
@@ -248,13 +272,23 @@ export async function performMigrationsInWorker() {
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
   const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
   const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  const migratedIds = await doGh69SeparatingPhotosMigration(
-    obsStore,
-    photoStore,
-    metaStore,
+  logResult(
+    'GH-69',
+    await doGh69SeparatingPhotosMigration(obsStore, photoStore, metaStore),
   )
-  if (migratedIds.length) {
-    warnHandler(`Migrated ${migratedIds.length} records in GH-69 migration`)
+  logResult(
+    'local records without outcomeLastUpdatedAt',
+    await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+      obsStore,
+      photoStore,
+      metaStore,
+    ),
+  )
+  function logResult(name, result) {
+    if (!result.length) {
+      return
+    }
+    warnHandler(`Migrated ${result.length} records in ${name} migration`)
   }
 }
 
@@ -436,6 +470,46 @@ function isAnswer(val) {
   return !['undefined', 'null'].includes(typeof val)
 }
 
+async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+  obsStore,
+  photoStore,
+  metaStore,
+) {
+  log('Starting migration')
+  if (
+    await isMigrationDoneImpl(metaStore, cc.noOutcomeLastUpdatedMigrationKey)
+  ) {
+    log('Already done migration previously, skipping')
+    return []
+  }
+  const result = []
+  const obsIds = await obsStore.keys()
+  for (const currId of obsIds) {
+    log(`Checking record UUID=${currId}`)
+    const record = await obsStore.getItem(currId)
+    const isInNeedOfMigration = !record.wowMeta[
+      cc.outcomeLastUpdatedAtFieldName
+    ]
+    if (!isInNeedOfMigration) {
+      log(`record UUID=${currId} does not need migrating`)
+      continue
+    }
+    result.push(currId)
+    const outcome = record.wowMeta[cc.recordProcessingOutcomeFieldName]
+    log(
+      `setting outcomeLastUpdatedAt for UUID=${currId} that ` +
+        `has outcome=${outcome}`,
+    )
+    await setRecordProcessingOutcomeImpl(obsStore, photoStore, currId, outcome)
+  }
+  await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
+  log('Migration done')
+  return result
+  function log(msg) {
+    console.debug(`[outcomeLastUpdatedAt migrate] ${msg}`)
+  }
+}
+
 const interceptableFns = {
   storePhotoRecord,
 }
@@ -446,5 +520,6 @@ export const _testonly = {
   getRecordImpl,
   getPhotoRecordImpl,
   interceptableFns,
+  migrateLocalRecordsWithoutOutcomeLastUpdatedAt,
   storeRecordImpl,
 }

@@ -1601,29 +1601,46 @@ function processObsFieldName(fieldName) {
 
 export async function migrate(store) {
   const qPP = store.state.ephemeral.queueProcessorPromise
-  if (qPP) {
-    // as the migrations are fired off as the page loads, it would be weird for
-    // the pipeline to already be running.
+  if (refreshLocalRecordQueueLock || qPP) {
+    // as the migrations are fired off as the app loads, it would be weird for
+    // something else to beat us to it.
+    const a = 'rLRQL=' + (refreshLocalRecordQueueLock ? 'yes' : 'no')
+    const b = 'qPP=' + (qPP ? 'yes' : 'no')
     wowWarnMessage(
-      'Waiting for queueProcessorPromise before migrating. Did not expect ' +
-        'this to happen.',
+      `Waiting for existing locks (${a},${b}) before migrating. Did not ` +
+        'expect this to happen.',
     )
-    await qPP
+    await Promise.all([
+      refreshLocalRecordQueueLock || Promise.resolve(),
+      qPP || Promise.resolve(),
+    ])
   }
-  console.debug(`Blocking queue processing with migration promise`)
-  const migrationPromise = async () => {
-    migrateRecentlyUsedTaxa(store)
-    await getObsStoreWorker().migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-      store.state.obs.localQueueSummary,
+  try {
+    // if we don't lock out other processes, Safari can have issues.
+    console.debug(
+      `Blocking "refresh local queue" process with migration promise`,
     )
-    await getObsStoreWorker().performMigrations()
+    refreshLocalRecordQueueLock = (async function() {
+      // don't trigger any of the processes we have blocked above as part of a
+      // migration or you'll get a deadlock.
+      migrateRecentlyUsedTaxa(store)
+      await getObsStoreWorker().performMigrations()
+    })()
+    console.debug(`Blocking queue processing with migration promise`)
+    // note: this will trigger the sync spinner
+    store.commit(
+      'ephemeral/setQueueProcessorPromise',
+      refreshLocalRecordQueueLock,
+    )
+    await refreshLocalRecordQueueLock
+  } finally {
+    console.debug(`Unblocking queue processing as migration is done`)
+    store.commit('ephemeral/setQueueProcessorPromise', null)
+    console.debug(
+      `Unblocking "refresh local queue" process as migration is done`,
+    )
+    refreshLocalRecordQueueLock = null
   }
-  // note: this will trigger the sync spinner
-  store.commit('ephemeral/setQueueProcessorPromise', migrationPromise)
-  await migrationPromise()
-  console.debug(`Unblocking queue processing as migration is done`)
-  store.commit('ephemeral/setQueueProcessorPromise', null)
-  await store.dispatch('obs/refreshLocalRecordQueue')
 
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
@@ -1637,6 +1654,8 @@ export async function migrate(store) {
       )
     })
     store.commit('obs/setForceQueueProcessingAtNextChance', false)
+  } else {
+    await store.dispatch('obs/refreshLocalRecordQueue')
   }
 }
 
