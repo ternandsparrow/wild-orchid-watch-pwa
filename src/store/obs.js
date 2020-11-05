@@ -1618,6 +1618,7 @@ export async function migrate(store) {
     )
     await getObsStoreWorker().performMigrations()
   }
+  // note: this will trigger the sync spinner
   store.commit('ephemeral/setQueueProcessorPromise', migrationPromise)
   await migrationPromise()
   console.debug(`Unblocking queue processing as migration is done`)

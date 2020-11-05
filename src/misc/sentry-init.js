@@ -19,10 +19,8 @@ export default function sentryInit(initLocationName, extraInitArgs = {}) {
     Sentry.init({
       dsn: constants.sentryDsn,
       release: constants.appVersion,
+      environment: constants.deployedEnvName,
       ...extraInitArgs,
-    })
-    Sentry.configureScope(scope => {
-      scope.setTag('environment', constants.deployedEnvName)
     })
   }
   return Sentry

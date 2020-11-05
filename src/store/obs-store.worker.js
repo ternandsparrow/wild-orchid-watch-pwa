@@ -118,6 +118,9 @@ async function getUiVisibleLocalRecords(uuids) {
       // it's *not* a thumbnail.
       const maxSizeForExifThumbnail = 64000
       const firstPhotoWithThumbnail = photos.find(e => {
+        if (e.isRemote) {
+          return true
+        }
         const fileSize = _.get(e, 'file.data.byteLength', 0)
         const hasThumnailSizedImage =
           fileSize && fileSize < maxSizeForExifThumbnail
@@ -125,6 +128,9 @@ async function getUiVisibleLocalRecords(uuids) {
       })
       if (!firstPhotoWithThumbnail) {
         return cc.noPreviewAvailableUrl
+      }
+      if (firstPhotoWithThumbnail.isRemote) {
+        return firstPhotoWithThumbnail.url
       }
       return mapPhotoFromDbToUi(firstPhotoWithThumbnail, u =>
         thumbnailObjectUrlsInUse.push(u),
