@@ -44,6 +44,10 @@ export default {
   },
   methods: {
     async doIt() {
+      const log = msg => {
+        console.debug(msg)
+        this.runStatus = msg
+      }
       // we're doing it all by hand because we have to replicate the format of
       // old records. If we used the helpers, we'd get the format of the new
       // records. This lets us test the migration code without having to jump
@@ -123,10 +127,6 @@ export default {
       } catch (err) {
         console.error('Failed to run', err)
         log('Failed. ' + err.message)
-      }
-      function log(msg) {
-        console.debug(msg)
-        this.runStatus = msg
       }
     },
     async getPhotoBytes() {
