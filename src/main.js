@@ -52,7 +52,7 @@ new Vue({
     try {
       migrateOldStores(this.$store).catch(err => {
         this.$store.dispatch('flagGlobalError', {
-          msg: `Failed to perform all Vuex/DB migrations`,
+          msg: `Failed to initiate/run all Vuex/DB migrations`,
           userMsg: 'Failed to update app from previous version',
           err,
         })
