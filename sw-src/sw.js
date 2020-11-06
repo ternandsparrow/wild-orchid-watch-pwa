@@ -493,8 +493,8 @@ async function onSyncWithPerItemCallback(
           wowWarnMessage(
             `${failureCountMsgPrefix} This is over the ` +
               `${constants.maxReqFailureCountInSw} threshold so we're giving ` +
-              `up on this whole obsId=${obsId}. Most recent error: ` +
-              `(name=${err.name}) message=${err.message}`,
+              `up on this whole obsId=${obsId}/UUID=${obsUuid}. Most recent ` +
+              `error: (name=${err.name}) message=${err.message}`,
           )
           await setRecordProcessingOutcome(
             entry.metadata.obsUuid,
@@ -799,6 +799,7 @@ registerRoute(
 
 async function getObsUuidsInQueues() {
   const uuids = new Set()
+  // FIXME change to remove iterator. Use keys()
   const wowQueueEntries = await wowQueue.getAll()
   wowQueueEntries.forEach(e => uuids.add(e.metadata.obsUuid))
   await new Promise(async (resolve, reject) => {
