@@ -316,15 +316,17 @@ async function doGh69SeparatingPhotosMigration(
   const obsIds = await obsStore.keys()
   for (const currId of obsIds) {
     const record = await obsStore.getItem(currId)
-    const isMigrationRequired1 = await prepForMigration(
+    const isPhotosMigrated = await prepForMigration(
       record,
       `wowMeta.${cc.photosToAddFieldName}`,
     )
-    const isMigrationRequired2 = await prepForMigration(
+    const isBlockedPhotosMigrated = await prepForMigration(
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
     )
-    if (!isMigrationRequired1 && !isMigrationRequired2) {
+    // before this migration, the field didn't exist
+    const isOldVersion = !_.get(record, `wowMeta.${cc.versionFieldName}`)
+    if (!isPhotosMigrated && !isBlockedPhotosMigrated && !isOldVersion) {
       continue
     }
     console.debug(`Doing ${migrationName} migration for UUID=${record.uuid}`)

@@ -538,11 +538,11 @@ describe('obs-store-common', () => {
         testMetaStore,
       )
       expect(migratedIds[0]).toEqual(recordId)
-      const photoIds = _.get(
-        await testObsStore.getItem(recordId),
-        'photos',
-        [],
-      ).map(e => e.id)
+      const migratedObs = await testObsStore.getItem(recordId)
+      expect(migratedObs.wowMeta[cc.versionFieldName]).toEqual(
+        cc.currentRecordVersion,
+      )
+      const photoIds = _.get(migratedObs, 'photos', []).map(e => e.id)
       try {
         expect(
           photoIds.every(e => {
@@ -577,6 +577,7 @@ describe('obs-store-common', () => {
         photos: [photo1, photo2],
         wowMeta: {
           [cc.photosToAddFieldName]: [photo1],
+          [cc.versionFieldName]: cc.currentRecordVersion, // this means already migrated
           [cc.blockedActionFieldName]: {
             wowMeta: {
               [cc.photosToAddFieldName]: [photo2],
@@ -599,6 +600,30 @@ describe('obs-store-common', () => {
         testMetaStore,
       )
       expect(migratedIds.length).toEqual(0)
+    })
+
+    it('should migrate a non-migrated record without photos to add', async () => {
+      const recordId = 'ks8188s'
+      // set up fixture
+      const record = {
+        uuid: recordId,
+        photos: [],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [],
+        },
+      }
+      await testObsStore.setItem(recordId, record)
+      // now we do the migration
+      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
+        testObsStore,
+        testPhotoStore,
+        testMetaStore,
+      )
+      expect(migratedIds.length).toEqual(1)
+      const savedRecord = await testObsStore.getItem(recordId)
+      expect(savedRecord.wowMeta[cc.versionFieldName]).toEqual(
+        cc.currentRecordVersion,
+      )
     })
 
     it(`should not migrate when it's already been done`, async () => {
