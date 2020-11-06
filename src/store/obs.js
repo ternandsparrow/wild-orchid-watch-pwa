@@ -2,6 +2,7 @@ import _ from 'lodash'
 import dayjs from 'dayjs'
 import Fuse from 'fuse.js'
 import { wrap as comlinkWrap } from 'comlink'
+import Semaphore from '@chriscdn/promise-semaphore'
 import {
   deleteDbRecordById,
   getRecord,
@@ -653,23 +654,22 @@ const actions = {
       return refreshLocalRecordQueueLock
     }
     console.debug('[refreshLocalRecordQueue] starting')
-    refreshLocalRecordQueueLock = worker().finally(() => {
+    const semaphore = new Semaphore()
+    refreshLocalRecordQueueLock = semaphore.acquire()
+    try {
+      const {
+        localQueueSummary,
+        uiVisibleLocalRecords,
+      } = await getObsStoreWorker().getData()
+      commit('setLocalQueueSummary', localQueueSummary)
+      commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
+      // TODO do we need to wait for nextTick before revoking the old URLs?
+    } catch (err) {
+      throw chainedError('Failed to refresh localRecordQueue', err)
+    } finally {
+      semaphore.release()
       refreshLocalRecordQueueLock = null
       console.debug('[refreshLocalRecordQueue] finished')
-    })
-    return refreshLocalRecordQueueLock
-    async function worker() {
-      try {
-        const {
-          localQueueSummary,
-          uiVisibleLocalRecords,
-        } = await getObsStoreWorker().getData()
-        commit('setLocalQueueSummary', localQueueSummary)
-        commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
-        // TODO do we need to wait for nextTick before revoking the old URLs?
-      } catch (err) {
-        throw chainedError('Failed to refresh localRecordQueue', err)
-      }
     }
   },
   async getPhotosForObs({ state }, obsUuid) {
@@ -1625,47 +1625,37 @@ export async function migrate(store) {
       qPP || Promise.resolve(),
     ])
   }
-  // if we don't lock out other processes, Safari can have issues.
-  console.debug(`Blocking "refresh local queue" process with migration promise`)
-  refreshLocalRecordQueueLock = (async function() {
+  const semaphore = new Semaphore()
+  try {
+    const lock = semaphore.acquire()
+    console.debug(
+      `Blocking "refresh local queue" process with migration promise`,
+    )
+    refreshLocalRecordQueueLock = lock
+    console.debug(`Blocking queue processing with migration promise`)
+    // note: this will trigger the sync spinner
+    store.commit('ephemeral/setQueueProcessorPromise', lock)
     // don't trigger any of the processes we have blocked above as part of a
     // migration or you'll get a deadlock.
     migrateRecentlyUsedTaxa(store)
     await getObsStoreWorker().performMigrations()
-  })()
-    .catch(err => {
-      // we need this catch because if it throws before we await the promise,
-      // it's an uncaught rejection.
-      store.dispatch('flagGlobalError', {
-        msg: `Failed to perform all Vuex/DB migrations`,
-        userMsg: 'Failed to update app from previous version',
-        err,
-      })
-    })
-    .finally(() => {
-      // note: we're running a fork of localForage so we don't mask the reason
-      // for Safari aborting transactions on localForage.setItem:
-      //   TypeError: Attempted to add a non-object key to a WeakSet
-      // On the main localForage, we were seeing this masking error:
-      //   InvalidStateError: Failed to read the 'error' property from 'IDBRequest': The request has not finished.
-      // That is triggered by this localForage.setItem code:
-      // https://github.com/localForage/localForage/blob/c1cc34f/dist/localforage.js#L1060.
-      // Now to figure out what's offending the WeakSet.
-      console.debug(`Unblocking queue processing as migration is done`)
-      store.commit('ephemeral/setQueueProcessorPromise', null)
-      console.debug(
-        `Unblocking "refresh local queue" process as migration is done`,
-      )
-      refreshLocalRecordQueueLock = null
-    })
-  console.debug(`Blocking queue processing with migration promise`)
-  // note: this will trigger the sync spinner
-  store.commit(
-    'ephemeral/setQueueProcessorPromise',
-    refreshLocalRecordQueueLock,
-  )
-  await refreshLocalRecordQueueLock
-
+  } finally {
+    semaphore.release()
+    // note: we're running a fork of localForage so we don't mask the reason
+    // for Safari aborting transactions on localForage.setItem:
+    //   TypeError: Attempted to add a non-object key to a WeakSet
+    // On the main localForage, we were seeing this masking error:
+    //   InvalidStateError: Failed to read the 'error' property from 'IDBRequest': The request has not finished.
+    // That is triggered by this localForage.setItem code:
+    // https://github.com/localForage/localForage/blob/c1cc34f/dist/localforage.js#L1060.
+    // Now to figure out what's offending the WeakSet.
+    console.debug(`Unblocking queue processing as migration is done`)
+    store.commit('ephemeral/setQueueProcessorPromise', null)
+    console.debug(
+      `Unblocking "refresh local queue" process as migration is done`,
+    )
+    refreshLocalRecordQueueLock = null
+  }
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
       `Triggering local queue processing at request of "force at next ` +
