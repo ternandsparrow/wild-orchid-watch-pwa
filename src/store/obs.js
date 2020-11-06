@@ -706,19 +706,22 @@ const actions = {
       )
       return existingWorker
     }
-    const processorPromise = worker().finally(() => {
-      // we chain this as part of the returned promise so any caller awaiting
-      // it won't be able to act until we've cleaned up as they're awaiting
-      // this block
-      console.debug(
-        `${logPrefix} Worker done (could be error or success)` +
-          `, killing stored promise`,
-      )
-      commit('ephemeral/setQueueProcessorPromise', null, { root: true })
-    })
-    commit('ephemeral/setQueueProcessorPromise', processorPromise, {
-      root: true,
-    })
+    commit(
+      'ephemeral/setQueueProcessorPromise',
+      worker().finally(() => {
+        // we chain this as part of the returned promise so any caller awaiting
+        // it won't be able to act until we've cleaned up as they're awaiting
+        // this block
+        console.debug(
+          `${logPrefix} Worker done (could be error or success)` +
+            `, killing stored promise`,
+        )
+        commit('ephemeral/setQueueProcessorPromise', null, { root: true })
+      }),
+      {
+        root: true,
+      },
+    )
     return rootState.ephemeral.queueProcessorPromise
     async function worker() {
       console.debug(`${logPrefix} Starting to process local queue`)
@@ -735,6 +738,9 @@ const actions = {
         return
       }
       await dispatch('refreshLocalRecordQueue')
+      // FIXME what about just iterating the DB rather than keeping a cache
+      // (that has to be refreshed by itering the DB anyway)? Otherwise, we
+      // need to refresh the cache before each iteration
       const waitingQueue = getters.waitingLocalQueueSummary
       const isRecordToProcess = waitingQueue.length
       if (!isRecordToProcess) {
@@ -1136,6 +1142,7 @@ const actions = {
     { dispatch, rootState, getters, state },
     recordId,
   ) {
+    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
     const recordSummary = state.localQueueSummary.find(e => (e.uuid = recordId))
     if (!recordSummary) {
       const ids = JSON.stringify(state.localQueueSummary.map(e => e.uuid))
@@ -1180,7 +1187,6 @@ const actions = {
       )
     }
     await strategy()
-    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
     await dispatch('refreshLocalRecordQueue')
     await dispatch('refreshObsUuidsInSwQueue')
     await triggerSwWowQueue()
@@ -1289,6 +1295,7 @@ const actions = {
     { wowId, targetOutcome, validFromOutcomes },
   ) {
     const isRestrictFromOutcomes = (validFromOutcomes || []).length
+    // FIXME should we still be using this cache?
     const fromOutcome = await dispatch('getCurrentOutcomeForWowId', wowId)
     if (isRestrictFromOutcomes && !validFromOutcomes.includes(fromOutcome)) {
       throw new Error(
@@ -1322,6 +1329,9 @@ const actions = {
     } catch (err) {
       throw chainedError('Failed to init localForage instance', err)
     }
+  },
+  getFullSizePhotoUrl(_, photoUuid) {
+    return getObsStoreWorker().getFullSizePhotoUrl(photoUuid)
   },
 }
 
