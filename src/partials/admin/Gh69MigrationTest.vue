@@ -18,10 +18,23 @@
       refresh, the migration code will run.<br />
     </p>
     <p>
-      <label>
+      <label for="record-count">
         Number of records to create
-        <v-ons-input v-model="recordsCount" type="number" />
       </label>
+      <br />
+      <v-ons-input
+        v-model="recordsCount"
+        type="number"
+        input-id="record-count"
+      />
+    </p>
+    <p>
+      <v-ons-checkbox v-model="isIncludePhotos" input-id="is-include-photos" />
+      <label for="is-include-photos">
+        Include photos in the created records?
+      </label>
+    </p>
+    <p>
       <v-ons-button @click="doIt">Create observations</v-ons-button>
     </p>
     <p>{{ runStatus }}</p>
@@ -48,8 +61,9 @@ export default {
   data() {
     return {
       runStatus: '(not yet run)',
-      recordsCount: 20,
+      recordsCount: 10,
       migrateStatus: '(not yet run)',
+      isIncludePhotos: true,
     }
   },
   methods: {
@@ -64,15 +78,13 @@ export default {
       // between versions of the app.
       try {
         let recordsCreated = 0
-        log('fetching photo bytes...')
-        const photoBytes = await this.getPhotoBytes()
-        log('opening indexeddb...')
-        const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
-        while (recordsCreated < this.recordsCount) {
-          recordsCreated += 1
-          log(`creating record ${recordsCreated}...`)
-          const recordId = uuid()
-          const newPhotos = [
+        const newPhotos = await (async () => {
+          if (!this.isIncludePhotos) {
+            return []
+          }
+          log('fetching photo bytes...')
+          const photoBytes = await this.getPhotoBytes()
+          return [
             cc.photoTypeWholePlant,
             cc.photoTypeHabitat,
             cc.photoTypeMicrohabitat,
@@ -87,6 +99,13 @@ export default {
             },
             type: currType,
           }))
+        })()
+        log('opening indexeddb...')
+        const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+        while (recordsCreated < this.recordsCount) {
+          recordsCreated += 1
+          log(`creating record ${recordsCreated}...`)
+          const recordId = uuid()
           const record = {
             captive_flag: false,
             geoprivacy: 'obscured',
