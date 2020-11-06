@@ -118,6 +118,49 @@ describe('obs-store-common', () => {
       )
     })
 
+    it('should fix inconsistent data by adding the thumbnail to the photos array', async () => {
+      // I have a feeling this is masking another bug :(
+      const newPhoto = {
+        file: getPhotoWithThumbnail(),
+        id: '1234',
+        type: 'top',
+      }
+      const record = {
+        uuid: '123A',
+        photos: [
+          /* photo is missing from here */
+        ],
+        wowMeta: {
+          [cc.photosToAddFieldName]: [newPhoto],
+        },
+      }
+      let warnMsg
+      objectUnderTest.registerWarnHandler(msg => (warnMsg = msg))
+      await objectUnderTest._testonly.storeRecordImpl(
+        testObsStore,
+        testPhotoStore,
+        record,
+      )
+      expect(warnMsg.startsWith('Inconsistent data error')).toBeTruthy()
+      const result = await testObsStore.getItem('123A')
+      const photos = result.wowMeta[cc.photosToAddFieldName]
+      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
+      const photoDbId = photos[0].id
+      const photoRecord = await testPhotoStore.getItem(photoDbId)
+      expect(photoRecord).toEqual({
+        file: {
+          data: expect.any(ArrayBuffer),
+          mime: 'image/jpeg',
+        },
+        id: photoDbId,
+        type: 'top',
+      })
+      expect(photoRecord.file.data.byteLength).toEqual(
+        sizeOfPhotoWithExifThumbnail,
+      )
+    })
+
     it('should handle a photo with EXIF but no thumbnail', async () => {
       const newPhoto = {
         file: getPhotoNoThumbnail(),
@@ -764,9 +807,7 @@ describe('mapObsFromOurDomainOntoApi', () => {
           observation_field_values_attributes: {},
         },
       },
-      photoPostBodyPartials: [
-        { wowType: 'wow-test1', mime: 'image/jpeg', data: '/9g=' },
-      ],
+      photoPostBodyPartials: [photo1],
       totalTaskCount: 2,
     })
   })

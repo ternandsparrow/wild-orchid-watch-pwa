@@ -384,7 +384,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '@/theme/variables.scss';
 .red {
   color: red;
 }
@@ -400,14 +399,6 @@ export default {
     display: flex;
     justify-content: space-around;
   }
-}
-
-.error-indicator {
-  color: red;
-}
-
-.warn-indicator {
-  color: $wowWarnOrange;
 }
 
 .summary-bar {

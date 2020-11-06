@@ -2,13 +2,12 @@
 // by the client, worker(s) and the service worker. We don't want the workers
 // to import the vuex code hence this module.
 import _ from 'lodash'
-import base64js from 'base64-js'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
   chainedError,
-  recordTypeEnum as recordType,
   getExifFromBlob,
+  recordTypeEnum as recordType,
 } from '@/misc/only-common-deps-helpers'
 import * as cc from '@/misc/constants'
 import { getOrCreateInstance } from './storage-manager'
@@ -85,13 +84,16 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       // update the array of all photos to use the thumbnail
       const foundIndex = record.photos.findIndex(e => e.id === curr.id)
       if (!~foundIndex) {
-        throw new Error(
+        warnHandler(
           `Inconsistent data error: could not find photo with ` +
             `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
-            ` available photo IDs=${JSON.stringify(photos.map(e => e.id))}`,
+            ` available photo IDs=${JSON.stringify(photos.map(e => e.id))}. ` +
+            `Adding it to the list of photos.`,
         )
+        record.photos.push(currThumb)
+      } else {
+        record.photos.splice(foundIndex, 1, currThumb)
       }
-      record.photos.splice(foundIndex, 1, currThumb)
     }
     _.set(record, propPath, result)
   }
@@ -441,7 +443,7 @@ export async function mapObsFromOurDomainOntoApi(
       },
     ),
   }
-  const photoDbRecords = []
+  result.photoPostBodyPartials = []
   for (const currId of (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
     e => e.id,
   )) {
@@ -451,17 +453,8 @@ export async function mapObsFromOurDomainOntoApi(
       console.warn(`Could not load photo with ID=${currId}`)
       continue
     }
-    photoDbRecords.push(photo)
+    result.photoPostBodyPartials.push(photo)
   }
-  result.photoPostBodyPartials = photoDbRecords.map(curr => {
-    const photoType = `wow-${curr.type}`
-    const base64Data = base64js.fromByteArray(new Uint8Array(curr.file.data))
-    return {
-      mime: curr.file.mime,
-      data: base64Data,
-      wowType: photoType,
-    }
-  })
   result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }

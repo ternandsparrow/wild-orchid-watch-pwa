@@ -957,7 +957,7 @@ export default {
     },
     onDeletePhoto(record) {
       this.$wow.uiTrace('SingleSpecies', `delete photo`)
-      const isLocalFromPreviousEdit = !!record.id
+      const isLocalFromPreviousEdit = !!record.id // FIXME is this right?
       if (record.isRemote || isLocalFromPreviousEdit) {
         const id = record.id
         this.photoIdsToDelete.push(id)
@@ -1474,7 +1474,7 @@ export default {
         const photoObj = {
           type,
           file,
-          url: URL.createObjectURL(file), // FIXME where do we revoke this?
+          url: URL.createObjectURL(file),
           uuid: theUuid,
         }
         this.photos.push(photoObj)

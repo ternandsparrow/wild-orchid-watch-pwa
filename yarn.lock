@@ -9533,13 +9533,6 @@ localforage@1.8.1:
   dependencies:
     lie "3.1.1"
 
-localforage@^1.9.0:
-  version "1.9.0"
-  resolved "https://registry.yarnpkg.com/localforage/-/localforage-1.9.0.tgz#f3e4d32a8300b362b4634cc4e066d9d00d2f09d1"
-  integrity sha512-rR1oyNrKulpe+VM9cYmcFn6tsHuokyVHFaCM3+osEmxaHTbEk8oQu6eGDfS6DQLWi/N67XRmB8ECG37OES368g==
-  dependencies:
-    lie "3.1.1"
-
 localforage@ternandsparrow/localForage#gh-910:
   version "1.9.0"
   resolved "https://codeload.github.com/ternandsparrow/localForage/tar.gz/d68b990866c5f8e9fcf707bbc72722f85820f5e1"

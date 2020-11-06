@@ -1,4 +1,5 @@
 import { expose as comlinkExpose } from 'comlink'
+import base64js from 'base64-js'
 import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
@@ -714,7 +715,15 @@ async function generatePayload(recordId) {
   result[cc.obsFieldName] = apiRecords.observationPostBody
   result[cc.photoIdsToDeleteFieldName] =
     dbRecord.wowMeta[cc.photoIdsToDeleteFieldName]
-  result[cc.photosFieldName] = apiRecords.photoPostBodyPartials
+  result[cc.photosFieldName] = apiRecords.photoPostBodyPartials.map(curr => {
+    const photoType = `wow-${curr.type}`
+    const base64Data = base64js.fromByteArray(new Uint8Array(curr.file.data))
+    return {
+      mime: curr.file.mime,
+      data: base64Data,
+      wowType: photoType,
+    }
+  })
   result[cc.obsFieldIdsToDeleteFieldName] =
     dbRecord.wowMeta[cc.obsFieldIdsToDeleteFieldName]
   return result
