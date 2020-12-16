@@ -1527,11 +1527,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return result
   })
   result.updatedAt = obsFromApi.updated_at
-  // we don't use observed_on_string because the iNat web UI uses non-standard
-  // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
-  // them. The time_observed_at field seems to be standardised, which is good
-  // for us to read. We cannot write to time_observed_at though.
-  result.observedAt = dayjs(obsFromApi.time_observed_at).unix() * 1000
+  result.observedAt = getObservedAt(obsFromApi)
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -1569,6 +1565,21 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   )
   updateIdsAndCommentsFor(result)
   return result
+}
+
+function getObservedAt(obsFromApi) {
+  // we don't use observed_on_string because the iNat web UI uses non-standard
+  // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
+  // them. The time_observed_at field seems to be standardised, which is good
+  // for us to read. We cannot write to time_observed_at though.
+  const timeVal = obsFromApi.time_observed_at
+  if (timeVal) {
+    return parse(timeVal)
+  }
+  return parse(obsFromApi.observed_on)
+  function parse(v) {
+    return dayjs(v).unix() * 1000
+  }
 }
 
 function mapCommentFromApiToOurDomain(apiComment) {
