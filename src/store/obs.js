@@ -7,7 +7,7 @@ import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
-  mapObsFromOurDomainOntoApi,
+  mapObsFullFromOurDomainOntoApi,
   registerWarnHandler,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
@@ -1071,7 +1071,7 @@ const actions = {
     // the DB record may be further edited while we're processing but that
     // won't affect our snapshot here
     const dbRecord = await getRecord(recordId)
-    const apiRecords = await mapObsFromOurDomainOntoApi(dbRecord)
+    const apiRecords = await mapObsFullFromOurDomainOntoApi(dbRecord)
     const strategies = {
       [recordType('new')]: async () => {
         const localPhotoIds = []

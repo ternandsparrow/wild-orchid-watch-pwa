@@ -177,9 +177,6 @@ export function isPossiblyStuck($store, record) {
     const lastTouchedDatetime = dayjs(
       wowMeta[constants.outcomeLastUpdatedAtFieldName],
     )
-    const now = dayjs()
-    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
-    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
     const isSuccessOrWithSW = [
       constants.successOutcome,
       constants.withServiceWorkerOutcome,
@@ -190,6 +187,9 @@ export function isPossiblyStuck($store, record) {
     if (!isStuckWithoutTimeCheck) {
       return false
     }
+    const now = dayjs()
+    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
+    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
     if (!hasBeenLongEnoughSinceUploadAttempt) {
       const minutesToWait = waitThreshold.diff(now, 'minute')
       console.debug(

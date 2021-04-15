@@ -110,7 +110,7 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     _.set(record, propPath, _.difference(ids, idsToDelete))
   }
   function log(msg) {
-    console.debug(`[saveRecordImpl] ${msg}`)
+    console.debug(`[storeRecordImpl] ${msg}`)
   }
 }
 
@@ -385,10 +385,10 @@ function isMigrationDoneImpl(metaStore, key) {
   return metaStore.getItem(key)
 }
 
-export async function mapObsFromOurDomainOntoApi(
-  dbRecord,
-  photoRecordGetter = getPhotoRecord,
-) {
+/**
+ * Map only the observation payload
+ */
+export async function mapObsCoreFromOurDomainOntoApi(dbRecord) {
   const ignoredKeys = [
     'id',
     'inatId',
@@ -401,15 +401,6 @@ export async function mapObsFromOurDomainOntoApi(
     'speciesGuess',
     'wowMeta',
   ]
-  const createObsTask = 1
-  const result = {
-    totalTaskCount: createObsTask,
-  }
-  const isRecordToUpload =
-    dbRecord.wowMeta[cc.recordTypeFieldName] !== recordType('delete')
-  if (!isRecordToUpload) {
-    return {}
-  }
   const recordIdObjFragment = (() => {
     const inatId = dbRecord.inatId
     if (inatId) {
@@ -417,7 +408,7 @@ export async function mapObsFromOurDomainOntoApi(
     }
     return {}
   })()
-  result.observationPostBody = {
+  return {
     observation: Object.keys(dbRecord).reduce(
       (accum, currKey) => {
         const isNotIgnored = !ignoredKeys.includes(currKey)
@@ -445,6 +436,24 @@ export async function mapObsFromOurDomainOntoApi(
       },
     ),
   }
+}
+
+/**
+ * Map the observation AND photos and field deletes
+ */
+export async function mapObsFullFromOurDomainOntoApi(
+  dbRecord,
+  photoRecordGetter = getPhotoRecord,
+) {
+  const result = {}
+  const isRecordToUpload =
+    dbRecord.wowMeta[cc.recordTypeFieldName] !== recordType('delete')
+  if (!isRecordToUpload) {
+    return {}
+  }
+  result.observationPostBody = mapObsCoreFromOurDomainOntoApi(dbRecord)
+  // TODO this loads all photos at once, it would be more memory efficient if
+  // we load one, then process it.
   result.photoPostBodyPartials = []
   for (const currId of (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
     e => e.id,
@@ -457,7 +466,6 @@ export async function mapObsFromOurDomainOntoApi(
     }
     result.photoPostBodyPartials.push(photo)
   }
-  result.totalTaskCount += result.photoPostBodyPartials.length
   return result
 }
 

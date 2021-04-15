@@ -444,7 +444,7 @@ export const successOutcome = 'success' // successfully processed
 export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
 
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
-export const serviceWorkerBundleMagicUrl =
+export const serviceWorkerBundleMagicUrl = // FIXME rename now it's no longer a bundle but a trigger?
   serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
 export const serviceWorkerIsAliveMagicUrl =
   serviceWorkerMagicUrlPrefix + '/are-you-alive'

@@ -236,7 +236,7 @@ export default {
     ...mapGetters(['isSyncDisabled', 'isJoinedProject']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('ephemeral', ['networkOnLine']),
-    ...mapState('obs', ['allRemoteObsLastUpdated', 'uuidsInSwQueues']),
+    ...mapState('obs', ['allRemoteObsLastUpdated']),
     ...mapGetters('obs', [
       'deletesWithErrorCount',
       'isDoingSync',

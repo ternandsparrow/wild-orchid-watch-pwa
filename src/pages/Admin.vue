@@ -834,9 +834,6 @@ export default {
     },
     async doPlatformTest() {
       try {
-        const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
-          method: 'POST',
-        })
         const mainThreadResults = [
           {
             name: 'platformTestReqFileMainThread',
@@ -847,13 +844,16 @@ export default {
             result: await devHelpers.platformTestReqBlob(),
           },
         ]
-        const swResults = await (async () => {
-          if (await isSwActive()) {
-            return resp.json()
-          }
-          return '(no SW)'
-        })()
-        this.platformTestResult = [...mainThreadResults, ...swResults]
+        try {
+          const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
+            method: 'POST',
+          })
+          const swResults = await resp.json()
+          this.platformTestResult = [...mainThreadResults, ...swResults]
+        } catch (err) {
+          console.warn('No SW or failed to call', err)
+          this.platformTestResult = [...mainThreadResults, 'no SW available']
+        }
       } catch (err) {
         console.error('Failed to perform platform test', err)
         this.platformTestResult = 'Failed. ' + err.message
