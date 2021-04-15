@@ -3,12 +3,15 @@ import { Queue } from 'workbox-background-sync/Queue'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
 import { registerRoute } from 'workbox-routing/registerRoute'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
-import base64js from 'base64-js'
 import sentryInit from '@/misc/sentry-init'
-import { getOrCreateInstance } from '@/indexeddb/storage-manager'
-import { setRecordProcessingOutcome } from '@/indexeddb/obs-store-common'
 import {
-  addPhotoIdToObsReq,
+  getPhotoRecord,
+  getRecord,
+  mapObsCoreFromOurDomainOntoApi,
+  setRecordProcessingOutcome,
+  storeRecord,
+} from '@/indexeddb/obs-store-common'
+import {
   chainedError,
   makeObsRequest,
   wowErrorHandler,
@@ -53,10 +56,6 @@ function enableSwConsoleProxy() {
   }
 }
 
-const wowSwStore = getOrCreateInstance('wow-sw')
-wowSwStore.ready().catch(err => {
-  wowErrorHandler('Failed to init a localForage instance', err)
-})
 const IGNORE_REMAINING_REQS_FLAG = 'ignoreRemainingReqsForThisObs'
 
 const magicMethod = 'MAGIC'
@@ -133,8 +132,8 @@ async function wowQueueSuccessCb(entry, resp) {
             obsUuid,
             'to add a photo to',
           )
-          addPhotoIdToObsReq(obsRecord, newPhotoId)
-          await wowSwStore.setItem(obsUuid, obsRecord)
+          const photoUuid = entry.metadata.photoUuid
+          await addPhotoIdToObs(obsRecord, photoUuid, newPhotoId)
         } catch (err) {
           throw new chainedError(
             'Failed to read ID from successful photo upload and add it to ' +
@@ -209,15 +208,33 @@ async function wowQueueSuccessCb(entry, resp) {
 }
 
 async function enqueueObsRequest(entry) {
-  const obsId = entry.metadata.obsId
-  const obsUuid = entry.metadata.obsUuid
+  const obsId = verifyNotImpendingDoom(entry.metadata, 'obsId')
+  const obsUuid = verifyNotImpendingDoom(entry.metadata, 'obsUuid')
+  const projectId = entry.metadata[constants.projectIdFieldName]
+  const lastUpdated = entry.metadata[constants.wowUpdatedAtFieldName]
   console.debug(
     '[SW] found magic poison pill indicating end of obs photos group',
   )
-  const obsRecord = await getObsRecordByUuid(
+  const dbRecord = await getObsRecordByUuid(
     obsUuid,
     'to enqueue HTTP request for after being trigger by a poison pill',
   )
+  const isUpdatedSinceProcessing =
+    dbRecord.wowMeta[constants.wowUpdatedAtFieldName] !== lastUpdated
+  if (isUpdatedSinceProcessing) {
+    // FIXME what do we do now?
+    // - carry on with this processing but set a flag so we don't delete the DB
+    //   record but instead, reprocess to pick up the changes
+    // - (preferable) stop now and instead queue up a reprocess of the DB
+    //    record to pick up changes.
+    //   - if new record, adding photos and changing obs fields is fine. If a
+    //     photo is deleted, that should be fine too because it'll be gone from
+    //     the summary in wowMeta so we just won't attach it to the obs and the
+    //     server will clean the orphan
+    //   - if edit record, we have already added all the photos so even if
+    //     there's a photo delete, it'll be there to be deleted.
+  }
+  const obsObj = await mapObsCoreFromOurDomainOntoApi(dbRecord)
   const httpMethod = entry.metadata.methodToUse
   if (!httpMethod) {
     throw new Error(
@@ -229,25 +246,39 @@ async function enqueueObsRequest(entry) {
     `[SW] processing obs record (UUID=${obsUuid}) with ` +
       `method='${httpMethod}'`,
   )
-  const urlSuffix = (() => {
-    switch (httpMethod) {
-      case 'POST':
-        return ''
-      case 'PUT':
-        return `/${obsId}`
-      default:
-        throw new Error(
-          `Programmer problem: Unhandled "HTTP method to use"=${httpMethod}`,
-        )
+  const { urlSuffix, payload } = (() => {
+    const photoRemoteIds = dbRecord.wowMeta[constants.photosToAddFieldName].map(
+      p => p.remoteId,
+    )
+    if (httpMethod === 'POST') {
+      return {
+        urlSuffix: '',
+        payload: makeObsRequest(obsObj, projectId, photoRemoteIds),
+      }
     }
+    if (httpMethod === 'PUT') {
+      const projectIsAlreadyLinked = null
+      const photosAreAttachedDirectlyToExistingObs = []
+      return {
+        urlSuffix: `/${obsId}`,
+        payload: makeObsRequest(
+          obsObj,
+          projectIsAlreadyLinked,
+          photosAreAttachedDirectlyToExistingObs,
+        ),
+      }
+    }
+    throw new Error(
+      `Programmer problem: Unhandled "HTTP method to use"=${httpMethod}`,
+    )
   })()
-  // yes, it's an object with a key of 0 and an array value
-  if (!obsRecord.local_photos || obsRecord.local_photos[0].length === 0) {
+  // it's an object with a key of 0 and an array value
+  if (!payload.local_photos || payload.local_photos[0].length === 0) {
     console.debug(
       `[SW] no new photos added, ensuring we don't lose the old ones`,
     )
-    delete obsRecord.local_photos
-    obsRecord.ignore_photos = true
+    delete payload.local_photos
+    payload.ignore_photos = true
   }
   await wowQueue.unshiftRequest({
     metadata: {
@@ -261,10 +292,9 @@ async function enqueueObsRequest(entry) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(obsRecord),
+      body: JSON.stringify(payload),
     }),
   })
-  await wowSwStore.removeItem(obsUuid)
 }
 
 async function wowQueueClientErrorCb(entry, resp) {
@@ -328,7 +358,9 @@ async function wowQueueCallbackErrorCb(entry) {
           `[SW] cleaning up waiting obs record with key=${key} that would ` +
             `become orphaned`,
         )
-        await wowSwStore.removeItem(key)
+        // FIXME need to update main store somehow. Set the outcome on the obs
+        // maybe? Although that must be handled elsewhere currently
+        // await wowSwStore.removeItem(key)
       },
     },
   ]
@@ -573,13 +605,17 @@ async function onSyncWithPerItemCallback(
 registerRoute(
   constants.serviceWorkerBundleMagicUrl,
   async ({ event }) => {
-    console.debug('[SW] processing POSTed obs bundle')
+    console.debug('[SW] processing POSTed obs bundle trigger')
     setAuthHeaderFromReq(event.request)
-    const payload = await event.request.json()
-    const obsRecord = payload[constants.obsFieldName]
+    const msgBody = await event.request.json()
+    const recordId = msgBody[constants.obsFieldName]
+    const dbRecord = await getRecord(recordId)
+    if (!dbRecord) {
+      throw new Error(`Could not find DB record with ID=${recordId}`)
+    }
     let obsUuid
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
+      obsUuid = verifyNotImpendingDoom(dbRecord, 'uuid')
     } catch (err) {
       return jsonResponse(
         {
@@ -590,29 +626,27 @@ registerRoute(
       )
     }
     try {
-      const newPhotos = payload[constants.photosFieldName]
-      verifyPhotos(newPhotos)
-      await processPhotosCreatesForNewObs(newPhotos, obsUuid)
+      const newPhotoLength = await iteratePhotosToAdd(dbRecord, photo =>
+        processPhotoCreateForNewObs(photo, obsUuid),
+      )
       await wowQueue.pushRequest({
         metadata: {
           obsUuid: obsUuid,
           methodToUse: 'POST',
+          [constants.projectIdFieldName]: msgBody[constants.projectIdFieldName],
+          [constants.wowUpdatedAtFieldName]:
+            dbRecord.wowMeta[constants.wowUpdatedAtFieldName],
         },
         request: new Request(photosDonePoisonPillUrl, {
           method: magicMethod,
         }),
       })
-      const projectId = payload[constants.projectIdFieldName]
-      await wowSwStore.setItem(
-        obsUuid,
-        makeObsRequest(obsRecord, projectId, []),
-      )
       return jsonResponse({
         result: 'queued',
-        photoCount: newPhotos.length,
-        projectId,
+        photoCount: newPhotoLength,
       })
     } catch (err) {
+      console.error('Failed while processing bundle POST', err)
       return jsonResponse(
         {
           result: 'failed',
@@ -631,12 +665,16 @@ registerRoute(
     console.debug('[SW] processing PUTed obs bundle')
     setAuthHeaderFromReq(event.request)
     const payload = await event.request.json()
-    const obsRecord = payload[constants.obsFieldName]
+    const recordId = payload[constants.obsFieldName]
+    const dbRecord = await getRecord(recordId)
+    if (!dbRecord) {
+      throw new Error(`Could not find DB record with ID=${recordId}`)
+    }
     let obsUuid
     let obsId
     try {
-      obsUuid = verifyNotImpendingDoom(obsRecord.observation, 'uuid')
-      obsId = verifyNotImpendingDoom(obsRecord.observation, 'id')
+      obsUuid = verifyNotImpendingDoom(dbRecord, 'uuid')
+      obsId = verifyNotImpendingDoom(dbRecord, 'inatId')
     } catch (err) {
       return jsonResponse(
         {
@@ -647,12 +685,13 @@ registerRoute(
       )
     }
     try {
-      const newPhotos = payload[constants.photosFieldName]
-      verifyPhotos(newPhotos)
-      await processPhotosCreatesForEditObs(newPhotos, obsUuid, obsId)
-      const photoIdsToDelete = payload[constants.photoIdsToDeleteFieldName]
+      const newPhotoLength = await iteratePhotosToAdd(dbRecord, photo =>
+        processPhotoCreateForEditObs(photo, obsUuid, obsId),
+      )
+      const photoIdsToDelete =
+        dbRecord.wowMeta[constants.photoIdsToDeleteFieldName]
       const obsFieldIdsToDelete =
-        payload[constants.obsFieldIdsToDeleteFieldName]
+        dbRecord.wowMeta[constants.obsFieldIdsToDeleteFieldName]
       await processPhotoAndObsFieldDeletes(
         photoIdsToDelete,
         obsFieldIdsToDelete,
@@ -669,18 +708,14 @@ registerRoute(
           method: magicMethod,
         }),
       })
-      const projectIsAlreadyLinked = null
-      await wowSwStore.setItem(
-        obsUuid,
-        makeObsRequest(obsRecord, projectIsAlreadyLinked, []),
-      )
       return jsonResponse({
         result: 'queued',
-        newPhotoCount: newPhotos.length,
+        newPhotoCount: newPhotoLength,
         deletedPhotoCount: photoIdsToDelete.length,
         deletedObsFieldCount: obsFieldIdsToDelete.length,
       })
     } catch (err) {
+      console.error('Failed while processing bundle PUT', err)
       return jsonResponse(
         {
           result: 'failed',
@@ -799,38 +834,8 @@ registerRoute(
 
 async function getObsUuidsInQueues() {
   const uuids = new Set()
-  // FIXME change to remove iterator. Use keys()
   const wowQueueEntries = await wowQueue.getAll()
   wowQueueEntries.forEach(e => uuids.add(e.metadata.obsUuid))
-  await new Promise(async (resolve, reject) => {
-    try {
-      await wowSwStore.iterate(
-        function valueProcessor(r) {
-          const theProp = 'observation'
-          const theUuid = (r[theProp] || {}).uuid
-          if (!theUuid) {
-            wowWarnMessage(
-              `Trying to iterate DB for observations but have a record with ` +
-                `a falsy '${theProp}' property, the record is: ` +
-                `${JSON.stringify(r)}`,
-            )
-            return
-          }
-          uuids.add(theUuid)
-        },
-        function doneCallback(_, err) {
-          if (!err) {
-            return resolve()
-          }
-          return reject(err)
-        },
-      )
-    } catch (err) {
-      return reject(
-        chainedError('Failed to iterate wowSw IDB to collect UUIDs', err),
-      )
-    }
-  })
   const result = [...uuids.keys()]
   return result
 }
@@ -849,7 +854,7 @@ async function getObsUuidsInQueuesForErrorMsg() {
 }
 
 async function getObsRecordByUuid(obsUuid, errMsgFragment) {
-  const result = await wowSwStore.getItem(obsUuid)
+  const result = await getRecord(obsUuid)
   if (result) {
     return result
   }
@@ -953,15 +958,9 @@ registerRoute(
       for (const _ of wowQueueEntries) {
         await wowQueue.shiftRequest()
       }
-      const localForageSizeBeforeClear = await wowSwStore.length()
-      await wowSwStore.clear()
-      // we don't call wowSwStore.dropInstance() because doing so bumps the
-      // version number. That doesn't actually cause an issue but it seems
-      // needless. Plus, the call doesn't even drop the whole DB as the
-      // 'local-forage-detect-blob-support' store persists.
+      // FIXME Do we need to do something else instead like resetting ETags?
       return jsonResponse({
         wowQueueEntriesDiscarded: wowQueueEntries.length,
-        swStoreItemsCleared: localForageSizeBeforeClear,
       })
     } catch (err) {
       const msg = 'Failed trying to clear SW storage'
@@ -1149,133 +1148,114 @@ function jsonResponse(bodyObj, status = 200) {
   })
 }
 
-async function processPhotosCreatesForNewObs(photos, obsUuid) {
-  for (const curr of photos) {
-    const fd = new FormData()
-    const photoBuffer = base64js.toByteArray(curr.data)
-    // we create a File so we can encode the type of the photo in the
-    // filename. Very sneaky ;)
-    const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
-    fd.append('file', theFile)
-    console.debug('Pushing a photo to the queue')
-    await wowQueue.pushRequest({
-      metadata: {
-        obsUuid: obsUuid,
-      },
-      request: new Request(constants.apiUrlBase + '/photos', {
-        method: 'POST',
-        mode: 'cors',
-        body: fd._blob ? fd._blob() : fd,
-      }),
-    })
-  }
+async function processPhotoCreateForNewObs(photo, obsUuid) {
+  const fd = formDataWithPhoto(photo)
+  const urlSuffix = '/photos'
+  console.debug(`Pushing a ${urlSuffix} request for ${obsUuid} to the queue`)
+  await wowQueue.pushRequest({
+    metadata: {
+      obsUuid: obsUuid,
+      photoUuid: photo.id,
+    },
+    request: new Request(constants.apiUrlBase + urlSuffix, {
+      method: 'POST',
+      mode: 'cors',
+      body: fd._blob ? fd._blob() : fd,
+    }),
+  })
 }
 
-async function processPhotosCreatesForEditObs(photos, obsUuid, obsId) {
-  for (const curr of photos) {
-    const fd = new FormData()
-    fd.append('observation_photo[observation_id]', obsId)
-    const photoBuffer = base64js.toByteArray(curr.data)
-    const theFile = new File([photoBuffer], curr.wowType, { type: curr.mime })
-    fd.append('file', theFile)
-    console.debug('Pushing a photo to the queue')
-    await wowQueue.pushRequest({
-      metadata: {
-        obsUuid,
-        obsId,
-      },
-      request: new Request(constants.apiUrlBase + '/observation_photos', {
-        method: 'POST',
-        mode: 'cors',
-        body: fd._blob ? fd._blob() : fd,
-      }),
-    })
-  }
+async function processPhotoCreateForEditObs(photo, obsUuid, obsId) {
+  const fd = formDataWithPhoto(photo)
+  fd.append('observation_photo[observation_id]', obsId)
+  const urlSuffix = '/observation_photos'
+  console.debug(`Pushing a ${urlSuffix} request for ${obsUuid} to the queue`)
+  await wowQueue.pushRequest({
+    metadata: {
+      obsUuid,
+      obsId,
+      photoUuid: photo.id,
+    },
+    request: new Request(constants.apiUrlBase + urlSuffix, {
+      method: 'POST',
+      mode: 'cors',
+      body: fd._blob ? fd._blob() : fd,
+    }),
+  })
 }
 
-function verifyPhotos(photos) {
-  for (const curr of photos) {
-    const theSize = curr.data.length
-    const isPhotoEmpty = !theSize
-    if (isPhotoEmpty) {
-      throw new Error(
-        `Photo with name='${curr.wowType}' and type='${curr.mime}' ` +
-          `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
-      )
+function formDataWithPhoto(photo) {
+  const fd = new FormData()
+  const theFile = new File([photo.file.data], `wow-${photo.type}`, {
+    type: photo.file.mime,
+  })
+  fd.append('file', theFile)
+  return fd
+}
+
+async function iteratePhotosToAdd(dbRecord, cb) {
+  const newPhotos = dbRecord.wowMeta[constants.photosToAddFieldName] || []
+  for (const currId of newPhotos.filter(e => !e.remoteId).map(e => e.id)) {
+    const photo = await getPhotoRecord(currId)
+    if (!photo) {
+      // FIXME is it safe to push on if a photo is missing?
+      console.warn(`Could not load photo with ID=${currId}`)
+      continue
     }
+    verifyPhoto(photo)
+    await cb(photo)
+  }
+  return newPhotos.length
+}
+
+function verifyPhoto(curr) {
+  const theSize = curr.file.data.byteLength
+  const isPhotoEmpty = !theSize
+  if (isPhotoEmpty) {
+    throw new Error(
+      `Photo with name='${curr.type}' and type='${curr.file.mime}' ` +
+        `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
+    )
   }
 }
 
 async function buildHealthcheckObj() {
-  const wowQueueEntries = await wowQueue.getAll()
-  const queueSummary = mapEntries(wowQueueEntries)
-  const swStoreItems = await new Promise(async (resolve, reject) => {
-    try {
-      const result = []
-      const valueProcessorFn = r => {
-        try {
-          const logFriendlyRecord = {
-            ...r,
-            photos:
-              r.photos &&
-              r.photos.map(p => {
-                const data = (() => {
-                  const val = p.data
-                  if (!val) {
-                    return val
-                  }
-                  if (typeof val === 'string') {
-                    return `${val.substring(0, 10)}...(length=${val.length})`
-                  }
-                  return `(type=${typeof val})`
-                })()
-                return {
-                  ...p,
-                  data: data,
-                }
-              }),
-          }
-          result.push(logFriendlyRecord)
-        } catch (err) {
-          // returning non-undefined will short-circuit. We can't just throw
-          // because it won't bubble up for us to handle, so we need to be a
-          // bit creative like this.
-          return chainedError('Failed to process a wowSw IDB record', err)
-        }
-      }
-      await wowSwStore.iterate(valueProcessorFn, function doneCallback(_, err) {
-        if (!err) {
-          return resolve(result)
-        }
-        // if we do have an error, we've already handled it in an inner catch block
-        return reject(err)
-      })
-    } catch (err) {
-      return reject(chainedError('Failed to iterate wowSw IDB', err))
-    }
-  })
+  const wowQueueSummary = (await wowQueue.getAll()).map(e => ({
+    ...e.metadata,
+    reqUrl: e.request.url,
+    reqMethod: e.request.method,
+  }))
   return {
     authHeaderValue,
     isSafeToProcessQueue: isSafeToProcessQueue(),
     wowQueueStatus: {
       syncInProgress: isQueueSyncingNow(wowQueue),
-      length: wowQueueEntries.length,
-      summary: queueSummary,
-      reqsWithFailuresCount: queueSummary.filter(e => e.failureCount).length,
-    },
-    obsRecordsWaitingOnPhotos: {
-      count: swStoreItems.length,
-      itemSummaries: swStoreItems,
+      length: wowQueueSummary.length,
+      summary: wowQueueSummary,
+      reqsWithFailuresCount: wowQueueSummary.filter(e => e.failureCount).length,
     },
     uuidsInQueues: await getObsUuidsInQueues(),
   }
-  function mapEntries(entries) {
-    return entries.map(e => ({
-      ...e.metadata,
-      reqUrl: e.request.url,
-      reqMethod: e.request.method,
-    }))
+}
+
+// FIXME need to write migration to new format
+
+async function addPhotoIdToObs(obsRecord, photoUuid, photoRemoteId) {
+  const found = obsRecord.wowMeta[constants.photosToAddFieldName].find(
+    e => e.id === photoUuid,
+  )
+  if (!found) {
+    const availablePhotoIds = obsRecord.wowMeta[
+      constants.photosToAddFieldName
+    ].map(e => e.id)
+    throw new Error(
+      `Could not find photo with ID=${photoUuid} from available IDs=${JSON.stringify(
+        availablePhotoIds,
+      )}`,
+    )
   }
+  found.remoteId = photoRemoteId
+  await storeRecord(obsRecord)
 }
 
 // build process will inject manifest into the following statement.

@@ -31,9 +31,10 @@ is the best because it's tailored for this specific use case.
 
 Requirements:
   - yarn >= 1.16
-  - node >= 12 (or at least an LTS release otherwise you'll have to compile some
-      things as part of the dependency install - like sharp - and that will either
-      take a long time or fail... Just use an LTS release!)
+  - node == 12. Yes, there are newer versions but currently we have a transient
+    dependency on `sharp` which only offers prebuilt binaries for some versions.
+    Going for node 14 or 16 was a world of pain, so just use 12 until we figure
+    that out.
   - modern web browser (Chrome or Firefox are good choices)
 
 As a developer on this project, follow these steps to get the webpack dev server

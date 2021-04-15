@@ -1,5 +1,4 @@
 import { expose as comlinkExpose } from 'comlink'
-import base64js from 'base64-js'
 import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
@@ -8,7 +7,6 @@ import {
   deleteDbRecordById,
   getPhotoRecord,
   getRecord,
-  mapObsFromOurDomainOntoApi,
   mapOverObsStore,
   performMigrationsInWorker,
   registerUuidGenerator,
@@ -692,8 +690,10 @@ async function setRecordProcessingOutcome(dbId, outcome) {
 }
 
 async function doNewRecordStrategy(recordId, projectId, apiToken) {
-  const payload = await generatePayload(recordId)
-  payload[cc.projectIdFieldName] = projectId
+  const payload = {
+    [cc.obsFieldName]: recordId,
+    [cc.projectIdFieldName]: projectId,
+  }
   const resp = await doBundleEndpointFetch(payload, 'POST', apiToken)
   if (!resp.ok) {
     throw new Error(
@@ -705,7 +705,9 @@ async function doNewRecordStrategy(recordId, projectId, apiToken) {
 }
 
 async function doEditRecordStrategy(recordId, apiToken) {
-  const payload = await generatePayload(recordId)
+  const payload = {
+    [cc.obsFieldName]: recordId,
+  }
   const resp = await doBundleEndpointFetch(payload, 'PUT', apiToken)
   if (!resp.ok) {
     throw new Error(
@@ -714,30 +716,6 @@ async function doEditRecordStrategy(recordId, apiToken) {
         ` Message=${await getBundleErrorMsg(resp)}`,
     )
   }
-}
-
-async function generatePayload(recordId) {
-  const dbRecord = await getRecord(recordId)
-  if (!dbRecord) {
-    throw new Error(`Could not find DB record with ID=${recordId}`)
-  }
-  const apiRecords = await mapObsFromOurDomainOntoApi(dbRecord)
-  const result = {}
-  result[cc.obsFieldName] = apiRecords.observationPostBody
-  result[cc.photoIdsToDeleteFieldName] =
-    dbRecord.wowMeta[cc.photoIdsToDeleteFieldName]
-  result[cc.photosFieldName] = apiRecords.photoPostBodyPartials.map(curr => {
-    const photoType = `wow-${curr.type}`
-    const base64Data = base64js.fromByteArray(new Uint8Array(curr.file.data))
-    return {
-      mime: curr.file.mime,
-      data: base64Data,
-      wowType: photoType,
-    }
-  })
-  result[cc.obsFieldIdsToDeleteFieldName] =
-    dbRecord.wowMeta[cc.obsFieldIdsToDeleteFieldName]
-  return result
 }
 
 function doBundleEndpointFetch(payload, method, apiToken) {
