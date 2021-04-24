@@ -41,6 +41,7 @@
     "localforage": "github:ternandsparrow/localForage#gh-910",
     "lodash": "^4.17.11",
     "ml5": "^0.5.0",
+    "node-notifier": "^8.0.1",
     "onsenui": "^2.11.2",
     "pkce-challenge": "^2",
     "pwacompat": "^2.0.9",
