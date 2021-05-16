@@ -6,6 +6,7 @@ import * as cc from '@/misc/constants'
 import {
   // importing this module implicitly calls sentryInit()
   deleteDbRecordById,
+  getPhotoRecord,
   getRecord,
   mapObsFromOurDomainOntoApi,
   mapOverObsStore,
@@ -36,6 +37,7 @@ const exposed = {
   doNewRecordStrategy,
   getData,
   getDbPhotosForObs,
+  getFullSizePhotoUrl,
   performMigrations,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
@@ -183,6 +185,13 @@ function cleanupPhotosForObs() {
   revokeObjectUrls(obsDetailObjectUrls)
 }
 
+async function getFullSizePhotoUrl(photoUuid) {
+  const record = await getPhotoRecord(photoUuid)
+  const url = mintObjectUrl(record.file)
+  obsDetailObjectUrls.push(url)
+  return url
+}
+
 function mapPhotoFromDbToUi(p, urlCallbackFn) {
   const isRemotePhoto = p[cc.isRemotePhotoFieldName]
   if (isRemotePhoto) {
@@ -191,6 +200,7 @@ function mapPhotoFromDbToUi(p, urlCallbackFn) {
   if (!p.file) {
     return {
       ...p,
+      isLocalPhoto: true,
       url: cc.noPreviewAvailableUrl,
     }
   }
@@ -198,6 +208,7 @@ function mapPhotoFromDbToUi(p, urlCallbackFn) {
   urlCallbackFn(objectUrl)
   const result = {
     ...p,
+    isLocalPhoto: true,
     url: objectUrl,
   }
   return result

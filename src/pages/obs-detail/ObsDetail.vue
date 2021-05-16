@@ -65,7 +65,7 @@
         overscrollable
         :index.sync="carouselIndex"
       >
-        <v-ons-carousel-item v-for="curr of photos" :key="curr.id">
+        <v-ons-carousel-item v-for="curr of photos" :key="curr.uiKey">
           <div class="photo-container">
             <img
               class="a-photo"
@@ -73,6 +73,14 @@
               alt="an observation photo"
               @click="showPhotoPreview(curr.url)"
             />
+          </div>
+          <div
+            v-if="curr.isLocalPhoto && !curr.hideFullSizeButton"
+            class="text-center"
+          >
+            <v-ons-button modifier="quiet" @click="onShowFullSizePhoto(curr)"
+              >Show full-size photo</v-ons-button
+            >
           </div>
         </v-ons-carousel-item>
       </v-ons-carousel>
@@ -104,8 +112,8 @@
         :extra-styles="extraDotsStyle"
         @dot-click="onDotClick"
       ></carousel-dots>
-      <!-- FIXME add link to species record -->
-      <!-- FIXME show correct name based on prefers community ID or not -->
+      <!-- TODO add link to species record -->
+      <!-- TODO show correct name based on prefers community ID or not -->
       <div class="title">{{ speciesNameText }}</div>
       <p class="wow-subtitle">
         Observed:<br />
@@ -119,7 +127,7 @@
     ></relative-tabbar>
     <div class="tab-container">
       <div v-if="selectedTab === 0">
-        <!-- FIXME show quality grade, quality metrics -->
+        <!-- TODO show quality grade, quality metrics -->
         <!-- TODO show faves, flags, spam? -->
         <h3>Observation data</h3>
         <v-ons-list>
@@ -583,11 +591,19 @@ export default {
       this.photos = (
         await this.$store.dispatch('obs/getPhotosForObs', uuid)
       ).map((e, index) => ({
-        // while photos are still processing, they all have the same URL so
-        // we'll make a unique ID
-        id: 'photo-' + index,
+        ...e,
+        id: e.id,
+        uiKey: 'photo-' + index,
         url: e.url.replace('square', 'medium'),
       }))
+    },
+    async onShowFullSizePhoto(photoRecord) {
+      photoRecord.hideFullSizeButton = true
+      const url = await this.$store.dispatch(
+        'obs/getFullSizePhotoUrl',
+        photoRecord.id,
+      )
+      photoRecord.url = url
     },
     async navigateToNewDetailPage(uuid) {
       // the record to be deleted doesn't have the iNat ID and we don't have

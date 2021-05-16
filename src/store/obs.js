@@ -2,6 +2,7 @@ import _ from 'lodash'
 import dayjs from 'dayjs'
 import Fuse from 'fuse.js'
 import { wrap as comlinkWrap } from 'comlink'
+import Semaphore from '@chriscdn/promise-semaphore'
 import {
   deleteDbRecordById,
   getRecord,
@@ -653,23 +654,22 @@ const actions = {
       return refreshLocalRecordQueueLock
     }
     console.debug('[refreshLocalRecordQueue] starting')
-    refreshLocalRecordQueueLock = worker().finally(() => {
+    const semaphore = new Semaphore()
+    refreshLocalRecordQueueLock = semaphore.acquire()
+    try {
+      const {
+        localQueueSummary,
+        uiVisibleLocalRecords,
+      } = await getObsStoreWorker().getData()
+      commit('setLocalQueueSummary', localQueueSummary)
+      commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
+      // TODO do we need to wait for nextTick before revoking the old URLs?
+    } catch (err) {
+      throw chainedError('Failed to refresh localRecordQueue', err)
+    } finally {
+      semaphore.release()
       refreshLocalRecordQueueLock = null
       console.debug('[refreshLocalRecordQueue] finished')
-    })
-    return refreshLocalRecordQueueLock
-    async function worker() {
-      try {
-        const {
-          localQueueSummary,
-          uiVisibleLocalRecords,
-        } = await getObsStoreWorker().getData()
-        commit('setLocalQueueSummary', localQueueSummary)
-        commit('setUiVisibleLocalRecords', uiVisibleLocalRecords)
-        // TODO do we need to wait for nextTick before revoking the old URLs?
-      } catch (err) {
-        throw chainedError('Failed to refresh localRecordQueue', err)
-      }
     }
   },
   async getPhotosForObs({ state }, obsUuid) {
@@ -706,19 +706,22 @@ const actions = {
       )
       return existingWorker
     }
-    const processorPromise = worker().finally(() => {
-      // we chain this as part of the returned promise so any caller awaiting
-      // it won't be able to act until we've cleaned up as they're awaiting
-      // this block
-      console.debug(
-        `${logPrefix} Worker done (could be error or success)` +
-          `, killing stored promise`,
-      )
-      commit('ephemeral/setQueueProcessorPromise', null, { root: true })
-    })
-    commit('ephemeral/setQueueProcessorPromise', processorPromise, {
-      root: true,
-    })
+    commit(
+      'ephemeral/setQueueProcessorPromise',
+      worker().finally(() => {
+        // we chain this as part of the returned promise so any caller awaiting
+        // it won't be able to act until we've cleaned up as they're awaiting
+        // this block
+        console.debug(
+          `${logPrefix} Worker done (could be error or success)` +
+            `, killing stored promise`,
+        )
+        commit('ephemeral/setQueueProcessorPromise', null, { root: true })
+      }),
+      {
+        root: true,
+      },
+    )
     return rootState.ephemeral.queueProcessorPromise
     async function worker() {
       console.debug(`${logPrefix} Starting to process local queue`)
@@ -735,6 +738,9 @@ const actions = {
         return
       }
       await dispatch('refreshLocalRecordQueue')
+      // FIXME what about just iterating the DB rather than keeping a cache
+      // (that has to be refreshed by itering the DB anyway)? Otherwise, we
+      // need to refresh the cache before each iteration
       const waitingQueue = getters.waitingLocalQueueSummary
       const isRecordToProcess = waitingQueue.length
       if (!isRecordToProcess) {
@@ -1136,6 +1142,7 @@ const actions = {
     { dispatch, rootState, getters, state },
     recordId,
   ) {
+    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
     const recordSummary = state.localQueueSummary.find(e => (e.uuid = recordId))
     if (!recordSummary) {
       const ids = JSON.stringify(state.localQueueSummary.map(e => e.uuid))
@@ -1180,7 +1187,6 @@ const actions = {
       )
     }
     await strategy()
-    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
     await dispatch('refreshLocalRecordQueue')
     await dispatch('refreshObsUuidsInSwQueue')
     await triggerSwWowQueue()
@@ -1289,6 +1295,7 @@ const actions = {
     { wowId, targetOutcome, validFromOutcomes },
   ) {
     const isRestrictFromOutcomes = (validFromOutcomes || []).length
+    // FIXME should we still be using this cache?
     const fromOutcome = await dispatch('getCurrentOutcomeForWowId', wowId)
     if (isRestrictFromOutcomes && !validFromOutcomes.includes(fromOutcome)) {
       throw new Error(
@@ -1322,6 +1329,9 @@ const actions = {
     } catch (err) {
       throw chainedError('Failed to init localForage instance', err)
     }
+  },
+  getFullSizePhotoUrl(_, photoUuid) {
+    return getObsStoreWorker().getFullSizePhotoUrl(photoUuid)
   },
 }
 
@@ -1517,11 +1527,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     return result
   })
   result.updatedAt = obsFromApi.updated_at
-  // we don't use observed_on_string because the iNat web UI uses non-standard
-  // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
-  // them. The time_observed_at field seems to be standardised, which is good
-  // for us to read. We cannot write to time_observed_at though.
-  result.observedAt = dayjs(obsFromApi.time_observed_at).unix() * 1000
+  result.observedAt = getObservedAt(obsFromApi)
   result.photos = photos
   result.placeGuess = obsFromApi.place_guess
   result.speciesGuess = obsFromApi.species_guess
@@ -1559,6 +1565,21 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   )
   updateIdsAndCommentsFor(result)
   return result
+}
+
+function getObservedAt(obsFromApi) {
+  // we don't use observed_on_string because the iNat web UI uses non-standard
+  // values like "2020/01/28 1:46 PM ACDT" for that field, and we can't parse
+  // them. The time_observed_at field seems to be standardised, which is good
+  // for us to read. We cannot write to time_observed_at though.
+  const timeVal = obsFromApi.time_observed_at
+  if (timeVal) {
+    return parse(timeVal)
+  }
+  return parse(obsFromApi.observed_on)
+  function parse(v) {
+    return dayjs(v).unix() * 1000
+  }
 }
 
 function mapCommentFromApiToOurDomain(apiComment) {
@@ -1615,47 +1636,37 @@ export async function migrate(store) {
       qPP || Promise.resolve(),
     ])
   }
-  // if we don't lock out other processes, Safari can have issues.
-  console.debug(`Blocking "refresh local queue" process with migration promise`)
-  refreshLocalRecordQueueLock = (async function() {
+  const semaphore = new Semaphore()
+  try {
+    const lock = semaphore.acquire()
+    console.debug(
+      `Blocking "refresh local queue" process with migration promise`,
+    )
+    refreshLocalRecordQueueLock = lock
+    console.debug(`Blocking queue processing with migration promise`)
+    // note: this will trigger the sync spinner
+    store.commit('ephemeral/setQueueProcessorPromise', lock)
     // don't trigger any of the processes we have blocked above as part of a
     // migration or you'll get a deadlock.
     migrateRecentlyUsedTaxa(store)
     await getObsStoreWorker().performMigrations()
-  })()
-    .catch(err => {
-      // we need this catch because if it throws before we await the promise,
-      // it's an uncaught rejection.
-      store.dispatch('flagGlobalError', {
-        msg: `Failed to perform all Vuex/DB migrations`,
-        userMsg: 'Failed to update app from previous version',
-        err,
-      })
-    })
-    .finally(() => {
-      // note: we're running a fork of localForage so we don't mask the reason
-      // for Safari aborting transactions on localForage.setItem:
-      //   TypeError: Attempted to add a non-object key to a WeakSet
-      // On the main localForage, we were seeing this masking error:
-      //   InvalidStateError: Failed to read the 'error' property from 'IDBRequest': The request has not finished.
-      // That is triggered by this localForage.setItem code:
-      // https://github.com/localForage/localForage/blob/c1cc34f/dist/localforage.js#L1060.
-      // Now to figure out what's offending the WeakSet.
-      console.debug(`Unblocking queue processing as migration is done`)
-      store.commit('ephemeral/setQueueProcessorPromise', null)
-      console.debug(
-        `Unblocking "refresh local queue" process as migration is done`,
-      )
-      refreshLocalRecordQueueLock = null
-    })
-  console.debug(`Blocking queue processing with migration promise`)
-  // note: this will trigger the sync spinner
-  store.commit(
-    'ephemeral/setQueueProcessorPromise',
-    refreshLocalRecordQueueLock,
-  )
-  await refreshLocalRecordQueueLock
-
+  } finally {
+    semaphore.release()
+    // note: we're running a fork of localForage so we don't mask the reason
+    // for Safari aborting transactions on localForage.setItem:
+    //   TypeError: Attempted to add a non-object key to a WeakSet
+    // On the main localForage, we were seeing this masking error:
+    //   InvalidStateError: Failed to read the 'error' property from 'IDBRequest': The request has not finished.
+    // That is triggered by this localForage.setItem code:
+    // https://github.com/localForage/localForage/blob/c1cc34f/dist/localforage.js#L1060.
+    // Now to figure out what's offending the WeakSet.
+    console.debug(`Unblocking queue processing as migration is done`)
+    store.commit('ephemeral/setQueueProcessorPromise', null)
+    console.debug(
+      `Unblocking "refresh local queue" process as migration is done`,
+    )
+    refreshLocalRecordQueueLock = null
+  }
   if (store.state.obs.forceQueueProcessingAtNextChance) {
     console.debug(
       `Triggering local queue processing at request of "force at next ` +
