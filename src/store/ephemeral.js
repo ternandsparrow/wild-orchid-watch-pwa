@@ -41,6 +41,7 @@ const state = {
   photoCoords: [],
   deviceCoords: null,
   manualCoords: null,
+  dragmarkerCoords: null,
   geolocationMethod: null,
   datetimeMethod: null,
   manualDatetime: null,
@@ -436,6 +437,8 @@ const getters = {
         return state.deviceCoords
       case 'manual':
         return state.manualCoords
+      case 'dragmarker':
+        return state.dragmarkerCoords
       default:
         throw new Error(
           'Programmer problem: unhandled geolocationMethod=' + geoMethod,

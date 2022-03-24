@@ -64,7 +64,7 @@
                   <v-ons-icon icon="fa-info-circle" />
                   Attach some photos and they'll be automatically scanned
                 </span>
-                <h1 v-else style="color: red;">
+                <h1 v-else style="color: red">
                   Programmer problem - unhandled state
                   {{ geolocationFromPhotoState }}
                 </h1>
@@ -104,6 +104,32 @@
               {{ deviceGeolocationErrorMsg }}. Or consider choosing one of the
               other methods in this list to capture geolocation/GPS coordinates.
             </p>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-dragmarker"
+              value="dragmarker"
+              modifier="material"
+            ></v-ons-radio>
+          </label>
+          <div class="center wow-radio-option-label">
+            <label for="radio-gm-dragmarker">
+              Manually input a location by dragging a pin on a map.
+            </label>
+            <google-map
+              v-if="geolocationMethod === 'dragmarker'"
+              :marker-position="{ lat: -34.927485, lng: 138.599927 }"
+              :map-options="{
+                gestureHandling: 'cooperative',
+                disableDefaultUI: true
+              }"
+              map-type-id="satellite"
+              style="width: 62vw"
+              :centeredMarker="true"
+            />
           </div>
         </v-ons-list-item>
         <v-ons-list-item v-if="isDetailedUserMode" tappable>
@@ -200,7 +226,7 @@
         <google-map
           v-if="isShowMap"
           :marker-position="obsCoords"
-          style="width: 94vw;"
+          style="width: 94vw"
         />
       </div>
     </div>
