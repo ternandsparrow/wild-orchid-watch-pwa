@@ -110,26 +110,33 @@
           <label class="left">
             <v-ons-radio
               v-model="geolocationMethod"
-              input-id="radio-gm-dragmarker"
-              value="dragmarker"
+              input-id="radio-gm-pin"
+              value="pin"
               modifier="material"
             ></v-ons-radio>
           </label>
           <div class="center wow-radio-option-label">
-            <label for="radio-gm-dragmarker">
+            <label for="radio-gm-pin">
               Manually input a location by dragging a pin on a map.
             </label>
-            <google-map
-              v-if="geolocationMethod === 'dragmarker'"
-              :marker-position="{ lat: -34.927485, lng: 138.599927 }"
-              :map-options="{
-                gestureHandling: 'cooperative',
-                disableDefaultUI: true
-              }"
-              map-type-id="satellite"
-              style="width: 62vw"
-              :centeredMarker="true"
-            />
+            <div v-if="geolocationMethod === 'pin'">
+              <google-map
+                :marker-position="{ lat: -34.927485, lng: 138.599927 }"
+                :map-options="{
+                  gestureHandling: 'cooperative',
+                  disableDefaultUI: true
+                }"
+                map-type-id="satellite"
+                style="width: 62vw; padding-top:10px;"
+                :centeredMarker="true"
+                @pinDropped="(coords) => {
+                  this.$store.commit('ephemeral/setPinCoords', coords)
+                }"
+              />
+              <p v-if="coordsForCurrentlyEditingObs">
+                Using coordinates: {{coordsForCurrentlyEditingObs.lat.toFixed(6)}}, {{coordsForCurrentlyEditingObs.lng.toFixed(6)}}
+              </p>
+            </div>
           </div>
         </v-ons-list-item>
         <v-ons-list-item v-if="isDetailedUserMode" tappable>

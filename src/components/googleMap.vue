@@ -11,6 +11,7 @@
         :options="mapOptions"
         :map-type-id="mapTypeId"
         @bounds_changed="updateMarker"
+        @idle="onIdle"
       >
         <gmap-marker
           :position="marker"
@@ -52,7 +53,7 @@ export default {
     },
     mapOptions: {
       type: Object,
-      default: function () {
+      default: function() {
         return { gestureHandling: 'cooperative' }
       },
       required: false,
@@ -88,7 +89,7 @@ export default {
   mounted() {
     this.centerPosition()
     // Save the map object once it is loaded
-    this.$refs.mapRef.$mapPromise.then((map) => {
+    this.$refs.mapRef.$mapPromise.then(map => {
       this.map = map
     })
   },
@@ -110,15 +111,12 @@ export default {
       this.marker = newCenter
     },
     onIdle() {
-      console.log("map idle")
-      /**
       const newCenter = {
         lat: this.map.getCenter().lat(),
-        lng: this.map.getCenter().lng()
+        lng: this.map.getCenter().lng(),
       }
-      $emit('pinDropped', newCenter)
-      */
-    }
+      this.$emit('pinDropped', newCenter)
+    },
   },
 }
 </script>

@@ -41,7 +41,7 @@ const state = {
   photoCoords: [],
   deviceCoords: null,
   manualCoords: null,
-  dragmarkerCoords: null,
+  pinCoords: null,
   geolocationMethod: null,
   datetimeMethod: null,
   manualDatetime: null,
@@ -154,6 +154,7 @@ const mutations = {
     state.photoCoords.splice(indexOfPhoto, 1)
   },
   setManualCoords: (state, coords) => (state.manualCoords = coords),
+  setPinCoords: (state, coords) => (state.pinCoords = coords),
   setManualDatetime: (state, datetime) => (state.manualDatetime = datetime),
   addPhotoProcessingTask: (state, taskTracker) =>
     state.photoProcessingTasks.push(taskTracker),
@@ -437,8 +438,8 @@ const getters = {
         return state.deviceCoords
       case 'manual':
         return state.manualCoords
-      case 'dragmarker':
-        return state.dragmarkerCoords
+      case 'pin':
+        return state.pinCoords
       default:
         throw new Error(
           'Programmer problem: unhandled geolocationMethod=' + geoMethod,
