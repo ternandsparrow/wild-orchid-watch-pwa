@@ -131,6 +131,7 @@
                 :centeredMarker="true"
                 @pinDropped="(coords) => {
                   this.$store.commit('ephemeral/setPinCoords', coords)
+                  this.pokeParentToReadCoords()
                 }"
               />
               <p v-if="coordsForCurrentlyEditingObs">
