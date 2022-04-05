@@ -124,18 +124,22 @@
                 :marker-position="{ lat: -34.927485, lng: 138.599927 }"
                 :map-options="{
                   gestureHandling: 'cooperative',
-                  disableDefaultUI: true
+                  disableDefaultUI: true,
                 }"
                 map-type-id="satellite"
-                style="width: 62vw; padding-top:10px;"
-                :centeredMarker="true"
-                @pinDropped="(coords) => {
-                  this.$store.commit('ephemeral/setPinCoords', coords)
-                  this.pokeParentToReadCoords()
-                }"
+                style="width: 62vw; padding-top: 10px"
+                :centered-marker="true"
+                @pinDropped="
+                  coords => {
+                    $store.commit('ephemeral/setPinCoords', coords)
+                    pokeParentToReadCoords()
+                  }
+                "
               />
               <p v-if="coordsForCurrentlyEditingObs">
-                Using coordinates: {{coordsForCurrentlyEditingObs.lat.toFixed(6)}}, {{coordsForCurrentlyEditingObs.lng.toFixed(6)}}
+                Using coordinates:
+                {{ coordsForCurrentlyEditingObs.lat.toFixed(6) }},
+                {{ coordsForCurrentlyEditingObs.lng.toFixed(6) }}
               </p>
             </div>
           </div>
