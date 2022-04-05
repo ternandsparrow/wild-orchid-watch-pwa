@@ -121,7 +121,7 @@
             </label>
             <div v-if="geolocationMethod === 'pin'">
               <google-map
-                :marker-position="{ lat: -34.927485, lng: 138.599927 }"
+                :marker-position="defaultMarkerPos"
                 :map-options="{
                   gestureHandling: 'cooperative',
                   disableDefaultUI: true,
@@ -257,6 +257,7 @@ import {
   wowWarnMessage,
 } from '@/misc/helpers'
 import { blocked, failed, notSupported } from '@/misc/constants'
+import _ from 'lodash'
 
 export default {
   name: 'CollectGeolocation',
@@ -359,6 +360,21 @@ export default {
         lat,
         lng,
         accuracy,
+      }
+    },
+    defaultMarkerPos() {
+      if (this.isEdit) {
+        const uuid = this.$store.state.obs.selectedObservationUuid
+        const currentObs = _.find(this.$store.state.obs.allRemoteObs, function(
+          obs,
+        ) {
+          if (obs.uuid === uuid) {
+            return true
+          }
+        })
+        return { lat: currentObs.lat, lng: currentObs.lng }
+      } else {
+        return { lat: -34.927485, lng: 138.599927 } // Default position of Adelaide
       }
     },
   },
