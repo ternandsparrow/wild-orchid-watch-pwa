@@ -8,7 +8,7 @@ import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/.
 import VueAnalytics from 'vue-analytics'
 import 'pwacompat'
 import * as Integrations from '@sentry/integrations'
-import * as VueGoogleMaps from 'vue2-google-maps'
+import * as VueGoogleMaps from 'gmap-vue'
 import smoothscroll from 'smoothscroll-polyfill'
 
 import sentryInit from '@/misc/sentry-init'

@@ -64,7 +64,7 @@
                   <v-ons-icon icon="fa-info-circle" />
                   Attach some photos and they'll be automatically scanned
                 </span>
-                <h1 v-else style="color: red;">
+                <h1 v-else style="color: red">
                   Programmer problem - unhandled state
                   {{ geolocationFromPhotoState }}
                 </h1>
@@ -104,6 +104,44 @@
               {{ deviceGeolocationErrorMsg }}. Or consider choosing one of the
               other methods in this list to capture geolocation/GPS coordinates.
             </p>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-pin"
+              value="pin"
+              modifier="material"
+            ></v-ons-radio>
+          </label>
+          <div class="center wow-radio-option-label">
+            <label for="radio-gm-pin">
+              Manually input a location by dragging a pin on a map.
+            </label>
+            <div v-if="geolocationMethod === 'pin'">
+              <google-map
+                :marker-position="defaultMarkerPos"
+                :map-options="{
+                  gestureHandling: 'cooperative',
+                  disableDefaultUI: true,
+                }"
+                map-type-id="satellite"
+                style="width: 62vw; padding-top: 10px"
+                :centered-marker="true"
+                @pinDropped="
+                  coords => {
+                    $store.commit('ephemeral/setPinCoords', coords)
+                    pokeParentToReadCoords()
+                  }
+                "
+              />
+              <p v-if="coordsForCurrentlyEditingObs">
+                Using coordinates:
+                {{ coordsForCurrentlyEditingObs.lat.toFixed(6) }},
+                {{ coordsForCurrentlyEditingObs.lng.toFixed(6) }}
+              </p>
+            </div>
           </div>
         </v-ons-list-item>
         <v-ons-list-item v-if="isDetailedUserMode" tappable>
@@ -200,7 +238,7 @@
         <google-map
           v-if="isShowMap"
           :marker-position="obsCoords"
-          style="width: 94vw;"
+          style="width: 94vw"
         />
       </div>
     </div>
@@ -219,6 +257,7 @@ import {
   wowWarnMessage,
 } from '@/misc/helpers'
 import { blocked, failed, notSupported } from '@/misc/constants'
+import _ from 'lodash'
 
 export default {
   name: 'CollectGeolocation',
@@ -321,6 +360,21 @@ export default {
         lat,
         lng,
         accuracy,
+      }
+    },
+    defaultMarkerPos() {
+      if (this.isEdit) {
+        const uuid = this.$store.state.obs.selectedObservationUuid
+        const currentObs = _.find(this.$store.state.obs.allRemoteObs, function(
+          obs,
+        ) {
+          if (obs.uuid === uuid) {
+            return true
+          }
+        })
+        return { lat: currentObs.lat, lng: currentObs.lng }
+      } else {
+        return { lat: -34.927485, lng: 138.599927 } // Default position of Adelaide
       }
     },
   },
