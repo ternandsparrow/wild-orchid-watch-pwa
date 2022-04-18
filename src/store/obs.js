@@ -752,6 +752,8 @@ const actions = {
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
+        // FIXME can we unify these so they both use the facade, and the SW is
+        // just the standard workbox with background sync?
         const strategy = isNoServiceWorkerAvailable
           ? 'processWaitingDbRecordNoSw'
           : 'processWaitingDbRecordWithSw'

@@ -30,6 +30,7 @@
         {{ remoteJsAttachStatus }}
       </p>
     </v-ons-card>
+    <wow-send-bundle-test />
     <v-ons-card>
       <div class="title">
         Clone an obs N times

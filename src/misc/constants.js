@@ -33,6 +33,10 @@ export {
 // https://api.inaturalist.com/v1
 export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
+// The URL of our WOW facade
+// (https://github.com/ternandsparrow/wild-orchid-watch-api-facade)
+export const facadeUrlBase = process.env.VUE_APP_FACADE_BASE_URL
+
 // URL of the Ruby on Rails iNaturalist server that we prepend to all our
 // requests. Something like https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
@@ -443,6 +447,10 @@ export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed i
 export const successOutcome = 'success' // successfully processed
 export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
 
+// FIXME this URL fails CORS in Firefox, can we use something else? If we still
+// need it. registerRoute can use a matchCallback so we could hook on a custom
+// header. Or make the SW respond to CORS. Need to make sure the requests don't
+// go somewhere else if there's no SW
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
 export const serviceWorkerBundleMagicUrl = // FIXME rename now it's no longer a bundle but a trigger?
   serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
