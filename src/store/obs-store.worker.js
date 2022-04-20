@@ -7,6 +7,7 @@ import {
   deleteDbRecordById,
   getPhotoRecord,
   getRecord,
+  mapObsCoreFromOurDomainOntoApi,
   mapOverObsStore,
   performMigrationsInWorker,
   registerUuidGenerator,
@@ -37,6 +38,7 @@ const exposed = {
   getDbPhotosForObs,
   getFullSizePhotoUrl,
   performMigrations,
+  processWaitingDbRecordNoSw,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
   setRecordProcessingOutcome,
@@ -738,6 +740,104 @@ async function getBundleErrorMsg(resp) {
     console.debug(msg, err)
     return `(${msg})`
   }
+}
+
+// FIXME rename to something agnostic as hopefully this will be the only impl
+async function processWaitingDbRecordNoSw({ recordId, apiToken, projectId }) {
+  // the DB record may be further edited while we're processing but that
+  // won't affect our snapshot here
+  const dbRecord = await getRecord(recordId)
+  const strategies = {
+    [recordType('new')]: async () => {
+      const form = new FormData()
+      const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
+      form.set('projectId', projectId)
+      form.set(
+        'observation',
+        new Blob([JSON.stringify(observation)], {
+          type: 'application/json',
+        }),
+      )
+      const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
+        e => e.id,
+      )
+      for (const currId of newPhotoIds) {
+        const photo = await getPhotoRecord(currId)
+        if (!photo) {
+          // FIXME is it wise to push on if a photo is missing?
+          console.warn(`Could not load photo with ID=${currId}`)
+          continue
+        }
+        form.append(
+          'photos',
+          new File([photo.file.data], `${photo.id}.${photo.type}`, {
+            type: photo.file.mime,
+          }),
+        )
+      }
+      const resp = await fetch(
+        `${cc.facadeUrlBase}/observations/${observation.uuid}`,
+        {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            Authorization: apiToken,
+          },
+          body: form,
+        },
+      )
+      if (resp.status !== 200) {
+        throw new Error(`Server responded with ${resp.status}`)
+      }
+    },
+    [recordType('edit')]: async () => {
+      // FIXME make it work
+      // const inatRecordId = dbRecord.inatId
+      // await Promise.all(
+      //   dbRecord.wowMeta[cc.photoIdsToDeleteFieldName].map(id => {
+      //     return dispatch('_deletePhoto', id) // FIXME
+      //   }),
+      // )
+      // for (const curr of apiRecords.photoPostBodyPartials) {
+      //   await dispatch('_createObsPhoto', { // FIXME
+      //     photoRecord: curr,
+      //     relatedObsId: inatRecordId,
+      //   })
+      // }
+      // for (const id of dbRecord.wowMeta[
+      //   cc.obsFieldIdsToDeleteFieldName
+      // ]) {
+      //   await dispatch('_deleteObsFieldValue', id) // FIXME
+      // }
+      // return dispatch('_editObservation', { // FIXME
+      //   obsRecord: apiRecords.observationPostBody,
+      //   inatRecordId,
+      // })
+    },
+    [recordType('delete')]: async () => {
+      // FIXME make it work
+      // return dispatch('_deleteObservation', { // FIXME
+      //   inatRecordId: dbRecord.inatId,
+      // })
+    },
+  }
+  const key = dbRecord.wowMeta[cc.recordTypeFieldName]
+  console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
+  const strategy = strategies[key]
+  // enhancement idea: add a rollback() fn to each strategy and call it when
+  // we encounter an error during the following processing. For 'new' we can
+  // just delete the partial obs. For delete, we do nothing. For edit, we
+  // should really track which requests have worked so we only replay the
+  // failed/not-yet-processed ones, but most users will use the withSw
+  // version of the processor and we get this smart retry for free.
+  // FIXME do we still need to think about /\ ?
+  if (!strategy) {
+    throw new Error(
+      `Could not find a "process waiting record" strategy for key='${key}', ` +
+        `cannot continue`,
+    )
+  }
+  await strategy()
 }
 
 // eslint-disable-next-line import/prefer-default-export

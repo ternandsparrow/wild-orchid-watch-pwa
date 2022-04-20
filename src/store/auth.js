@@ -168,6 +168,7 @@ export default {
         )
       }
     },
+    // FIXME need to move core of this outside vuex
     async doApiPost({ state, dispatch }, { urlSuffix, data }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -231,36 +232,6 @@ export default {
           `Failed to POST observation photo attached to observation ID='${obsId}'`,
           err,
         )
-      }
-    },
-    /**
-     * Local photos, as opposed to observation photos, are ones that we
-     * pre-upload and associate with the obs as we create it. This makes
-     * creating the obs with photos appear atomic to the user.
-     */
-    async doLocalPhotoPost({ state, dispatch }, { photoRecord }) {
-      try {
-        await dispatch('_refreshApiTokenIfRequired')
-        const resp = await postFormDataWithAuth(
-          `${constants.apiUrlBase}/photos`,
-          formData => {
-            const photoBlob = arrayBufferToBlob(
-              photoRecord.file.data,
-              photoRecord.file.mime,
-            )
-            // we create a File so we can encode the type of the photo in the
-            // filename. Very sneaky ;)
-            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
-              type: photoBlob.type,
-            })
-            formData.append('file', photoFile)
-          },
-          `${state.apiToken}`,
-        )
-        return resp
-      } catch (err) {
-        // TODO if we get a 401, could refresh token and retry
-        throw chainedError(`Failed to POST local observation photo`, err)
       }
     },
     saveToken({ commit, dispatch }, vals) {

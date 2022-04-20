@@ -55,9 +55,6 @@ const store = new Vuex.Store({
     doPhotoPost({ dispatch }, argObj) {
       return dispatch('auth/doPhotoPost', argObj)
     },
-    doLocalPhotoPost({ dispatch }, argObj) {
-      return dispatch('auth/doLocalPhotoPost', argObj)
-    },
     doApiDelete({ dispatch }, argObj) {
       return dispatch('auth/doApiDelete', argObj)
     },

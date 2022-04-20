@@ -9,7 +9,6 @@ import {
   chainedError,
   getExifFromBlob,
   iterateIdb,
-  makeObsRequest,
   now,
   recordTypeEnum,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
@@ -25,7 +24,6 @@ export {
   chainedError,
   getExifFromBlob,
   iterateIdb,
-  makeObsRequest,
   now,
   recordTypeEnum,
   wowErrorHandler,

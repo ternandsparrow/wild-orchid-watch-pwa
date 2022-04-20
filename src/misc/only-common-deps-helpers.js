@@ -90,23 +90,6 @@ export function now() {
   return Date.now()
 }
 
-export function makeObsRequest(obsObj, projectId, photoIds) {
-  const result = {
-    ...obsObj,
-    local_photos: {
-      0: photoIds,
-    },
-    uploader: true,
-    refresh_index: true,
-  }
-  // note: there's no need to re-link project if it's already linked, so we
-  // make the param optional.
-  if (projectId) {
-    result.project_id = [projectId]
-  }
-  return result
-}
-
 export function iterateIdb(
   dbName,
   dbVersion,

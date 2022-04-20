@@ -7,7 +7,6 @@ import {
   deleteDbRecordById,
   getRecord,
   healthcheckStore,
-  mapObsFullFromOurDomainOntoApi,
   registerWarnHandler,
   storeRecord,
 } from '@/indexeddb/obs-store-common'
@@ -18,7 +17,6 @@ import {
   fetchSingleRecord,
   getJson,
   isNoSwActive,
-  makeObsRequest,
   namedError,
   now,
   recordTypeEnum as recordType,
@@ -974,16 +972,6 @@ const actions = {
       )
     }
   },
-  async _createObservation({ dispatch }, { obsRecord }) {
-    const obsResp = await dispatch(
-      'doApiPost',
-      { urlSuffix: '/observations', data: obsRecord },
-      { root: true },
-    )
-    const newRecordId = obsResp.id
-    // FIXME confirm (obsResp.project_ids || []).includes(<projectId>)
-    return newRecordId
-  },
   async _editObservation({ dispatch }, { obsRecord, inatRecordId }) {
     if (!inatRecordId) {
       throw new Error(
@@ -1024,16 +1012,6 @@ const actions = {
     )
     return resp.id
   },
-  async _createLocalPhoto({ dispatch }, { photoRecord }) {
-    const resp = await dispatch(
-      'doLocalPhotoPost',
-      {
-        photoRecord,
-      },
-      { root: true },
-    )
-    return resp.id
-  },
   async _createObsFieldValue({ dispatch }, { obsFieldRecord, relatedObsId }) {
     // we could do PUTs to modify the existing records but doing a POST
     // clobbers the existing values so it's not worth the effort to track obs
@@ -1068,77 +1046,22 @@ const actions = {
       { root: true },
     )
   },
-  async processWaitingDbRecordNoSw({ dispatch, getters }, recordId) {
+  async processWaitingDbRecordNoSw({ rootState, dispatch, getters }, recordId) {
+    // FIXME this should be the only way we upload, SW is transparent
     await dispatch('transitionToWithLocalProcessorOutcome', recordId)
-    // the DB record may be further edited while we're processing but that
-    // won't affect our snapshot here
-    const dbRecord = await getRecord(recordId)
-    const apiRecords = await mapObsFullFromOurDomainOntoApi(dbRecord)
-    const strategies = {
-      [recordType('new')]: async () => {
-        const localPhotoIds = []
-        for (const curr of apiRecords.photoPostBodyPartials) {
-          const id = await dispatch('_createLocalPhoto', {
-            photoRecord: curr,
-          })
-          localPhotoIds.push(id)
-        }
-        await dispatch('waitForProjectInfo')
-        return dispatch('_createObservation', {
-          obsRecord: makeObsRequest(
-            apiRecords.observationPostBody,
-            getters.projectId,
-            localPhotoIds,
-          ),
-        })
-      },
-      [recordType('edit')]: async () => {
-        const inatRecordId = dbRecord.inatId
-        await Promise.all(
-          dbRecord.wowMeta[constants.photoIdsToDeleteFieldName].map(id => {
-            return dispatch('_deletePhoto', id)
-          }),
-        )
-        for (const curr of apiRecords.photoPostBodyPartials) {
-          await dispatch('_createObsPhoto', {
-            photoRecord: curr,
-            relatedObsId: inatRecordId,
-          })
-        }
-        for (const id of dbRecord.wowMeta[
-          constants.obsFieldIdsToDeleteFieldName
-        ]) {
-          await dispatch('_deleteObsFieldValue', id)
-        }
-        return dispatch('_editObservation', {
-          obsRecord: apiRecords.observationPostBody,
-          inatRecordId,
-        })
-      },
-      [recordType('delete')]: async () => {
-        return dispatch('_deleteObservation', {
-          inatRecordId: dbRecord.inatId,
-        })
-      },
+    const apiToken = rootState.auth.apiToken
+    const projectId = getters.projectId
+    try {
+      await getObsStoreWorker().processWaitingDbRecordNoSw({
+        recordId,
+        apiToken,
+        projectId,
+      })
+      await dispatch('transitionToSuccessOutcome', recordId)
+      await dispatch('refreshRemoteObsWithDelay')
+    } catch (err) {
+      await dispatch('transitionToSystemErrorOutcome', recordId)
     }
-    const key = dbRecord.wowMeta[constants.recordTypeFieldName]
-    console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
-    const strategy = strategies[key]
-    // enhancement idea: add a rollback() fn to each strategy and call it when
-    // we encounter an error during the following processing. For 'new' we can
-    // just delete the partial obs. For delete, we do nothing. For edit, we
-    // should really track which requests have worked so we only replay the
-    // failed/not-yet-processed ones, but most users will use the withSw
-    // version of the processor and we get this smart retry for free.
-    if (!strategy) {
-      throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', ` +
-          `cannot continue`,
-      )
-    }
-    await strategy()
-    await dispatch('transitionToSuccessOutcome', dbRecord.uuid)
-    await dispatch('refreshRemoteObsWithDelay')
   },
   async processWaitingDbRecordWithSw(
     { dispatch, rootState, getters, state },

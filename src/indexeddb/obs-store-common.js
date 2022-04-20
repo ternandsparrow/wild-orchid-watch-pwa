@@ -7,7 +7,6 @@ import {
   blobToArrayBuffer,
   chainedError,
   getExifFromBlob,
-  recordTypeEnum as recordType,
 } from '@/misc/only-common-deps-helpers'
 import * as cc from '@/misc/constants'
 import { getOrCreateInstance } from './storage-manager'
@@ -408,65 +407,32 @@ export async function mapObsCoreFromOurDomainOntoApi(dbRecord) {
     }
     return {}
   })()
-  return {
-    observation: Object.keys(dbRecord).reduce(
-      (accum, currKey) => {
-        const isNotIgnored = !ignoredKeys.includes(currKey)
-        const value = dbRecord[currKey]
-        if (isNotIgnored && isAnswer(value)) {
-          accum[currKey] = value
+  return Object.keys(dbRecord).reduce(
+    (accum, currKey) => {
+      const isNotIgnored = !ignoredKeys.includes(currKey)
+      const value = dbRecord[currKey]
+      if (isNotIgnored && isAnswer(value)) {
+        accum[currKey] = value
+      }
+      return accum
+    },
+    {
+      ...recordIdObjFragment,
+      latitude: dbRecord.lat,
+      longitude: dbRecord.lng,
+      observed_on_string: dbRecord.observedAt,
+      species_guess: dbRecord.speciesGuess,
+      observation_field_values_attributes: (
+        dbRecord.obsFieldValues || []
+      ).reduce((accum, curr, index) => {
+        accum[index] = {
+          observation_field_id: curr.fieldId,
+          value: curr.value,
         }
         return accum
-      },
-      {
-        ...recordIdObjFragment,
-        latitude: dbRecord.lat,
-        longitude: dbRecord.lng,
-        observed_on_string: dbRecord.observedAt,
-        species_guess: dbRecord.speciesGuess,
-        observation_field_values_attributes: (
-          dbRecord.obsFieldValues || []
-        ).reduce((accum, curr, index) => {
-          accum[index] = {
-            observation_field_id: curr.fieldId,
-            value: curr.value,
-          }
-          return accum
-        }, {}),
-      },
-    ),
-  }
-}
-
-/**
- * Map the observation AND photos and field deletes
- */
-export async function mapObsFullFromOurDomainOntoApi(
-  dbRecord,
-  photoRecordGetter = getPhotoRecord,
-) {
-  const result = {}
-  const isRecordToUpload =
-    dbRecord.wowMeta[cc.recordTypeFieldName] !== recordType('delete')
-  if (!isRecordToUpload) {
-    return {}
-  }
-  result.observationPostBody = mapObsCoreFromOurDomainOntoApi(dbRecord)
-  // TODO this loads all photos at once, it would be more memory efficient if
-  // we load one, then process it.
-  result.photoPostBodyPartials = []
-  for (const currId of (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
-    e => e.id,
-  )) {
-    const photo = await photoRecordGetter(currId)
-    if (!photo) {
-      // FIXME should we try to push on if a photo is missing?
-      console.warn(`Could not load photo with ID=${currId}`)
-      continue
-    }
-    result.photoPostBodyPartials.push(photo)
-  }
-  return result
+      }, {}),
+    },
+  )
 }
 
 function isAnswer(val) {
