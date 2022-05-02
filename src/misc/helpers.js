@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { isNil } from 'lodash'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
@@ -73,27 +73,31 @@ export function putJsonWithAuth(url, data = {}, authHeaderValue) {
   })
 }
 
-export function postFormDataWithAuth(
+export function postFormDataWithAuth(...params) {
+  return _formDataWithAuthHelper('POST', ...params)
+}
+
+export function putFormDataWithAuth(...params) {
+  return _formDataWithAuthHelper('PUT', ...params)
+}
+
+async function _formDataWithAuthHelper(
+  method,
   url,
   populateFormDataCallback,
   authHeaderValue,
 ) {
   const formData = new FormData()
-  populateFormDataCallback(formData)
+  await populateFormDataCallback(formData)
   return doManagedFetch(url, {
-    method: 'POST',
+    method,
     mode: 'cors',
     headers: {
       ...commonHeaders,
       Authorization: authHeaderValue,
     },
-    body: formData,
+    body: formData._blob ? formData._blob() : formData,
   })
-}
-
-export function getJson(url, includeCacheBustQueryString) {
-  const authHeader = null
-  return getJsonWithAuth(url, authHeader, includeCacheBustQueryString)
 }
 
 export function getJsonWithAuth(
@@ -130,7 +134,7 @@ export async function isNoSwActive() {
 
 export async function isSwActive() {
   try {
-    const resp = await fetch(constants.serviceWorkerIsAliveMagicUrl, {
+    const resp = await fetch(cc.serviceWorkerIsAliveMagicUrl, {
       method: 'GET',
       retries: 0,
     })
@@ -138,13 +142,6 @@ export async function isSwActive() {
   } catch (err) {
     return false
   }
-}
-
-function isObsWithLocalProcessor(record) {
-  return (
-    (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
-    constants.withLocalProcessorOutcome
-  )
 }
 
 export function isPossiblyStuck($store, record) {
@@ -155,33 +152,30 @@ export function isPossiblyStuck($store, record) {
     const isAllowedToSync = !$store.getters.isSyncDisabled
     const isProcessorRunning =
       $store.getters['ephemeral/isLocalProcessorRunning']
-    return (
-      isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
-    )
+    const o = (record.wowMeta || {})[cc.recordProcessingOutcomeFieldName]
+    const isBeingProcessed = o === cc.beingProcessedOutcome
+    return isAllowedToSync && isBeingProcessed && !isProcessorRunning
   })()
   const isStuckInSw = (() => {
+    // FIXME do we need this block at all?
+    // FIXME either need to populate `setUuidsInSwQueues` or delete it
     const wowMeta = record.wowMeta
     if (!wowMeta) {
       return false
     }
-    const stuckMinutes = constants.thresholdForStuckWithSwMinutes
+    const stuckMinutes = cc.thresholdForStuckWithSwMinutes
     if (!stuckMinutes) {
       return false
     }
-    if (!wowMeta[constants.outcomeLastUpdatedAtFieldName]) {
+    if (!wowMeta[cc.outcomeLastUpdatedAtFieldName]) {
       // old record before we introduced this field
       return false
     }
-    const lastTouchedDatetime = dayjs(
-      wowMeta[constants.outcomeLastUpdatedAtFieldName],
-    )
-    const isSuccessOrWithSW = [
-      constants.successOutcome,
-      constants.withServiceWorkerOutcome,
-    ].includes(wowMeta[constants.recordProcessingOutcomeFieldName])
+    const lastTouchedDatetime = dayjs(wowMeta[cc.outcomeLastUpdatedAtFieldName])
+    const isSuccess =
+      cc.successOutcome === wowMeta[cc.recordProcessingOutcomeFieldName]
     const isStuckWithoutTimeCheck =
-      isSuccessOrWithSW &&
-      !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
+      isSuccess && !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
     if (!isStuckWithoutTimeCheck) {
       return false
     }
@@ -200,14 +194,9 @@ export function isPossiblyStuck($store, record) {
   return isStuckLocally || isStuckInSw
 }
 
-export function deleteWithAuth(url, authHeaderValue, wowUuid) {
+export function deleteWithAuth(url, authHeaderValue) {
   const alsoOkHttpStatuses = [404]
   const extraHeaders = {}
-  if (wowUuid) {
-    // when running without a SW, this header will go to the iNat server, which
-    // should ignore it. If our SW *is* running, it needs this value.
-    extraHeaders[constants.wowUuidCustomHttpHeader] = wowUuid
-  }
   return doManagedFetch(
     url,
     {
@@ -498,7 +487,7 @@ export function encodeMissionBody(name, endDate, goal, todayMoment = dayjs()) {
     2,
   )}
   ${missionEndMarker}
-  // created by Wild Orchid Watch app version: ${constants.appVersion}
+  // created by Wild Orchid Watch app version: ${cc.appVersion}
   </code>
   `
 }
@@ -528,30 +517,6 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
-export async function triggerSwWowQueue() {
-  if (await isNoSwActive()) {
-    return Promise.resolve()
-  }
-  return _sendMessageToSw(constants.syncSwWowQueueMsg)
-}
-
-function _sendMessageToSw(msg) {
-  return new Promise(function(resolve, reject) {
-    const msgChan = new MessageChannel()
-    msgChan.port1.onmessage = function(event) {
-      if ((event.data || {}).error) {
-        return reject(event.data.error)
-      }
-      return resolve(event.data)
-    }
-    const controller = navigator.serviceWorker.controller
-    if (!controller) {
-      return reject('No service worker active. Cannot send msg=' + msg)
-    }
-    controller.postMessage(msg, [msgChan.port2])
-  })
-}
-
 export function clearLocalStorage() {
   console.debug(`Clearing localStorage of ${localStorage.length} keys`)
   localStorage.clear()
@@ -574,10 +539,10 @@ export function isInBoundingBox(lat, lon) {
   return isInBoundingBoxImpl({
     userLat: lat,
     userLon: lon,
-    minLat: constants.bboxLatMin,
-    maxLat: constants.bboxLatMax,
-    minLon: constants.bboxLonMin,
-    maxLon: constants.bboxLonMax,
+    minLat: cc.bboxLatMin,
+    maxLat: cc.bboxLatMax,
+    minLon: cc.bboxLonMin,
+    maxLon: cc.bboxLonMax,
   })
 }
 

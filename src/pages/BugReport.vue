@@ -86,8 +86,6 @@
           <br />
           <code>{{ userAgent }}</code>
         </p>
-        <strong>Service worker health check</strong>
-        <pre><code>{{swHealthCheckResult}}</code></pre>
         <strong>Vuex store: app</strong>
         <pre><code>{{vuexStoreApp}}</code></pre>
         <strong>Vuex store: auth</strong>
@@ -107,7 +105,7 @@
 import { mapGetters } from 'vuex'
 import * as gcpError from 'stackdriver-error-reporting-clientside-js-client'
 import * as constants from '@/misc/constants'
-import { isSwActive, chainedError } from '@/misc/helpers'
+import { chainedError } from '@/misc/helpers'
 import { encryptAndBase64Encode } from '@/misc/no-deps-helpers'
 
 export default {
@@ -118,7 +116,6 @@ export default {
       reportState: 'initial',
       reportFailureError: null,
       techDetailsLastUpdated: null,
-      swHealthCheckResult: null,
       vuexStoreApp: null,
       vuexStoreAuth: null,
       vuexStoreEphemeral: null,
@@ -127,11 +124,11 @@ export default {
     }
   },
   computed: {
+    // FIXME move contextObj, emailBody and mailtoHref to getters to reduce load
     ...mapGetters('auth', ['myUsername']),
     contextObj() {
       return {
         userAgent: this.userAgent,
-        swHealthCheckResult: this.swHealthCheckResult,
         vuexStoreApp: this.vuexStoreApp,
         vuexStoreAuth: this.vuexStoreAuth,
         vuexStoreEphemeral: this.vuexStoreEphemeral,
@@ -207,7 +204,6 @@ export default {
     async gatherContext() {
       try {
         console.debug('Gathering bug report context')
-        await this.gatherContextSw()
         await this.gatherContextAppStore()
         await this.gatherContextAuthStore()
         await this.gatherContextEphemeralStore()
@@ -215,19 +211,6 @@ export default {
         await this.gatherContextConstants()
       } catch (err) {
         throw chainedError('Failed to gather context on bug report page', err)
-      }
-    },
-    async gatherContextSw() {
-      if (await isSwActive()) {
-        const resp = await fetch(constants.serviceWorkerHealthCheckUrl)
-        const respJson = await resp.json()
-        const ahv = respJson.authHeaderValue
-        this.swHealthCheckResult = {
-          ...respJson,
-          authHeaderValue: trimAndMeasure(ahv),
-        }
-      } else {
-        this.swHealthCheckResult = '(no SW active)'
       }
     },
     gatherContextAppStore() {

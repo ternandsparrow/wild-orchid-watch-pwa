@@ -1,5 +1,5 @@
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
 import { _testonly as workerTestOnly } from '@/store/obs-store.worker'
 import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
@@ -356,7 +356,7 @@ describe('actions', () => {
   })
 
   describe('things that need a datastore', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -423,9 +423,9 @@ describe('actions', () => {
           uuid: '123A',
           existingValue: 'banana',
           wowMeta: {
-            [constants.blockedActionFieldName]: {
+            [cc.blockedActionFieldName]: {
               wowMeta: {
-                [constants.recordProcessingOutcomeFieldName]: 'test-outcome',
+                [cc.recordProcessingOutcomeFieldName]: 'test-outcome',
                 allBlockedObjFields: 'yep',
               },
             },
@@ -452,10 +452,10 @@ describe('actions', () => {
           inatId: 667,
           existingValue: 'banana',
           wowMeta: {
-            [constants.recordProcessingOutcomeFieldName]: 'test-outcome',
+            [cc.recordProcessingOutcomeFieldName]: 'test-outcome',
             allBlockedObjFields: 'yep',
-            [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
-            [constants.versionFieldName]: constants.currentRecordVersion,
+            [cc.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+            [cc.versionFieldName]: cc.currentRecordVersion,
           },
         })
       })
@@ -484,7 +484,7 @@ describe('actions', () => {
   })
 
   describe('refreshLocalRecordQueue', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -499,9 +499,9 @@ describe('actions', () => {
         uuid: '123A',
         photos: [],
         wowMeta: {
-          [constants.recordTypeFieldName]: 'new',
-          [constants.recordProcessingOutcomeFieldName]: 'waiting',
-          [constants.photosToAddFieldName]: [],
+          [cc.recordTypeFieldName]: 'new',
+          [cc.recordProcessingOutcomeFieldName]: 'waiting',
+          [cc.photosToAddFieldName]: [],
         },
       }
       await obsStore.setItem('123A', record)
@@ -511,10 +511,10 @@ describe('actions', () => {
       })
       expect(committedState.setLocalQueueSummary).toEqual([
         {
-          [constants.recordTypeFieldName]: 'new',
-          [constants.isEventuallyDeletedFieldName]: false,
-          [constants.recordProcessingOutcomeFieldName]: 'waiting',
-          [constants.hasBlockedActionFieldName]: false,
+          [cc.recordTypeFieldName]: 'new',
+          [cc.isEventuallyDeletedFieldName]: false,
+          [cc.recordProcessingOutcomeFieldName]: 'waiting',
+          [cc.hasBlockedActionFieldName]: false,
           inatId: undefined,
           uuid: '123A',
         },
@@ -525,9 +525,9 @@ describe('actions', () => {
           thumbnailUrl: null,
           uuid: '123A',
           wowMeta: {
-            [constants.recordTypeFieldName]: 'new',
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.photosToAddFieldName]: [],
+            [cc.recordTypeFieldName]: 'new',
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.photosToAddFieldName]: [],
           },
         },
       ])
@@ -539,14 +539,14 @@ describe('actions', () => {
         inatId: 33,
         photos: [],
         wowMeta: {
-          [constants.recordTypeFieldName]: 'edit',
-          [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
-          [constants.blockedActionFieldName]: {
+          [cc.recordTypeFieldName]: 'edit',
+          [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
+          [cc.blockedActionFieldName]: {
             uuid: '123A',
             inatId: 33,
             photos: [],
             wowMeta: {
-              [constants.recordTypeFieldName]: 'delete',
+              [cc.recordTypeFieldName]: 'delete',
             },
           },
         },
@@ -558,10 +558,10 @@ describe('actions', () => {
       })
       expect(committedState.setLocalQueueSummary).toEqual([
         {
-          [constants.recordTypeFieldName]: 'edit',
-          [constants.isEventuallyDeletedFieldName]: true,
-          [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
-          [constants.hasBlockedActionFieldName]: true,
+          [cc.recordTypeFieldName]: 'edit',
+          [cc.isEventuallyDeletedFieldName]: true,
+          [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
+          [cc.hasBlockedActionFieldName]: true,
           inatId: 33,
           uuid: '123A',
         },
@@ -571,7 +571,7 @@ describe('actions', () => {
   })
 
   describe('deleteSelectedRecord', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -589,9 +589,9 @@ describe('actions', () => {
           uuid: '123A',
           photos: [],
           wowMeta: {
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.recordTypeFieldName]: 'new',
-            [constants.photosToAddFieldName]: [],
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.recordTypeFieldName]: 'new',
+            [cc.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -615,9 +615,9 @@ describe('actions', () => {
           uuid: '123A',
           photos: [],
           wowMeta: {
-            [constants.recordTypeFieldName]: 'new',
-            [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
-            [constants.photosToAddFieldName]: [],
+            [cc.recordTypeFieldName]: 'new',
+            [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
+            [cc.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -628,13 +628,13 @@ describe('actions', () => {
           await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
-        expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
+        expect(result.wowMeta[cc.blockedActionFieldName]).toEqual({
           wowMeta: {
-            [constants.recordTypeFieldName]: 'delete',
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.photoIdsToDeleteFieldName]: [],
-            [constants.photosToAddFieldName]: [],
-            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [cc.recordTypeFieldName]: 'delete',
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.photoIdsToDeleteFieldName]: [],
+            [cc.photosToAddFieldName]: [],
+            [cc.obsFieldIdsToDeleteFieldName]: [],
           },
         })
         expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -646,7 +646,7 @@ describe('actions', () => {
         uuid: '123A',
         photos: [],
         wowMeta: {
-          [constants.photosToAddFieldName]: [],
+          [cc.photosToAddFieldName]: [],
         },
       })
       const state = {
@@ -661,12 +661,12 @@ describe('actions', () => {
         inatId: 666,
         uuid: '123A',
         wowMeta: {
-          [constants.recordTypeFieldName]: 'delete',
-          [constants.recordProcessingOutcomeFieldName]: 'waiting',
-          [constants.photoIdsToDeleteFieldName]: [],
-          [constants.photosToAddFieldName]: [],
-          [constants.obsFieldIdsToDeleteFieldName]: [],
-          [constants.versionFieldName]: constants.currentRecordVersion,
+          [cc.recordTypeFieldName]: 'delete',
+          [cc.recordProcessingOutcomeFieldName]: 'waiting',
+          [cc.photoIdsToDeleteFieldName]: [],
+          [cc.photosToAddFieldName]: [],
+          [cc.obsFieldIdsToDeleteFieldName]: [],
+          [cc.versionFieldName]: cc.currentRecordVersion,
         },
       })
       expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -680,12 +680,10 @@ describe('actions', () => {
           uuid: '123A',
           photos: [],
           wowMeta: {
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.recordTypeFieldName]: 'edit',
-            [constants.photoIdsToDeleteFieldName]: [
-              'this should get clobbered',
-            ],
-            [constants.photosToAddFieldName]: [],
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.recordTypeFieldName]: 'edit',
+            [cc.photoIdsToDeleteFieldName]: ['this should get clobbered'],
+            [cc.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -700,12 +698,12 @@ describe('actions', () => {
           inatId: 666,
           uuid: '123A',
           wowMeta: {
-            [constants.recordTypeFieldName]: 'delete',
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.photoIdsToDeleteFieldName]: [],
-            [constants.photosToAddFieldName]: [],
-            [constants.obsFieldIdsToDeleteFieldName]: [],
-            [constants.versionFieldName]: constants.currentRecordVersion,
+            [cc.recordTypeFieldName]: 'delete',
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.photoIdsToDeleteFieldName]: [],
+            [cc.photosToAddFieldName]: [],
+            [cc.obsFieldIdsToDeleteFieldName]: [],
+            [cc.versionFieldName]: cc.currentRecordVersion,
           },
         })
         expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -721,9 +719,9 @@ describe('actions', () => {
           inatId: 666,
           photos: [],
           wowMeta: {
-            [constants.recordProcessingOutcomeFieldName]: 'withServiceWorker',
-            [constants.recordTypeFieldName]: 'edit',
-            [constants.photosToAddFieldName]: [],
+            [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
+            [cc.recordTypeFieldName]: 'edit',
+            [cc.photosToAddFieldName]: [],
           },
         })
         const state = {
@@ -734,14 +732,14 @@ describe('actions', () => {
           await buildAutoQueueRefreshContext(state, capturedCommits, '123A'),
         )
         const result = await obsStore.getItem('123A')
-        expect(result.wowMeta[constants.recordTypeFieldName]).toEqual('edit')
-        expect(result.wowMeta[constants.blockedActionFieldName]).toEqual({
+        expect(result.wowMeta[cc.recordTypeFieldName]).toEqual('edit')
+        expect(result.wowMeta[cc.blockedActionFieldName]).toEqual({
           wowMeta: {
-            [constants.recordTypeFieldName]: 'delete',
-            [constants.recordProcessingOutcomeFieldName]: 'waiting',
-            [constants.photoIdsToDeleteFieldName]: [],
-            [constants.photosToAddFieldName]: [],
-            [constants.obsFieldIdsToDeleteFieldName]: [],
+            [cc.recordTypeFieldName]: 'delete',
+            [cc.recordProcessingOutcomeFieldName]: 'waiting',
+            [cc.photoIdsToDeleteFieldName]: [],
+            [cc.photosToAddFieldName]: [],
+            [cc.obsFieldIdsToDeleteFieldName]: [],
           },
         })
         expect(capturedCommits.setSelectedObservationUuid).toBeNull()
@@ -750,7 +748,7 @@ describe('actions', () => {
   })
 
   describe('deleteSelectedLocalRecord', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -764,9 +762,9 @@ describe('actions', () => {
       await obsStore.setItem('123A', {
         uuid: '123A',
         wowMeta: {
-          [constants.recordProcessingOutcomeFieldName]: 'waiting',
-          [constants.recordTypeFieldName]: 'new',
-          [constants.photosToAddFieldName]: [],
+          [cc.recordProcessingOutcomeFieldName]: 'waiting',
+          [cc.recordTypeFieldName]: 'new',
+          [cc.photosToAddFieldName]: [],
         },
       })
       const state = {
@@ -798,7 +796,7 @@ describe('actions', () => {
   })
 
   describe('cleanSuccessfulLocalRecordsRemoteHasEchoed', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -815,8 +813,8 @@ describe('actions', () => {
         localQueueSummary: [
           {
             uuid: '123A',
-            [constants.recordProcessingOutcomeFieldName]: 'success',
-            [constants.recordTypeFieldName]: 'new',
+            [cc.recordProcessingOutcomeFieldName]: 'success',
+            [cc.recordTypeFieldName]: 'new',
           },
         ],
       }
@@ -852,8 +850,8 @@ describe('actions', () => {
           localQueueSummary: [
             {
               uuid: '456B',
-              [constants.recordProcessingOutcomeFieldName]: 'success',
-              [constants.recordTypeFieldName]: 'edit',
+              [cc.recordProcessingOutcomeFieldName]: 'success',
+              [cc.recordTypeFieldName]: 'edit',
               wowUpdatedAt: '2019-01-01T01:11:11.111Z',
             },
           ],
@@ -891,8 +889,8 @@ describe('actions', () => {
           localQueueSummary: [
             {
               uuid: '456B',
-              [constants.recordProcessingOutcomeFieldName]: 'success',
-              [constants.recordTypeFieldName]: 'edit',
+              [cc.recordProcessingOutcomeFieldName]: 'success',
+              [cc.recordTypeFieldName]: 'edit',
               wowUpdatedAt: '2019-01-01T03:33:33.333Z',
             },
           ],
@@ -923,8 +921,8 @@ describe('actions', () => {
         localQueueSummary: [
           {
             uuid: '456B',
-            [constants.recordProcessingOutcomeFieldName]: 'success',
-            [constants.recordTypeFieldName]: 'delete',
+            [cc.recordProcessingOutcomeFieldName]: 'success',
+            [cc.recordTypeFieldName]: 'delete',
           },
         ],
       }
@@ -955,8 +953,8 @@ describe('actions', () => {
         localQueueSummary: [
           {
             uuid: '456B',
-            [constants.recordProcessingOutcomeFieldName]: 'systemError',
-            [constants.recordTypeFieldName]: 'delete',
+            [cc.recordProcessingOutcomeFieldName]: 'systemError',
+            [cc.recordTypeFieldName]: 'delete',
           },
         ],
       }
@@ -990,13 +988,13 @@ describe('actions', () => {
         uuid: '456B',
         photos: [existingLocalPhoto, existingBlockedLocalPhoto],
         wowMeta: {
-          [constants.photosToAddFieldName]: [existingLocalPhoto],
-          [constants.blockedActionFieldName]: {
+          [cc.photosToAddFieldName]: [existingLocalPhoto],
+          [cc.blockedActionFieldName]: {
             wowMeta: {
-              [constants.recordTypeFieldName]: 'edit',
-              [constants.photoIdsToDeleteFieldName]: [111],
-              [constants.recordProcessingOutcomeFieldName]: 'waiting',
-              [constants.photosToAddFieldName]: [existingBlockedLocalPhoto],
+              [cc.recordTypeFieldName]: 'edit',
+              [cc.photoIdsToDeleteFieldName]: [111],
+              [cc.recordProcessingOutcomeFieldName]: 'waiting',
+              [cc.photosToAddFieldName]: [existingBlockedLocalPhoto],
             },
           },
         },
@@ -1006,9 +1004,9 @@ describe('actions', () => {
         localQueueSummary: [
           {
             uuid: '456B',
-            [constants.recordProcessingOutcomeFieldName]: 'success',
-            [constants.recordTypeFieldName]: 'new',
-            [constants.hasBlockedActionFieldName]: true,
+            [cc.recordProcessingOutcomeFieldName]: 'success',
+            [cc.recordTypeFieldName]: 'new',
+            [cc.hasBlockedActionFieldName]: true,
           },
         ],
       }
@@ -1031,24 +1029,24 @@ describe('actions', () => {
       const result = await obsStore.getItem('456B')
       expect(result.inatId).toEqual(987)
       expect(result.wowMeta).toEqual({
-        [constants.recordTypeFieldName]: 'edit',
-        [constants.recordProcessingOutcomeFieldName]: 'waiting',
-        [constants.photoIdsToDeleteFieldName]: [111],
-        [constants.photosToAddFieldName]: [
+        [cc.recordTypeFieldName]: 'edit',
+        [cc.recordProcessingOutcomeFieldName]: 'waiting',
+        [cc.photoIdsToDeleteFieldName]: [111],
+        [cc.photosToAddFieldName]: [
           {
             id: 22,
             testTag: 'photo2 placeholder',
             thumb: true,
           },
         ],
-        [constants.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
-        [constants.versionFieldName]: constants.currentRecordVersion,
+        [cc.outcomeLastUpdatedAtFieldName]: expect.toBeValidDateString(),
+        [cc.versionFieldName]: cc.currentRecordVersion,
       })
     })
   })
 
   describe('findDbIdForWowId', () => {
-    const obsStore = getOrCreateInstance(constants.lfWowObsStoreName)
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
 
     beforeEach(async () => {
       await obsStore.clear()
@@ -1226,8 +1224,7 @@ describe('actions', () => {
           {
             uuid: '123A',
             inatId: 111,
-            [constants.recordProcessingOutcomeFieldName]:
-              constants.waitingOutcome,
+            [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
           },
         ],
       }
@@ -1244,8 +1241,7 @@ describe('actions', () => {
           {
             uuid: '123A',
             inatId: 111,
-            [constants.recordProcessingOutcomeFieldName]:
-              constants.withServiceWorkerOutcome,
+            [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
           },
         ],
       }
@@ -1253,7 +1249,7 @@ describe('actions', () => {
         await buildDumbContext({ state }),
         111,
       )
-      expect(result).toEqual('withServiceWorker')
+      expect(result).toEqual('withLocalProcessor')
     })
 
     it('should throw the expected error when no record exists', async () => {

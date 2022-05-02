@@ -382,6 +382,8 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 
 // More "constant" constants from here on
 
+export const facadeSendObsUrlPrefix = `${facadeUrlBase}/observations`
+
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 export const noPreviewAvailableUrl = '/img/no-preview-available.png'
 
@@ -434,7 +436,6 @@ export const refreshObsMsg = 'REFRESH_OBS'
 export const refreshLocalQueueMsg = 'REFRESH_LOCAL_QUEUE_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
-export const testSendObsPhotoPostMsg = 'TEST_OBS_PHOTO_POST'
 export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
 export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
 export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
@@ -442,31 +443,21 @@ export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
 // Record processing outcomes
 export const draftOutcome = 'draft' // incomplete observation
 export const waitingOutcome = 'waiting' // waiting to be processed
-export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
-export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet
+// left the value of this the same after the rename, so we don't have to migrate data
+export const beingProcessedOutcome = 'withLocalProcessor' // we're actively processing it
 export const successOutcome = 'success' // successfully processed
-export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
+export const systemErrorOutcome = 'systemError' // processed but encountered an error
 
+// FIXME do we need any of this service worker magic any more?
 // FIXME this URL fails CORS in Firefox, can we use something else? If we still
 // need it. registerRoute can use a matchCallback so we could hook on a custom
 // header. Or make the SW respond to CORS. Need to make sure the requests don't
 // go somewhere else if there's no SW
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
-export const serviceWorkerBundleMagicUrl = // FIXME rename now it's no longer a bundle but a trigger?
-  serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
 export const serviceWorkerIsAliveMagicUrl =
   serviceWorkerMagicUrlPrefix + '/are-you-alive'
-export const serviceWorkerHealthCheckUrl =
-  serviceWorkerMagicUrlPrefix + '/health-check'
-export const serviceWorkerUpdateAuthHeaderUrl =
-  serviceWorkerMagicUrlPrefix + '/update-auth-header'
 export const serviceWorkerUpdateErrorTrackerContextUrl =
   serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
-export const serviceWorkerClearEverythingUrl =
-  serviceWorkerMagicUrlPrefix + '/clear-everything'
-export const serviceWorkerObsUuidsInQueueUrl =
-  serviceWorkerMagicUrlPrefix + '/uuids-in-queue'
-
 export const serviceWorkerPlatformTestUrl =
   serviceWorkerMagicUrlPrefix + '/platorm-test'
 

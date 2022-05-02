@@ -18,7 +18,7 @@
       <div class="title">Error uploading record</div>
       <p>
         This is not your fault. Many issues could cause this but the first step
-        is to try to upload the record again and see if that works.
+        is to retry the upload and see if that works.
       </p>
       <p>
         <v-ons-button

@@ -39,6 +39,10 @@ module.exports = {
 function getWebpackChain() {
   const isDisableMinify = !!process.env.DISABLE_MINIFY
   if (isDisableMinify) {
+    // FIXME disabling minification causes build errors like
+    //     Module parse failed: Unexpected token (142:15)
+    //   ...on lines containing the ?. property accessor syntax. Currently it
+    //   seems to only affect code from gmap-vue.
     console.log('Disabling minification')
     return {
       // thanks https://github.com/vuejs/vue-cli/issues/4328#issuecomment-514250189

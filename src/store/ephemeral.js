@@ -28,6 +28,7 @@ const state = {
   showAddToHomeScreenModalForApple: false,
   swReg: null, // current sw
   SWRegistrationForNewContent: null, // new, waiting sw
+  lastSwCheckTime: 0,
   isSplitterOpen: false,
   isForceShowLoginToast: false,
   isGlobalErrorState: false,
@@ -60,6 +61,7 @@ const mutations = {
   setNetworkOnline: (state, value) => (state.networkOnLine = value),
   setSWRegistrationForNewContent: (state, value) =>
     (state.SWRegistrationForNewContent = value),
+  setLastSwCheckTime: (state, value) => (state.lastSwCheckTime = value),
   setShowAddToHomeScreenModalForApple: (state, value) =>
     (state.showAddToHomeScreenModalForApple = value),
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
@@ -195,8 +197,16 @@ const actions = {
       constants.skipWaitingMsg,
     )
   },
-  async manualServiceWorkerUpdateCheck({ state }) {
+  async manualServiceWorkerUpdateCheck({ commit, state }) {
     if (!state.swReg) {
+      return false
+    }
+    const checkFrequencySeconds = 60
+    const lastCheckedSecondsAgo = (Date.now() - state.lastSwCheckTime) / 1000
+    if (lastCheckedSecondsAgo < checkFrequencySeconds) {
+      console.debug(
+        `Last SW update check (${lastCheckedSecondsAgo}) less than ${checkFrequencySeconds} seconds ago, refusing to check again`,
+      )
       return false
     }
     try {
@@ -205,6 +215,8 @@ const actions = {
     } catch (err) {
       // probably the server is down
       console.warn('Failed while trying to check for a new service worker', err)
+    } finally {
+      commit('setLastSwCheckTime', Date.now())
     }
     return true
   },

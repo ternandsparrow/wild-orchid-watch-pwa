@@ -202,7 +202,7 @@
 import Vue from 'vue'
 import { mapState, mapGetters } from 'vuex'
 import dayjs from 'dayjs'
-import { triggerSwWowQueue, wowErrorHandler } from '@/misc/helpers'
+import { wowErrorHandler } from '@/misc/helpers'
 import * as constants from '@/misc/constants'
 
 export default {
@@ -349,7 +349,7 @@ export default {
               { root: true },
             )
           })
-        triggerSwWowQueue()
+        // FIXME do we need to kick the service worker?
       }
       done && typeof done === 'function' && done()
     },

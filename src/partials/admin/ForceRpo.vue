@@ -49,8 +49,7 @@ export default {
       setRpoAvailableUuids: [],
       setRpoAvailableOutcomes: [
         constants.waitingOutcome,
-        constants.withLocalProcessorOutcome,
-        constants.withServiceWorkerOutcome,
+        constants.beingProcessedOutcome,
         constants.successOutcome,
         constants.systemErrorOutcome,
       ],

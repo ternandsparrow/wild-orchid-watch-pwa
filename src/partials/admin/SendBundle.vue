@@ -18,6 +18,7 @@
 <script>
 import uuid from 'uuid/v1'
 import * as constants from '@/misc/constants'
+import { postFormDataWithAuth } from '@/misc/helpers'
 
 export default {
   name: 'SendBundle',
@@ -32,31 +33,25 @@ export default {
     async sendBundle() {
       this.outcome = `[${new Date().toISOString()}] processing...`
       const apiToken = this.$store.state.auth.apiToken
-      const form = new FormData()
-      form.set('projectId', this.$store.getters['obs/projectId'])
-      form.set(
-        'observation',
-        new Blob([JSON.stringify(this.getObsBody())], {
-          type: 'application/json',
-        }),
-      )
       const imgBytes = await this.getImgBytes()
-      for (let i = 1; i <= this.photoCount; i++) {
-        form.append(
-          'photos',
-          new File([imgBytes], `image${i}.jpg`, { type: 'image/jpeg' }),
-        )
-      }
-      const resp = await fetch(
+      const resp = await postFormDataWithAuth(
         `${constants.facadeUrlBase}/observations/${this.theUuid}`,
-        {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            Authorization: apiToken,
-          },
-          body: form,
+        form => {
+          form.set('projectId', this.$store.getters['obs/projectId'])
+          form.set(
+            'observation',
+            new Blob([JSON.stringify(this.getObsBody())], {
+              type: 'application/json',
+            }),
+          )
+          for (let i = 1; i <= this.photoCount; i++) {
+            form.append(
+              'photos',
+              new File([imgBytes], `image${i}.jpg`, { type: 'image/jpeg' }),
+            )
+          }
         },
+        apiToken,
       )
       const jsonStr = JSON.stringify(await resp.json(), null, 2)
       this.outcome =

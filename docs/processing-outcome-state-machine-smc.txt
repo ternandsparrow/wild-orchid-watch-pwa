@@ -4,14 +4,10 @@ final;
 initial              => waiting            : save, when no action is queued for obs;
 initial              => blocked            : save, when >=1 action(s) queued for obs;
 blocked              => waiting            : triggered;
-waiting              => withServiceWorker  : process with SW;
-withServiceWorker    => success            : succeeded, trigger blocked;
-withServiceWorker    => systemError        : failed;
 systemError          => waiting            : retry;
-waiting              => withLocalProcessor : process without SW;
-withLocalProcessor   => success            : succeeded, trigger blocked;
-withLocalProcessor   => systemError        : failed;
+waiting              => beingProcessed     : process;
+beingProcessed       => systemError        : failed;
+beingProcessed       => success            : succeeded, trigger blocked actions;
 success              => final              ;
 
 // created with https://state-machine-cat.js.org/
-

@@ -1,3 +1,4 @@
+import 'formdata-polyfill'
 import { expose as comlinkExpose } from 'comlink'
 import _ from 'lodash'
 import uuid from 'uuid/v1'
@@ -18,7 +19,10 @@ import {
 import {
   arrayBufferToBlob,
   chainedError,
+  deleteWithAuth,
   namedError,
+  postFormDataWithAuth,
+  putFormDataWithAuth,
   recordTypeEnum as recordType,
   verifyWowDomainPhoto,
   wowIdOf,
@@ -32,13 +36,11 @@ const exposed = {
   cleanupPhotosForObs,
   deleteSelectedLocalRecord,
   deleteSelectedRecord,
-  doEditRecordStrategy,
-  doNewRecordStrategy,
   getData,
   getDbPhotosForObs,
   getFullSizePhotoUrl,
   performMigrations,
-  processWaitingDbRecordNoSw,
+  processWaitingDbRecord,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
   setRecordProcessingOutcome,
@@ -298,7 +300,7 @@ async function saveNewAndScheduleUpload({ record, isDraft }) {
   }
 }
 
-async function saveEditAndScheduleUpdate(
+async function saveEditAndScheduleUpdate( // FIXME can we simplify this?
   { localQueueSummary, allRemoteObs, localRecords },
   { record, photoIdsToDelete, obsFieldIdsToDelete, isDraft },
   runStrategy = realRunStrategy,
@@ -555,10 +557,7 @@ function processPhotos(photos) {
 }
 
 function isObsStateProcessing(state) {
-  const processingStates = [
-    cc.withLocalProcessorOutcome,
-    cc.withServiceWorkerOutcome,
-  ]
+  const processingStates = [cc.beingProcessedOutcome]
   return processingStates.includes(state)
 }
 
@@ -691,151 +690,120 @@ async function setRecordProcessingOutcome(dbId, outcome) {
   await setRPO(dbId, outcome)
 }
 
-async function doNewRecordStrategy(recordId, projectId, apiToken) {
-  const payload = {
-    [cc.obsFieldName]: recordId,
-    [cc.projectIdFieldName]: projectId,
-  }
-  const resp = await doBundleEndpointFetch(payload, 'POST', apiToken)
-  if (!resp.ok) {
-    throw new Error(
-      `POST to bundle endpoint worked at an HTTP level,` +
-        ` but the status code indicates an error. Status=${resp.status}.` +
-        ` Message=${await getBundleErrorMsg(resp)}`,
-    )
-  }
-}
-
-async function doEditRecordStrategy(recordId, apiToken) {
-  const payload = {
-    [cc.obsFieldName]: recordId,
-  }
-  const resp = await doBundleEndpointFetch(payload, 'PUT', apiToken)
-  if (!resp.ok) {
-    throw new Error(
-      `PUT to bundle endpoint worked at an HTTP level,` +
-        ` but the status code indicates an error. Status=${resp.status}` +
-        ` Message=${await getBundleErrorMsg(resp)}`,
-    )
-  }
-}
-
-function doBundleEndpointFetch(payload, method, apiToken) {
-  return fetch(cc.serviceWorkerBundleMagicUrl, {
-    method,
-    headers: {
-      Authorization: apiToken,
-    },
-    body: JSON.stringify(payload),
-    retries: 0,
-  })
-}
-
-async function getBundleErrorMsg(resp) {
-  try {
-    const body = await resp.json()
-    return body.msg
-  } catch (err) {
-    const msg = 'Bundle resp was not JSON, could not extract message'
-    console.debug(msg, err)
-    return `(${msg})`
-  }
-}
-
-// FIXME rename to something agnostic as hopefully this will be the only impl
-async function processWaitingDbRecordNoSw({ recordId, apiToken, projectId }) {
+async function processWaitingDbRecord({ recordId, apiToken, projectId }) {
   // the DB record may be further edited while we're processing but that
   // won't affect our snapshot here
   const dbRecord = await getRecord(recordId)
   const strategies = {
     [recordType('new')]: async () => {
-      const form = new FormData()
       const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
-      form.set('projectId', projectId)
-      form.set(
-        'observation',
-        new Blob([JSON.stringify(observation)], {
-          type: 'application/json',
-        }),
-      )
       const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
         e => e.id,
       )
-      for (const currId of newPhotoIds) {
-        const photo = await getPhotoRecord(currId)
-        if (!photo) {
-          // FIXME is it wise to push on if a photo is missing?
-          console.warn(`Could not load photo with ID=${currId}`)
-          continue
-        }
-        form.append(
-          'photos',
-          new File([photo.file.data], `${photo.id}.${photo.type}`, {
-            type: photo.file.mime,
-          }),
-        )
-      }
-      const resp = await fetch(
-        `${cc.facadeUrlBase}/observations/${observation.uuid}`,
-        {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            Authorization: apiToken,
-          },
-          body: form,
+      await postFormDataWithAuth(
+        `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
+        async form => {
+          form.set('projectId', projectId)
+          form.set(
+            'observation',
+            new Blob([JSON.stringify(observation)], {
+              type: 'application/json',
+            }),
+          )
+          for (const currId of newPhotoIds) {
+            const photo = await getPhotoRecord(currId)
+            if (!photo) {
+              // FIXME is it wise to push on if a photo is missing?
+              console.warn(`Could not load photo with ID=${currId}`)
+              continue
+            }
+            const theSize = photo.file.data.byteLength
+            const isPhotoEmpty = !theSize
+            if (isPhotoEmpty) {
+              throw new Error(
+                `Photo with name='${photo.type}' and type='${photo.file.mime}' ` +
+                  `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
+              )
+            }
+            form.append(
+              'photos',
+              new File([photo.file.data], `${photo.id}.${photo.type}`, {
+                type: photo.file.mime,
+              }),
+            )
+          }
         },
+        apiToken,
       )
-      if (resp.status !== 200) {
-        throw new Error(`Server responded with ${resp.status}`)
-      }
+      console.debug('Obs create form is sent')
     },
     [recordType('edit')]: async () => {
-      // FIXME make it work
-      // const inatRecordId = dbRecord.inatId
-      // await Promise.all(
-      //   dbRecord.wowMeta[cc.photoIdsToDeleteFieldName].map(id => {
-      //     return dispatch('_deletePhoto', id) // FIXME
-      //   }),
-      // )
-      // for (const curr of apiRecords.photoPostBodyPartials) {
-      //   await dispatch('_createObsPhoto', { // FIXME
-      //     photoRecord: curr,
-      //     relatedObsId: inatRecordId,
-      //   })
-      // }
-      // for (const id of dbRecord.wowMeta[
-      //   cc.obsFieldIdsToDeleteFieldName
-      // ]) {
-      //   await dispatch('_deleteObsFieldValue', id) // FIXME
-      // }
-      // return dispatch('_editObservation', { // FIXME
-      //   obsRecord: apiRecords.observationPostBody,
-      //   inatRecordId,
-      // })
+      const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
+      const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
+        e => e.id,
+      )
+      await putFormDataWithAuth(
+        `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
+        async form => {
+          // FIXME refactor common code with "new" strat
+          form.set(
+            'observation',
+            new Blob([JSON.stringify(observation)], {
+              type: 'application/json',
+            }),
+          )
+          for (const currId of newPhotoIds) {
+            const photo = await getPhotoRecord(currId)
+            if (!photo) {
+              // FIXME is it wise to push on if a photo is missing?
+              console.warn(`Could not load photo with ID=${currId}`)
+              continue
+            }
+            const theSize = photo.file.data.byteLength
+            const isPhotoEmpty = !theSize
+            if (isPhotoEmpty) {
+              throw new Error(
+                `Photo with name='${photo.type}' and type='${photo.file.mime}' ` +
+                  `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
+              )
+            }
+            form.append(
+              'photos',
+              new File([photo.file.data], `${photo.id}.${photo.type}`, {
+                type: photo.file.mime,
+              }),
+            )
+          }
+          form.set(
+            cc.photoIdsToDeleteFieldName,
+            JSON.stringify(dbRecord.wowMeta[cc.photoIdsToDeleteFieldName]),
+          )
+          form.set(
+            cc.obsFieldIdsToDeleteFieldName,
+            JSON.stringify(dbRecord.wowMeta[cc.obsFieldIdsToDeleteFieldName]),
+          )
+        },
+        apiToken,
+      )
+      console.debug('Obs edit form is sent')
     },
     [recordType('delete')]: async () => {
-      // FIXME make it work
-      // return dispatch('_deleteObservation', { // FIXME
-      //   inatRecordId: dbRecord.inatId,
-      // })
+      const inatRecordId = dbRecord.inatId
+      if (!inatRecordId) {
+        throw new Error(`No inatId found for uuid=${recordId}`)
+      }
+      await deleteWithAuth(
+        `${cc.apiUrlBase}/observations/${inatRecordId}`,
+        apiToken,
+      )
+      console.debug('Obs delete is sent')
     },
   }
   const key = dbRecord.wowMeta[cc.recordTypeFieldName]
   console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
   const strategy = strategies[key]
-  // enhancement idea: add a rollback() fn to each strategy and call it when
-  // we encounter an error during the following processing. For 'new' we can
-  // just delete the partial obs. For delete, we do nothing. For edit, we
-  // should really track which requests have worked so we only replay the
-  // failed/not-yet-processed ones, but most users will use the withSw
-  // version of the processor and we get this smart retry for free.
-  // FIXME do we still need to think about /\ ?
   if (!strategy) {
-    throw new Error(
-      `Could not find a "process waiting record" strategy for key='${key}', ` +
-        `cannot continue`,
-    )
+    throw new Error(`No "record strategy" for key='${key}, cannot continue`)
   }
   await strategy()
 }

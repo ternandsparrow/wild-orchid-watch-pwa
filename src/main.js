@@ -84,7 +84,6 @@ new Vue({
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 
-      this.$store.dispatch('auth/sendSwUpdatedAuthToken')
       this.$store.dispatch('auth/setUsernameOnSentry')
 
       setTimeout(() => {

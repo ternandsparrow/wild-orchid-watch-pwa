@@ -2,15 +2,6 @@
   <menu-wrapper title="Admin">
     <v-ons-card>
       <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Connect to RemoteJS (<a href="https://remotejs.com/" target="_blank"
           >remotejs.com</a
         >)
@@ -274,18 +265,6 @@
           >Trigger local (client) queue processing</v-ons-button
         >
       </div>
-      <p>
-        Beware of this SW trigger. If the queue is already processing, it'll
-        start double processing. There's no safe guard. These status reports are
-        only for manually triggered processing, they have no idea about
-        workbox-triggered processing.
-      </p>
-      <div>
-        <p>Manually triggered processing status = {{ swWowQueueStatus }}</p>
-        <v-ons-button @click="doTriggerSwWowQueue"
-          >Trigger SW WOW queue processing</v-ons-button
-        >
-      </div>
     </v-ons-card>
     <v-ons-card>
       <div class="standalone-title">
@@ -341,40 +320,6 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Send requests to observation_photos endpoint on API
-      </div>
-      <p>
-        Safari is having CORS issues in the ServiceWorker. This will help
-        diagnose it
-      </p>
-      <p>
-        We never do this but it's a sanity check to make sure the endpoint is as
-        we expect. Also we're making this call from the main thread, not in the
-        SW.
-        <v-ons-button @click="doObsPhotoOptions"
-          >Send OPTIONS request</v-ons-button
-        >
-      </p>
-      <div>
-        We expect these to fail with 422 but that's good. It means we passed the
-        CORS preflight check.
-        <div class="gimme-some-space">
-          <v-ons-button @click="doObsPhotoPost"
-            >Send POST request from main thread</v-ons-button
-          >
-        </div>
-        <div class="gimme-some-space">
-          <v-ons-button @click="doSwObsPhotoPost"
-            >Send POST request from SW</v-ons-button
-          >
-        </div>
-      </div>
-      <code
-        ><pre>{{ obsPhotoReqOutcome }}</pre></code
-      >
-    </v-ons-card>
-    <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
         >Community workflow</v-ons-button
       >
@@ -415,7 +360,6 @@ import {
   clearLocalStorage,
   humanDateString,
   isSwActive,
-  triggerSwWowQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 import * as devHelpers from '@/misc/dev-helpers'
@@ -441,11 +385,9 @@ export default {
       configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
-      swWowQueueStatus: 'not started',
       imageClassificationResult: 'nothing yet',
       classifier: null,
       ourWorker: null,
-      swHealthCheckResult: 'nothing yet',
       hasConsoleBeenProxiedToUi: false,
       obsPhotoReqOutcome: 'nothing yet',
       hasSwConsoleBeenProxied: false,
@@ -538,16 +480,6 @@ export default {
         return 0
       })
       this.configItems = result
-    },
-    async doSwHealthCheck() {
-      this.swHealthCheckResult = 'nothing yet'
-      try {
-        const resp = await fetch(constants.serviceWorkerHealthCheckUrl)
-        this.swHealthCheckResult = await resp.json()
-      } catch (err) {
-        this.swHealthCheckResult = err.message
-        console.error('Failed to do health check on service worker', err)
-      }
     },
     doCustomLocalQueueSummaryDump() {
       const speciesGuesses = this.$store.state.obs._uiVisibleLocalRecords.reduce(
@@ -670,19 +602,6 @@ export default {
           this.swCheckResult = 'Error ' + err.message
         })
     },
-    doTriggerSwWowQueue() {
-      this.swWowQueueStatus = 'processing'
-      triggerSwWowQueue()
-        .then(() => {
-          console.debug(
-            'Triggering of SW deps queue processing completed successfully',
-          )
-          this.swWowQueueStatus = 'finished'
-        })
-        .catch(err => {
-          this.swWowQueueStatus = 'error. ' + err
-        })
-    },
     _sendMessageToSw(msg) {
       return new Promise(function(resolve, reject) {
         const msgChan = new MessageChannel()
@@ -745,35 +664,6 @@ export default {
       clearLocalStorage()
       unregisterAllServiceWorkers()
       await deleteKnownStorageInstances()
-    },
-    async doObsPhotoOptions() {
-      return this._doObsPhotoRequest('OPTIONS')
-    },
-    async doObsPhotoPost() {
-      return this._doObsPhotoRequest('POST')
-    },
-    async _doObsPhotoRequest(method) {
-      this.obsPhotoReqOutcome = 'nothing yet'
-      try {
-        const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
-          method: method,
-          retries: 0,
-          headers: {
-            Authorization: this.$store.state.auth.apiToken,
-          },
-        })
-        this.obsPhotoReqOutcome = resp.ok ? 'seem ok' : 'seems NOT ok'
-        console.debug(`Obs photos ${method} req done`)
-      } catch (err) {
-        this.obsPhotoReqOutcome = 'error'
-        console.error(
-          `Failed when making ${method} request to obs photo endpoint`,
-          err,
-        )
-      }
-    },
-    doSwObsPhotoPost() {
-      this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
     },
     async doClone() {
       this.cloneStatus = 'Starting'

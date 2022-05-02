@@ -1421,7 +1421,9 @@ export default {
             },
             record,
           ),
+          // global find-in-files help: photoIdsToDeleteFieldName
           photoIdsToDelete: this.photoIdsToDelete,
+          // global find-in-files help: obsFieldIdsToDeleteFieldName
           obsFieldIdsToDelete,
           isDraft,
         },

@@ -15,12 +15,10 @@ import {
   buildStaleCheckerFn,
   chainedError,
   fetchSingleRecord,
-  getJson,
   isNoSwActive,
   namedError,
   now,
   recordTypeEnum as recordType,
-  triggerSwWowQueue,
   verifyWowDomainPhoto,
   wowIdOf,
   wowErrorHandler,
@@ -49,8 +47,8 @@ const initialState = {
   mySpeciesLastUpdated: 0,
   selectedObservationUuid: null,
   _uiVisibleLocalRecords: [],
-  localQueueSummary: [],
-  projectInfo: null,
+  localQueueSummary: [], // FIXME should we delete this?
+  projectInfo: null, // FIXME only need id and user_ids, can we bin the rest?
   projectInfoLastUpdated: 0,
   recentlyUsedTaxa: {},
   forceQueueProcessingAtNextChance: false,
@@ -119,7 +117,6 @@ const actions = {
   },
   async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
-    dispatch('refreshObsUuidsInSwQueue')
     // TODO look at only pulling "new" records to save on bandwidth
     try {
       const myUserId = rootGetters.myUserId
@@ -154,34 +151,6 @@ const actions = {
       return
     } finally {
       commit('setIsUpdatingRemoteObs', false)
-    }
-  },
-  async refreshObsUuidsInSwQueue({ commit }) {
-    try {
-      const isNoServiceWorkerAvailable = await isNoSwActive()
-      if (isNoServiceWorkerAvailable) {
-        return
-      }
-      const uuids = await getJson(
-        constants.serviceWorkerObsUuidsInQueueUrl,
-        false,
-      )
-      if (!Array.isArray(uuids)) {
-        throw new Error(
-          `Unexpected value. uuids=${JSON.stringify(
-            uuids,
-          )} should be an array but seems to not be.`,
-        )
-      }
-      commit('setUuidsInSwQueues', uuids)
-    } catch (err) {
-      // not using flagGlobalError because we don't need to bother the user
-      wowErrorHandler(
-        'Failed to get list of obs UUIDs that in SW queues, falling back to ' +
-          'an empty array',
-        err,
-      )
-      commit('setUuidsInSwQueues', [])
     }
   },
   async cleanSuccessfulLocalRecordsRemoteHasEchoed({
@@ -750,12 +719,16 @@ const actions = {
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' starting`,
         )
-        // FIXME can we unify these so they both use the facade, and the SW is
-        // just the standard workbox with background sync?
-        const strategy = isNoServiceWorkerAvailable
-          ? 'processWaitingDbRecordNoSw'
-          : 'processWaitingDbRecordWithSw'
-        await dispatch(strategy, idToProcess)
+        await dispatch('transitionToBeingProcessedOutcome', idToProcess)
+        const apiToken = rootState.auth.apiToken
+        const projectId = getters.projectId
+        await getObsStoreWorker().processWaitingDbRecord({
+          recordId: idToProcess,
+          apiToken,
+          projectId,
+        })
+        await dispatch('transitionToSuccessOutcome', idToProcess)
+        await dispatch('refreshRemoteObsWithDelay') // FIXME do we still need this?
         console.debug(
           `${logPrefix} Processing DB record with ID='${idToProcess}' done`,
         )
@@ -972,35 +945,6 @@ const actions = {
       )
     }
   },
-  async _editObservation({ dispatch }, { obsRecord, inatRecordId }) {
-    if (!inatRecordId) {
-      throw new Error(
-        `Programmer problem: no iNat record ID ` +
-          `passed='${inatRecordId}', cannot continue`,
-      )
-    }
-    await dispatch(
-      'doApiPut',
-      {
-        urlSuffix: `/observations/${inatRecordId}`,
-        data: {
-          // note: obs fields *not* included here are not implicitly deleted.
-          ...obsRecord,
-          ignore_photos: true,
-        },
-      },
-      { root: true },
-    )
-    return inatRecordId
-  },
-  async _deleteObservation({ dispatch }, { inatRecordId, recordUuid }) {
-    // SW will intercept this if running
-    await dispatch(
-      'doApiDelete',
-      { urlSuffix: `/observations/${inatRecordId}`, recordUuid },
-      { root: true },
-    )
-  },
   async _createObsPhoto({ dispatch }, { photoRecord, relatedObsId }) {
     const resp = await dispatch(
       'doPhotoPost',
@@ -1011,110 +955,6 @@ const actions = {
       { root: true },
     )
     return resp.id
-  },
-  async _createObsFieldValue({ dispatch }, { obsFieldRecord, relatedObsId }) {
-    // we could do PUTs to modify the existing records but doing a POST
-    // clobbers the existing values so it's not worth the effort to track obs
-    // field value IDs.
-    return dispatch(
-      'doApiPost',
-      {
-        urlSuffix: '/observation_field_values',
-        data: {
-          observation_id: relatedObsId,
-          ...obsFieldRecord,
-        },
-      },
-      { root: true },
-    )
-  },
-  async _deletePhoto({ dispatch }, photoId) {
-    return dispatch(
-      'doApiDelete',
-      {
-        urlSuffix: `/observation_photos/${photoId}`,
-      },
-      { root: true },
-    )
-  },
-  async _deleteObsFieldValue({ dispatch }, obsFieldId) {
-    return dispatch(
-      'doApiDelete',
-      {
-        urlSuffix: `/observation_field_values/${obsFieldId}`,
-      },
-      { root: true },
-    )
-  },
-  async processWaitingDbRecordNoSw({ rootState, dispatch, getters }, recordId) {
-    // FIXME this should be the only way we upload, SW is transparent
-    await dispatch('transitionToWithLocalProcessorOutcome', recordId)
-    const apiToken = rootState.auth.apiToken
-    const projectId = getters.projectId
-    try {
-      await getObsStoreWorker().processWaitingDbRecordNoSw({
-        recordId,
-        apiToken,
-        projectId,
-      })
-      await dispatch('transitionToSuccessOutcome', recordId)
-      await dispatch('refreshRemoteObsWithDelay')
-    } catch (err) {
-      await dispatch('transitionToSystemErrorOutcome', recordId)
-    }
-  },
-  async processWaitingDbRecordWithSw(
-    { dispatch, rootState, getters, state },
-    recordId,
-  ) {
-    await dispatch('transitionToWithServiceWorkerOutcome', recordId)
-    const recordSummary = state.localQueueSummary.find(e => (e.uuid = recordId))
-    if (!recordSummary) {
-      const ids = JSON.stringify(state.localQueueSummary.map(e => e.uuid))
-      throw new Error(
-        `Could not find record summary for UUID=${recordId} from IDs=${ids}`,
-      )
-    }
-    const strategies = {
-      [recordType('new')]: async () => {
-        const apiToken = rootState.auth.apiToken
-        const projectId = getters.projectId
-        if (!projectId) {
-          throw new Error(
-            'No projectInfo stored, cannot link observation to project without ID',
-          )
-        }
-        await getObsStoreWorker().doNewRecordStrategy(
-          recordId,
-          projectId,
-          apiToken,
-        )
-      },
-      [recordType('edit')]: async () => {
-        const apiToken = rootState.auth.apiToken
-        await getObsStoreWorker().doEditRecordStrategy(recordId, apiToken)
-      },
-      [recordType('delete')]: () => {
-        const inatId = recordSummary.inatId
-        return dispatch('_deleteObservation', {
-          inatRecordId: inatId,
-          recordUuid: recordId,
-        })
-      },
-    }
-    const key = recordSummary[constants.recordTypeFieldName]
-    console.debug(`DB record with UUID='${recordId}' is type='${key}'`)
-    const strategy = strategies[key]
-    if (!strategy) {
-      throw new Error(
-        `Could not find a "process waiting DB" strategy for key='${key}', ` +
-          `cannot continue`,
-      )
-    }
-    await strategy()
-    await dispatch('refreshLocalRecordQueue')
-    await dispatch('refreshObsUuidsInSwQueue')
-    await triggerSwWowQueue()
   },
   async deleteSelectedLocalRecord({ state, dispatch, commit }) {
     const worker = getObsStoreWorker()
@@ -1177,16 +1017,13 @@ const actions = {
     return dispatch('_transitionHelper', {
       wowId,
       targetOutcome: constants.successOutcome,
-      validFromOutcomes: [
-        constants.withLocalProcessorOutcome,
-        constants.withServiceWorkerOutcome,
-      ],
+      validFromOutcomes: [constants.beingProcessedOutcome],
     })
   },
-  async transitionToWithLocalProcessorOutcome({ dispatch }, wowId) {
+  async transitionToBeingProcessedOutcome({ dispatch }, wowId) {
     return dispatch('_transitionHelper', {
       wowId,
-      targetOutcome: constants.withLocalProcessorOutcome,
+      targetOutcome: constants.beingProcessedOutcome,
       validFromOutcomes: [constants.waitingOutcome],
     })
   },
@@ -1197,20 +1034,12 @@ const actions = {
       validFromOutcomes: anyFromOutcome,
     })
   },
-  async transitionToWithServiceWorkerOutcome({ dispatch }, wowId) {
-    return dispatch('_transitionHelper', {
-      wowId,
-      targetOutcome: constants.withServiceWorkerOutcome,
-      validFromOutcomes: [constants.waitingOutcome],
-    })
-  },
   async transitionToSystemErrorOutcome({ dispatch }, wowId) {
     return dispatch('_transitionHelper', {
       wowId,
       targetOutcome: constants.systemErrorOutcome,
       validFromOutcomes: [
-        constants.withLocalProcessorOutcome,
-        constants.withServiceWorkerOutcome,
+        constants.beingProcessedOutcome,
         constants.waitingOutcome,
       ],
     })
