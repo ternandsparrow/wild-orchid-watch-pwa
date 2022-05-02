@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default-executor:
     docker:
-      - image: cypress/base:10
+      - image: cypress/base:12
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -78,6 +78,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${PROD_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${PROD_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${PROD_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${PROD_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${PROD_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${PROD_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${PROD_INAT_PROJECT_SLUG:?}
@@ -162,6 +163,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${BETA_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${BETA_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${BETA_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${BETA_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${BETA_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${BETA_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${BETA_INAT_PROJECT_SLUG:?}
@@ -246,6 +248,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${DEV_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${DEV_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${DEV_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${DEV_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${DEV_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${DEV_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${DEV_INAT_PROJECT_SLUG:?}
