@@ -266,11 +266,17 @@ You'll also want to change some of the default project settings:
 For Firebase, you don't need to deploy from your local machine. We have
 CircleCI to deploy for us. To achieve this, it needs a token for auth. Get a
 token with:
-  1. make sure you have the `firebase` command: `yarn global add firebase-tools`
-  1. on your local machine, run `firebase login:ci`
+  1. on your local machine, run `yarn firebase login:ci`
   1. confirm the login in your browser
   1. you'll get the token in your terminal, set the CircleCI env var
      `FIREBASE_TOKEN` to this value
+
+These tokens have an expiry so if deploys via CircleCI start failing with
+```
+Error: HTTP Error: 401, Request had invalid authentication credentials
+```
+...then the fix will (hopefully) minting a new auth token and updating the env
+vars config in CircleCI to use the new token.
 
 ## Testing workflow
 

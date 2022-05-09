@@ -32,7 +32,10 @@ const actions = {
     }
     const baseUrl = '/projects/' + constants.inatProjectSlug + '/posts/'
     const allRawRecords = await dispatch(
-      'fetchAllPages',
+      // FIXME only living in the obs store because that's where we have a web
+      // worker. We probably need a web worker that has an agnostic name, not
+      // tied to any one part of the app. Or one worker per area of the app.
+      'obs/fetchAllPages',
       {
         baseUrl,
         pageSize: constants.obsPageSize,

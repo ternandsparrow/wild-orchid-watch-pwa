@@ -720,7 +720,7 @@ export default {
                 `confirm delete local edit observation`,
               )
               this.$store
-                .dispatch('obs/deleteSelectedLocalRecord')
+                .dispatch('obs/deleteSelectedRecord')
                 .then(() => {
                   this.$ons.notification.toast('Local edit deleted!', {
                     timeout: 3000,

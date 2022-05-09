@@ -4,7 +4,7 @@ import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
 import {
-  // importing this module implicitly calls sentryInit()
+  // importing this module will implicitly call sentryInit()
   deleteDbRecordById,
   getPhotoRecord,
   getRecord,
@@ -20,6 +20,7 @@ import {
   arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
+  getJsonNoAuth,
   namedError,
   postFormDataWithAuth,
   putFormDataWithAuth,
@@ -28,18 +29,21 @@ import {
   wowIdOf,
   wowWarnMessage,
 } from '@/misc/helpers'
+import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 
 registerWarnHandler(wowWarnMessage)
 registerUuidGenerator(uuid)
 
 const exposed = {
   cleanupPhotosForObs,
-  deleteSelectedLocalRecord,
-  deleteSelectedRecord,
+  deletePendingTask,
+  deleteRecord,
   getData,
   getDbPhotosForObs,
   getFullSizePhotoUrl,
+  getPendingTasks,
   performMigrations,
+  pollForDeleteCompletion,
   processWaitingDbRecord,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
@@ -53,6 +57,59 @@ let obsDetailObjectUrls = []
 
 async function performMigrations() {
   await performMigrationsInWorker()
+}
+
+async function doSleep(currSleepTime) {
+  await new Promise(r => setTimeout(r, currSleepTime))
+  const sleepMapping = {
+    '1000': 2000,
+    '2000': 3000,
+    '3000': 4000,
+    '4000': 10000,
+    '10000': 30000,
+  }
+  const mapping = sleepMapping[currSleepTime]
+  if (mapping) {
+    return mapping
+  }
+  const oneHour = 60 * 60 * 1000
+  return Math.min(currSleepTime * 2, oneHour)
+}
+
+async function pollForDeleteCompletion(inatId, cb) {
+  let nextSleepTime = 1000
+  let iterationCount = 1
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // FIXME implement
+    nextSleepTime = await doSleep(nextSleepTime)
+    try {
+      const resp = await getJsonNoAuth(
+        `${cc.facadeUrlBase}/task-status/${inatId}/delete`,
+        false,
+      )
+      const ts = resp.taskStatus
+      if (ts === 'processing') {
+        console.debug(`facade says record ${inatId} still exists`)
+        continue
+      }
+      if (ts === 'success') {
+        console.debug(
+          `Success after ${iterationCount} iterations, polling for DELETE ${inatId}`,
+        )
+        return cb(null)
+      }
+      throw new Error(`Unhandled taskStatus: ${ts}`)
+    } catch (err) {
+      // FIXME when do we keep trying and when do we give up?
+      console.debug(
+        `Failure after ${iterationCount} iterations, polling for DELETE ${inatId}`,
+      )
+      return cb(err)
+    } finally {
+      iterationCount += 1
+    }
+  }
 }
 
 async function getData() {
@@ -561,76 +618,59 @@ function isObsStateProcessing(state) {
   return processingStates.includes(state)
 }
 
-async function deleteSelectedLocalRecord(selectedUuid) {
-  if (!selectedUuid) {
+function deleteRecord(theUuid, inatRecordId, apiToken) {
+  const doDeleteFn = deleteDbRecordById
+  return _deleteRecord(theUuid, inatRecordId, apiToken, doDeleteFn)
+}
+
+async function _deleteRecord(theUuid, inatRecordId, apiToken, doDeleteFn) {
+  if (!theUuid) {
     throw namedError(
       'InvalidState',
-      'Tried to delete local record for the selected observation but no ' +
+      'Tried to delete record for the selected observation but no ' +
         'observation is selected',
     )
   }
   try {
-    await deleteDbRecordById(selectedUuid)
+    await doDeleteFn(theUuid)
   } catch (err) {
     throw new chainedError(
-      `Failed to delete local record for UUID='${selectedUuid}'`,
+      `Failed to delete local record for UUID='${theUuid}'`,
       err,
     )
   }
-}
-
-async function deleteSelectedRecord(
-  { selectedUuid, localQueueSummary, allRemoteObs },
-  runStrategy = realRunStrategy,
-) {
-  const localQueueSummaryForDeleteTarget =
-    localQueueSummary.find(e => e.uuid === selectedUuid) || {}
-  if (!localQueueSummaryForDeleteTarget) {
-    throw namedError(
-      'NoSummaryFound',
-      `Tried to find local summary for UUID='${selectedUuid}' but couldn't.`,
-    )
+  const isLocalOnly = !inatRecordId && theUuid
+  if (isLocalOnly) {
+    const pendingTaskId = null
+    console.warn('Observation is local-only, no need to contact iNat')
+    return pendingTaskId
   }
-  const isProcessingQueuedNow = isObsStateProcessing(
-    localQueueSummaryForDeleteTarget[cc.recordProcessingOutcomeFieldName],
+  // FIXME handling failed bundle requests could be tricky. If request 1 fails,
+  // but then request 2 succeeds, we don't need to retry req 1. We need a way
+  // to know what the most recent request is and how many pending requests
+  // there are. I guess we keep an array of these in wowMeta, so we can make
+  // the decision on how to deal with fails/successes as they come in. We can
+  // use timestamps as the keys and pass that to the callback fn closure. We
+  // also need logic to kick off pending "polling for completion" checks on app
+  // start.
+  const pendingTaskId = Date.now()
+  addPendingTask({
+    taskId: pendingTaskId,
+    inatId: inatRecordId,
+    uuid: theUuid,
+    [cc.recordTypeFieldName]: recordType('delete'),
+  })
+  // FIXME handle errors
+  await deleteWithAuth(
+    `${cc.apiUrlBase}/observations/${inatRecordId}`,
+    apiToken,
   )
-  const existingRemoteRecord =
-    allRemoteObs.find(e => e.uuid === selectedUuid) || {}
-  const record = {
-    inatId: existingRemoteRecord.inatId,
-    uuid: existingRemoteRecord.uuid || selectedUuid,
-    wowMeta: {
-      [cc.recordTypeFieldName]: recordType('delete'),
-      [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
-    },
-  }
-  const strategyKey =
-    `${isProcessingQueuedNow ? '' : 'no'}processing.` +
-    `${existingRemoteRecord.uuid ? '' : 'no'}remote`
-  const strategyPromise = (() => {
-    switch (strategyKey) {
-      case 'noprocessing.noremote':
-        console.debug(
-          `Record with UUID='${selectedUuid}' is local-only so deleting right now.`,
-        )
-        return runStrategy(deleteSelectedLocalRecord, selectedUuid)
-      case 'noprocessing.remote':
-        return runStrategy(upsertQueuedAction, { record })
-      case 'processing.noremote':
-        return runStrategy(upsertBlockedAction, { record })
-      case 'processing.remote':
-        return runStrategy(upsertBlockedAction, { record })
-      default:
-        throw new Error(
-          `Programmer problem: no strategy defined for key='${strategyKey}'`,
-        )
-    }
-  })()
-  await strategyPromise
+  console.debug(`DELETE ${inatRecordId} sent to iNat successfully`)
+  return pendingTaskId
 }
 
 function realRunStrategy(strategyFn, ...args) {
-  // only exists so we stub it during tests
+  // only exists so we can stub it during tests
   return strategyFn(...args)
 }
 
@@ -685,6 +725,12 @@ function computePhotos(
     })
   }
 }
+
+// FIXME hook poll call that results in terminal failure, to update UI
+// FIXME can we simplify the alerts around "saved but not uploaded", single and
+//   double tick like WhatsApp
+// FIXME need to flag when sent to SW, so we can show in the UI and know we
+//   don't have to fire it off when the app loads again
 
 async function setRecordProcessingOutcome(dbId, outcome) {
   await setRPO(dbId, outcome)
@@ -787,17 +833,6 @@ async function processWaitingDbRecord({ recordId, apiToken, projectId }) {
       )
       console.debug('Obs edit form is sent')
     },
-    [recordType('delete')]: async () => {
-      const inatRecordId = dbRecord.inatId
-      if (!inatRecordId) {
-        throw new Error(`No inatId found for uuid=${recordId}`)
-      }
-      await deleteWithAuth(
-        `${cc.apiUrlBase}/observations/${inatRecordId}`,
-        apiToken,
-      )
-      console.debug('Obs delete is sent')
-    },
   }
   const key = dbRecord.wowMeta[cc.recordTypeFieldName]
   console.debug(`DB record with UUID='${dbRecord.uuid}' is type='${key}'`)
@@ -808,10 +843,39 @@ async function processWaitingDbRecord({ recordId, apiToken, projectId }) {
   await strategy()
 }
 
+async function getPendingTasks() {
+  // FIXME consider updating our fork of localForage
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  const raw = await metaStore.getItem(cc.pendingTasksKey)
+  return raw || []
+}
+
+async function _setPendingTasks(tasks) {
+  if (tasks.constructor !== Array) {
+    throw new Error(`tasks param must be an array, it is ${tasks}`)
+  }
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  await metaStore.setItem(cc.pendingTasksKey, tasks)
+}
+
+async function addPendingTask(task) {
+  // FIXME do we have to worry about deduping for an obs ID?
+  const tasks = await getPendingTasks()
+  tasks.push(task)
+  await _setPendingTasks(tasks)
+}
+
+async function deletePendingTask(taskId) {
+  const tasks = await getPendingTasks()
+  const filteredTasks = tasks.filter(t => t.taskId !== taskId)
+  await _setPendingTasks(filteredTasks)
+}
+
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
   exposed,
   getUiVisibleLocalRecords,
   upsertBlockedAction,
   upsertQueuedAction,
+  _deleteRecord, // FIXME test this
 }

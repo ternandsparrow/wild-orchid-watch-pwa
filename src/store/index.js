@@ -7,7 +7,7 @@ import {
   persistedStateLocalStorageKey,
   isForceVueDevtools,
 } from '@/misc/constants'
-import { wowErrorHandler, chainedError } from '@/misc/helpers'
+import { wowErrorHandler } from '@/misc/helpers'
 import auth from './auth'
 import app, { callback as appCallback } from './app'
 import ephemeral from './ephemeral'
@@ -62,33 +62,6 @@ const store = new Vuex.Store({
         isNetworkErrorWow: err.isNetworkErrorWow,
       })
       wowErrorHandler(msg, err)
-    },
-    async fetchAllPages({ dispatch }, { baseUrl, pageSize }) {
-      let isMorePages = true
-      let allRecords = []
-      let currPage = 1
-      while (isMorePages) {
-        try {
-          console.debug(`Getting page=${currPage} of ${baseUrl}`)
-          const isExistingQueryString = ~baseUrl.indexOf('?')
-          const joiner = isExistingQueryString ? '&' : '?'
-          const urlSuffix = `${baseUrl}${joiner}per_page=${pageSize}&page=${currPage}`
-          const resp = await dispatch('doApiGet', { urlSuffix })
-          const results = resp.results
-          // note: we use the per_page from the resp because if we request too
-          // many records per page, the server will ignore our page size and
-          // the following check won't work
-          isMorePages = results.length === resp.per_page
-          allRecords = allRecords.concat(results)
-          currPage += 1
-        } catch (err) {
-          throw chainedError(
-            `Failed while trying to get page=${currPage} of ${baseUrl}`,
-            err,
-          )
-        }
-      }
-      return allRecords
     },
     healthcheck({ dispatch }) {
       return dispatch('obs/healthcheck')

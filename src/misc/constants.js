@@ -384,6 +384,8 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 
 export const facadeSendObsUrlPrefix = `${facadeUrlBase}/observations`
 
+export const pendingTasksKey = 'wow-pending-tasks' // for localStorage
+
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 export const noPreviewAvailableUrl = '/img/no-preview-available.png'
 

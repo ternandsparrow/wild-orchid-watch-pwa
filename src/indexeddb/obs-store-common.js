@@ -181,7 +181,10 @@ async function deleteDbRecordByIdImpl(obsStore, photoStore, id) {
   try {
     const existingObsRecord = await obsStore.getItem(id)
     if (!existingObsRecord) {
-      // nothing to do
+      console.warn(
+        `Asked to delete ${id} from the DB, but it doesn't exist. Not a ` +
+          `concern if a remote-only record. Nothing to do.`,
+      )
       return
     }
     const idsToDelete = (existingObsRecord.photos || [])

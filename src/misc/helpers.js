@@ -100,6 +100,10 @@ async function _formDataWithAuthHelper(
   })
 }
 
+export function getJsonNoAuth(url, includeCacheBustQueryString) {
+  return getJsonWithAuth(url, undefined, includeCacheBustQueryString)
+}
+
 export function getJsonWithAuth(
   url,
   authHeaderValue,

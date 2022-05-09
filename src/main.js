@@ -81,6 +81,7 @@ new Vue({
         if (!this.$store.state.ephemeral.networkOnLine) {
           return
         }
+        // FIXME should we throttle this to once every n minutes?
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 
@@ -91,7 +92,7 @@ new Vue({
         initAppleInstallPrompt()
       }, 10000)
 
-      this.$store.dispatch('obs/refreshLocalRecordQueue')
+      this.$store.dispatch('obs/pollForPendingTasks')
     } catch (err) {
       wowErrorHandler('Failed to run beforeCreate for root element', err)
       alert(
