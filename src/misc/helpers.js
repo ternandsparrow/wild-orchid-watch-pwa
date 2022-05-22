@@ -148,56 +148,6 @@ export async function isSwActive() {
   }
 }
 
-export function isPossiblyStuck($store, record) {
-  if (!record) {
-    return false
-  }
-  const isStuckLocally = (() => {
-    const isAllowedToSync = !$store.getters.isSyncDisabled
-    const isProcessorRunning =
-      $store.getters['ephemeral/isLocalProcessorRunning']
-    const o = (record.wowMeta || {})[cc.recordProcessingOutcomeFieldName]
-    const isBeingProcessed = o === cc.beingProcessedOutcome
-    return isAllowedToSync && isBeingProcessed && !isProcessorRunning
-  })()
-  const isStuckInSw = (() => {
-    // FIXME do we need this block at all?
-    // FIXME either need to populate `setUuidsInSwQueues` or delete it
-    const wowMeta = record.wowMeta
-    if (!wowMeta) {
-      return false
-    }
-    const stuckMinutes = cc.thresholdForStuckWithSwMinutes
-    if (!stuckMinutes) {
-      return false
-    }
-    if (!wowMeta[cc.outcomeLastUpdatedAtFieldName]) {
-      // old record before we introduced this field
-      return false
-    }
-    const lastTouchedDatetime = dayjs(wowMeta[cc.outcomeLastUpdatedAtFieldName])
-    const isSuccess =
-      cc.successOutcome === wowMeta[cc.recordProcessingOutcomeFieldName]
-    const isStuckWithoutTimeCheck =
-      isSuccess && !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
-    if (!isStuckWithoutTimeCheck) {
-      return false
-    }
-    const now = dayjs()
-    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
-    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
-    if (!hasBeenLongEnoughSinceUploadAttempt) {
-      const minutesToWait = waitThreshold.diff(now, 'minute')
-      console.debug(
-        `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
-          `SW once ${minutesToWait} minutes elapse`,
-      )
-    }
-    return hasBeenLongEnoughSinceUploadAttempt
-  })()
-  return isStuckLocally || isStuckInSw
-}
-
 export function deleteWithAuth(url, authHeaderValue) {
   const alsoOkHttpStatuses = [404]
   const extraHeaders = {}

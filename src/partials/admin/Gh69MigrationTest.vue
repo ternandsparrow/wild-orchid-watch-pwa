@@ -57,7 +57,7 @@ import { recordTypeEnum as recordType } from '@/misc/helpers'
 import { migrate } from '@/store/obs'
 
 export default {
-  name: 'ExtractThumbnailFromExif',
+  name: 'Gh69MigrationTest',
   data() {
     return {
       runStatus: '(not yet run)',

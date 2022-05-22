@@ -5,8 +5,9 @@
         <div class="center">
           <span class="list-item__title">When to sync with iNaturalist</span
           ><span class="list-item__subtitle"
-            >Control your data usage. You could turn sync off while you're in
-            the field then re-enable it once you're back in range of WiFi.</span
+            >Control your data usage. You could turn sync to "manual" while
+            you're in the field so no observations are uploaded, then switch
+            back to "automatic" when you're connected to WiFi.</span
           >
           <div class="wow-options-container">
             <v-ons-select v-model="whenToSync">
@@ -141,11 +142,10 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   clearLocalStorage,
   formatStorageSize,
-  isNoSwActive,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 
@@ -154,8 +154,8 @@ export default {
   data() {
     return {
       whenToSyncOptions: [
-        { value: constants.alwaysUpload, label: 'Always (WiFi, mobile data)' },
-        { value: constants.neverUpload, label: 'Never' },
+        { value: cc.alwaysUpload, label: 'Automatic' },
+        { value: cc.neverUpload, label: 'Manual' },
       ],
       storageQuota: 0,
       storageUsage: 0,
@@ -240,7 +240,6 @@ export default {
         }
         await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
-        await this.clearSwStorage()
         unregisterAllServiceWorkers()
         await deleteKnownStorageInstances()
         // In order to log a user out of iNat, you *must* open the page in a new
@@ -252,11 +251,11 @@ export default {
         await this.$ons.notification.alert(
           `You are now logged out of WOW. <strong>However</strong> you are ` +
             `still logged into iNaturalist but you can also <a ` +
-            `href="${constants.inatUrlBase}/logout" target="_blank">logout of ` +
+            `href="${cc.inatUrlBase}/logout" target="_blank">logout of ` +
             `iNat</a> (close the page and come back here after). Press ok to ` +
             `restart WOW in a clean state.`,
         )
-        window.location = constants.onboarderPath
+        window.location = cc.onboarderPath
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
@@ -268,13 +267,6 @@ export default {
           { root: true },
         )
       }
-    },
-    async clearSwStorage() {
-      if (await isNoSwActive()) {
-        console.debug('No SW, no storage to clear')
-        return
-      }
-      // FIXME do we need to be able to clear out the SW storage?
     },
     doManualUpdateCheck() {
       this.$store

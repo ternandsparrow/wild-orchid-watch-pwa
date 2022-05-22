@@ -1,7 +1,7 @@
 <template>
   <v-ons-list-item modifier="chevron" @click="push(record)">
     <div class="left">
-      <img class="list-item__thumbnail" :src="thumbnailPhoto(record)" />
+      <img class="list-item__thumbnail" :src="record.thumbnailUrl" />
     </div>
     <div class="center">
       <span class="list-item__title"
@@ -14,7 +14,7 @@
         >Error uploading record</span
       >
       <span
-        v-show="isPossiblyStuck(record)"
+        v-show="record.isPossiblyStuck"
         class="list-item__subtitle warn-indicator"
       >
         <v-ons-icon icon="fa-exclamation-triangle"></v-ons-icon>
@@ -44,13 +44,8 @@
 </template>
 
 <script>
-import * as constants from '@/misc/constants'
 import { isObsSystemError, extractGeolocationText } from '@/store/obs'
-import {
-  humanDateString,
-  isPossiblyStuck as isPossiblyStuckHelper,
-  wowIdOf,
-} from '@/misc/helpers'
+import { humanDateString, wowIdOf } from '@/misc/helpers'
 
 export default {
   name: 'ObsListItem',
@@ -64,11 +59,6 @@ export default {
     return {}
   },
   methods: {
-    thumbnailPhoto(record) {
-      const localPhotoUrl = record.thumbnailUrl
-      const remotePhotoUrl = ((record.photos || [])[0] || {}).url
-      return localPhotoUrl || remotePhotoUrl || constants.noImagePlaceholderUrl
-    },
     speciesGuess(record) {
       return record.speciesGuess || '(No species name)'
     },
@@ -80,9 +70,6 @@ export default {
     },
     isSystemError(record) {
       return isObsSystemError(record)
-    },
-    isPossiblyStuck(record) {
-      return isPossiblyStuckHelper(this.$store, record)
     },
     push(record) {
       const obsId = wowIdOf(record)

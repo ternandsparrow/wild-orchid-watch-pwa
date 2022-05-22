@@ -28,7 +28,7 @@
         >
       </p>
     </v-ons-card>
-    <v-ons-card v-show="isPossiblyStuck" class="warn-card">
+    <v-ons-card v-show="nullSafeObs.wowMeta.isPossiblyStuck" class="warn-card">
       <div class="title">Possible problem</div>
       <p>
         It looks like this observation might be stuck while trying to upload to
@@ -374,11 +374,8 @@ import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import * as constants from '@/misc/constants'
 import {
-  findCommonString,
   formatMetricDistance,
   humanDateString,
-  isPossiblyStuck as isPossiblyStuckHelper,
-  rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
   wowIdOf,
 } from '@/misc/helpers'
@@ -388,6 +385,7 @@ export default {
   name: 'ObsDetail',
   data() {
     return {
+      obsDetail: null,
       noImagePlaceholderUrl: constants.noImagePlaceholderUrl,
       photos: [],
       isLoadingPhotos: false,
@@ -412,104 +410,41 @@ export default {
   },
   computed: {
     ...mapGetters('obs', [
-      'detailedModeOnlyObsFieldIds',
       'isSelectedRecordEditOfRemote',
-      'isSelectedRecordOnRemote',
-      'observationDetail',
+      'selectedObsSummary',
     ]),
     ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
     ...mapState('app', ['isDetailedUserMode']),
+    isSelectedRecordOnRemote() {
+      const isRemote = (this.nullSafeObs.selectedObsSummary || {}).inatId
+      return !!isRemote
+    },
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
     },
-    isPossiblyStuck() {
-      return isPossiblyStuckHelper(this.$store, this.observationDetail)
-    },
     isDraft() {
-      const wowMeta = this.nullSafeObs.wowMeta || {}
       return (
-        wowMeta[constants.recordProcessingOutcomeFieldName] ===
+        this.nullSafeObs.wowMeta[constants.recordProcessingOutcomeFieldName] ===
         constants.draftOutcome
       )
     },
     selectedObsInatId() {
-      return this.observationDetail.inatId
+      return this.selectedObsSummary.inatId
     },
     nullSafeObs() {
-      const valueMappers = {
-        [constants.approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
-        [constants.areaOfPopulationObsFieldId]: rectangleAlongPathAreaValueToTitle,
+      const result = this.obsDetail
+      if (!result) {
+        return { wowMeta: {} }
       }
-      const result = _.cloneDeep(this.observationDetail || {})
-      if (result.obsFieldValues) {
-        result.obsFieldValues = result.obsFieldValues.reduce((accum, curr) => {
-          const val = curr.value
-          const defaultStrat = v => v
-          const strategy = valueMappers[curr.fieldId] || defaultStrat
-          const mappedValue = strategy(val)
-          const multiselectId = constants.getMultiselectId(curr.fieldId)
-          const isMultiselect = !!multiselectId
-          if (!isMultiselect) {
-            accum.push({
-              ...curr,
-              title: mappedValue,
-              isDetailedMode: (() => {
-                // looking for == notCollected probably isn't the most robust
-                // check. In a perfect world we would recreate the complex rules
-                // around our conditionally required fields and use that knowledge
-                // here. But this is easy and has the same effect because required
-                // fields can't be not collected
-                const isNotCollected = curr.value === constants.notCollected
-                const isDefinitelyDetailed = this.detailedModeOnlyObsFieldIds[
-                  curr.fieldId
-                ]
-                return isDefinitelyDetailed || isNotCollected
-              })(),
-            })
-            return accum
-          }
-          const existingQuestionContainer = accum.find(
-            e => e.multiselectId === multiselectId,
-          )
-          if (!existingQuestionContainer) {
-            accum.push({
-              ...curr,
-              multiselectId,
-              multiselectValues: [{ name: curr.name, value: mappedValue }],
-              // we don't have any required multiselects so we can simply hide them
-              // all in basic mode
-              isDetailedMode: true,
-            })
-            return accum
-          }
-          const trimTrailingStuffRegex = /[^\w]*$/
-          const trimLeadingStuffRegex = /^[^\w]*/
-          existingQuestionContainer.name = findCommonString(
-            curr.name,
-            existingQuestionContainer.name,
-          ).replace(trimTrailingStuffRegex, '')
-          ;(function fixUpFirstValue() {
-            const firstValue = existingQuestionContainer.multiselectValues[0]
-            firstValue.name = firstValue.name
-              .replace(existingQuestionContainer.name, '')
-              .replace(trimLeadingStuffRegex, '')
-          })()
-          const thisMultiselectValueName = curr.name
-            .replace(existingQuestionContainer.name, '')
-            .replace(trimLeadingStuffRegex, '')
-          existingQuestionContainer.multiselectValues.push({
-            name: thisMultiselectValueName,
-            value: mappedValue,
-          })
-          return accum
-        }, [])
-        const targetField = 'fieldId'
-        if (this.obsFieldSorterFn) {
-          // no error on initial run, the real sorter will be used though
-          this.obsFieldSorterFn(result.obsFieldValues, targetField)
-        }
+      const targetField = 'fieldId'
+      this.obsFieldSorterFn(result.obsFieldValues, targetField)
+      return {
+        ...result,
+        wowMeta: {
+          // remote obs don't have wowMeta, always adding it simplies code elsewhere
+          ...result.wowMeta,
+        },
       }
-      return result
     },
     isPhotos() {
       return this.photos.length
@@ -553,7 +488,7 @@ export default {
     },
   },
   watch: {
-    observationDetail(newVal, oldVal) {
+    selectedObsSummary(newVal, oldVal) {
       // this is for when a local observation record gets deleted out from
       // under us (at the completion of upload) and we need to update to use
       // the remote record.
@@ -574,23 +509,29 @@ export default {
       2000,
       { leading: true, trailing: false },
     )
-    // TODO enhancement idea: when landing from gallery, could preselect the
-    // referrer photo.
-    this.isLoadingPhotos = true
-    this.loadPhotos().then(() => (this.isLoadingPhotos = false))
+    await this.loadFullObsData()
   },
   beforeDestroy() {
     this.$store.dispatch('obs/cleanupPhotosForObs')
   },
   methods: {
-    async loadPhotos() {
-      const uuid = this.nullSafeObs.uuid
-      if (!uuid) {
-        return []
+    async loadFullObsData() {
+      const obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
+      this.obsDetail = obsDetail
+      // TODO enhancement idea: when landing from gallery, could preselect the
+      // referrer photo.
+      const isLocalRecord = obsDetail.photos.find(
+        p => p.url === '(set at render time)',
+      )
+      if (isLocalRecord) {
+        this.isLoadingPhotos = true
+        this.photos = await this.$store.dispatch(
+          'obs/getDbPhotosForSelectedObs',
+        )
+        this.isLoadingPhotos = false
+        return
       }
-      this.photos = (
-        await this.$store.dispatch('obs/getPhotosForObs', uuid)
-      ).map((e, index) => ({
+      this.photos = obsDetail.photos.map((e, index) => ({
         ...e,
         id: e.id,
         uiKey: 'photo-' + index,

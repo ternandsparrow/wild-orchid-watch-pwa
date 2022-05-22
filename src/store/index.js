@@ -2,19 +2,18 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
+import { subscribeToWorkerMessage } from '@/misc/web-worker-manager'
 import {
-  neverUpload,
   persistedStateLocalStorageKey,
   isForceVueDevtools,
 } from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 import auth from './auth'
-import app, { callback as appCallback } from './app'
+import app from './app'
 import ephemeral from './ephemeral'
 import obs, {
   apiTokenHooks as obsApiTokenHooks,
   migrate as obsMigrate,
-  networkHooks as obsNetworkHooks,
 } from './obs'
 import missionsAndNews from './missionsAndNews'
 
@@ -106,9 +105,6 @@ const store = new Vuex.Store({
     myPlaceId(_, getters) {
       return getters['auth/myPlaceId']
     },
-    isSyncDisabled(state) {
-      return state.app.whenToSync === neverUpload
-    },
     isJoinedProject(state, getters) {
       const joinedUserIds = (state.obs.projectInfo || {}).user_ids || []
       const myUserId = getters['myUserId']
@@ -122,6 +118,10 @@ const store = new Vuex.Store({
     missionsAndNews,
     obs,
   },
+})
+
+subscribeToWorkerMessage('refreshLocalRecordQueue', () => {
+  return store.dispatch('obs/refreshLocalRecordQueue')
 })
 
 // make sure all your hooks are async or return promises
@@ -146,31 +146,6 @@ store.watch(
     }
   },
 )
-
-// make sure all your hooks are async or return promises
-const allNetworkHooks = [...obsNetworkHooks]
-
-store.watch(
-  state => state.ephemeral.networkOnLine,
-  () => {
-    console.debug('Network on/off-line status changed, triggering hooks')
-    for (const curr of allNetworkHooks) {
-      curr(store).catch(err => {
-        store.dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed while executing a network on/off-line hook`,
-            userMsg: `Error encountered while reconnecting to the server`,
-            err,
-          },
-          { root: true },
-        )
-      })
-    }
-  },
-)
-
-appCallback(store)
 
 export default store
 

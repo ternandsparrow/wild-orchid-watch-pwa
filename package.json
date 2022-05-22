@@ -1,6 +1,6 @@
 {
   "name": "wild-orchid-watch-pwa",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -8,9 +8,10 @@
     "build": "vue-cli-service build && rollup -c --failAfterWarnings && workbox injectManifest",
     "test:unit": "vue-cli-service test:unit",
     "test:e2e": "vue-cli-service test:e2e",
-    "lint": "yarn lint:workers && vue-cli-service lint src/ tests/ sw-src/ vue-config/",
+    "lint": "yarn lint:workers && yarn lint:main",
     "lint:check": "yarn lint --no-fix --max-warnings 0",
     "lint:check:scripts": "vue-cli-service lint --no-fix --max-warnings 0 scripts/",
+    "lint:main": "vue-cli-service lint src/ tests/ sw-src/ vue-config/",
     "lint:workers": "find src sw-src -type f -name '*.worker.js' -exec vue-cli-service lint --no-ignore --max-warnings 0 '{}' \\;",
     "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 VUE_APP_FORCE_VUE_DEVTOOLS=1 yarn build && servor dist/ index.html --no-browser",
     "build:serve:watch": "nodemon --ext vue,js,mjs,json --delay 2 --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
@@ -20,7 +21,6 @@
     "analyse-bundle": "yarn build && webpack-bundle-analyzer dist/stats.json"
   },
   "dependencies": {
-    "@chriscdn/promise-semaphore": "^1.0.6",
     "@sentry/browser": "^6.17.9",
     "@sentry/integrations": "^6.17.9",
     "base64-js": "^1.3.1",

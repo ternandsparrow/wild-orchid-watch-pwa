@@ -488,7 +488,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('obs', ['observationDetail', 'obsFields']),
+    ...mapGetters('obs', ['selectedObsSummary', 'obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
     ...mapGetters('ephemeral', ['photosStillProcessingCount']),
     isDetailedUserMode: {
@@ -615,7 +615,7 @@ export default {
     },
     isLocationAlreadyCaptured() {
       const isForm1Present = (() => {
-        const o = this.observationDetail || {}
+        const o = this.selectedObsSummary || {}
         return !!(o.lat && o.lng)
       })()
       const isForm2Present = (() => {
@@ -747,17 +747,17 @@ export default {
     },
     initForEdit(obsFieldsPromise) {
       console.debug('initialising for "edit" mode')
-      this.uuidOfThisObs = this.observationDetail.uuid
+      this.uuidOfThisObs = this.selectedObsSummary.uuid
       this.rereadCoords()
       this.rereadDatetime()
-      this.obsLocAccuracy = this.observationDetail.positional_accuracy
+      this.obsLocAccuracy = this.selectedObsSummary.positional_accuracy
       obsFieldsPromise.then(() => {
         console.debug('initialising obs field dependent fields for edit')
         this.setDefaultObsFieldVisibility()
         this.setDefaultAnswers()
         this.setDefaultDisabledness()
         // pre-populate obs fields
-        const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
+        const answersFromSaved = this.selectedObsSummary.obsFieldValues.reduce(
           (accum, curr) => {
             const isMultiselect = !!getMultiselectId(curr.fieldId)
             let value = curr.value
@@ -799,7 +799,7 @@ export default {
             )
           }
         }
-        this.observationDetail.obsFieldValues
+        this.selectedObsSummary.obsFieldValues
           .filter(e => e.datatype === numericFieldType)
           .forEach(currNumericField => {
             const fieldId = currNumericField.fieldId
@@ -807,24 +807,19 @@ export default {
             this._onNumberChange(fieldId, val)
           })
       })
-      if (this.observationDetail.speciesGuess) {
-        const val = this.observationDetail.speciesGuess
+      if (this.selectedObsSummary.speciesGuess) {
+        const val = this.selectedObsSummary.speciesGuess
         this.speciesGuessInitialValue = val
         this.speciesGuessValue = val
       }
-      if (this.observationDetail.notes) {
-        this.notes = this.observationDetail.notes
+      if (this.selectedObsSummary.notes) {
+        this.notes = this.selectedObsSummary.notes
       }
       this.loadPhotos()
     },
     async loadPhotos() {
-      const uuid = this.observationDetail.uuid
-      if (!uuid) {
-        return []
-      }
       this.existingPhotos = await this.$store.dispatch(
-        'obs/getPhotosForObs',
-        uuid,
+        'obs/getPhotosForSelectedObs',
       )
     },
     onNumberChange(event, fieldId) {
@@ -1446,14 +1441,14 @@ export default {
       }, 800)
     },
     getObsFieldInstance(fieldId) {
-      const result = this.observationDetail.obsFieldValues.find(
+      const result = this.selectedObsSummary.obsFieldValues.find(
         f => f.fieldId === parseInt(fieldId),
       )
       if (!result) {
         throw new Error(
           `Could not get obs field instance with fieldId='${fieldId}' ` +
             `(type=${typeof fieldId}) from available instances='${JSON.stringify(
-              this.observationDetail.obsFieldValues,
+              this.selectedObsSummary.obsFieldValues,
             )}'`,
         )
       }
@@ -1540,7 +1535,7 @@ export default {
       // cleaned up) before the user hits save, we're in trouble. We can recover
       // as long as we have this snapshot though.
       this.existingRecordSnapshot = _.cloneDeep(
-        this.$store.getters['obs/observationDetail'],
+        this.$store.getters['obs/selectedObsSummary'],
       )
     },
     computeType(photoRecord) {

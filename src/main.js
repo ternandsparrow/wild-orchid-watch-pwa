@@ -117,43 +117,6 @@ new Vue({
         }
         try {
           switch (msgId) {
-            case constants.refreshObsMsg:
-              ;(async () => {
-                // we refresh the local queue immediately so we can see the
-                // record is marked as "success"
-                await this.$store.dispatch('obs/refreshLocalRecordQueue')
-                await this.$store.dispatch('obs/refreshRemoteObsWithDelay')
-              })().catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg:
-                    `Failed to refresh observations after prompt to do so ` +
-                    `from the SW`,
-                  userMsg: `Error while trying to refresh your list of observations`,
-                  err,
-                })
-              })
-              return
-            case constants.refreshLocalQueueMsg:
-              this.$store.dispatch('obs/refreshLocalRecordQueue').catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg:
-                    `Failed to refresh local observation queue after prompt ` +
-                    `to do so from the SW`,
-                  userMsg: `Error while trying to refresh your list of observations`,
-                  err,
-                })
-              })
-              return
-            case constants.triggerLocalQueueProcessingMsg:
-              // we don't trigger the processing right now, as the web page
-              // needs to reload to use the app code and the new service
-              // worker. We want the processing to happen after the refresh
-              // though, so we set the appropriate flag.
-              this.$store.commit(
-                'obs/setForceQueueProcessingAtNextChance',
-                true,
-              )
-              return
             default:
               console.debug('[unhandled message from SW] ' + event.data)
               return

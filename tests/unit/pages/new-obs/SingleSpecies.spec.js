@@ -97,7 +97,7 @@ function buildWrapper() {
           obsFields() {
             return []
           },
-          observationDetail() {
+          selectedObsSummary() {
             return {}
           },
         },

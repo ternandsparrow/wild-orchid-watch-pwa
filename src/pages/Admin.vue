@@ -21,7 +21,6 @@
         {{ remoteJsAttachStatus }}
       </p>
     </v-ons-card>
-    <wow-send-bundle-test />
     <v-ons-card>
       <div class="title">
         Clone an obs N times
@@ -194,14 +193,6 @@
     </v-ons-card>
     <v-ons-card>
       <div class="title">
-        Is currently processing queue?
-      </div>
-      <p class="mono">
-        <strong>Result = {{ isProcessingQueue }}</strong>
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Service Worker statuses
       </div>
       <p class="mono">
@@ -256,37 +247,7 @@
       </p>
     </v-ons-card>
     <wow-force-rpo />
-    <v-ons-card>
-      <div class="title">
-        Trigger queue processing
-      </div>
-      <div>
-        <v-ons-button @click="doLQP"
-          >Trigger local (client) queue processing</v-ons-button
-        >
-      </div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="standalone-title">
-        Configuration
-      </div>
-      <v-ons-list>
-        <template v-for="curr of configItems">
-          <v-ons-list-header
-            :key="curr.label + '-header'"
-            class="wow-list-header wow-admin-list-header"
-          >
-            {{ curr.label }}
-          </v-ons-list-header>
-          <v-ons-list-item
-            :key="curr.label + '-value'"
-            class="config-item-value"
-          >
-            {{ curr.value }}
-          </v-ons-list-item>
-        </template>
-      </v-ons-list>
-    </v-ons-card>
+    <configuration-dump />
     <v-ons-card>
       <div class="title">
         Manually trigger an error
@@ -355,7 +316,7 @@ import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   clearLocalStorage,
   humanDateString,
@@ -382,7 +343,6 @@ export default {
       isIncludeRemoteObs: false,
       isIncludeSpeciesList: false,
       isIncludeProject: false,
-      configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
       imageClassificationResult: 'nothing yet',
@@ -408,9 +368,6 @@ export default {
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
     },
-    isProcessingQueue() {
-      return !!this.$store.state.ephemeral.queueProcessorPromise
-    },
     projectInfoLastUpdatedPretty() {
       const luDate = this.$store.state.obs.projectInfoLastUpdated
       return humanDateString(luDate || 0)
@@ -424,81 +381,14 @@ export default {
         .userAgent
     },
   },
-  created() {
-    this.computeConfigItems()
-  },
   methods: {
-    doLQP() {
-      this.$store.dispatch('obs/processLocalQueue')
-    },
-    computeConfigItems() {
-      const nonSecretKeys = [
-        'appVersion',
-        'bboxLatMax',
-        'bboxLatMin',
-        'bboxLonMax',
-        'bboxLonMin',
-        'countOfIndividualsObsFieldDefault',
-        'deployedEnvName',
-        'inatProjectSlug',
-        'inatStaticUrlBase',
-        'inatUrlBase',
-        'isForceVueDevtools',
-        'isMissionsFeatureEnabled',
-        'isNewsFeatureEnabled',
-        'isDraftFeatureEnabled',
-        'isBugReportFeatureEnabled',
-        'maxReqFailureCountInSw',
-        'maxSpeciesAutocompleteResultLength',
-        'obsFieldNamePrefix',
-        'obsFieldSeparatorChar',
-        'redirectUri',
-        'taxaDataUrl',
-        'waitBeforeRefreshSeconds',
-      ]
-      const partialResult = nonSecretKeys.map(e => ({
-        label: e,
-        value: constants[e],
-      }))
-      const result = [
-        ...partialResult,
-        { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
-        {
-          label: 'googleMapsApiKey',
-          value: (v => v.replace(new RegExp(`.{${v.length - 4}}`), '(snip)'))(
-            constants.googleMapsApiKey,
-          ),
-        },
-        {
-          label: 'sentryDsn',
-          value: constants.sentryDsn.replace(/.{25}/, '(snip)'),
-        },
-      ]
-      result.sort((a, b) => {
-        if (a.label < b.label) return -1
-        if (a.label > b.label) return 1
-        return 0
-      })
-      this.configItems = result
-    },
     doCustomLocalQueueSummaryDump() {
-      const speciesGuesses = this.$store.state.obs._uiVisibleLocalRecords.reduce(
-        (accum, curr) => {
-          accum[curr.uuid] = curr.speciesGuess
-          return accum
-        },
-        {},
-      )
-      const lqs = this.$store.state.obs.localQueueSummary.map(e => ({
-        ...e,
-        speciesGuess: speciesGuesses[e.uuid],
-      }))
-      this.vuexDump = JSON.stringify(lqs, null, 2)
+      this.vuexDump = JSON.stringify(this.$store.state.obs.localQueueSummary, null, 2)
     },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
-        parsed.obs._uiVisibleLocalRecords = `(excluded, ${parsed.obs._uiVisibleLocalRecords.length} item array)`
+        parsed.obs.localQueueSummary = `(excluded, ${parsed.obs.localQueueSummary.length} item array)`
       }
       if (!this.isIncludeRemoteObs) {
         parsed.obs.allRemoteObs = `(excluded, ${parsed.obs.allRemoteObs.length} item array)`
@@ -584,10 +474,10 @@ export default {
     },
     doManualErrorSw() {
       if (this.isManualErrorCaught) {
-        this._sendMessageToSw(constants.testTriggerManualCaughtErrorMsg)
+        this._sendMessageToSw(cc.testTriggerManualCaughtErrorMsg)
         return
       }
-      this._sendMessageToSw(constants.testTriggerManualUncaughtErrorMsg)
+      this._sendMessageToSw(cc.testTriggerManualUncaughtErrorMsg)
     },
     fireCheckSwCall() {
       console.debug('Firing check to SW')
@@ -630,7 +520,7 @@ export default {
       if (!reg) {
         throw new Error('No SW registration found, cannot send message')
       }
-      reg.active.postMessage(constants.proxySwConsoleMsg)
+      reg.active.postMessage(cc.proxySwConsoleMsg)
       console.log('Message sent to SW to enable console proxying')
     },
     enableConsoleProxyToUi() {
@@ -688,7 +578,7 @@ export default {
       this.cloneStatus = 'Done :D'
     },
     prepCloneList() {
-      this.cloneList = this.$store.state.obs._uiVisibleLocalRecords.map(e => ({
+      this.cloneList = this.$store.getters['obs/localRecords'].map(e => ({
         title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
@@ -736,7 +626,7 @@ export default {
           },
         ]
         try {
-          const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
+          const resp = await fetch(cc.serviceWorkerPlatformTestUrl, {
             method: 'POST',
           })
           const swResults = await resp.json()
@@ -814,10 +704,6 @@ function isScriptAlreadyLoaded(src) {
 .code-style {
   font-family: monospace;
   white-space: pre;
-}
-
-.standalone-title {
-  font-size: 1.5em;
 }
 
 .config-item-value {

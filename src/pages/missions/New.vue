@@ -90,13 +90,16 @@ export default {
       return parseInt(this.$route.params.id)
     },
   },
-  mounted() {
+  async mounted() {
     if (!this.isEdit) {
       return
     }
-    const found = this.$store.state.missionsAndNews.availableMissions.find(
-      e => e.id === this.targetMissionId,
+    // FIXME a bit wasteful to retrieve all missions again, but I'm trying to
+    //  remove the store for missions to speed the app up
+    const missions = await this.$store.dispatch(
+      'missionsAndNews/getAvailableMissions',
     )
+    const found = missions.find(e => e.id === this.targetMissionId)
     if (!found) {
       console.warn(
         `Could not find mission with ID='${this.targetMissionId}' to edit`,

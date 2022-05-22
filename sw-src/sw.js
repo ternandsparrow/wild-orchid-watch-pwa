@@ -7,7 +7,6 @@ import sentryInit from '@/misc/sentry-init'
 import { wowErrorHandler } from '@/misc/only-common-deps-helpers'
 import * as devHelpers from '@/misc/dev-helpers'
 import * as cc from '@/misc/constants'
-import { doMigrations } from './migrations'
 
 const Sentry = sentryInit('SW')
 
@@ -144,31 +143,15 @@ self.addEventListener('install', function() {
   }
 })
 
-self.addEventListener('activate', function(event) {
+self.addEventListener('activate', function() {
   console.debug(`[SW] I'm activated!`)
   if (shouldClaimClients) {
     // note: this triggers a page refresh. Eagerly claiming clients is probably
-    // not required as a first-time user to the site will need to login to iNat
-    // before they can do anything and that OAuth page navigation lets the SW
-    // claim the client. For that reason, I've left this disabled.
+    //  not required as a first-time user to the site will need to login to iNat
+    //  before they can do anything and that OAuth page navigation lets the SW
+    //  claim the client. For that reason, I've left this disabled.
     // clients.claim()
   }
-  event.waitUntil(
-    doMigrations({
-      triggerRefresh() {
-        // you'd think we *can't* talk to the clients until the page has
-        // refreshed and the new service worker has claimed the them, but at
-        // least in Chrome it seems we can, so we can do things like this. We
-        // are talking to the pre-updated page though so if you have new
-        // migration code you're relying on, it won't be there yet.
-        return sendMessageToAllClients({
-          id: cc.triggerLocalQueueProcessingMsg,
-        })
-      },
-    }).catch(err => {
-      wowErrorHandler('Failed to perform migrations in SW', err)
-    }),
-  )
 })
 
 // FIXME might be able to replace this (and corresponding client side) with

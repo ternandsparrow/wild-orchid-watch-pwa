@@ -240,7 +240,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       }
     })()
     store.commit('obs/setSelectedObservationUuid', uuid)
-    const found = store.getters['obs/observationDetail']
+    const found = store.getters['obs/selectedObsSummary']
     if (!found) {
       console.warn(`Could not find obs record for wowId=${wowId}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })

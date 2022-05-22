@@ -34,7 +34,6 @@ const state = {
   isGlobalErrorState: false,
   globalErrorUserMsg: null,
   globalErrorImgUrl: null,
-  queueProcessorPromise: null,
   isWarnOnLeaveRoute: false,
   isHelpModalVisible: false,
   previewedPhoto: null,
@@ -65,8 +64,6 @@ const mutations = {
   setShowAddToHomeScreenModalForApple: (state, value) =>
     (state.showAddToHomeScreenModalForApple = value),
   setRefreshingApp: (state, value) => (state.refreshingApp = value),
-  setQueueProcessorPromise: (state, value) =>
-    (state.queueProcessorPromise = value),
   setServiceWorkerRegistration: (state, value) => (state.swReg = value),
   toggleSplitter(state, shouldOpen) {
     if (typeof shouldOpen === 'boolean') {
@@ -412,13 +409,12 @@ const getters = {
     }, {})
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
-  isLocalProcessorRunning: state => !!state.queueProcessorPromise,
   datetimeForCurrentlyEditingObs(state, getters, _, rootGetters) {
     const datetimeMethod = state.datetimeMethod
     switch (datetimeMethod) {
       case 'existing':
         return (() => {
-          const editingObs = rootGetters['obs/observationDetail'] || {}
+          const editingObs = rootGetters['obs/selectedObsSummary'] || {}
           return { value: editingObs.observedAt }
         })()
       case 'photo':
@@ -438,7 +434,7 @@ const getters = {
     switch (geoMethod) {
       case 'existing':
         return (() => {
-          const editingObs = rootGetters['obs/observationDetail'] || {}
+          const editingObs = rootGetters['obs/selectedObsSummary'] || {}
           return {
             lat: editingObs.lat,
             lng: editingObs.lng,

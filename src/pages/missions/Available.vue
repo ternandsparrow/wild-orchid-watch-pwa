@@ -58,10 +58,10 @@ export default {
     return {
       pullHookState: 'initial',
       deletedMissionIds: [],
+      availableMissions: [],
     }
   },
   computed: {
-    ...mapState('missionsAndNews', ['availableMissions']),
     ...mapState('ephemeral', ['networkOnLine']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     displayableMissions() {
@@ -92,14 +92,17 @@ export default {
     onNew() {
       this.$router.push({ name: 'MissionsNew' })
     },
-    doRefresh(done) {
+    async doRefresh(done) {
       if (!this.networkOnLine) {
         this.$ons.notification.toast('Cannot refresh while offline', {
           timeout: 3000,
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('missionsAndNews/getAvailableMissions')
+        const missions = await this.$store.dispatch(
+          'missionsAndNews/getAvailableMissions',
+        )
+        this.availableMissions = missions
       }
       done && done()
     },

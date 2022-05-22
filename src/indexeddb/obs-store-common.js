@@ -2,6 +2,7 @@
 // by the client, worker(s) and the service worker. We don't want the workers
 // to import the vuex code hence this module.
 import _ from 'lodash'
+import dayjs from 'dayjs'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
@@ -42,6 +43,7 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     await deleteLocalPhotos(record, `wowMeta.${cc.photoIdsToDeleteFieldName}`)
     log('Processing photo deletes in the blocked action')
     await deleteLocalPhotos(
+      // FIXME do we need this anymore?
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
     )
@@ -52,6 +54,7 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     )
     log('Processing photo adds in blocked action')
     await savePhotosAndReplaceWithThumbnails(
+      // FIXME do we need this anymore?
       record,
       `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
     )
@@ -480,6 +483,33 @@ async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
   function log(msg) {
     console.debug(`[outcomeLastUpdatedAt migrate] ${msg}`)
   }
+}
+
+export function mapCommentFromApiToOurDomain(apiComment) {
+  return {
+    inatId: apiComment.id,
+    uuid: apiComment.uuid,
+    body: apiComment.body, // we are trusting iNat to sanitise this
+    createdAt: apiComment.created_at,
+    isHidden: apiComment.hidden,
+    userLogin: apiComment.user.login,
+    userId: apiComment.user.id,
+    wowType: 'comment',
+  }
+}
+
+export function updateIdsAndCommentsFor(obs) {
+  obs.idsAndComments = [...obs.comments, ...obs.identifications]
+  obs.idsAndComments.sort((a, b) => {
+    const f = 'createdAt'
+    if (dayjs(a[f]).isBefore(b[f])) return -1
+    if (dayjs(a[f]).isAfter(b[f])) return 1
+    return 0
+  })
+}
+
+export function processObsFieldName(fieldName) {
+  return (fieldName || '').replace(cc.obsFieldNamePrefix, '')
 }
 
 const interceptableFns = {

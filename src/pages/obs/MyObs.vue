@@ -54,51 +54,19 @@
             </div>
             <div class="summary-item">
               <v-ons-icon
-                v-if="isDoingSync"
+                v-if="isUpdatingRemoteObs"
                 icon="fa-spinner"
                 class="sync-spinner"
               ></v-ons-icon>
               <v-ons-icon v-else icon="fa-check-double"></v-ons-icon>
               <span class="sm-detail">
-                {{ isDoingSync ? 'Sync' : 'Done' }}
+                {{ isUpdatingRemoteObs ? 'Sync' : 'Done' }}
               </span>
               <span class="md-detail">
-                {{ isDoingSync ? 'Sync-ing' : 'Sync done' }}
+                {{ isUpdatingRemoteObs ? 'Sync-ing' : 'Sync done' }}
               </span>
               <span class="lg-detail">
-                Sync {{ isDoingSync ? 'in progress' : 'all done' }}
-              </span>
-            </div>
-            <div class="summary-item">
-              <v-ons-icon
-                :class="{ red: !networkOnLine }"
-                icon="fa-wifi"
-              ></v-ons-icon>
-              <span class="sm-detail">
-                {{ networkOnLine ? 'Yes' : 'No' }}
-              </span>
-              <span class="md-detail">
-                {{ networkOnLine ? 'Online' : 'Offline' }}
-              </span>
-              <span class="lg-detail">
-                Network {{ networkOnLine ? 'Online' : 'Offline' }}
-              </span>
-            </div>
-            <div class="summary-item">
-              <v-ons-icon
-                v-if="isSyncDisabled"
-                icon="fa-ban"
-                class="red"
-              ></v-ons-icon>
-              <v-ons-icon v-else icon="fa-cloud-upload-alt"></v-ons-icon>
-              <span class="sm-detail">
-                {{ isSyncDisabled ? 'Off' : 'On' }}
-              </span>
-              <span class="md-detail">
-                Sync {{ isSyncDisabled ? 'Off' : 'On' }}
-              </span>
-              <span class="lg-detail">
-                Synchronising {{ isSyncDisabled ? 'Off' : 'On' }}
+                Sync {{ isUpdatingRemoteObs ? 'in progress' : 'all done' }}
               </span>
             </div>
             <div v-if="deletesWithErrorCount" class="delete-error-container">
@@ -132,7 +100,7 @@
               </div>
             </div>
             <div class="expand-item">
-              <template v-if="isDoingSync">
+              <template v-if="isUpdatingRemoteObs">
                 <v-ons-icon icon="fa-spinner" class="sync-spinner" />
                 Synchronising observations with iNaturalist
               </template>
@@ -140,27 +108,6 @@
                 <v-ons-icon icon="fa-check-double"></v-ons-icon>
                 Synchronised with iNaturalist ({{ humanLastSyncDate }})
               </template>
-            </div>
-            <div class="expand-item">
-              <v-ons-icon
-                :class="{ red: !networkOnLine }"
-                icon="fa-wifi"
-              ></v-ons-icon>
-              <span v-if="networkOnLine"> Network online</span>
-              <span v-else> Network offline</span>
-            </div>
-            <div class="expand-item">
-              <v-ons-icon
-                v-if="isSyncDisabled"
-                icon="fa-ban"
-                class="red"
-              ></v-ons-icon>
-              <v-ons-icon v-else icon="fa-cloud-upload-alt"></v-ons-icon>
-              <span v-if="isSyncDisabled">
-                Sync with iNaturalist is <span class="red">disabled</span> (in
-                Settings menu)
-              </span>
-              <span v-else> Sync with iNaturalist enabled</span>
             </div>
             <div class="expand-item">
               {{ allRecords.length }} total observations
@@ -203,7 +150,7 @@ import Vue from 'vue'
 import { mapState, mapGetters } from 'vuex'
 import dayjs from 'dayjs'
 import { wowErrorHandler } from '@/misc/helpers'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 
 export default {
   name: 'MyObs',
@@ -213,6 +160,8 @@ export default {
       pullHookState: 'initial',
       joinProjectProcessingState: 'initial',
       autoJoinGracePeriodExpired: false,
+      deletesWithErrorCount: 0,
+      waitingForDeleteCount: 0,
       renderItem: i =>
         new Vue({
           store: parent.$store,
@@ -233,18 +182,11 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['isSyncDisabled', 'isJoinedProject']),
+    ...mapGetters(['isJoinedProject']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     ...mapState('ephemeral', ['networkOnLine']),
-    ...mapState('obs', ['allRemoteObsLastUpdated']),
-    ...mapGetters('obs', [
-      'deletesWithErrorCount',
-      'isDoingSync',
-      'isRemoteObsStale',
-      'localRecords',
-      'remoteRecords',
-      'waitingForDeleteCount',
-    ]),
+    ...mapState('obs', ['allRemoteObsLastUpdated', 'isUpdatingRemoteObs']),
+    ...mapGetters('obs', ['isRemoteObsStale', 'localRecords', 'remoteRecords']),
     humanLastSyncDate() {
       return dayjs(this.allRemoteObsLastUpdated).format('DD-MMM-YYYY HH:mm')
     },
@@ -259,11 +201,10 @@ export default {
         ...this.localRecords.map(r => ({
           ...r,
           isWaiting:
-            r.wowMeta[constants.recordProcessingOutcomeFieldName] !==
-            constants.successOutcome,
+            r.wowMeta[cc.recordProcessingOutcomeFieldName] !==
+            cc.successOutcome,
           isDraft:
-            r.wowMeta[constants.recordProcessingOutcomeFieldName] ===
-            constants.draftOutcome,
+            r.wowMeta[cc.recordProcessingOutcomeFieldName] === cc.draftOutcome,
         })),
         ...this.remoteRecords.map(r => ({
           ...r,
@@ -283,7 +224,7 @@ export default {
       return 'https://www.wildorchidwatch.org/faqs/#who-has-access'
     },
     inatJoinUrl() {
-      return `${constants.inatUrlBase}/projects/${constants.inatProjectSlug}/join`
+      return `${cc.inatUrlBase}/projects/${cc.inatProjectSlug}/join`
     },
     isJoinButtonDisabled() {
       return ['processing', 'success'].includes(this.joinProjectProcessingState)
@@ -306,6 +247,12 @@ export default {
     if (this.isRemoteObsStale) {
       this.doRefresh()
     }
+    this.deletesWithErrorCount = this.$store.dispatch(
+      'obs/getDbIdsWithErroredDeletes',
+    ).length
+    this.waitingForDeleteCount = this.$store.dispatch(
+      'obs/getWaitingForDeleteCount',
+    )
   },
   methods: {
     onNewSingleSpecies() {
@@ -336,19 +283,16 @@ export default {
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store
-          .dispatch('obs/refreshRemoteObs')
-          .then(() => this.$store.dispatch('obs/processLocalQueue'))
-          .catch(err => {
-            this.$store.dispatch(
-              'flagGlobalError',
-              {
-                msg: `Failed to refresh observations`,
-                err,
-              },
-              { root: true },
-            )
-          })
+        this.$store.dispatch('obs/refreshRemoteObs').catch(err => {
+          this.$store.dispatch(
+            'flagGlobalError',
+            {
+              msg: `Failed to refresh observations`,
+              err,
+            },
+            { root: true },
+          )
+        })
         // FIXME do we need to kick the service worker?
       }
       done && typeof done === 'function' && done()

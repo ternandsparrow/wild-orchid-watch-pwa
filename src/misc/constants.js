@@ -409,6 +409,7 @@ export const lfWowMetaStoreName = 'wow-meta' // things about the app
 export const gh69MigrationKey = 'gh69-migration'
 export const noOutcomeLastUpdatedMigrationKey =
   'no-outcome-last-updated-migration'
+export const remoteObsKey = 'remote-obs'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 
@@ -434,13 +435,10 @@ export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
 export const versionFieldName = 'version'
 
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
-export const refreshObsMsg = 'REFRESH_OBS'
-export const refreshLocalQueueMsg = 'REFRESH_LOCAL_QUEUE_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
 export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
-export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
 
 // Record processing outcomes
 export const draftOutcome = 'draft' // incomplete observation

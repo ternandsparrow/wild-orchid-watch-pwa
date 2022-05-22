@@ -38,7 +38,8 @@
 </template>
 
 <script>
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 export default {
   name: 'ForceRpo',
@@ -48,10 +49,10 @@ export default {
       setRpoSelectedOutcome: null,
       setRpoAvailableUuids: [],
       setRpoAvailableOutcomes: [
-        constants.waitingOutcome,
-        constants.beingProcessedOutcome,
-        constants.successOutcome,
-        constants.systemErrorOutcome,
+        cc.waitingOutcome,
+        cc.beingProcessedOutcome,
+        cc.successOutcome,
+        cc.systemErrorOutcome,
       ],
       setRpoSelectedUuid: null,
     }
@@ -61,13 +62,11 @@ export default {
       this.setRpoStatus = 'starting'
       const anyOutcome = []
       try {
-        await this.$store.dispatch('obs/_transitionHelper', {
-          wowId: this.setRpoSelectedUuid,
+        await getWebWorker()._transitionHelper({
+          recordUuid: this.setRpoSelectedUuid,
           targetOutcome: this.setRpoSelectedOutcome,
           validFromOutcomes: anyOutcome,
         })
-        this.setRpoStatus = 'refreshing'
-        await this.$store.dispatch('obs/refreshLocalRecordQueue')
         this.setRpoStatus = 'done'
       } catch (err) {
         console.error('Failed to reset status of obs', err)

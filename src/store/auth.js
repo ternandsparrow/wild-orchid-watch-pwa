@@ -9,7 +9,7 @@ import {
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
-  isSwActive,
+  isNoSwActive,
   now,
   postFormDataWithAuth,
   postJsonWithAuth,
@@ -87,6 +87,10 @@ export default {
     },
   },
   actions: {
+    async getApiToken({ state, dispatch }) {
+      await dispatch('_refreshApiTokenIfRequired')
+      return state.apiToken
+    },
     async doApiGet({ state, dispatch }, { urlSuffix }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -376,7 +380,7 @@ export default {
       dispatch('sendSwUpdatedErrorTrackerContext', { username })
     },
     async sendSwUpdatedErrorTrackerContext(_, { username }) {
-      if (!(await isSwActive())) {
+      if (await isNoSwActive()) {
         return
       }
       return fetch(constants.serviceWorkerUpdateErrorTrackerContextUrl, {

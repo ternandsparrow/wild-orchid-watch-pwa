@@ -46,7 +46,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
@@ -54,10 +53,10 @@ export default {
   data() {
     return {
       pullHookState: 'initial',
+      allNews: [],
     }
   },
   computed: {
-    ...mapGetters('missionsAndNews', ['allNews']),
     isNoRecords() {
       return !this.allNews || this.allNews.length === 0
     },
@@ -66,8 +65,11 @@ export default {
     this.doRefresh()
   },
   methods: {
-    doRefresh(done) {
-      this.$store.dispatch('missionsAndNews/updateNewsIfRequired')
+    async doRefresh(done) {
+      const updates = await this.$store.dispatch(
+        'missionsAndNews/getProjectUpdates',
+      )
+      this.allNews = updates
       done && done()
     },
     push(eventId) {

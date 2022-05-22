@@ -2,6 +2,7 @@ import Vue from 'vue'
 
 import CarouselDots from '@/partials/CarouselDots'
 import CollectDate from '@/partials/CollectDate'
+import ConfigurationDump from '@/partials/admin/ConfigurationDump'
 import CollectGeolocation from '@/partials/CollectGeolocation'
 import CustomToolbar from '@/partials/CustomToolbar'
 import DecryptPayload from '@/partials/admin/DecryptPayload'
@@ -18,7 +19,6 @@ import ObsListItem from '@/pages/obs/ObsListItem'
 import PhotoPreviewModal from '@/partials/PhotoPreviewModal'
 import RelativeTabbar from '@/partials/RelativeTabbar'
 import RequiredChip from '@/partials/RequiredChip'
-import SendBundle from '@/partials/admin/SendBundle'
 import TestEncryptPayload from '@/partials/admin/TestEncryptPayload'
 import WowAutocomplete from '@/partials/WowAutocomplete'
 import WowHeader from '@/partials/WowHeader'
@@ -26,6 +26,7 @@ import WowInputStatus from '@/partials/WowInputStatus'
 
 Vue.component('carousel-dots', CarouselDots)
 Vue.component('custom-toolbar', CustomToolbar)
+Vue.component('configuration-dump', ConfigurationDump)
 Vue.component('google-map', GoogleMap)
 Vue.component('join-leave-project', JoinLeaveProject)
 Vue.component('menu-wrapper', MenuWrapper)
@@ -45,5 +46,4 @@ Vue.component('wow-input-status', WowInputStatus)
 Vue.component('wow-obs-list-item', ObsListItem)
 Vue.component('wow-photo-preview', PhotoPreviewModal)
 Vue.component('wow-required-chip', RequiredChip)
-Vue.component('wow-send-bundle-test', SendBundle)
 Vue.component('wow-test-encrypt-payload', TestEncryptPayload)

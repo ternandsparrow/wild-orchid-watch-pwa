@@ -610,10 +610,7 @@ describe('isPossiblyStuck', () => {
   it('should return false when no record is supplied', () => {
     const record = null
     const store = {
-      getters: {
-        isSyncDisabled: false,
-        'ephemeral/isLocalProcessorRunning': true,
-      },
+      getters: {},
     }
     const result = objectUnderTest.isPossiblyStuck(store, record)
     expect(result).toEqual(false)
