@@ -4,8 +4,9 @@ import createPersistedState from 'vuex-persistedstate'
 
 import { subscribeToWorkerMessage } from '@/misc/web-worker-manager'
 import {
-  persistedStateLocalStorageKey,
   isForceVueDevtools,
+  persistedStateLocalStorageKey,
+  workerMessages,
 } from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 import auth from './auth'
@@ -122,6 +123,18 @@ const store = new Vuex.Store({
 
 subscribeToWorkerMessage('refreshLocalRecordQueue', () => {
   return store.dispatch('obs/refreshLocalRecordQueue')
+})
+
+subscribeToWorkerMessage(workerMessages.facadeDeleteSuccess, ({ theUuid }) => {
+  return store.dispatch('obs/handleObsDeleteCompletion', theUuid)
+})
+
+subscribeToWorkerMessage(workerMessages.facadeCreateSuccess, ({ summary }) => {
+  return store.dispatch('obs/handleObsCreateOrEditCompletion', summary)
+})
+
+subscribeToWorkerMessage(workerMessages.facadeEditSuccess, ({ summary }) => {
+  return store.dispatch('obs/handleObsCreateOrEditCompletion', summary)
 })
 
 // make sure all your hooks are async or return promises

@@ -87,6 +87,10 @@ export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 //   https://o1111111111111111111111111111111@o222222.ingest.sentry.io/3333333
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
+export const frequencyOfTaskChecksSeconds = convertAndAssertInteger(
+  process.env.VUE_APP_TASK_CHECK_FREQ || 60,
+)
+
 // The URL where we can load the taxa list for populating the orchid
 // autocomplete. See scripts/build-taxa-index.js for more details.
 export const taxaDataUrl =
@@ -385,6 +389,13 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 export const facadeSendObsUrlPrefix = `${facadeUrlBase}/observations`
 
 export const pendingTasksKey = 'wow-pending-tasks' // for localStorage
+export const apiTokenKey = 'api-token' // for localStorage
+
+export const workerMessages = {
+  facadeDeleteSuccess: 'facade-delete-success',
+  facadeCreateSuccess: 'facade-create-success',
+  facadeEditSuccess: 'facade-edit-success',
+}
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
 export const noPreviewAvailableUrl = '/img/no-preview-available.png'

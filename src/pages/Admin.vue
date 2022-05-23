@@ -383,7 +383,11 @@ export default {
   },
   methods: {
     doCustomLocalQueueSummaryDump() {
-      this.vuexDump = JSON.stringify(this.$store.state.obs.localQueueSummary, null, 2)
+      this.vuexDump = JSON.stringify(
+        this.$store.state.obs.localQueueSummary,
+        null,
+        2,
+      )
     },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)

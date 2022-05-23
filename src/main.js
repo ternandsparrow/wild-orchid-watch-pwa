@@ -21,6 +21,7 @@ import AppNavigator from '@/AppNavigator'
 import '@/global-components'
 import * as constants from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 if (constants.isForceVueDevtools) {
   Vue.config.devtools = true
@@ -86,13 +87,12 @@ new Vue({
       })
 
       this.$store.dispatch('auth/setUsernameOnSentry')
+      getWebWorker().scheduleTaskChecks(10000)
 
       setTimeout(() => {
         console.debug('Firing Apple install prompt check')
         initAppleInstallPrompt()
       }, 10000)
-
-      this.$store.dispatch('obs/pollForPendingTasks')
     } catch (err) {
       wowErrorHandler('Failed to run beforeCreate for root element', err)
       alert(

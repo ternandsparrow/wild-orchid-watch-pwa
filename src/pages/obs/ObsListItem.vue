@@ -22,11 +22,14 @@
       >
       <div class="obs-badges">
         <img
-          v-if="record.isWaiting"
+          v-if="isWaiting"
           src="@/assets/img/cloud-wait.svg"
           class="wow-icon"
         />
-        <span v-if="record.isDraft" class="wow-badge">
+        <span v-if="isBeingProcessedOnServer"
+          >Being processed by server...</span
+        >
+        <span v-if="isDraft" class="wow-badge">
           <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
           Draft
         </span>
@@ -46,6 +49,7 @@
 <script>
 import { isObsSystemError, extractGeolocationText } from '@/store/obs'
 import { humanDateString, wowIdOf } from '@/misc/helpers'
+import * as cc from '@/misc/constants'
 
 export default {
   name: 'ObsListItem',
@@ -57,6 +61,26 @@ export default {
   },
   data() {
     return {}
+  },
+  computed: {
+    isWaiting() {
+      const val = (this.record.wowMeta || {})[
+        cc.recordProcessingOutcomeFieldName
+      ]
+      return val === cc.waitingOutcome
+    },
+    isBeingProcessedOnServer() {
+      const val = (this.record.wowMeta || {})[
+        cc.recordProcessingOutcomeFieldName
+      ]
+      return val === cc.successOutcome
+    },
+    isDraft() {
+      const val = (this.record.wowMeta || {})[
+        cc.recordProcessingOutcomeFieldName
+      ]
+      return val === cc.draftOutcome
+    },
   },
   methods: {
     speciesGuess(record) {

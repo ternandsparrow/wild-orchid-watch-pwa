@@ -197,21 +197,7 @@ export default {
       return this.waitingForDeleteCount || this.deletesWithErrorCount
     },
     allRecords() {
-      return [
-        ...this.localRecords.map(r => ({
-          ...r,
-          isWaiting:
-            r.wowMeta[cc.recordProcessingOutcomeFieldName] !==
-            cc.successOutcome,
-          isDraft:
-            r.wowMeta[cc.recordProcessingOutcomeFieldName] === cc.draftOutcome,
-        })),
-        ...this.remoteRecords.map(r => ({
-          ...r,
-          commentCount: (r.comments || []).length,
-          idCount: (r.identifications || []).length,
-        })),
-      ]
+      return [...this.localRecords, ...this.remoteRecords]
     },
     isShowJoinProjectAlert() {
       return (

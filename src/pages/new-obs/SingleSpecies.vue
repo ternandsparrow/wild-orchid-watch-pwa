@@ -436,6 +436,7 @@ export default {
   name: 'SingleSpecies',
   data() {
     return {
+      obsDetail: null,
       photoMenu: [
         { id: photoTypeWholePlant, name: 'Whole plant', required: true },
         { id: photoTypeFlower, name: 'Flower' },
@@ -465,7 +466,6 @@ export default {
       multiselectFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
-      existingRecordSnapshot: null,
       targetHelpSection: null,
       isSaveModalVisible: false,
       isShowModalForceClose: false,
@@ -482,13 +482,12 @@ export default {
       obsLng: null,
       obsLocAccuracy: null,
       isValidatedAtLeastOnce: false,
-      uuidOfThisObs: null,
       observedAt: null,
       isDraftFeatureEnabled,
     }
   },
   computed: {
-    ...mapGetters('obs', ['selectedObsSummary', 'obsFields']),
+    ...mapGetters('obs', ['obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
     ...mapGetters('ephemeral', ['photosStillProcessingCount']),
     isDetailedUserMode: {
@@ -615,7 +614,7 @@ export default {
     },
     isLocationAlreadyCaptured() {
       const isForm1Present = (() => {
-        const o = this.selectedObsSummary || {}
+        const o = this.obsDetail || {}
         return !!(o.lat && o.lng)
       })()
       const isForm2Present = (() => {
@@ -729,7 +728,6 @@ export default {
       const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
       if (this.isEdit) {
         this.initForEdit(obsFieldsPromise)
-        this.snapshotExistingRecord()
       } else {
         this.initForNew(obsFieldsPromise)
       }
@@ -745,82 +743,76 @@ export default {
       })
       this.geolocationErrorMsg = null
     },
-    initForEdit(obsFieldsPromise) {
+    async initForEdit(obsFieldsPromise) {
       console.debug('initialising for "edit" mode')
-      this.uuidOfThisObs = this.selectedObsSummary.uuid
       this.rereadCoords()
       this.rereadDatetime()
-      this.obsLocAccuracy = this.selectedObsSummary.positional_accuracy
-      obsFieldsPromise.then(() => {
-        console.debug('initialising obs field dependent fields for edit')
-        this.setDefaultObsFieldVisibility()
-        this.setDefaultAnswers()
-        this.setDefaultDisabledness()
-        // pre-populate obs fields
-        const answersFromSaved = this.selectedObsSummary.obsFieldValues.reduce(
-          (accum, curr) => {
-            const isMultiselect = !!getMultiselectId(curr.fieldId)
-            let value = curr.value
-            if (isMultiselect) {
-              value = (() => {
-                if (value === yesValue) {
-                  return true
-                }
-                if (value === noValue) {
-                  return false
-                }
-                throw new Error(
-                  `Unhandled value='${value}' when mapping from remote ` +
-                    'obs field value to local multiselect value',
-                )
-              })()
-            }
-            accum[curr.fieldId] = value
-            return accum
-          },
-          {},
-        )
-        this.obsFieldValues = {
-          ...this.obsFieldValues, // these will be the defaults
-          ...answersFromSaved,
-        }
-        this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
-        // fire change handler for all multiselects to set the UI up as expected
-        for (const currMultiselect of this.displayableObsFields.filter(
-          e => e.wowDatatype === multiselectFieldType,
-        )) {
-          for (const currItem of currMultiselect.multiselectValues) {
-            // TODO possible enhancement: check for impossible situation due to
-            // edits done outside the app
-            this.onMultiselectChange(
-              currMultiselect,
-              currItem,
-              this.obsFieldValues[currItem.id],
-            )
+      this.obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
+      this.existingPhotos = this.obsDetail.photos // FIXME confirm correct
+      this.obsLocAccuracy = this.obsDetail.geolocationAccuracy
+      await obsFieldsPromise
+      console.debug('initialising obs field dependent fields for edit')
+      this.setDefaultObsFieldVisibility()
+      this.setDefaultAnswers()
+      this.setDefaultDisabledness()
+      // pre-populate obs fields
+      const answersFromSaved = this.obsDetail.obsFieldValues.reduce(
+        (accum, curr) => {
+          const isMultiselect = !!getMultiselectId(curr.fieldId)
+          let value = curr.value
+          if (isMultiselect) {
+            value = (() => {
+              if (value === yesValue) {
+                return true
+              }
+              if (value === noValue) {
+                return false
+              }
+              throw new Error(
+                `Unhandled value='${value}' when mapping from remote ` +
+                  'obs field value to local multiselect value',
+              )
+            })()
           }
+          accum[curr.fieldId] = value
+          return accum
+        },
+        {},
+      )
+      this.obsFieldValues = {
+        ...this.obsFieldValues, // these will be the defaults
+        ...answersFromSaved,
+      }
+      this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
+      // fire change handler for all multiselects to set the UI up as expected
+      for (const currMultiselect of this.displayableObsFields.filter(
+        e => e.wowDatatype === multiselectFieldType,
+      )) {
+        for (const currItem of currMultiselect.multiselectValues) {
+          // TODO possible enhancement: check for impossible situation due to
+          // edits done outside the app
+          this.onMultiselectChange(
+            currMultiselect,
+            currItem,
+            this.obsFieldValues[currItem.id],
+          )
         }
-        this.selectedObsSummary.obsFieldValues
-          .filter(e => e.datatype === numericFieldType)
-          .forEach(currNumericField => {
-            const fieldId = currNumericField.fieldId
-            const val = this.obsFieldValues[fieldId]
-            this._onNumberChange(fieldId, val)
-          })
-      })
-      if (this.selectedObsSummary.speciesGuess) {
-        const val = this.selectedObsSummary.speciesGuess
+      }
+      this.obsDetail.obsFieldValues
+        .filter(e => e.datatype === numericFieldType)
+        .forEach(currNumericField => {
+          const fieldId = currNumericField.fieldId
+          const val = this.obsFieldValues[fieldId]
+          this._onNumberChange(fieldId, val)
+        })
+      if (this.obsDetail.speciesGuess) {
+        const val = this.obsDetail.speciesGuess
         this.speciesGuessInitialValue = val
         this.speciesGuessValue = val
       }
-      if (this.selectedObsSummary.notes) {
-        this.notes = this.selectedObsSummary.notes
+      if (this.obsDetail.notes) {
+        this.notes = this.obsDetail.notes
       }
-      this.loadPhotos()
-    },
-    async loadPhotos() {
-      this.existingPhotos = await this.$store.dispatch(
-        'obs/getPhotosForSelectedObs',
-      )
     },
     onNumberChange(event, fieldId) {
       // we should be able to use the Vue "watch" to achieve this but I
@@ -1073,7 +1065,7 @@ export default {
       if (this.isEdit && (this.allPhotosByType[this.otherType] || []).length) {
         // WOW-249 at time of writing, iNat prod doesn't use the photo filename
         // we supply so we lose type information. The photos will appear as
-        // "other" type. If we continue to enforce the following rules, user's
+        // "other" type. If we continue to enforce the following rules, users
         // won't be able to edit an observation without adding 3 more photos.
         return
       }
@@ -1410,9 +1402,10 @@ export default {
       const wowId = await this.$store.dispatch(
         'obs/saveEditAndScheduleUpdate',
         {
+          // FIXME do we need this? Shouldn't any record we edit have a uuid?
           record: Object.assign(
             {
-              uuid: this.uuidOfThisObs,
+              uuid: this.obsDetail.uuid,
             },
             record,
           ),
@@ -1424,10 +1417,7 @@ export default {
         },
       )
       this.toastSavedMsg()
-      this.$router.replace({
-        name: 'ObsDetail',
-        params: { id: wowId },
-      })
+      this.$router.replace({ name: 'ObsDetail', params: { id: wowId } })
     },
     toastSavedMsg() {
       setTimeout(() => {
@@ -1441,14 +1431,14 @@ export default {
       }, 800)
     },
     getObsFieldInstance(fieldId) {
-      const result = this.selectedObsSummary.obsFieldValues.find(
+      const result = this.obsDetail.obsFieldValues.find(
         f => f.fieldId === parseInt(fieldId),
       )
       if (!result) {
         throw new Error(
           `Could not get obs field instance with fieldId='${fieldId}' ` +
             `(type=${typeof fieldId}) from available instances='${JSON.stringify(
-              this.selectedObsSummary.obsFieldValues,
+              this.obsDetail.obsFieldValues,
             )}'`,
         )
       }
@@ -1529,14 +1519,6 @@ export default {
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
-    },
-    snapshotExistingRecord() {
-      // if the user edits a local record but the record is uploaded (and
-      // cleaned up) before the user hits save, we're in trouble. We can recover
-      // as long as we have this snapshot though.
-      this.existingRecordSnapshot = _.cloneDeep(
-        this.$store.getters['obs/selectedObsSummary'],
-      )
     },
     computeType(photoRecord) {
       const url = photoRecord.url

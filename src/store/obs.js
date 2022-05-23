@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import { proxy as comlinkProxy } from 'comlink'
 import {
   deleteDbRecordById,
   healthcheckStore,
@@ -16,7 +15,6 @@ import {
   namedError,
   now,
   recordTypeEnum as recordType,
-  wowErrorHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
 import { getWebWorker } from '@/misc/web-worker-manager'
@@ -78,7 +76,7 @@ const mutations = {
 }
 
 const actions = {
-  getFullObsDetail({ state, getters }) {
+  async getFullObsDetail({ state, getters }) {
     const theUuid = state.selectedObservationUuid
     const detailedModeOnlyObsFieldIds = getters.nullSafeProjectObsFields.reduce(
       (accum, curr) => {
@@ -88,17 +86,29 @@ const actions = {
       },
       {},
     )
+    const worker = getWebWorker()
     const isLocalRecord = state.localQueueSummary.find(e => e.uuid === theUuid)
     if (isLocalRecord) {
-      return getWebWorker().getFullLocalObsDetail(
-        theUuid,
-        detailedModeOnlyObsFieldIds,
-      )
+      const [obsDetail, photos] = await Promise.all([
+        worker.getFullLocalObsDetail(theUuid, detailedModeOnlyObsFieldIds),
+        worker.getPhotosForLocalObs(theUuid),
+      ])
+      // FIXME are "photos" only locals and we have to merge? Or is it safe to
+      //  clobber like this?
+      obsDetail.photos = photos
+      return obsDetail
     }
-    return getWebWorker().getFullRemoteObsDetail(
+    const obsDetail = await worker.getFullRemoteObsDetail(
       theUuid,
       detailedModeOnlyObsFieldIds,
     )
+    obsDetail.photos = obsDetail.photos.map((e, index) => ({
+      ...e,
+      id: e.id,
+      uiKey: 'photo-' + index,
+      url: e.url.replace('square', 'medium'),
+    }))
+    return obsDetail
   },
   async refreshRemoteObsWithDelay({ dispatch }) {
     const delayToLetServerPerformIndexingMs = cc.waitBeforeRefreshSeconds * 1000
@@ -268,7 +278,7 @@ const actions = {
     const worker = getWebWorker()
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
     try {
-      const { pendingTaskId, wowId } = await worker.saveEditAndScheduleUpdate({
+      const wowId = await worker.saveEditAndScheduleUpdate({
         record,
         photoIdsToDelete,
         obsFieldIdsToDelete,
@@ -276,10 +286,6 @@ const actions = {
         apiToken,
       })
       await dispatch('refreshLocalRecordQueue')
-      dispatch('pollForObsEditCompletion', {
-        theUuid: record.uuid,
-        taskId: pendingTaskId,
-      })
       return wowId
     } catch (err) {
       const msg = `Failed while saving edit observation for ${record.speciesGuess}`
@@ -296,20 +302,13 @@ const actions = {
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
     const projectId = getters.projectId
     try {
-      const {
-        pendingTaskId,
-        newRecordId,
-      } = await worker.saveNewAndScheduleUpload({
+      const newRecordId = await worker.saveNewAndScheduleUpload({
         record,
         isDraft,
         apiToken,
         projectId,
       })
       await dispatch('refreshLocalRecordQueue')
-      dispatch('pollForObsCreateCompletion', {
-        theUuid: newRecordId,
-        taskId: pendingTaskId,
-      })
       return newRecordId
     } catch (err) {
       const msg = `Failed while saving new observation for ${record.speciesGuess}`
@@ -334,122 +333,27 @@ const actions = {
     })()
     const worker = getWebWorker()
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    const pendingTaskId = await worker.deleteRecord(theUuid, inatId, apiToken)
-    if (pendingTaskId) {
-      dispatch('pollForDeleteCompletion', { theUuid, inatId, pendingTaskId })
-    }
+    await worker.deleteRecord(theUuid, inatId, apiToken)
+    // FIXME remove record from localQueueSummary if exists
     commit('setSelectedObservationUuid', null)
   },
-  pollForDeleteCompletion({ commit, state }, { theUuid, inatId, taskId }) {
-    if (!theUuid || !taskId || !inatId) {
-      throw new Error(
-        `Params missing: theUuid=${theUuid}, taskId=${taskId}, inatId=${inatId}`,
-      )
-    }
-    const worker = getWebWorker()
-    worker
-      .pollForDeleteCompletion(
-        inatId,
-        comlinkProxy(async err => {
-          if (err) {
-            console.error(`Failure while polling for DELETE ${inatId}`, err)
-            // FIXME do we delete the pending task or trigger a retry?
-            return
-          }
-          console.debug(`DELETE ${inatId} complete`)
-          const filteredRemoteObs = state.allRemoteObs.filter(
-            e => e.uuid !== theUuid,
-          )
-          commit('setAllRemoteObs', filteredRemoteObs)
-          await worker.deletePendingTask(taskId)
-        }),
-      )
-      .catch(err => {
-        wowErrorHandler(
-          `Failed while triggering DELETE polling for ${theUuid}/${taskId}`,
-          err,
-        )
-      })
+  handleObsDeleteCompletion({ commit, state }, theUuid) {
+    console.debug(`UI thread handling DELETE ${theUuid} completion`)
+    const filteredRemoteObs = state.allRemoteObs.filter(e => e.uuid !== theUuid)
+    commit('setAllRemoteObs', filteredRemoteObs)
   },
-  async pollForObsCreateCompletion(
-    { commit, state, dispatch },
-    { theUuid, taskId },
-  ) {
-    if (!theUuid || !taskId) {
-      throw new Error(`Params missing: theUuid=${theUuid}, taskId=${taskId}`)
+  async handleObsCreateOrEditCompletion({ commit, state }, obsSummary) {
+    console.debug(
+      `UI thread handling create/edit for uuid=${obsSummary.uuid} completion`,
+    )
+    const remoteObs = state.allRemoteObs
+    const indexOfExisting = remoteObs.findIndex(e => e.uuid === obsSummary.uuid)
+    if (indexOfExisting >= 0) {
+      remoteObs.splice(indexOfExisting, 1, obsSummary)
+    } else {
+      remoteObs.splice(0, 0, obsSummary)
     }
-    const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    const worker = getWebWorker()
-    const theProxy = comlinkProxy(async (err, newObsSummary) => {
-      if (err) {
-        if (err.isTerminal) {
-          console.error(
-            `Facade failed to create obs upstream; taskId=${taskId}`,
-          )
-          // FIXME if we support a PATCH on the facade to update the apiToken,
-          //  we should mark the task as needing an update. Unless we always
-          //  update the facade for all pending tasks when we get a new apiToken
-          await worker.deletePendingTask(taskId)
-          return
-        }
-        console.error(
-          `Failure while polling for obs create; taskId=${taskId}`,
-          err,
-        )
-        // FIXME do we delete the pending task or trigger a retry?
-        return
-      }
-      console.debug(`Obs create for uuid=${theUuid} complete`)
-      commit('setAllRemoteObs', [newObsSummary, ...state.allRemoteObs])
-      await worker.deletePendingTask(taskId)
-    })
-    worker.pollForObsCreateCompletion(taskId, apiToken, theProxy).catch(err => {
-      wowErrorHandler(
-        `Failed while triggering create polling for ${theUuid}/${taskId}`,
-        err,
-      )
-    })
-  },
-  async pollForObsEditCompletion(
-    { commit, state, dispatch },
-    { theUuid, taskId },
-  ) {
-    if (!theUuid || !taskId) {
-      throw new Error(`Params missing: theUuid=${theUuid}, taskId=${taskId}`)
-    }
-    const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    const worker = getWebWorker()
-    const theProxy = comlinkProxy(async (err, editObsSummary) => {
-      if (err) {
-        if (err.isTerminal) {
-          console.error(`Facade failed to edit obs upstream; taskId=${taskId}`)
-          // FIXME if we support a PATCH on the facade to update the apiToken,
-          //  we should mark the task as needing an update. Unless we always
-          //  update the facade for all pending tasks when we get a new apiToken
-          await worker.deletePendingTask(taskId)
-          return
-        }
-        console.error(
-          `Failure while polling for obs edit; taskId=${taskId}`,
-          err,
-        )
-        // FIXME we can get here from a 401 from the facade. We should stop
-        //  polling but hook when we get a fresh API key and then we can
-        //  start polling again.
-        // FIXME do we delete the pending task or trigger a retry?
-        return
-      }
-      console.debug(`Obs edit for uuid=${theUuid} complete`)
-      commit('setAllRemoteObs', [editObsSummary, ...state.allRemoteObs])
-      await worker.deletePendingTask(taskId)
-      // FIXME do we have to refresh the localQueueSummary?
-    })
-    worker.pollForObsEditCompletion(taskId, apiToken, theProxy).catch(err => {
-      wowErrorHandler(
-        `Failed while triggering edit polling for ${theUuid}/${taskId}`,
-        err,
-      )
-    })
+    commit('setAllRemoteObs', remoteObs)
   },
   async refreshLocalRecordQueue({ commit }) {
     console.debug('[refreshLocalRecordQueue] starting')
@@ -462,47 +366,8 @@ const actions = {
       throw chainedError('Failed to refresh localRecordQueue', err)
     }
   },
-  async getDbPhotosForSelectedObs({ state }) {
-    // FIXME does this include remote photos for edited records?
-    const theUuid = state.selectedObservationUuid
-    return getWebWorker().getPhotosForLocalObs(theUuid)
-  },
   cleanupPhotosForObs() {
     return getWebWorker().cleanupPhotosForObs()
-  },
-  async pollForPendingTasks({ dispatch }) {
-    // FIXME can we track the setTimeouts and cancel them all so we can
-    //  re-trigger this process when the obs list is refreshed?
-    const worker = getWebWorker()
-    const tasks = await worker.getPendingTasks()
-    for (const curr of tasks) {
-      const strategies = {
-        [recordType('new')]: 'pollForObsCreateCompletion',
-        [recordType('edit')]: 'pollForObsEditCompletion',
-        [recordType('delete')]: 'pollForDeleteCompletion',
-      }
-      const rType = curr[cc.recordTypeFieldName]
-      const strat = strategies[rType]
-      if (!strat) {
-        throw new Error(`Unhandled record type: ${rType}`)
-      }
-      console.debug('Firing poll process for task', curr)
-      const args = {
-        theUuid: curr.uuid,
-        inatId: curr.inatId,
-        taskId: curr.taskId,
-      }
-      ;(async () => {
-        try {
-          // random delay so all requests don't hit the server at once
-          await new Promise(r => setTimeout(r, Math.random() * 750))
-          await dispatch(strat, args)
-        } catch (err) {
-          console.error(`Failed to "${strat}" for task ${curr.taskId}`, err)
-          // FIXME do we need to cancel the task or something?
-        }
-      })()
-    }
   },
   optimisticallyUpdateComments({ state, commit }, { obsId, commentRecord }) {
     // FIXME move this fn to the worker, and we probably don't have to clone

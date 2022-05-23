@@ -65,7 +65,10 @@
         overscrollable
         :index.sync="carouselIndex"
       >
-        <v-ons-carousel-item v-for="curr of photos" :key="curr.uiKey">
+        <v-ons-carousel-item
+          v-for="curr of nullSafeObs.photos"
+          :key="curr.uiKey"
+        >
           <div class="photo-container">
             <img
               class="a-photo"
@@ -106,8 +109,8 @@
         </div>
       </div>
       <carousel-dots
-        v-if="isShowDots"
-        :dot-count="photos.length"
+        v-if="isPhotos"
+        :dot-count="nullSafeObs.photos.length"
         :selected-index="carouselIndex"
         :extra-styles="extraDotsStyle"
         @dot-click="onDotClick"
@@ -387,7 +390,6 @@ export default {
     return {
       obsDetail: null,
       noImagePlaceholderUrl: constants.noImagePlaceholderUrl,
-      photos: [],
       isLoadingPhotos: false,
       carouselIndex: 0,
       extraDotsStyle: {
@@ -416,8 +418,7 @@ export default {
     ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
     ...mapState('app', ['isDetailedUserMode']),
     isSelectedRecordOnRemote() {
-      const isRemote = (this.nullSafeObs.selectedObsSummary || {}).inatId
-      return !!isRemote
+      return !!this.selectedObsInatId
     },
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
@@ -429,28 +430,25 @@ export default {
       )
     },
     selectedObsInatId() {
-      return this.selectedObsSummary.inatId
+      return (this.nullSafeObs || {}).inatId
     },
     nullSafeObs() {
       const result = this.obsDetail
       if (!result) {
-        return { wowMeta: {} }
+        return { photos: [], wowMeta: {} }
       }
       const targetField = 'fieldId'
       this.obsFieldSorterFn(result.obsFieldValues, targetField)
       return {
         ...result,
         wowMeta: {
-          // remote obs don't have wowMeta, always adding it simplies code elsewhere
+          // remote obs don't have wowMeta, always adding it simplifies code elsewhere
           ...result.wowMeta,
         },
       }
     },
     isPhotos() {
-      return this.photos.length
-    },
-    isShowDots() {
-      return this.photos.length > 1
+      return this.nullSafeObs.photos.length
     },
     geolocationDetails() {
       const config = {
@@ -516,27 +514,12 @@ export default {
   },
   methods: {
     async loadFullObsData() {
+      this.isLoadingPhotos = true
       const obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
       this.obsDetail = obsDetail
       // TODO enhancement idea: when landing from gallery, could preselect the
       // referrer photo.
-      const isLocalRecord = obsDetail.photos.find(
-        p => p.url === '(set at render time)',
-      )
-      if (isLocalRecord) {
-        this.isLoadingPhotos = true
-        this.photos = await this.$store.dispatch(
-          'obs/getDbPhotosForSelectedObs',
-        )
-        this.isLoadingPhotos = false
-        return
-      }
-      this.photos = obsDetail.photos.map((e, index) => ({
-        ...e,
-        id: e.id,
-        uiKey: 'photo-' + index,
-        url: e.url.replace('square', 'medium'),
-      }))
+      this.isLoadingPhotos = false
     },
     async onShowFullSizePhoto(photoRecord) {
       photoRecord.hideFullSizeButton = true
