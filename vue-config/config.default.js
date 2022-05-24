@@ -34,6 +34,13 @@ module.exports = {
     ],
   },
   ...getWebpackChain(),
+  transpileDependencies: [
+    // FIXME there may be some caching stuff going on here. Suddenly I couldn't
+    // rebuild the dev server when I stopped and tried again immediately.
+    // Adding transpileDependencies didn't help until I cleared the cache:
+    //   rm -fr node_modules/.cache/
+    'gmap-vue',
+  ]
 }
 
 function getWebpackChain() {
