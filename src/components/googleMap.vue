@@ -103,10 +103,10 @@ export default {
       this.center = { lat, lng }
     },
     updateMarker() {
-      const bounds = this.map.getBounds()
+      const center = this.map.getBounds().getCenter()
       const newCenter = {
-        lat: (bounds.zb.h + bounds.zb.j) / 2,
-        lng: (bounds.Ua.h + bounds.Ua.j) / 2,
+        lat: center.lat(),
+        lng: center.lng(),
       }
       this.marker = newCenter
     },
