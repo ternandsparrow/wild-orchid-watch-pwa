@@ -23,7 +23,7 @@
       <p>
         <v-ons-button
           name="retry-error-upload-btn"
-          @click="resetProcessingOutcomeFromSystemError"
+          @click="retryFromSystemError"
           >Retry upload</v-ons-button
         >
       </p>
@@ -40,9 +40,7 @@
         This option will remain available as long as we think it's stuck.
       </p>
       <p>
-        <v-ons-button
-          name="retry-stuck-upload-btn"
-          @click="resetProcessingOutcomeFromStuck"
+        <v-ons-button name="retry-stuck-upload-btn" @click="retryFromStuck"
           >Retry upload</v-ons-button
         >
       </p>
@@ -486,6 +484,7 @@ export default {
     },
   },
   watch: {
+    // FIXME replace with event listener and tear down when component is destroyed
     selectedObsSummary(newVal, oldVal) {
       // this is for when a local observation record gets deleted out from
       // under us (at the completion of upload) and we need to update to use
@@ -502,11 +501,10 @@ export default {
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
-    this.debouncedResetProcessingOutcome = _.debounce(
-      this._resetProcessingOutcome,
-      2000,
-      { leading: true, trailing: false },
-    )
+    this.debouncedRetry = _.debounce(this._retryUpload, 2000, {
+      leading: true,
+      trailing: false,
+    })
     await this.loadFullObsData()
   },
   beforeDestroy() {
@@ -555,21 +553,19 @@ export default {
         })
       }
     },
-    resetProcessingOutcomeFromSystemError() {
+    retryFromSystemError() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from system error`)
-      this.debouncedResetProcessingOutcome(
-        'Failed to reset processing outcome after error',
-      )
+      this.debouncedRetry('Failed to reset processing outcome after error')
     },
-    resetProcessingOutcomeFromStuck() {
+    retryFromStuck() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from stuck`)
-      this.debouncedResetProcessingOutcome(
+      this.debouncedRetry(
         'Failed to reset processing outcome from a possibly stuck record',
       )
     },
-    _resetProcessingOutcome(errMsg) {
+    _retryUpload(errMsg) {
       this.$store
-        .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
+        .dispatch('obs/retryForSelectedRecord')
         .then(() => {
           this.$ons.notification.toast('Retrying upload', {
             timeout: 3000,

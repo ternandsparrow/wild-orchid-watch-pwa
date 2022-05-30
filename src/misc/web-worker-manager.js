@@ -23,7 +23,7 @@ function getRawWorker() {
       }
       for (const currCb of subscribers) {
         const result = currCb(event.data.data)
-        if (result.constructor === Promise) {
+        if (result && result.constructor === Promise) {
           result.catch(err => {
             console.error(`Async subscriber for key=${key} threw an error`, err)
           })

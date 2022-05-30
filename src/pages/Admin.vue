@@ -54,6 +54,7 @@
       </div>
       <div>Status = {{ cloneStatus }}</div>
     </v-ons-card>
+    <wow-force-rpo />
     <v-ons-card>
       <div class="title">
         Dump vuex
@@ -246,7 +247,6 @@
         <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
       </p>
     </v-ons-card>
-    <wow-force-rpo />
     <configuration-dump />
     <v-ons-card>
       <div class="title">

@@ -82,7 +82,6 @@ new Vue({
         if (!this.$store.state.ephemeral.networkOnLine) {
           return
         }
-        // FIXME should we throttle this to once every n minutes?
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 

@@ -60,13 +60,11 @@ export default {
   methods: {
     async doSetRpo() {
       this.setRpoStatus = 'starting'
-      const anyOutcome = []
       try {
-        await getWebWorker()._transitionHelper({
-          recordUuid: this.setRpoSelectedUuid,
-          targetOutcome: this.setRpoSelectedOutcome,
-          validFromOutcomes: anyOutcome,
-        })
+        await getWebWorker().transitionRecord(
+          this.setRpoSelectedUuid,
+          this.setRpoSelectedOutcome,
+        )
         this.setRpoStatus = 'done'
       } catch (err) {
         console.error('Failed to reset status of obs', err)

@@ -40,7 +40,7 @@ module.exports = {
     // Adding transpileDependencies didn't help until I cleared the cache:
     //   rm -fr node_modules/.cache/
     'gmap-vue',
-  ]
+  ],
 }
 
 function getWebpackChain() {

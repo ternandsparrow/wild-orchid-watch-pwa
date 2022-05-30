@@ -126,15 +126,19 @@ subscribeToWorkerMessage('refreshLocalRecordQueue', () => {
 })
 
 subscribeToWorkerMessage(workerMessages.facadeDeleteSuccess, ({ theUuid }) => {
-  return store.dispatch('obs/handleObsDeleteCompletion', theUuid)
+  return store.commit('obs/handleObsDeleteCompletion', theUuid)
 })
 
 subscribeToWorkerMessage(workerMessages.facadeCreateSuccess, ({ summary }) => {
-  return store.dispatch('obs/handleObsCreateOrEditCompletion', summary)
+  return store.commit('obs/handleObsCreateOrEditCompletion', summary)
 })
 
 subscribeToWorkerMessage(workerMessages.facadeEditSuccess, ({ summary }) => {
-  return store.dispatch('obs/handleObsCreateOrEditCompletion', summary)
+  return store.commit('obs/handleObsCreateOrEditCompletion', summary)
+})
+
+subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, args => {
+  return store.commit('obs/handleLocalRecordTransition', args)
 })
 
 // make sure all your hooks are async or return promises

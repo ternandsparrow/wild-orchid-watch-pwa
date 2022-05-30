@@ -395,6 +395,7 @@ export const workerMessages = {
   facadeDeleteSuccess: 'facade-delete-success',
   facadeCreateSuccess: 'facade-create-success',
   facadeEditSuccess: 'facade-edit-success',
+  onLocalRecordTransition: 'local-record-transition',
 }
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'

@@ -33,6 +33,7 @@ import {
   recordTypeEnum as recordType,
   rectangleAlongPathAreaValueToTitle,
   verifyWowDomainPhoto,
+  wowErrorHandler,
   wowIdOf,
   wowWarnMessage,
 } from '@/misc/helpers'
@@ -41,29 +42,29 @@ import { deserialise } from '@/misc/taxon-s11n'
 
 registerWarnHandler(wowWarnMessage)
 registerUuidGenerator(uuid)
-const anyFromOutcome = []
 let taxaIndex = null
 let taskChecksTracker = null
 
 const exposed = {
+  cancelFailedDeletes,
   cleanupPhotosForObs,
   deletePendingTask,
   deleteRecord,
   doSpeciesAutocomplete,
   getAllJournalPosts,
+  getAllPendingTasks,
   getAllRemoteRecords,
   getFullLocalObsDetail,
   getFullRemoteObsDetail,
   getFullSizePhotoUrl,
   getLocalQueueSummary,
-  getAllPendingTasks,
   getPhotosForLocalObs,
   performMigrations,
+  retryUpload,
   saveEditAndScheduleUpdate,
   saveNewAndScheduleUpload,
   scheduleTaskChecks,
-  transitionToWaitingOutcome,
-  _transitionHelper,
+  transitionRecord,
 }
 comlinkExpose(exposed)
 
@@ -93,17 +94,19 @@ async function getAllRemoteRecords(myUserId, apiToken) {
   //  the summary here and the detail mapping can be done later, when the
   //  ObsDetail view is opened.
   const allMappedRecords = allRawRecords.map(mapObsFromApiIntoOurDomain)
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  await metaStore.setItem(cc.remoteObsKey, allMappedRecords)
+  await metaStoreWrite(cc.remoteObsKey, allMappedRecords)
   const allRecordSummaries = allMappedRecords.map(mapRemoteRecordToSummary)
   return allRecordSummaries
 }
 
-async function getFullRemoteObsDetail(theUuid, detailedModeOnlyObsFieldIds) {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  const remoteObs = await metaStore.getItem(cc.remoteObsKey)
+async function getFullRemoteObsDetail(
+  theUuid,
+  detailedModeOnlyObsFieldIds,
+  throwOnMissing = true,
+) {
+  const remoteObs = await metaStoreRead(cc.remoteObsKey)
   const found = remoteObs.find(e => e.uuid === theUuid)
-  if (!found) {
+  if (!found && throwOnMissing) {
     throw new Error(`Selected obs ${theUuid} has no remote record in the db`)
   }
   if (detailedModeOnlyObsFieldIds) {
@@ -404,7 +407,7 @@ async function checkForObsCreateCompletion(task, apiToken) {
   }
   if (ts === 'failure') {
     console.warn(`Failure checking for create ${task.uuid}`)
-    await transitionToSystemErrorOutcome(task.uuid)
+    await transitionRecord(task.uuid, cc.systemErrorOutcome)
     return true
   }
   if (ts === 'success') {
@@ -412,11 +415,9 @@ async function checkForObsCreateCompletion(task, apiToken) {
     const mapped = mapObsFromApiIntoOurDomain(resp.upstreamBody)
     const summary = mapRemoteRecordToSummary(mapped)
     await cleanLocalRecord(task.uuid, summary)
-    const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-    const remoteObs = await metaStore.getItem(cc.remoteObsKey)
-    // FIXME confirm this works by loading detail for a new record
+    const remoteObs = await metaStoreRead(cc.remoteObsKey)
     remoteObs.splice(0, 0, mapped)
-    await metaStore.setItem(cc.remoteObsKey, remoteObs)
+    await metaStoreWrite(cc.remoteObsKey, remoteObs)
     _postMessageToUiThread(cc.workerMessages.facadeCreateSuccess, { summary })
     return true
   }
@@ -432,7 +433,7 @@ async function checkForObsEditCompletion(task, apiToken) {
   }
   if (ts === 'failure') {
     console.warn(`Failure checking for edit ${task.uuid}`)
-    await transitionToSystemErrorOutcome(task.uuid)
+    await transitionRecord(task.uuid, cc.systemErrorOutcome)
     return true
   }
   if (ts === 'success') {
@@ -440,11 +441,13 @@ async function checkForObsEditCompletion(task, apiToken) {
     const mapped = mapObsFromApiIntoOurDomain(resp.upstreamBody)
     const summary = mapRemoteRecordToSummary(mapped)
     await cleanLocalRecord(task.uuid, summary)
-    const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-    const remoteObs = await metaStore.getItem(cc.remoteObsKey)
-    // FIXME confirm this works by loading detail for an edit record
+    const remoteObs = await metaStoreRead(cc.remoteObsKey)
+    const indexOfExisting = remoteObs.findIndex(e => e.uuid === task.uuid)
+    if (indexOfExisting >= 0) {
+      remoteObs.splice(indexOfExisting, 0)
+    }
     remoteObs.splice(0, 0, mapped)
-    await metaStore.setItem(cc.remoteObsKey, remoteObs)
+    await metaStoreWrite(cc.remoteObsKey, remoteObs)
     _postMessageToUiThread(cc.workerMessages.facadeEditSuccess, { summary })
     return true
   }
@@ -707,68 +710,44 @@ async function saveNewAndScheduleUpload({
   } catch (err) {
     throw chainedError(`Failed to save new record to local queue.`, err)
   }
-  try {
-    await transitionToBeingProcessedOutcome(newRecordId)
-    await sendNewObsToFacade(enhancedRecord, apiToken, projectId)
-    await transitionToSuccessOutcome(newRecordId)
-    return newRecordId
-  } catch (err) {
-    await transitionToSystemErrorOutcome(newRecordId)
-    // FIXME handle error sending. Record is saved, so we just have to show a
-    // retry button. Do we still show the user an alert? How do we determine to
-    // show the retry button? A local record with no corresponding pending
-    // task?
-    throw chainedError('Failed to send new record to facade', err)
+  sendNewObsToFacade(newRecordId, apiToken, projectId)
+  return newRecordId
+}
+
+// FIXME can we have the worker do all network requests and apiToken is stored
+//  in localForage. Worker can load apiToken whenever it needs it, and if
+//  expired (either decode JWT or 401) we can refresh and send message to UI
+//  that it's been updated.
+
+async function retryUpload(ids, apiToken, projectId) {
+  const strategies = {
+    [recordType('new')]: recordUuid => {
+      return sendNewObsToFacade(recordUuid, apiToken, projectId)
+    },
+    [recordType('edit')]: recordUuid => {
+      return sendEditObsToFacade(recordUuid, apiToken)
+    },
+    [recordType('delete')]: recordUuid => {
+      return deleteRecord(recordUuid, apiToken)
+    },
+  }
+  for (const currId of ids) {
+    const record = await getRecord(currId)
+    const rType = record.wowMeta[cc.recordTypeFieldName]
+    const strat = strategies[rType]
+    if (!strat) {
+      throw new Error(`Unhandled record type: ${rType}`)
+    }
+    await strat(currId)
   }
 }
 
-async function transitionToSuccessOutcome(recordUuid) {
-  return _transitionHelper({
+async function transitionRecord(recordUuid, targetOutcome) {
+  await setRecordProcessingOutcome(recordUuid, targetOutcome)
+  _postMessageToUiThread(cc.workerMessages.onLocalRecordTransition, {
     recordUuid,
-    targetOutcome: cc.successOutcome,
-    validFromOutcomes: [cc.beingProcessedOutcome],
+    targetOutcome,
   })
-}
-
-async function transitionToBeingProcessedOutcome(recordUuid) {
-  return _transitionHelper({
-    recordUuid,
-    targetOutcome: cc.beingProcessedOutcome,
-    validFromOutcomes: [cc.waitingOutcome],
-  })
-}
-
-async function transitionToWaitingOutcome(recordUuid) {
-  return _transitionHelper({
-    recordUuid,
-    targetOutcome: cc.waitingOutcome,
-    validFromOutcomes: anyFromOutcome,
-  })
-}
-
-async function transitionToSystemErrorOutcome(recordUuid) {
-  return _transitionHelper({
-    recordUuid,
-    targetOutcome: cc.systemErrorOutcome,
-    validFromOutcomes: [cc.beingProcessedOutcome, cc.waitingOutcome],
-  })
-}
-
-async function _transitionHelper({
-  recordUuid,
-  targetOutcome,
-  validFromOutcomes,
-}) {
-  const isRestrictFromOutcomes = (validFromOutcomes || []).length
-  const record = await getRecord(recordUuid)
-  const fromOutcome = record.wowMeta[cc.recordProcessingOutcomeFieldName]
-  if (isRestrictFromOutcomes && !validFromOutcomes.includes(fromOutcome)) {
-    throw new Error(
-      `Unhandled fromOutcome=${fromOutcome} when transitioning to ${targetOutcome}`,
-    )
-  }
-  setRecordProcessingOutcome(recordUuid, targetOutcome)
-  notifyUiToRefreshLocalRecordQueue()
 }
 
 function notifyUiToRefreshLocalRecordQueue() {
@@ -779,7 +758,21 @@ function _postMessageToUiThread(msgKey, data) {
   self.postMessage({ wowKey: msgKey, data })
 }
 
-async function sendNewObsToFacade(dbRecord, apiToken, projectId) {
+async function sendNewObsToFacade(recordUuid, apiToken, projectId) {
+  try {
+    await transitionRecord(recordUuid, cc.beingProcessedOutcome, true)
+    await _sendNewObsToFacade(recordUuid, apiToken, projectId)
+    await transitionRecord(recordUuid, cc.successOutcome)
+  } catch (err) {
+    // record was saved, so we don't need to scare the user. The transition
+    // above will make sure the UI reflects the failure.
+    wowErrorHandler('Failed to send new record to facade', err)
+    await transitionRecord(recordUuid, cc.systemErrorOutcome)
+  }
+}
+
+async function _sendNewObsToFacade(recordUuid, apiToken, projectId) {
+  const dbRecord = await getRecord(recordUuid)
   await saveApiToken(apiToken)
   const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
   const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
@@ -828,7 +821,21 @@ async function sendNewObsToFacade(dbRecord, apiToken, projectId) {
   })
 }
 
-async function sendEditObsToFacade(dbRecord, apiToken) {
+async function sendEditObsToFacade(recordUuid, apiToken) {
+  try {
+    await transitionRecord(recordUuid, cc.beingProcessedOutcome, true)
+    await _sendEditObsToFacade(recordUuid, apiToken)
+    await transitionRecord(recordUuid, cc.successOutcome)
+  } catch (err) {
+    // record was saved, so we don't need to scare the user. The transition
+    // above will make sure the UI reflects the failure.
+    wowErrorHandler('Failed to send edit record to facade', err)
+    await transitionRecord(recordUuid, cc.systemErrorOutcome)
+  }
+}
+
+async function _sendEditObsToFacade(recordUuid, apiToken) {
+  const dbRecord = await getRecord(recordUuid)
   await saveApiToken(apiToken)
   const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
   const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
@@ -892,17 +899,21 @@ async function saveEditAndScheduleUpdate(
   const editedUuid = record.uuid
   let enhancedRecord
   try {
-    const existingRemoteRecord = await getFullRemoteObsDetail(record.uuid)
+    const existingRemoteRecord = await getFullRemoteObsDetail(
+      record.uuid,
+      null,
+      false,
+    )
     const existingLocalRecord = await getRecord(editedUuid)
-    const dbRecord = existingLocalRecord || {
-      inatId: existingRemoteRecord.inatId,
-      uuid: editedUuid,
-    }
     if (!existingLocalRecord && !existingRemoteRecord) {
       throw new Error(
         'Data problem: Cannot find existing local or remote record,' +
           'cannot continue without at least one',
       )
+    }
+    const dbRecord = existingLocalRecord || {
+      inatId: (existingRemoteRecord || {}).inatId,
+      uuid: editedUuid,
     }
     const newPhotos = (await processPhotos(record.addedPhotos)) || []
     const photos = computePhotos(
@@ -955,23 +966,12 @@ async function saveEditAndScheduleUpdate(
     }
   } catch (err) {
     throw chainedError(
-      `Failed to save and upload edited record with UUID='${editedUuid}'`,
+      `Failed to save edited record with UUID='${editedUuid}'`,
       err,
     )
   }
-  try {
-    await transitionToBeingProcessedOutcome(editedUuid)
-    await sendEditObsToFacade(enhancedRecord, apiToken)
-    await transitionToSuccessOutcome(editedUuid)
-    return wowIdOf(enhancedRecord)
-  } catch (err) {
-    await transitionToSystemErrorOutcome(editedUuid)
-    // FIXME handle error sending. Record is saved, so we just have to show a
-    // retry button. Do we still show the user an alert? How do we determine to
-    // show the retry button? A local record with no corresponding pending
-    // task?
-    throw chainedError('Failed to send edit record to facade', err)
-  }
+  sendEditObsToFacade(editedUuid, apiToken)
+  return wowIdOf(enhancedRecord)
 }
 
 function getEditStrategy(existingLocalRecord, existingRemoteRecord) {
@@ -1134,12 +1134,17 @@ function isObsStateProcessing(state) {
   return processingStates.includes(state)
 }
 
-function deleteRecord(theUuid, inatRecordId, apiToken) {
+function deleteRecord(theUuid, apiToken) {
   const doDeleteFn = deleteDbRecordById
-  return _deleteRecord(theUuid, inatRecordId, apiToken, doDeleteFn)
+  return _deleteRecord(theUuid, apiToken, doDeleteFn)
 }
 
-async function _deleteRecord(theUuid, inatRecordId, apiToken, doDeleteFn) {
+async function cancelFailedDeletes(dbRecordUuids) {
+  await Promise.all(dbRecordUuids.map(currId => deleteDbRecordById(currId)))
+  notifyUiToRefreshLocalRecordQueue()
+}
+
+async function _deleteRecord(theUuid, apiToken, doDeleteFn) {
   if (!theUuid) {
     throw namedError(
       'InvalidState',
@@ -1147,18 +1152,33 @@ async function _deleteRecord(theUuid, inatRecordId, apiToken, doDeleteFn) {
         'observation is selected',
     )
   }
-  try {
-    await doDeleteFn(theUuid)
-  } catch (err) {
-    throw new chainedError(
-      `Failed to delete local record for UUID='${theUuid}'`,
-      err,
-    )
+  const localRecord = await getRecord(theUuid)
+  if (localRecord) {
+    try {
+      await doDeleteFn(theUuid)
+    } catch (err) {
+      throw new chainedError(
+        `Failed to delete local record for UUID='${theUuid}'`,
+        err,
+      )
+    }
   }
-  const isLocalOnly = !inatRecordId && theUuid
-  if (isLocalOnly) {
-    console.warn('Observation is local-only, no need to contact iNat')
+  const remoteRecords = await metaStoreRead(cc.remoteObsKey)
+  const remoteRecord = remoteRecords.find(e => e.uuid === theUuid)
+  if (!remoteRecord) {
+    console.info('Observation is local-only, no need to contact iNat')
+    // kill any in-flight task for this ID
+    await deletePendingTask(theUuid) // FIXME verify works
+    _postMessageToUiThread(cc.workerMessages.facadeDeleteSuccess, { theUuid })
     return
+  }
+  const inatRecordId = remoteRecord.inatId
+  if (!inatRecordId) {
+    throw new Error(
+      `Could not find inatId for ${theUuid}; remote record=${JSON.strategies(
+        remoteRecord,
+      )}`,
+    )
   }
   // FIXME handling failed bundle requests could be tricky. If request 1 fails,
   // but then request 2 succeeds, we don't need to retry req 1. We need a way
@@ -1299,14 +1319,12 @@ async function getAllPendingTasks() {
 
 async function _getPendingTasks() {
   // FIXME consider updating our fork of localForage
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  const raw = await metaStore.getItem(cc.pendingTasksKey)
+  const raw = await metaStoreRead(cc.pendingTasksKey)
   return raw || {}
 }
 
 async function _setPendingTasks(tasks) {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  await metaStore.setItem(cc.pendingTasksKey, tasks)
+  await metaStoreWrite(cc.pendingTasksKey, tasks)
 }
 
 async function addPendingTask(task) {
@@ -1352,8 +1370,7 @@ function scheduleTaskChecks(delayMs = 13) {
 }
 
 async function runChecksForTasks() {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  const apiToken = await metaStore.getItem(cc.apiTokenKey)
+  const apiToken = await metaStoreRead(cc.apiTokenKey)
   if (!apiToken) {
     console.warn('No apiToken, refusing to run checks')
     return
@@ -1389,14 +1406,22 @@ async function runChecksForTasks() {
     console.debug('[Poll] no tasks left, not scheduling another check')
     return
   }
-  const frequencyOfTaskChecksSeconds = 60 // FIXME make config
   console.debug('[Poll] tasks remain, scheduling another check')
-  scheduleTaskChecks(frequencyOfTaskChecksSeconds * 1000)
+  scheduleTaskChecks(cc.frequencyOfTaskChecksSeconds * 1000)
 }
 
 async function saveApiToken(apiToken) {
+  await metaStoreWrite(cc.apiTokenKey, apiToken)
+}
+
+async function metaStoreRead(key) {
   const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  await metaStore.setItem(cc.apiTokenKey, apiToken)
+  return metaStore.getItem(key)
+}
+
+async function metaStoreWrite(key, val) {
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  return metaStore.setItem(key, val)
 }
 
 // eslint-disable-next-line import/prefer-default-export

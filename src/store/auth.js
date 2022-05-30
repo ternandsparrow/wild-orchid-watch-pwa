@@ -5,13 +5,11 @@ import * as Sentry from '@sentry/browser' // piggybacks on the config done in sr
 
 import * as constants from '@/misc/constants'
 import {
-  arrayBufferToBlob,
   chainedError,
   deleteWithAuth,
   getJsonWithAuth,
   isNoSwActive,
   now,
-  postFormDataWithAuth,
   postJsonWithAuth,
   putJsonWithAuth,
   wowWarnHandler,
@@ -205,35 +203,6 @@ export default {
         throw chainedError(
           `Failed to make PUT to API with URL suffix='${urlSuffix}' and ` +
             `data='${JSON.stringify(data)}'`,
-          err,
-        )
-      }
-    },
-    async doPhotoPost({ state, dispatch }, { obsId, photoRecord }) {
-      try {
-        await dispatch('_refreshApiTokenIfRequired')
-        const resp = await postFormDataWithAuth(
-          `${constants.apiUrlBase}/observation_photos`,
-          formData => {
-            formData.append('observation_photo[observation_id]', obsId)
-            const photoBlob = arrayBufferToBlob(
-              photoRecord.file.data,
-              photoRecord.file.mime,
-            )
-            // we create a File so we can encode the type of the photo in the
-            // filename. Very sneaky ;)
-            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
-              type: photoBlob.type,
-            })
-            formData.append('file', photoFile)
-          },
-          `${state.apiToken}`,
-        )
-        return resp
-      } catch (err) {
-        // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
-          `Failed to POST observation photo attached to observation ID='${obsId}'`,
           err,
         )
       }

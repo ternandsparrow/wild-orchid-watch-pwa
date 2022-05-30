@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import {
-  deleteDbRecordById,
+  // FIXME ideally no store operations are called from this module. So remove
+  //  all these imports and use the worker
   healthcheckStore,
   mapCommentFromApiToOurDomain,
   processObsFieldName,
@@ -52,6 +53,35 @@ const mutations = {
   },
   setIsUpdatingRemoteObs: (state, value) => (state.isUpdatingRemoteObs = value),
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
+  handleLocalRecordTransition: (state, { recordUuid, targetOutcome }) => {
+    const lqs = state.localQueueSummary
+    const i = lqs.findIndex(e => e.uuid === recordUuid)
+    if (i < 0) {
+      return
+    }
+    lqs[i].wowMeta[cc.recordProcessingOutcomeFieldName] = targetOutcome
+  },
+  handleObsCreateOrEditCompletion: (state, obsSummary) => {
+    console.debug(
+      `UI thread handling create/edit for uuid=${obsSummary.uuid} completion`,
+    )
+    const remoteObs = state.allRemoteObs
+    const indexOfExisting = remoteObs.findIndex(e => e.uuid === obsSummary.uuid)
+    if (indexOfExisting >= 0) {
+      remoteObs.splice(indexOfExisting, 1, obsSummary)
+    } else {
+      remoteObs.splice(0, 0, obsSummary)
+    }
+    removeElementWithUuid(state.localQueueSummary, obsSummary.uuid)
+  },
+  handleObsDeleteCompletion: (state, theUuid) => {
+    console.debug(`UI thread handling DELETE ${theUuid} completion`)
+    const indexRemote = state.allRemoteObs.findIndex(e => e.uuid === theUuid)
+    if (indexRemote >= 0) {
+      state.allRemoteObs.splice(indexRemote, 1)
+    }
+    removeElementWithUuid(state.localQueueSummary, theUuid)
+  },
   setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isNothingSelected = !value
@@ -322,40 +352,14 @@ const actions = {
   },
   async deleteSelectedRecord({ state, commit, dispatch }) {
     const theUuid = state.selectedObservationUuid
-    const inatId = (() => {
-      const existingRemoteRecord = state.allRemoteObs.find(
-        e => e.uuid === theUuid,
-      )
-      if (existingRemoteRecord) {
-        return existingRemoteRecord.inatId
-      }
-      return null
-    })()
     const worker = getWebWorker()
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    await worker.deleteRecord(theUuid, inatId, apiToken)
-    // FIXME remove record from localQueueSummary if exists
+    await worker.deleteRecord(theUuid, apiToken)
+    // worker will send event for UI to update record lists
     commit('setSelectedObservationUuid', null)
   },
-  handleObsDeleteCompletion({ commit, state }, theUuid) {
-    console.debug(`UI thread handling DELETE ${theUuid} completion`)
-    const filteredRemoteObs = state.allRemoteObs.filter(e => e.uuid !== theUuid)
-    commit('setAllRemoteObs', filteredRemoteObs)
-  },
-  async handleObsCreateOrEditCompletion({ commit, state }, obsSummary) {
-    console.debug(
-      `UI thread handling create/edit for uuid=${obsSummary.uuid} completion`,
-    )
-    const remoteObs = state.allRemoteObs
-    const indexOfExisting = remoteObs.findIndex(e => e.uuid === obsSummary.uuid)
-    if (indexOfExisting >= 0) {
-      remoteObs.splice(indexOfExisting, 1, obsSummary)
-    } else {
-      remoteObs.splice(0, 0, obsSummary)
-    }
-    commit('setAllRemoteObs', remoteObs)
-  },
   async refreshLocalRecordQueue({ commit }) {
+    const startMs = Date.now()
     console.debug('[refreshLocalRecordQueue] starting')
     try {
       const localQueueSummary = await getWebWorker().getLocalQueueSummary()
@@ -364,6 +368,8 @@ const actions = {
       console.debug('[refreshLocalRecordQueue] finished')
     } catch (err) {
       throw chainedError('Failed to refresh localRecordQueue', err)
+    } finally {
+      console.debug(`[refreshLocalRecordQueue] took ${Date.now() - startMs}ms`)
     }
   },
   cleanupPhotosForObs() {
@@ -513,7 +519,7 @@ const actions = {
       )
     }
   },
-  async resetProcessingOutcomeForSelectedRecord({ state, dispatch }) {
+  async retryForSelectedRecord({ state, dispatch }) {
     const selectedUuid = state.selectedObservationUuid
     if (!selectedUuid) {
       throw namedError(
@@ -521,23 +527,20 @@ const actions = {
         'Tried to reset the selected observation but no observation is selected',
       )
     }
-    await getWebWorker().transitionToWaitingOutcome(selectedUuid)
-    return dispatch('refreshLocalRecordQueue')
-    // FIXME have to actually trigger them now there's no queue processor
+    await dispatch('retryUpload', [selectedUuid])
   },
   async retryFailedDeletes({ dispatch }) {
     const idsToRetry = dispatch('getDbIdsWithErroredDeletes')
-    const worker = getWebWorker()
-    await Promise.all(
-      idsToRetry.map(currId => worker.transitionToWaitingOutcome(currId)),
-    )
-    // FIXME have to actually trigger them now there's no queue processor
-    return dispatch('refreshLocalRecordQueue')
+    return dispatch('retryUpload', idsToRetry)
+  },
+  async retryUpload({ getters, dispatch }, recordUuids) {
+    const apiToken = await dispatch('auth/getApiToken', null, { root: true })
+    const projectId = getters.projectId
+    return getWebWorker().retryUpload(recordUuids, apiToken, projectId)
   },
   async cancelFailedDeletes({ dispatch }) {
     const idsToCancel = dispatch('getDbIdsWithErroredDeletes')
-    await Promise.all(idsToCancel.map(currId => deleteDbRecordById(currId)))
-    return dispatch('refreshLocalRecordQueue')
+    await getWebWorker().cancelFailedDeletes(idsToCancel)
   },
   findObsInatIdForUuid({ state }, uuid) {
     const found = state.allRemoteObs.find(e => e.uuid === uuid)
@@ -708,4 +711,12 @@ export function extractGeolocationText(record) {
 
 function trimDecimalPlaces(val) {
   return parseFloat(val).toFixed(6)
+}
+
+function removeElementWithUuid(collection, theUuid) {
+  const index = collection.findIndex(e => e.uuid === theUuid)
+  if (index < 0) {
+    return
+  }
+  collection.splice(index, 1)
 }
