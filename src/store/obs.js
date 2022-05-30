@@ -1,4 +1,4 @@
-import _ from 'lodash'
+import { omitBy, isEqual, isNil, cloneDeep, get } from 'lodash'
 import {
   // FIXME ideally no store operations are called from this module. So remove
   //  all these imports and use the worker
@@ -11,7 +11,7 @@ import {
 import * as cc from '@/misc/constants'
 import {
   buildStaleCheckerFn,
-  chainedError,
+  ChainedError,
   fetchSingleRecord,
   namedError,
   now,
@@ -55,7 +55,7 @@ const mutations = {
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
   handleLocalRecordTransition: (state, { recordUuid, targetOutcome }) => {
     const lqs = state.localQueueSummary
-    const i = lqs.findIndex(e => e.uuid === recordUuid)
+    const i = lqs.findIndex((e) => e.uuid === recordUuid)
     if (i < 0) {
       return
     }
@@ -66,7 +66,9 @@ const mutations = {
       `UI thread handling create/edit for uuid=${obsSummary.uuid} completion`,
     )
     const remoteObs = state.allRemoteObs
-    const indexOfExisting = remoteObs.findIndex(e => e.uuid === obsSummary.uuid)
+    const indexOfExisting = remoteObs.findIndex(
+      (e) => e.uuid === obsSummary.uuid,
+    )
     if (indexOfExisting >= 0) {
       remoteObs.splice(indexOfExisting, 1, obsSummary)
     } else {
@@ -76,7 +78,7 @@ const mutations = {
   },
   handleObsDeleteCompletion: (state, theUuid) => {
     console.debug(`UI thread handling DELETE ${theUuid} completion`)
-    const indexRemote = state.allRemoteObs.findIndex(e => e.uuid === theUuid)
+    const indexRemote = state.allRemoteObs.findIndex((e) => e.uuid === theUuid)
     if (indexRemote >= 0) {
       state.allRemoteObs.splice(indexRemote, 1)
     }
@@ -89,10 +91,10 @@ const mutations = {
       return
     }
     const stack = state.recentlyUsedTaxa[type] || []
-    const existingIndex = stack.findIndex(e => {
+    const existingIndex = stack.findIndex((e) => {
       // objects from the store don't keep nil-ish props
-      const valueWithoutNilishProps = _.omitBy(value, _.isNil)
-      return _.isEqual(e, valueWithoutNilishProps)
+      const valueWithoutNilishProps = omitBy(value, isNil)
+      return isEqual(e, valueWithoutNilishProps)
     })
     const isValueAlreadyInStack = existingIndex >= 0
     if (isValueAlreadyInStack) {
@@ -117,7 +119,9 @@ const actions = {
       {},
     )
     const worker = getWebWorker()
-    const isLocalRecord = state.localQueueSummary.find(e => e.uuid === theUuid)
+    const isLocalRecord = state.localQueueSummary.find(
+      (e) => e.uuid === theUuid,
+    )
     if (isLocalRecord) {
       const [obsDetail, photos] = await Promise.all([
         worker.getFullLocalObsDetail(theUuid, detailedModeOnlyObsFieldIds),
@@ -135,7 +139,7 @@ const actions = {
     obsDetail.photos = obsDetail.photos.map((e, index) => ({
       ...e,
       id: e.id,
-      uiKey: 'photo-' + index,
+      uiKey: `photo-${index}`,
       url: e.url.replace('square', 'medium'),
     }))
     return obsDetail
@@ -145,7 +149,7 @@ const actions = {
     console.debug(
       `Sleeping for ${delayToLetServerPerformIndexingMs}ms before refreshing remote`,
     )
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       setTimeout(() => {
         resolve()
       }, delayToLetServerPerformIndexingMs)
@@ -155,7 +159,7 @@ const actions = {
   async refreshRemoteObs({ commit, dispatch, rootGetters }) {
     commit('setIsUpdatingRemoteObs', true)
     try {
-      const myUserId = rootGetters.myUserId
+      const { myUserId } = rootGetters
       if (!myUserId) {
         console.debug(
           'No userID present, refusing to try to get my observations',
@@ -185,7 +189,7 @@ const actions = {
   },
   async getMySpecies({ commit, dispatch, rootGetters }) {
     // FIXME probably doesn't need to be in the store, handle in component
-    const myUserId = rootGetters.myUserId
+    const { myUserId } = rootGetters
     if (!myUserId) {
       console.debug('No userID present, refusing to try to get my species')
       return
@@ -193,8 +197,8 @@ const actions = {
     const urlSuffix = `/observations/species_counts?user_id=${myUserId}&project_id=${cc.inatProjectSlug}`
     try {
       const resp = await dispatch('doApiGet', { urlSuffix }, { root: true })
-      const records = resp.results.map(d => {
-        const taxon = d.taxon
+      const records = resp.results.map((d) => {
+        const { taxon } = d
         return {
           id: taxon.id,
           observationCount: d.count, // TODO assume this is *my* count, not system count
@@ -210,7 +214,6 @@ const actions = {
         { msg: 'Failed to get my species counts', err },
         { root: true },
       )
-      return
     }
   },
   async buildObsFieldSorter({ dispatch }) {
@@ -221,14 +224,14 @@ const actions = {
    * Split the core logic into an easily testable function
    */
   _buildObsFieldSorterWorkhorse({ getters }) {
-    return function(obsFieldsToSort, targetField) {
+    return function (obsFieldsToSort, targetField) {
       if (!targetField) {
         throw new Error('Required string param "targetField" is missing')
       }
       if (!obsFieldsToSort || obsFieldsToSort.constructor !== Array) {
         throw new Error('Required array param "obsFieldsToSort" is missing')
       }
-      if (!obsFieldsToSort.every(f => !!f[targetField])) {
+      if (!obsFieldsToSort.every((f) => !!f[targetField])) {
         throw new Error(
           `All obsFieldsToSort MUST have the "${targetField}" field. ` +
             `First item as sample: ${JSON.stringify(obsFieldsToSort[0])}`,
@@ -262,10 +265,9 @@ const actions = {
     }
     console.debug('Refreshing project info')
     await dispatch('getProjectInfo')
-    return
   },
   async getProjectInfo({ state, commit }) {
-    const url = cc.apiUrlBase + '/projects/' + cc.inatProjectSlug
+    const url = `${cc.apiUrlBase}/projects/${cc.inatProjectSlug}`
     try {
       const projectInfo = await fetchSingleRecord(url)
       if (!projectInfo) {
@@ -277,7 +279,7 @@ const actions = {
       commit('setProjectInfo', projectInfo)
       return state.projectInfo
     } catch (err) {
-      throw chainedError('Failed to get project info', err)
+      throw ChainedError('Failed to get project info', err)
     }
   },
   async doSpeciesAutocomplete(_, { partialText, speciesListType }) {
@@ -287,11 +289,11 @@ const actions = {
     return getWebWorker().doSpeciesAutocomplete(partialText, speciesListType)
   },
   inatIdToUuid({ getters }, inatId) {
-    for (const curr of [getters.localRecords, getters.remoteRecords]) {
-      const found = curr.find(e => e.inatId === inatId)
-      if (found) {
-        return found.uuid
-      }
+    const found = [...getters.localRecords, ...getters.remoteRecords].find(
+      (e) => e.inatId === inatId,
+    )
+    if (found) {
+      return found.uuid
     }
     return null
   },
@@ -321,7 +323,7 @@ const actions = {
       const msg = `Failed while saving edit observation for ${record.speciesGuess}`
       await dispatch(
         'flagGlobalError',
-        { msg: msg, userMsg: msg, err: err },
+        { msg, userMsg: msg, err },
         { root: true },
       )
       dispatch('refreshLocalRecordQueue')
@@ -330,7 +332,7 @@ const actions = {
   async saveNewAndScheduleUpload({ dispatch, getters }, { record, isDraft }) {
     const worker = getWebWorker()
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    const projectId = getters.projectId
+    const { projectId } = getters
     try {
       const newRecordId = await worker.saveNewAndScheduleUpload({
         record,
@@ -344,7 +346,7 @@ const actions = {
       const msg = `Failed while saving new observation for ${record.speciesGuess}`
       await dispatch(
         'flagGlobalError',
-        { msg: msg, userMsg: msg, err: err },
+        { msg, userMsg: msg, err },
         { root: true },
       )
       dispatch('refreshLocalRecordQueue')
@@ -365,7 +367,7 @@ const actions = {
       const localQueueSummary = await getWebWorker().getLocalQueueSummary()
       commit('setLocalQueueSummary', localQueueSummary)
     } catch (err) {
-      throw chainedError('Failed to refresh localRecordQueue', err)
+      throw ChainedError('Failed to refresh localRecordQueue', err)
     } finally {
       console.debug(`[refreshLocalRecordQueue] took ${Date.now() - startMs}ms`)
     }
@@ -377,18 +379,18 @@ const actions = {
     // FIXME move this fn to the worker, and we probably don't have to clone
     //  all the remote obs, we can just look them the right up and get it from
     //  the DB
-    const existingRemoteObs = _.cloneDeep(state.allRemoteObs)
-    const targetObs = existingRemoteObs.find(e => e.inatId === obsId)
+    const existingRemoteObs = cloneDeep(state.allRemoteObs)
+    const targetObs = existingRemoteObs.find((e) => e.inatId === obsId)
     if (!targetObs) {
       throw new Error(
         `Could not find existing remote obs with ID='${obsId}' from IDs=${JSON.stringify(
-          existingRemoteObs.map(o => o.inatId),
+          existingRemoteObs.map((o) => o.inatId),
         )}`,
       )
     }
     const obsComments = targetObs.comments || []
     const strategy = (() => {
-      const existingCommentUuids = obsComments.map(c => c.uuid)
+      const existingCommentUuids = obsComments.map((c) => c.uuid)
       const key =
         `${commentRecord.body ? '' : 'no-'}body|` +
         `${existingCommentUuids.includes(commentRecord.uuid) ? 'not-' : ''}new`
@@ -398,29 +400,29 @@ const actions = {
         },
         'body|not-new': function editStrategy() {
           const targetComment = obsComments.find(
-            c => c.uuid === commentRecord.uuid,
+            (c) => c.uuid === commentRecord.uuid,
           )
           if (!targetComment) {
             throw new Error(
               `Could not find comment with UUID='${commentRecord.uuid}' to ` +
                 `edit. Available comment UUIDs=${JSON.stringify(
-                  obsComments.map(c => c.uuid),
+                  obsComments.map((c) => c.uuid),
                 )}`,
             )
           }
-          for (const currKey of Object.keys(commentRecord)) {
+          Object.keys(commentRecord).forEach((currKey) => {
             targetComment[currKey] = commentRecord[currKey]
-          }
+          })
         },
         'no-body|not-new': function deleteStrategy() {
           const indexOfComment = obsComments.findIndex(
-            e => e.uuid === commentRecord.uuid,
+            (e) => e.uuid === commentRecord.uuid,
           )
           if (!~indexOfComment) {
             throw new Error(
               `Could not find comment with UUID='${commentRecord.uuid}' to ` +
                 `delete. Available comment UUIDs=${JSON.stringify(
-                  obsComments.map(c => c.uuid),
+                  obsComments.map((c) => c.uuid),
                 )}`,
             )
           }
@@ -463,7 +465,7 @@ const actions = {
       })
       return commentResp.id
     } catch (err) {
-      throw new chainedError('Failed to create new comment', err)
+      throw new ChainedError('Failed to create new comment', err)
     }
   },
   async editComment({ dispatch }, { obsId, commentRecord }) {
@@ -490,7 +492,7 @@ const actions = {
       })
       return commentResp.id
     } catch (err) {
-      throw new chainedError('Failed to create new comment', err)
+      throw new ChainedError('Failed to create new comment', err)
     }
   },
   async deleteComment({ dispatch }, { obsId, commentRecord }) {
@@ -511,7 +513,7 @@ const actions = {
         },
       })
     } catch (err) {
-      throw new chainedError(
+      throw new ChainedError(
         `Failed to delete comment with ID=${commentId}, owned by obsId=${obsId}`,
         err,
       )
@@ -533,7 +535,7 @@ const actions = {
   },
   async retryUpload({ getters, dispatch }, recordUuids) {
     const apiToken = await dispatch('auth/getApiToken', null, { root: true })
-    const projectId = getters.projectId
+    const { projectId } = getters
     return getWebWorker().retryUpload(recordUuids, apiToken, projectId)
   },
   async cancelFailedDeletes({ dispatch }) {
@@ -541,9 +543,9 @@ const actions = {
     await getWebWorker().cancelFailedDeletes(idsToCancel)
   },
   findObsInatIdForUuid({ state }, uuid) {
-    const found = state.allRemoteObs.find(e => e.uuid === uuid)
+    const found = state.allRemoteObs.find((e) => e.uuid === uuid)
     if (!found) {
-      const allUuids = (state.allRemoteObs || []).map(e => e.uuid)
+      const allUuids = (state.allRemoteObs || []).map((e) => e.uuid)
       throw new Error(
         `Could not find obs with UUID='${uuid}' from UUIDs=${allUuids}`,
       )
@@ -561,7 +563,7 @@ const actions = {
     try {
       await healthcheckStore()
     } catch (err) {
-      throw chainedError('Failed to init localForage instance', err)
+      throw ChainedError('Failed to init localForage instance', err)
     }
   },
   getFullSizePhotoUrl(_, photoUuid) {
@@ -570,36 +572,36 @@ const actions = {
   getDbIdsWithErroredDeletes({ state }) {
     return state.localQueueSummary
       .filter(
-        e =>
+        (e) =>
           e.wowMeta[cc.recordTypeFieldName] === recordType('delete') &&
           isErrorOutcome(e.wowMeta[cc.recordProcessingOutcomeFieldName]),
       )
-      .map(e => e.uuid)
+      .map((e) => e.uuid)
   },
   getWaitingForDeleteCount({ state }) {
     return state.localQueueSummary.filter(
-      e =>
+      (e) =>
         e.wowMeta[cc.recordTypeFieldName] === recordType('delete') &&
         !isErrorOutcome(e.wowMeta[cc.recordProcessingOutcomeFieldName]),
     ).length
   },
 }
 
-const getters = {
+const gettersObj = {
   // FIXME try to remove these as they're expensive to compute
   selectedObsSummary(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
-    const found = allObs.find(e => e.uuid === state.selectedObservationUuid)
+    const found = allObs.find((e) => e.uuid === state.selectedObservationUuid)
     return found
   },
   localRecords(state) {
     return state.localQueueSummary.filter(
-      e => !e.wowMeta[cc.isEventuallyDeletedFieldName],
+      (e) => !e.wowMeta[cc.isEventuallyDeletedFieldName],
     )
   },
   remoteRecords(state) {
-    const localRecordIds = state.localQueueSummary.map(e => e.uuid)
-    return state.allRemoteObs.filter(e => {
+    const localRecordIds = state.localQueueSummary.map((e) => e.uuid)
+    return state.allRemoteObs.filter((e) => {
       const recordHasLocalActionPending = localRecordIds.includes(e.uuid)
       return !recordHasLocalActionPending
     })
@@ -609,20 +611,20 @@ const getters = {
   isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
   isSelectedRecordEditOfRemote(state, getters) {
     return getters.localRecords
-      .filter(e => {
+      .filter((e) => {
         const hasRemote = !!e.inatId
         return (
           e.wowMeta[cc.recordTypeFieldName] === recordType('edit') && hasRemote
         )
       })
-      .some(e => e.uuid === state.selectedObservationUuid)
+      .some((e) => e.uuid === state.selectedObservationUuid)
   },
   obsFields(_, getters) {
     const projectObsFields = getters.nullSafeProjectObsFields
     if (!projectObsFields.length) {
       return []
     }
-    const result = projectObsFields.map(fieldRel => {
+    const result = projectObsFields.map((fieldRel) => {
       // don't get confused: we have the field definition *and* the
       // relationship to the project
       const fieldDef = fieldRel.observation_field
@@ -635,7 +637,7 @@ const getters = {
         datatype: fieldDef.datatype,
         allowedValues: (fieldDef.allowed_values || '')
           .split(cc.obsFieldSeparatorChar)
-          .filter(x => !!x), // remove zero length strings
+          .filter((x) => !!x), // remove zero length strings
       }
     })
     return result
@@ -650,7 +652,7 @@ const getters = {
     // there's a race condition where you can get to an obs detail page before
     // the project info has been cached. This stops an error and will
     // auto-magically update when the project info does arrive
-    return _.get(state, 'projectInfo.project_observation_fields', [])
+    return get(state, 'projectInfo.project_observation_fields', [])
   },
   projectId(state) {
     return (state.projectInfo || {}).id
@@ -666,11 +668,11 @@ export default {
   state: initialState,
   mutations,
   actions,
-  getters,
+  getters: gettersObj,
 }
 
 export const apiTokenHooks = [
-  async store => {
+  async (store) => {
     // FIXME probably lazy-init most of this
     await store.dispatch('obs/refreshRemoteObs')
     await store.dispatch('obs/getMySpecies')
@@ -682,7 +684,7 @@ export const apiTokenHooks = [
 
 export function isObsSystemError(record) {
   return (
-    _.get(record, `wowMeta.${cc.recordProcessingOutcomeFieldName}`) ===
+    get(record, `wowMeta.${cc.recordProcessingOutcomeFieldName}`) ===
     cc.systemErrorOutcome
   )
 }
@@ -712,7 +714,7 @@ function trimDecimalPlaces(val) {
 }
 
 function removeElementWithUuid(collection, theUuid) {
-  const index = collection.findIndex(e => e.uuid === theUuid)
+  const index = collection.findIndex((e) => e.uuid === theUuid)
   if (index < 0) {
     return
   }

@@ -1,6 +1,6 @@
 <template>
   <menu-wrapper title="My Observations">
-    <template v-slot:toolbar-right>
+    <template #toolbar-right>
       <v-ons-toolbar-button id="toolbar-refresh-btn" @click="doRefresh">
         <v-ons-icon name="toolbar-refresh-btn" icon="fa-sync-alt"></v-ons-icon>
         Refresh
@@ -162,7 +162,7 @@ export default {
       autoJoinGracePeriodExpired: false,
       deletesWithErrorCount: 0,
       waitingForDeleteCount: 0,
-      renderItem: i =>
+      renderItem: (i) =>
         new Vue({
           store: parent.$store,
           router: parent.$router,
@@ -269,7 +269,7 @@ export default {
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('obs/refreshRemoteObs').catch(err => {
+        this.$store.dispatch('obs/refreshRemoteObs').catch((err) => {
           this.$store.dispatch(
             'flagGlobalError',
             {
@@ -281,7 +281,9 @@ export default {
         })
         // FIXME do we need to kick the service worker?
       }
-      done && typeof done === 'function' && done()
+      if (done && typeof done === 'function') {
+        done()
+      }
     },
     // TODO it might be nice to be able to retry/cancel failed deletes
     // individually rather than all at once.

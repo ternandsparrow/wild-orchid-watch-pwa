@@ -29,7 +29,7 @@ describe('things that need a datastore', () => {
     }
   }
 
-  beforeAll(function() {
+  beforeAll(function () {
     stubStorePhotoRecordFn()
     origConsoleDebug = console.debug
     console.debug = () => {}
@@ -235,8 +235,7 @@ describe('things that need a datastore', () => {
         })
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[cc.obsFieldIdsToDeleteFieldName]).toEqual([
-          31,
-          32,
+          31, 32,
         ])
         expect(
           result.wowMeta[cc.blockedActionFieldName].wowMeta[
@@ -324,10 +323,7 @@ describe('things that need a datastore', () => {
       })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[cc.photoIdsToDeleteFieldName]).toEqual([
-        11,
-        22,
-        33,
-        44,
+        11, 22, 33, 44,
       ])
     })
 
@@ -407,10 +403,7 @@ describe('things that need a datastore', () => {
       })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[cc.obsFieldIdsToDeleteFieldName]).toEqual([
-        11,
-        22,
-        33,
-        44,
+        11, 22, 33, 44,
       ])
     })
   })
@@ -1540,7 +1533,7 @@ describe('things that need a datastore', () => {
   describe('cleanLocalRecord', () => {
     it(
       'should just delete the record from the store when no blocked action ' +
-      'exists',
+        'exists',
       async () => {
         const record = {
           uuid: '123A',
@@ -1589,9 +1582,7 @@ describe('things that need a datastore', () => {
         uuid: '123A',
       }
       await obsStore.setItem('123A', record)
-      expect(
-        objectUnderTest.cleanLocalRecord('123A', null)
-      ).rejects.toThrow(
+      expect(objectUnderTest.cleanLocalRecord('123A', null)).rejects.toThrow(
         'Blocked action present, but no summary passed for UUID=123A',
       )
     })
@@ -1716,7 +1707,11 @@ describe('things that need a datastore', () => {
       })
       await metaStore.setItem(cc.remoteObsKey, [{ uuid: '123A', inatId: 666 }])
       let actualRemoteDeleteUrl = null
-      await _testonly._deleteRecord('123A', null, url => actualRemoteDeleteUrl = url)
+      await _testonly._deleteRecord(
+        '123A',
+        null,
+        (url) => (actualRemoteDeleteUrl = url),
+      )
       expect(await obsStore.getItem('123A')).toBeNull()
       const result = await metaStore.getItem(cc.pendingTasksKey)
       expect(result['123A'].inatId).toEqual(666)
@@ -1737,7 +1732,9 @@ describe('things that need a datastore', () => {
             [cc.photosToAddFieldName]: [],
           },
         })
-        await metaStore.setItem(cc.remoteObsKey, [{ uuid: '123A', inatId: 666 }])
+        await metaStore.setItem(cc.remoteObsKey, [
+          { uuid: '123A', inatId: 666 },
+        ])
         await _testonly._deleteRecord('123A', null, () => {})
         const result = await obsStore.getItem('123A')
         expect(result).toEqual({
@@ -1769,7 +1766,9 @@ describe('things that need a datastore', () => {
             [cc.photosToAddFieldName]: [],
           },
         })
-        await metaStore.setItem(cc.remoteObsKey, [{ uuid: '123A', inatId: 666 }])
+        await metaStore.setItem(cc.remoteObsKey, [
+          { uuid: '123A', inatId: 666 },
+        ])
         await _testonly._deleteRecord('123A', null, () => {})
         const result = await obsStore.getItem('123A')
         expect(result.wowMeta[cc.recordTypeFieldName]).toEqual('edit')
@@ -1802,15 +1801,13 @@ describe('mapObsFromApiIntoOurDomain', () => {
       {
         id: 13,
         uuid: 'd7e2c89a-0741-4ce8-8b9c-c5992bfe6727',
-        url:
-          'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
+        url: 'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
         isRemote: true,
       },
       {
         id: 14,
         uuid: '557fc632-637f-4093-ad2f-74540c980fc1',
-        url:
-          'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+        url: 'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
         isRemote: true,
       },
     ])
@@ -2008,8 +2005,7 @@ function getApiRecord() {
       {
         id: 14,
         license_code: 'cc-by-nc',
-        url:
-          'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
+        url: 'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
         attribution: '(c) tom, some rights reserved (CC BY-NC)',
         original_dimensions: {
           width: 960,
@@ -2020,8 +2016,7 @@ function getApiRecord() {
       {
         id: 15,
         license_code: 'cc-by-nc',
-        url:
-          'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+        url: 'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
         attribution: '(c) tom, some rights reserved (CC BY-NC)',
         original_dimensions: {
           width: 960,
@@ -2038,8 +2033,7 @@ function getApiRecord() {
         photo: {
           id: 14,
           license_code: 'cc-by-nc',
-          url:
-            'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
+          url: 'http://dev.inat.techotom.com/attachments/local_photos/files/14/square/10425011_10152561992129730_7715615756023856816_n.jpg?1563423348',
           attribution: '(c) tom, some rights reserved (CC BY-NC)',
           original_dimensions: {
             width: 960,
@@ -2055,8 +2049,7 @@ function getApiRecord() {
         photo: {
           id: 15,
           license_code: 'cc-by-nc',
-          url:
-            'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
+          url: 'http://dev.inat.techotom.com/attachments/local_photos/files/15/square/10501641_10152561922694730_8539909549430640775_n.jpg?1563423350',
           attribution: '(c) tom, some rights reserved (CC BY-NC)',
           original_dimensions: {
             width: 960,

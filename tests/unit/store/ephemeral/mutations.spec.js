@@ -1,6 +1,6 @@
 import objectUnderTest from '@/store/ephemeral'
 
-const mutations = objectUnderTest.mutations
+const { mutations } = objectUnderTest
 
 describe('ephemeral module mutations', () => {
   describe('setNetworkOnline', () => {

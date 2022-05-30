@@ -17,7 +17,7 @@ const actions = {
     // in posts for our purposes?
     const allPosts = await dispatch('getAllProjectJournal')
     const allMappedRecords = allPosts
-      .map(e => {
+      .map((e) => {
         try {
           if (!isWowMissionJournalPost(e.body)) {
             return false
@@ -32,11 +32,11 @@ const actions = {
           return false
         }
       })
-      .filter(e => !!e)
+      .filter((e) => !!e)
     return allMappedRecords
   },
   async deleteMission({ dispatch }, missionId) {
-    const url = '/posts/' + missionId
+    const url = `/posts/${missionId}`
     return dispatch(
       'doApiDelete',
       { urlSuffix: url, recordUuid: null },
@@ -46,7 +46,7 @@ const actions = {
   async getProjectUpdates({ dispatch }) {
     const allPosts = await dispatch('getAllProjectJournal')
     const allMappedRecords = allPosts
-      .map(e => {
+      .map((e) => {
         try {
           if (isWowMissionJournalPost(e.body)) {
             return false
@@ -68,7 +68,7 @@ const actions = {
           return false
         }
       })
-      .filter(e => !!e)
+      .filter((e) => !!e)
     return allMappedRecords
   },
 }

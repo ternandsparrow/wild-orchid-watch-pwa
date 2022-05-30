@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Configuration
-    </div>
+    <div class="title">Configuration</div>
     <div v-if="!isShow">
       <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>
@@ -62,7 +60,7 @@ export default {
         'taxaDataUrl',
         'waitBeforeRefreshSeconds',
       ]
-      const partialResult = nonSecretKeys.map(e => ({
+      const partialResult = nonSecretKeys.map((e) => ({
         label: e,
         value: cc[e],
       }))
@@ -71,7 +69,7 @@ export default {
         { label: 'appId', value: cc.appId.replace(/.{35}/, '(snip)') },
         {
           label: 'googleMapsApiKey',
-          value: (v => v.replace(new RegExp(`.{${v.length - 4}}`), '(snip)'))(
+          value: ((v) => v.replace(new RegExp(`.{${v.length - 4}}`), '(snip)'))(
             cc.googleMapsApiKey,
           ),
         },

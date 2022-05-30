@@ -1,12 +1,11 @@
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { isNil } from 'lodash'
 import * as cc from '@/misc/constants'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
-  chainedError,
+  ChainedError,
   getExifFromBlob,
   iterateIdb,
   now,
@@ -21,7 +20,7 @@ import {
 export {
   arrayBufferToBlob,
   blobToArrayBuffer,
-  chainedError,
+  ChainedError,
   getExifFromBlob,
   iterateIdb,
   now,
@@ -48,7 +47,7 @@ export function postJson(url, data = {}) {
   return postJsonWithAuth(url, data, authHeaderValue)
 }
 
-export function postJsonWithAuth(url, data = {}, authHeaderValue) {
+export function postJsonWithAuth(url, data, authHeaderValue) {
   // TODO consider using https://github.com/sindresorhus/ky instead of fetch()
   return doManagedFetch(url, {
     method: 'POST',
@@ -61,7 +60,7 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   })
 }
 
-export function putJsonWithAuth(url, data = {}, authHeaderValue) {
+export function putJsonWithAuth(url, data, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'PUT',
     mode: 'cors',
@@ -173,7 +172,7 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
     return result
   } catch (err) {
     if (isDowngradable(err.message)) {
-      const result = chainedError(
+      const result = ChainedError(
         '[Downgraded error] something went wrong during fetch that we cannot control',
         err,
       )
@@ -184,7 +183,7 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
     let msg = `Failed while doing fetch() with\n`
     msg += `  URL='${url}'\n`
     msg += `  Req body='${JSON.stringify(init, null, 2)}'`
-    const result = chainedError(msg, err)
+    const result = ChainedError(msg, err)
     try {
       result.isNetworkErrorWow = isNetworkErrorWow
     } catch (err2) {
@@ -205,12 +204,12 @@ function isDowngradable(msg) {
   // downgrade the errors to warnings. The system operators still should know
   // they're happening but we don't want them to panic.
   const downgradableMessages = ['The network connection was lost']
-  return downgradableMessages.some(e => msg.includes(e))
+  return downgradableMessages.some((e) => msg.includes(e))
 }
 
 export function findCommonString(string1, string2) {
   let lastSpaceIndex = 0
-  for (let i = 0; i < string1.length; i++) {
+  for (let i = 0; i < string1.length; i += 1) {
     const currString1Char = string1.charAt(i)
     const currString2Char = string2.charAt(i)
     if (currString1Char === ' ') {
@@ -241,9 +240,9 @@ async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
         // be even nicer if we could determine length without this mess but the
         // "Content-Length" header isn't present when this happens (unless that
         // *is* the indicator).
-        throw chainedError('Empty 200 JSON response', err)
+        throw ChainedError('Empty 200 JSON response', err)
       }
-      throw chainedError('Failed while parsing JSON response', err)
+      throw ChainedError('Failed while parsing JSON response', err)
     }
   }
   // resp either NOT ok or NOT JSON, prep nice error msg
@@ -285,10 +284,11 @@ export function verifyWowDomainPhoto(photo) {
   if (msg) {
     throw new Error(msg)
   }
-  return
+
   function assertFieldPresent(fieldName) {
-    photo[fieldName] ||
-      (msg += `Invalid photo record, ${fieldName}='${photo[fieldName]}' is missing. `)
+    if (!photo[fieldName]) {
+      msg += `Invalid photo record, ${fieldName}='${photo[fieldName]}' is missing. `
+    }
   }
 }
 
@@ -300,7 +300,8 @@ function isRespJson(resp) {
 export function formatMetricDistance(metres) {
   if (!metres) {
     return metres
-  } else if (metres < 1000) {
+  }
+  if (metres < 1000) {
     return `${metres.toFixed(0)}m`
   }
   const kmVal = (metres / 1000).toFixed(1)
@@ -310,7 +311,7 @@ export function formatMetricDistance(metres) {
 export function buildUrlSuffix(path, params = {}) {
   const querystring = Object.keys(params).reduce((accum, currKey) => {
     const value = params[currKey]
-    if (isNil(value)) {
+    if (value == null) {
       return accum
     }
     return `${accum}${currKey}=${value}&`
@@ -327,9 +328,9 @@ export function buildUrlSuffix(path, params = {}) {
 export function buildStaleCheckerFn(
   stateKey,
   staleThresholdMinutes,
-  /*for testing*/ timeProviderFn,
+  /* for testing */ timeProviderFn,
 ) {
-  return function(state) {
+  return function (state) {
     const nowMs = (timeProviderFn && timeProviderFn()) || now()
     const lastUpdatedMs = state[stateKey]
     const isNoTimestamp = !lastUpdatedMs
@@ -341,11 +342,11 @@ export function buildStaleCheckerFn(
 }
 
 export function rectangleAlongPathAreaValueToTitle(v) {
-  if (isNaN(v)) {
+  if (Number.isNaN(v)) {
     const ltPrefix = 'less than'
     const isLessThanTypedArea = v.startsWith(ltPrefix)
     if (isLessThanTypedArea) {
-      const halfV = parseInt(v.replace(ltPrefix, '')) / 2
+      const halfV = parseInt(v.replace(ltPrefix, ''), 10) / 2
       return doFormat(v, halfV, halfV)
     }
     return v
@@ -385,13 +386,13 @@ export function formatStorageSize(byteCount) {
   }
   const isBetween1and10mb = byteCount > oneMb && byteCount < tenMb
   if (isBetween1and10mb) {
-    return (byteCount / oneMb).toFixed(1) + 'MB'
+    return `${(byteCount / oneMb).toFixed(1)}MB`
   }
   const isGreaterThan10mb = byteCount > tenMb && byteCount < oneGb
   if (isGreaterThan10mb) {
-    return (byteCount / oneMb).toFixed(0) + 'MB'
+    return `${(byteCount / oneMb).toFixed(0)}MB`
   }
-  return (byteCount / oneGb).toFixed(1) + 'GB'
+  return `${(byteCount / oneGb).toFixed(1)}GB`
 }
 
 export function wowIdOf(record) {
@@ -399,7 +400,7 @@ export function wowIdOf(record) {
 }
 
 export function fetchRecords(url) {
-  return fetch(url).then(function(resp) {
+  return fetch(url).then(function (resp) {
     if (!resp.ok) {
       console.error(`Made fetch() for url='${url}' but it was not ok`)
       return false
@@ -409,7 +410,7 @@ export function fetchRecords(url) {
 }
 
 export function fetchSingleRecord(url) {
-  return fetchRecords(url).then(function(body) {
+  return fetchRecords(url).then(function (body) {
     // FIXME also check for total_results > 1
     if (!body.total_results) {
       return null
@@ -481,7 +482,7 @@ export function unregisterAllServiceWorkers() {
   if (!navigator.serviceWorker) {
     return
   }
-  navigator.serviceWorker.getRegistrations().then(regs => {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
     console.debug(`Unregistering ${regs.length} service workers`)
     for (const curr of regs) {
       curr.unregister()

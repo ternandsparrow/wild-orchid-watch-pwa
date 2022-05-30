@@ -51,7 +51,7 @@ export default {
     },
     goBack() {
       const msg = 'Are you sure you want to discard the changes you have made?'
-      this.$ons.notification.confirm(msg).then(isConfirmed => {
+      this.$ons.notification.confirm(msg).then((isConfirmed) => {
         if (!isConfirmed) {
           return
         }

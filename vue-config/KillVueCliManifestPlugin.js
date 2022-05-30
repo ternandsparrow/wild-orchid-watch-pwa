@@ -15,11 +15,11 @@
 const ID = 'KillVueCliManifestPlugin'
 module.exports = class KillVueCliManifestPlugin {
   apply(compiler) {
-    compiler.hooks.compilation.tap(ID, compilation => {
+    compiler.hooks.compilation.tap(ID, (compilation) => {
       compilation.hooks.htmlWebpackPluginAlterAssetTags.tapAsync(
         ID,
         (data, cb) => {
-          data.head = data.head.filter(e => e.attributes.rel !== 'manifest')
+          data.head = data.head.filter((e) => e.attributes.rel !== 'manifest')
           cb(null, data)
         },
       )

@@ -13,7 +13,7 @@ export default function sentryInit(initLocationName, extraInitArgs = {}) {
   }
   if (constants.sentryDsn === 'off') {
     console.debug(
-      'No sentry DSN provided, refusing to init Sentry in ' + initLocationName,
+      `No sentry DSN provided, refusing to init Sentry in ${initLocationName}`,
     )
   } else {
     Sentry.init({

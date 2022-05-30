@@ -17,7 +17,7 @@ import '@/misc/handle-network-status'
 import initAppleInstallPrompt from '@/misc/handle-apple-install-prompt'
 import store, { migrateOldStores } from '@/store'
 import router from '@/router'
-import AppNavigator from '@/AppNavigator'
+import AppNavigator from '@/AppNavigator.vue'
 import '@/global-components'
 import * as constants from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
@@ -47,11 +47,12 @@ const Sentry = sentryInit('main thread', {
   integrations: [new Integrations.Vue({ Vue, attachProps: true })],
 })
 
+// eslint-disable-next-line no-new
 new Vue({
   el: '#app',
   beforeCreate() {
     try {
-      migrateOldStores(this.$store).catch(err => {
+      migrateOldStores(this.$store).catch((err) => {
         this.$store.dispatch('flagGlobalError', {
           msg: `Failed to initiate/run all Vuex/DB migrations`,
           userMsg: 'Failed to update app from previous version',
@@ -109,7 +110,7 @@ new Vue({
         console.warn('no service worker, cannot register for messages')
         return
       }
-      navigator.serviceWorker.addEventListener('message', event => {
+      navigator.serviceWorker.addEventListener('message', (event) => {
         const msgId = event.data.id
         if (msgId) {
           console.debug(`Message received from SW with ID='${msgId}'`)
@@ -117,7 +118,7 @@ new Vue({
         try {
           switch (msgId) {
             default:
-              console.debug('[unhandled message from SW] ' + event.data)
+              console.debug(`[unhandled message from SW] ${event.data}`)
               return
           }
         } finally {
@@ -140,7 +141,7 @@ new Vue({
       }
     },
   },
-  render: h => h(AppNavigator),
+  render: (h) => h(AppNavigator),
   router,
   store,
 })

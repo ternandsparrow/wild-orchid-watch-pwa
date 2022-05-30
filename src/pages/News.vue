@@ -49,7 +49,7 @@
 import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
-  name: 'News',
+  name: 'WowNews',
   data() {
     return {
       pullHookState: 'initial',
@@ -70,7 +70,9 @@ export default {
         'missionsAndNews/getProjectUpdates',
       )
       this.allNews = updates
-      done && done()
+      if (done) {
+        done()
+      }
     },
     push(eventId) {
       // FIXME implement this

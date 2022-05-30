@@ -1,7 +1,7 @@
 <template>
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
-      <template v-slot:right>
+      <template #right>
         <v-ons-toolbar-button name="toolbar-save-btn" @click="debouncedOnSave"
           >Save</v-ons-toolbar-button
         >
@@ -230,7 +230,7 @@
                     </label>
                   </div>
                 </template>
-                <div v-else style="color: red;">
+                <div v-else style="color: red">
                   PROGRAMMER, you have work to do - support '{{
                     currField.wowDatatype
                   }}' field type
@@ -520,7 +520,7 @@ export default {
         })()
         if (isMultiselect) {
           const existingQuestionContainer = accum.find(
-            e => e.id === multiselectId,
+            (e) => e.id === multiselectId,
           )
           if (existingQuestionContainer) {
             const trimTrailingStuffRegex = /[^\w]*$/
@@ -593,11 +593,11 @@ export default {
     },
     taxonQuestionIds() {
       return this.displayableObsFields
-        .filter(f => f.wowDatatype === taxonFieldType)
-        .map(e => e.id)
+        .filter((f) => f.wowDatatype === taxonFieldType)
+        .map((e) => e.id)
     },
     isEdit() {
-      return this.$route.matched.some(record => record.meta.isEdit)
+      return this.$route.matched.some((record) => record.meta.isEdit)
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
@@ -636,7 +636,7 @@ export default {
         const isMultiselect = v.constructor === Object
         if (isMultiselect) {
           accum[k] = {
-            title: `${Object.values(v).filter(v => !!v).length} selections`,
+            title: `${Object.values(v).filter((v) => !!v).length} selections`,
             value: v,
           }
         } else {
@@ -719,7 +719,7 @@ export default {
       this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
       // we cannot use this.taxonQuestionIds here as it's not bound at this stage
       this.taxonQuestionAutocompleteItems = this.obsFields
-        .filter(f => f.datatype === taxonFieldType)
+        .filter((f) => f.datatype === taxonFieldType)
         .reduce((accum, curr) => {
           // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
           accum[curr.id] = null
@@ -759,7 +759,7 @@ export default {
       const answersFromSaved = this.obsDetail.obsFieldValues.reduce(
         (accum, curr) => {
           const isMultiselect = !!getMultiselectId(curr.fieldId)
-          let value = curr.value
+          let { value } = curr
           if (isMultiselect) {
             value = (() => {
               if (value === yesValue) {
@@ -786,7 +786,7 @@ export default {
       this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
       // fire change handler for all multiselects to set the UI up as expected
       for (const currMultiselect of this.displayableObsFields.filter(
-        e => e.wowDatatype === multiselectFieldType,
+        (e) => e.wowDatatype === multiselectFieldType,
       )) {
         for (const currItem of currMultiselect.multiselectValues) {
           // TODO possible enhancement: check for impossible situation due to
@@ -799,9 +799,9 @@ export default {
         }
       }
       this.obsDetail.obsFieldValues
-        .filter(e => e.datatype === numericFieldType)
-        .forEach(currNumericField => {
-          const fieldId = currNumericField.fieldId
+        .filter((e) => e.datatype === numericFieldType)
+        .forEach((currNumericField) => {
+          const { fieldId } = currNumericField
           const val = this.obsFieldValues[fieldId]
           this._onNumberChange(fieldId, val)
         })
@@ -824,38 +824,34 @@ export default {
     },
     _onNumberChange(fieldId, newVal) {
       this.requiredFieldIdsConditionalOnNumberFields = []
-      switch (fieldId) {
-        case countOfIndividualsObsFieldId:
-          this.isPopulationRecord = parseInt(newVal) > 1
-          if (this.isPopulationRecord) {
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              approxAreaSearchedObsFieldId,
-            )
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              areaOfPopulationObsFieldId,
-            )
-            this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
-            this.handleObsFieldOptionalToRequired(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-          } else {
-            // individual record
-            this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
-            this.handleObsFieldRequiredToOptional(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-            // we need to reset this so the conditionally required fields lose
-            // their required-ness (and hide) without extra logic
-            this.obsFieldValues[
-              accuracyOfSearchAreaCalcObsFieldId
-            ] = notCollected
-          }
-          this.refreshVisibilityOfPopulationRecordFields()
-          this.refreshVisibilityOfSearchAreaFields()
-          break
+      if (fieldId === countOfIndividualsObsFieldId) {
+        this.isPopulationRecord = parseInt(newVal, 10) > 1
+        if (this.isPopulationRecord) {
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            approxAreaSearchedObsFieldId,
+          )
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            areaOfPopulationObsFieldId,
+          )
+          this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
+          this.handleObsFieldOptionalToRequired(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+        } else {
+          // individual record
+          this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
+          this.handleObsFieldRequiredToOptional(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+          // we need to reset this so the conditionally required fields lose
+          // their required-ness (and hide) without extra logic
+          this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = notCollected
+        }
+        this.refreshVisibilityOfPopulationRecordFields()
+        this.refreshVisibilityOfSearchAreaFields()
       }
     },
     handleObsFieldOptionalToRequired(obsFieldId) {
@@ -875,20 +871,16 @@ export default {
       this.obsFieldValues[obsFieldId] = notCollected
     },
     refreshVisibilityOfPopulationRecordFields() {
-      this.obsFieldVisibility[
-        areaOfPopulationObsFieldId
-      ] = this.isPopulationRecord
+      this.obsFieldVisibility[areaOfPopulationObsFieldId] =
+        this.isPopulationRecord
     },
     refreshVisibilityOfSearchAreaFields() {
-      this.obsFieldVisibility[
-        searchAreaCalcPreciseWidthObsFieldId
-      ] = this.isPreciseSearchAreaCalc
-      this.obsFieldVisibility[
-        searchAreaCalcPreciseLengthObsFieldId
-      ] = this.isPreciseSearchAreaCalc
-      this.obsFieldVisibility[
-        approxAreaSearchedObsFieldId
-      ] = this.isEstimatedSearchAreaCalc
+      this.obsFieldVisibility[searchAreaCalcPreciseWidthObsFieldId] =
+        this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[searchAreaCalcPreciseLengthObsFieldId] =
+        this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[approxAreaSearchedObsFieldId] =
+        this.isEstimatedSearchAreaCalc
     },
     scrollToSpeciesGuess() {
       const el = (this.$refs.speciesGuessRef || {}).$el
@@ -946,16 +938,18 @@ export default {
       this.$wow.uiTrace('SingleSpecies', `delete photo`)
       const isLocalFromPreviousEdit = !!record.id // FIXME is this right?
       if (record.isRemote || isLocalFromPreviousEdit) {
-        const id = record.id
+        const { id } = record
         this.photoIdsToDelete.push(id)
-        this.existingPhotos = this.existingPhotos.filter(p => p.id !== id)
+        this.existingPhotos = this.existingPhotos.filter((p) => p.id !== id)
         this.closePhotoPreview()
         return
       }
       const thisPhotoUuid = record.uuid
       this.$store.commit('ephemeral/popCoordsForPhoto', thisPhotoUuid)
       this.$store.commit('ephemeral/popDatetimeForPhoto', thisPhotoUuid)
-      const indexOfPhoto = this.photos.findIndex(e => e.uuid == thisPhotoUuid)
+      const indexOfPhoto = this.photos.findIndex(
+        (e) => e.uuid === thisPhotoUuid,
+      )
       if (indexOfPhoto < 0) {
         // why can't we find the photo?
         console.warn(
@@ -1001,7 +995,7 @@ export default {
               }
               if (
                 Object.keys(speciallyHandledFields).find(
-                  k => parseInt(k) === curr.id,
+                  (k) => parseInt(k, 10) === curr.id,
                 )
               ) {
                 return speciallyHandledFields[curr.id]
@@ -1034,7 +1028,7 @@ export default {
     },
     setDefaultIfSupplied(fieldId, defaultValue) {
       const fieldDef = this.getObsFieldDef(fieldId)
-      const allowedValues = fieldDef.allowedValues.map(v => v.value)
+      const allowedValues = fieldDef.allowedValues.map((v) => v.value)
       const isValidValue =
         fieldDef.wowDatatype !== selectFieldType ||
         allowedValues.includes(defaultValue)
@@ -1049,10 +1043,10 @@ export default {
     },
     getObsFieldDef(fieldId) {
       const result = this.displayableObsFields.find(
-        f => f.id === parseInt(fieldId),
+        (f) => f.id === parseInt(fieldId, 10),
       )
       if (!result) {
-        const availableIds = this.displayableObsFields.map(f => f.id).sort()
+        const availableIds = this.displayableObsFields.map((f) => f.id).sort()
         throw new Error(
           `Failed to find obs field definition with ` +
             `ID='${fieldId}' (typeof ID param=${typeof fieldId}) from available ` +
@@ -1069,8 +1063,8 @@ export default {
         // won't be able to edit an observation without adding 3 more photos.
         return
       }
-      const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
-      requiredPhotoTypes.forEach(curr => {
+      const requiredPhotoTypes = this.photoMenu.filter((e) => e.required)
+      requiredPhotoTypes.forEach((curr) => {
         const photosOfType = this.allPhotosByType[curr.id]
         const isAtLeastOnePhotoOfType = photosOfType && photosOfType.length
         if (isAtLeastOnePhotoOfType) {
@@ -1095,7 +1089,7 @@ export default {
         this.formErrorMsgs.push('No geolocation/GPS coordinates recorded.')
       }
       const visibleRequiredObsFields = this.displayableObsFields.filter(
-        f => f.required,
+        (f) => f.required,
       )
       for (const curr of visibleRequiredObsFields) {
         const val = this.obsFieldValues[curr.id]
@@ -1107,7 +1101,7 @@ export default {
         )
       }
       const visibleNumericObsFields = this.displayableObsFields.filter(
-        f => f.datatype === numericFieldType,
+        (f) => f.datatype === numericFieldType,
       )
       for (const curr of visibleNumericObsFields) {
         const val = this.obsFieldValues[curr.id]
@@ -1135,7 +1129,7 @@ export default {
         this.isSaveModalVisible = true
         this.isShowModalForceClose = false
         while (this.photosStillProcessingCount > 0) {
-          await new Promise(resolve => {
+          await new Promise((resolve) => {
             // TODO do we need a sanity check that breaks out after N tests?
             const waitForImageProcessingMs = 333
             setTimeout(() => {
@@ -1178,7 +1172,7 @@ export default {
       this.updateLastUsedResponses()
       this.updateRecentlyUsedTaxa()
       const strategyKey = this.isEdit ? 'Edit' : 'New'
-      const strategy = this['doSave' + strategyKey]
+      const strategy = this[`doSave${strategyKey}`]
       if (!strategy) {
         throw new Error(`Programmer error: unhandled strategy='${strategyKey}'`)
       }
@@ -1195,7 +1189,7 @@ export default {
       }
       const obsFieldValues = this.buildObsFieldValuesToSave()
       const result = {
-        addedPhotos: this.photos.map(curr => ({
+        addedPhotos: this.photos.map((curr) => ({
           type: curr.type,
           file: curr.file,
         })),
@@ -1234,7 +1228,7 @@ export default {
               )
             })()
             accum.push({
-              fieldId: parseInt(currSubFieldId),
+              fieldId: parseInt(currSubFieldId, 10),
               name: `${currField.name} - ${currSubField.label}`,
               value: mappedValue,
               // datatype: // don't need this
@@ -1257,9 +1251,9 @@ export default {
           value = value.preferredCommonName
         }
         accum.push({
-          fieldId: parseInt(currFieldId),
+          fieldId: parseInt(currFieldId, 10),
           name: obsFieldDef.name,
-          value: value,
+          value,
           datatype: obsFieldDef.datatype,
         })
         return accum
@@ -1284,8 +1278,8 @@ export default {
     },
     updateLastUsedResponses() {
       const idWhitelist = this.displayableObsFields
-        .filter(e => e.wowDatatype === selectFieldType)
-        .filter(e => {
+        .filter((e) => e.wowDatatype === selectFieldType)
+        .filter((e) => {
           const isNotIndividualBased = ![
             accuracyOfPopulationCountObsFieldId,
             areaOfPopulationObsFieldId,
@@ -1293,7 +1287,7 @@ export default {
           ].includes(e.id)
           return isNotIndividualBased
         })
-        .map(e => e.id)
+        .map((e) => e.id)
 
       const multiSelectEnabledSwitches = Object.entries(
         this.obsFieldValues,
@@ -1329,7 +1323,7 @@ export default {
         return
       }
       const multiselectGroupField = this.displayableObsFields.find(
-        e => e.id === fieldId,
+        (e) => e.id === fieldId,
       )
       const strategies = {
         String: () => {
@@ -1339,7 +1333,7 @@ export default {
           for (const [key, isOn] of Object.entries(val)) {
             this.obsFieldValues[key] = isOn
             const itemField = multiselectGroupField.multiselectValues.find(
-              e => e.id === parseInt(key),
+              (e) => e.id === parseInt(key, 10),
             )
             this.onMultiselectChange(multiselectGroupField, itemField, isOn)
           }
@@ -1403,12 +1397,10 @@ export default {
         'obs/saveEditAndScheduleUpdate',
         {
           // FIXME do we need this? Shouldn't any record we edit have a uuid?
-          record: Object.assign(
-            {
-              uuid: this.obsDetail.uuid,
-            },
-            record,
-          ),
+          record: {
+            uuid: this.obsDetail.uuid,
+            ...record,
+          },
           // global find-in-files help: photoIdsToDeleteFieldName
           photoIdsToDelete: this.photoIdsToDelete,
           // global find-in-files help: obsFieldIdsToDeleteFieldName
@@ -1432,7 +1424,7 @@ export default {
     },
     getObsFieldInstance(fieldId) {
       const result = this.obsDetail.obsFieldValues.find(
-        f => f.fieldId === parseInt(fieldId),
+        (f) => f.fieldId === parseInt(fieldId, 10),
       )
       if (!result) {
         throw new Error(
@@ -1446,7 +1438,7 @@ export default {
     },
     async onPhotoChanged(photoDefObj) {
       const type = photoDefObj.id
-      const files = this.$refs[this.photoRef(photoDefObj)][0].files
+      const { files } = this.$refs[this.photoRef(photoDefObj)][0]
       this.$wow.uiTrace(
         'SingleSpecies',
         `photo attached: ${files.length} ${type}`,
@@ -1466,9 +1458,11 @@ export default {
         }
         this.photos.push(photoObj)
         // we process photos with the worker so we don't block the UI.
-        this.$store.dispatch('ephemeral/processPhoto', photoObj).catch(err => {
-          wowWarnHandler('Failed to process an image', err)
-        })
+        this.$store
+          .dispatch('ephemeral/processPhoto', photoObj)
+          .catch((err) => {
+            wowWarnHandler('Failed to process an image', err)
+          })
       }
     },
     async _onSpeciesGuessInput(data) {
@@ -1515,25 +1509,25 @@ export default {
       }
     },
     photoRef(e) {
-      return 'photo-' + e.id
+      return `photo-${e.id}`
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
     },
     computeType(photoRecord) {
-      const url = photoRecord.url
-      const type = photoRecord.type // will only be present for local photos
+      const { url } = photoRecord
+      const { type } = photoRecord // will only be present for local photos
       const matchingType = (() => {
         if (type) {
-          return this.photoMenu.find(p => p.id === type)
+          return this.photoMenu.find((p) => p.id === type)
         }
-        return this.photoMenu.find(p => url.includes(`/wow-${p.id}`))
+        return this.photoMenu.find((p) => url.includes(`/wow-${p.id}`))
       })()
       return matchingType || { name: 'unknown' }
     },
     showPhotoPreview(photoRecord) {
       this.$wow.uiTrace('SingleSpecies', `preview photo`)
-      const url = photoRecord.url
+      const { url } = photoRecord
       // TODO enhancement idea: if we aren't online, then don't do the replace
       // on the URL. Just show the small photo rather than a broken image
       // placeholder. Or get the SW to cache the medium URLs so they'll be
@@ -1555,8 +1549,8 @@ export default {
     },
     onMultiselectChange(multiselectGroupField, itemField, newVal) {
       const siblingFieldIds = multiselectGroupField.multiselectValues
-        .map(e => e.id)
-        .filter(e => e !== itemField.id)
+        .map((e) => e.id)
+        .filter((e) => e !== itemField.id)
       if (this.isMutuallyExclusive(itemField)) {
         for (const curr of siblingFieldIds) {
           this.fieldIdIsDisabled[curr] = newVal
@@ -1564,14 +1558,15 @@ export default {
         return
       }
       const isAnySiblingTruthy = siblingFieldIds.some(
-        e => this.obsFieldValues[e],
+        (e) => this.obsFieldValues[e],
       )
       if (isAnySiblingTruthy) {
         return
       }
-      const mutuallyExclusiveSiblingIdsToDisable = multiselectGroupField.multiselectValues
-        .filter(e => this.isMutuallyExclusive(e))
-        .map(e => e.id)
+      const mutuallyExclusiveSiblingIdsToDisable =
+        multiselectGroupField.multiselectValues
+          .filter((e) => this.isMutuallyExclusive(e))
+          .map((e) => e.id)
       for (const curr of mutuallyExclusiveSiblingIdsToDisable) {
         this.fieldIdIsDisabled[curr] = newVal
       }
@@ -1596,9 +1591,8 @@ export default {
       }
     },
     rereadDatetime() {
-      const newDatetime = this.$store.getters[
-        'ephemeral/datetimeForCurrentlyEditingObs'
-      ]
+      const newDatetime =
+        this.$store.getters['ephemeral/datetimeForCurrentlyEditingObs']
       if (!newDatetime) {
         this.observedAt = null
         console.debug('cleared datetime triggered by a poke')
@@ -1608,9 +1602,8 @@ export default {
       console.debug('updated datetime value triggered by a poke')
     },
     rereadCoords() {
-      const newCoords = this.$store.getters[
-        'ephemeral/coordsForCurrentlyEditingObs'
-      ]
+      const newCoords =
+        this.$store.getters['ephemeral/coordsForCurrentlyEditingObs']
       if (!newCoords) {
         this.obsLat = null
         this.obsLng = null
@@ -1633,10 +1626,10 @@ function isDeletedObsFieldValue(value) {
 }
 
 function getAllowedValsStrategy(field) {
-  const excludeNotCollectedForRequiredFilter = v =>
+  const excludeNotCollectedForRequiredFilter = (v) =>
     !field.required || v !== notCollected
-  const rectangleAlongPathAreaMapper = vals =>
-    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
+  const rectangleAlongPathAreaMapper = (vals) =>
+    vals.filter(excludeNotCollectedForRequiredFilter).map((v) => {
       return { value: v, title: rectangleAlongPathAreaValueToTitle(v) }
     })
   const strats = {
@@ -1644,10 +1637,10 @@ function getAllowedValsStrategy(field) {
     [areaOfPopulationObsFieldId]: rectangleAlongPathAreaMapper,
   }
   const result = strats[field.id]
-  const defaultStrat = vals =>
+  const defaultStrat = (vals) =>
     vals
       .filter(excludeNotCollectedForRequiredFilter)
-      .map(v => ({ value: v, title: v }))
+      .map((v) => ({ value: v, title: v }))
   return result || defaultStrat
 }
 </script>

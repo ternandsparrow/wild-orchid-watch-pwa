@@ -65,7 +65,7 @@
                     <v-ons-icon icon="fa-info-circle" />
                     Attach some photos and they'll be automatically scanned
                   </span>
-                  <h1 v-else style="color: red;">
+                  <h1 v-else style="color: red">
                     Programmer problem - unhandled state
                     {{ datetimeFromPhotoState }}
                   </h1>
@@ -219,7 +219,7 @@ export default {
     return {
       manualDate: nowDate(),
       manualTime: nowTime(),
-      isNativeDateInputSupported: (function() {
+      isNativeDateInputSupported: (function () {
         // thanks https://gomakethings.com/how-to-check-if-a-browser-supports-native-input-date-pickers/
         const input = document.createElement('input')
         const value = 'a'
@@ -306,7 +306,9 @@ export default {
         device: this.getDeviceDatetime,
       }
       const strategy = strategies[newVal]
-      strategy && strategy()
+      if (strategy) {
+        strategy()
+      }
       // always poke the parent so it can "clear" old value if needed
       this.pokeParentToReadDatetime()
     },

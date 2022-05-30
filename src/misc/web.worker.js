@@ -23,7 +23,7 @@ import {
 } from '@/indexeddb/obs-store-common'
 import {
   arrayBufferToBlob,
-  chainedError,
+  ChainedError,
   deleteWithAuth,
   findCommonString,
   getJsonWithAuth,
@@ -77,7 +77,7 @@ async function performMigrations() {
 }
 
 async function getAllJournalPosts(apiToken) {
-  const baseUrl = '/projects/' + cc.inatProjectSlug + '/posts/'
+  const baseUrl = `/projects/${cc.inatProjectSlug}/posts/`
   const allRawRecords = await fetchAllPages(baseUrl, cc.obsPageSize, apiToken)
   return allRawRecords
 }
@@ -105,7 +105,7 @@ async function getFullRemoteObsDetail(
   throwOnMissing = true,
 ) {
   const remoteObs = await metaStoreRead(cc.remoteObsKey)
-  const found = remoteObs.find(e => e.uuid === theUuid)
+  const found = remoteObs.find((e) => e.uuid === theUuid)
   if (!found && throwOnMissing) {
     throw new Error(`Selected obs ${theUuid} has no remote record in the db`)
   }
@@ -136,7 +136,7 @@ function mapObsFieldValuesToUi(record, detailedModeOnlyObsFieldIds) {
   }
   record.obsFieldValues = record.obsFieldValues.reduce((accum, curr) => {
     const val = curr.value
-    const defaultStrat = v => v
+    const defaultStrat = (v) => v
     const strategy = valueMappers[curr.fieldId] || defaultStrat
     const mappedValue = strategy(val)
     const multiselectId = cc.getMultiselectId(curr.fieldId)
@@ -152,16 +152,15 @@ function mapObsFieldValuesToUi(record, detailedModeOnlyObsFieldIds) {
           // here. But this is easy and has the same effect because required
           // fields can't be not collected
           const isNotCollected = curr.value === cc.notCollected
-          const isDefinitelyDetailed = !!detailedModeOnlyObsFieldIds[
-            curr.fieldId
-          ]
+          const isDefinitelyDetailed =
+            !!detailedModeOnlyObsFieldIds[curr.fieldId]
           return isDefinitelyDetailed || isNotCollected
         })(),
       })
       return accum
     }
     const existingQuestionContainer = accum.find(
-      e => e.multiselectId === multiselectId,
+      (e) => e.multiselectId === multiselectId,
     )
     if (!existingQuestionContainer) {
       accum.push({
@@ -209,7 +208,9 @@ async function cleanLocalRecord(recordUuid, newRecordSummary) {
       return
     }
     if (!newRecordSummary) {
-      throw new Error(`Blocked action present, but no summary passed for UUID=${recordUuid}`)
+      throw new Error(
+        `Blocked action present, but no summary passed for UUID=${recordUuid}`,
+      )
     }
     const blockedActionFromDb = record.wowMeta[cc.blockedActionFieldName]
     if (!blockedActionFromDb) {
@@ -288,7 +289,7 @@ async function fetchAllPages(baseUrl, pageSize, apiToken) {
         `${cc.apiUrlBase}${urlSuffix}`,
         apiToken,
       )
-      const results = resp.results
+      const { results } = resp
       // note: we use the per_page from the resp because if we request too
       // many records per page, the server will ignore our page size and
       // the following check won't work
@@ -296,7 +297,7 @@ async function fetchAllPages(baseUrl, pageSize, apiToken) {
       allRecords = allRecords.concat(results)
       currPage += 1
     } catch (err) {
-      throw chainedError(
+      throw ChainedError(
         `Failed while trying to get page=${currPage} of ${baseUrl}`,
         err,
       )
@@ -324,7 +325,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   result.inatId = obsFromApi.id
   // not sure why the API provides .photos AND .observation_photos but the
   // latter has the IDs that we need to be working with.
-  const photos = (obsFromApi.observation_photos || []).map(p => {
+  const photos = (obsFromApi.observation_photos || []).map((p) => {
     const result = {
       url: p.photo.url,
       uuid: p.uuid,
@@ -347,14 +348,14 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   )
   result.lat = lat
   result.lng = lng
-  result.obsFieldValues = obsFromApi.ofvs.map(o => ({
+  result.obsFieldValues = obsFromApi.ofvs.map((o) => ({
     relationshipId: o.id,
     fieldId: o.field_id,
     datatype: o.datatype,
     name: processObsFieldName(o.name),
     value: o.value,
   }))
-  result.identifications = obsFromApi.identifications.map(i => ({
+  result.identifications = obsFromApi.identifications.map((i) => ({
     uuid: i.uuid,
     createdAt: i.created_at,
     isCurrent: i.current,
@@ -368,7 +369,7 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
     category: i.category,
     wowType: 'identification',
   }))
-  result.comments = obsFromApi.comments.map(c =>
+  result.comments = obsFromApi.comments.map((c) =>
     mapCommentFromApiToOurDomain(c),
   )
   updateIdsAndCommentsFor(result)
@@ -445,7 +446,7 @@ async function checkForObsEditCompletion(task, apiToken) {
     const summary = mapRemoteRecordToSummary(mapped)
     await cleanLocalRecord(task.uuid, summary)
     const remoteObs = await metaStoreRead(cc.remoteObsKey)
-    const indexOfExisting = remoteObs.findIndex(e => e.uuid === task.uuid)
+    const indexOfExisting = remoteObs.findIndex((e) => e.uuid === task.uuid)
     if (indexOfExisting >= 0) {
       remoteObs.splice(indexOfExisting, 0)
     }
@@ -458,7 +459,7 @@ async function checkForObsEditCompletion(task, apiToken) {
 }
 
 async function checkForDeleteCompletion(task, apiToken) {
-  const inatId = task.inatId
+  const { inatId } = task
   const resp = await getJsonWithAuth(
     `${cc.facadeUrlBase}/task-status/${inatId}/delete`,
     apiToken,
@@ -483,8 +484,8 @@ async function checkForDeleteCompletion(task, apiToken) {
 async function getLocalQueueSummary() {
   thumbnailObjectUrlsNoLongerInUse = thumbnailObjectUrlsInUse
   thumbnailObjectUrlsInUse = []
-  const pendingTaskUuids = (await getAllPendingTasks()).map(t => t.uuid)
-  const result = await mapOverObsStore(r => {
+  const pendingTaskUuids = (await getAllPendingTasks()).map((t) => t.uuid)
+  const result = await mapOverObsStore((r) => {
     const hasBlockedAction = !!r.wowMeta[cc.blockedActionFieldName]
     const isEventuallyDeleted = hasBlockedAction
       ? r.wowMeta[cc.blockedActionFieldName].wowMeta[cc.recordTypeFieldName] ===
@@ -518,7 +519,7 @@ async function getLocalQueueSummary() {
         isDraft: rpo === cc.draftOutcome,
         // photosToAdd summary isn't used but is useful for debugging
         [cc.photosToAddFieldName]: r.wowMeta[cc.photosToAddFieldName].map(
-          p => ({
+          (p) => ({
             type: p.type,
             id: p.id,
             fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
@@ -539,7 +540,7 @@ async function getLocalQueueSummary() {
       // including all other data to be recorded in APP1." So if it's bigger,
       // it's *not* a thumbnail.
       const maxSizeForExifThumbnail = 64000
-      const firstPhotoWithThumbnail = photos.find(e => {
+      const firstPhotoWithThumbnail = photos.find((e) => {
         if (e.isRemote) {
           return true
         }
@@ -554,7 +555,7 @@ async function getLocalQueueSummary() {
       if (firstPhotoWithThumbnail.isRemote) {
         return firstPhotoWithThumbnail.url
       }
-      return mapPhotoFromDbToUi(firstPhotoWithThumbnail, u =>
+      return mapPhotoFromDbToUi(firstPhotoWithThumbnail, (u) =>
         thumbnailObjectUrlsInUse.push(u),
       ).url
     })()
@@ -584,11 +585,11 @@ async function getPhotosForLocalObs(obsUuid) {
       throw new Error(`Could not find DB obs record: ${obsUuid}`)
     }
     obsDetailObjectUrls = []
-    return (record.photos || []).map(p => {
-      return mapPhotoFromDbToUi(p, u => obsDetailObjectUrls.push(u))
+    return (record.photos || []).map((p) => {
+      return mapPhotoFromDbToUi(p, (u) => obsDetailObjectUrls.push(u))
     })
   } catch (err) {
-    throw chainedError(`Failed to get DB photos for UUID=${obsUuid}`, err)
+    throw ChainedError(`Failed to get DB photos for UUID=${obsUuid}`, err)
   }
 }
 
@@ -638,7 +639,7 @@ function mintObjectUrl(blobAsArrayBuffer) {
     )
     return zUrl().createObjectURL(blob)
   } catch (err) {
-    throw chainedError(
+    throw ChainedError(
       // Don't get distracted, the MIME has no impact. If it fails, it's due to
       // something else, the MIME will just help you debug (hopefully)
       `Failed to mint object URL for blob with MIME='${blobAsArrayBuffer.mime}'`,
@@ -660,7 +661,10 @@ function revokeObjectUrls(urls) {
 
 function zUrl() {
   // "z" doesn't mean anything, it's just a unique fn name
-  return self.webkitURL || self.URL || {}
+  return (
+    // eslint-disable-next-line no-restricted-globals
+    self.webkitURL || self.URL || {}
+  )
 }
 
 async function saveNewAndScheduleUpload({
@@ -693,25 +697,26 @@ async function saveNewAndScheduleUpload({
     try {
       await storeRecord(enhancedRecord)
     } catch (err) {
-      const loggingSafeRecord = Object.assign({}, enhancedRecord, {
-        photos: (enhancedRecord.photos || []).map(p => ({
+      const loggingSafeRecord = {
+        ...enhancedRecord,
+        photos: (enhancedRecord.photos || []).map((p) => ({
           ...p,
           file: '(removed for logging)',
         })),
-        obsFieldValues: (enhancedRecord.obsFieldValues || []).map(o => ({
+        obsFieldValues: (enhancedRecord.obsFieldValues || []).map((o) => ({
           // ignore info available elsewhere. Long traces get truncated :(
           fieldId: o.fieldId,
           value: o.value,
         })),
-      })
-      throw chainedError(
+      }
+      throw ChainedError(
         `Failed to write record to Db\n` +
           `record=${JSON.stringify(loggingSafeRecord)}`,
         err,
       )
     }
   } catch (err) {
-    throw chainedError(`Failed to save new record to local queue.`, err)
+    throw ChainedError(`Failed to save new record to local queue.`, err)
   }
   sendNewObsToFacade(newRecordId, apiToken, projectId)
   return newRecordId
@@ -724,13 +729,13 @@ async function saveNewAndScheduleUpload({
 
 async function retryUpload(ids, apiToken, projectId) {
   const strategies = {
-    [recordType('new')]: recordUuid => {
+    [recordType('new')]: (recordUuid) => {
       return sendNewObsToFacade(recordUuid, apiToken, projectId)
     },
-    [recordType('edit')]: recordUuid => {
+    [recordType('edit')]: (recordUuid) => {
       return sendEditObsToFacade(recordUuid, apiToken)
     },
-    [recordType('delete')]: recordUuid => {
+    [recordType('delete')]: (recordUuid) => {
       return deleteRecord(recordUuid, apiToken)
     },
   }
@@ -758,7 +763,11 @@ function notifyUiToRefreshLocalRecordQueue() {
 }
 
 function _postMessageToUiThread(msgKey, data) {
-  self.postMessage({ wowKey: msgKey, data })
+  // eslint-disable-next-line no-restricted-globals
+  self.postMessage({
+    wowKey: msgKey,
+    data,
+  })
 }
 
 async function sendNewObsToFacade(recordUuid, apiToken, projectId) {
@@ -779,11 +788,11 @@ async function _sendNewObsToFacade(recordUuid, apiToken, projectId) {
   await saveApiToken(apiToken)
   const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
   const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
-    e => e.id,
+    (e) => e.id,
   )
   const resp = await postFormDataWithAuth(
     `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
-    async form => {
+    async (form) => {
       form.set('projectId', projectId)
       form.set(
         'observation',
@@ -842,11 +851,11 @@ async function _sendEditObsToFacade(recordUuid, apiToken) {
   await saveApiToken(apiToken)
   const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
   const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
-    e => e.id,
+    (e) => e.id,
   )
   const resp = await putFormDataWithAuth(
     `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
-    async form => {
+    async (form) => {
       // FIXME refactor common code with "new" strat
       form.set(
         'observation',
@@ -946,7 +955,7 @@ async function saveEditAndScheduleUpdate(
       console.debug(`[Edit] using strategy='${strategy.name}'`)
       await runStrategy(strategy, {
         record: enhancedRecord,
-        photoIdsToDelete: photoIdsToDelete.filter(id => {
+        photoIdsToDelete: photoIdsToDelete.filter((id) => {
           const photoIsRemote = id > 0
           return photoIsRemote
         }),
@@ -954,13 +963,14 @@ async function saveEditAndScheduleUpdate(
         obsFieldIdsToDelete,
       })
     } catch (err) {
-      const loggingSafeRecord = Object.assign({}, enhancedRecord, {
-        photos: (enhancedRecord.photos || []).map(p => ({
+      const loggingSafeRecord = {
+        ...enhancedRecord,
+        photos: (enhancedRecord.photos || []).map((p) => ({
           ...p,
           file: '(removed for logging)',
         })),
-      })
-      throw chainedError(
+      }
+      throw ChainedError(
         `Failed to write record to Db with ` +
           `UUID='${editedUuid}'.\n` +
           `record=${JSON.stringify(loggingSafeRecord)}`,
@@ -968,7 +978,7 @@ async function saveEditAndScheduleUpdate(
       )
     }
   } catch (err) {
-    throw chainedError(
+    throw ChainedError(
       `Failed to save edited record with UUID='${editedUuid}'`,
       err,
     )
@@ -1014,7 +1024,7 @@ function getEditStrategy(existingLocalRecord, existingRemoteRecord) {
       return upsertQueuedAction
     case 'noprocessing.queued.noexistingblocked.noremote':
       // follow up edit of local-only
-      return function(args) {
+      return (args) => {
         // edits of local-only records *need* to result in a 'new' typed
         // record so we process them with a POST. We can't PUT when
         // there's nothing to update.
@@ -1120,7 +1130,7 @@ async function upsertBlockedAction({
 }
 
 function processPhotos(photos) {
-  return photos.map(curr => {
+  return photos.map((curr) => {
     const photo = {
       id: uuid(),
       url: '(set at render time)',
@@ -1143,7 +1153,7 @@ function deleteRecord(theUuid, apiToken) {
 }
 
 async function cancelFailedDeletes(dbRecordUuids) {
-  await Promise.all(dbRecordUuids.map(currId => deleteDbRecordById(currId)))
+  await Promise.all(dbRecordUuids.map((currId) => deleteDbRecordById(currId)))
   notifyUiToRefreshLocalRecordQueue()
 }
 
@@ -1160,14 +1170,14 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
     try {
       await deleteDbRecordById(theUuid)
     } catch (err) {
-      throw new chainedError(
+      throw new ChainedError(
         `Failed to delete local record for UUID='${theUuid}'`,
         err,
       )
     }
   }
   const remoteRecords = await metaStoreRead(cc.remoteObsKey)
-  const remoteRecord = remoteRecords.find(e => e.uuid === theUuid)
+  const remoteRecord = remoteRecords.find((e) => e.uuid === theUuid)
   if (!remoteRecord) {
     console.info('Observation is local-only, no need to contact iNat')
     // kill any in-flight task for this ID
@@ -1184,10 +1194,7 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
     )
   }
   // FIXME handle errors
-  await doDeleteReqFn(
-    `${cc.apiUrlBase}/observations/${inatRecordId}`,
-    apiToken,
-  )
+  await doDeleteReqFn(`${cc.apiUrlBase}/observations/${inatRecordId}`, apiToken)
   console.debug(`DELETE ${inatRecordId} sent to iNat successfully`)
   await saveApiToken(apiToken)
   await addPendingTask({
@@ -1216,7 +1223,7 @@ async function doSpeciesAutocomplete(partialText, speciesListType) {
     t1.stop()
     const t2 = startTimer('Processing fetched taxa index')
     try {
-      const rawData = (await resp.json()).map(e => {
+      const rawData = (await resp.json()).map((e) => {
         const d = deserialise(e)
         return {
           ...d,
@@ -1229,14 +1236,14 @@ async function doSpeciesAutocomplete(partialText, speciesListType) {
         threshold: 0.4,
       })
     } catch (err) {
-      throw chainedError('Failed to fetch and build taxa index', err)
+      throw ChainedError('Failed to fetch and build taxa index', err)
     } finally {
       t2.stop()
     }
   }
   return taxaIndex
     .search(partialText)
-    .map(e => e.item)
+    .map((e) => e.item)
     .slice(0, cc.maxSpeciesAutocompleteResultLength)
 }
 
@@ -1286,7 +1293,7 @@ function computePhotos(
     ...existingLocalPhotos,
     ...existingBlockedLocalPhotos,
     ...newPhotos,
-  ].filter(p => {
+  ].filter((p) => {
     const isPhotoDeleted = allPendingPhotoDeletes.includes(p.id)
     return !isPhotoDeleted
   })
@@ -1357,7 +1364,7 @@ function scheduleTaskChecks(delayMs = 13) {
   taskChecksTracker.intervalObj = setTimeout(() => {
     const promise = runChecksForTasks()
     taskChecksTracker.promise = promise
-    promise.catch(err => {
+    promise.catch((err) => {
       // FIXME send to Sentry?
       console.error('Failed to run checks for tasks', err)
     })

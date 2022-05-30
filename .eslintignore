@@ -1,4 +1,0 @@
-# See https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/master/README.md#why-we-don-t-eslint-our-web-workers
-# for why we disable eslint on web workers (it's a hacky workaround). We back
-# this up by forcing a lint on the workers manually.
-src/misc/web.worker.js

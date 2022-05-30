@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/browser' // piggybacks on the config done in sr
 
 import * as constants from '@/misc/constants'
 import {
-  chainedError,
+  ChainedError,
   deleteWithAuth,
   getJsonWithAuth,
   isNoSwActive,
@@ -54,7 +54,7 @@ export default {
       state.userDetails = value
       state.userDetailsLastUpdated = now()
     },
-    markApiTokenAndUserLastUpdated: state => {
+    markApiTokenAndUserLastUpdated: (state) => {
       state.apiTokenAndUserLastUpdated = now()
     },
     setIsUpdatingApiToken: (state, value) => (state.isUpdatingApiToken = value),
@@ -65,11 +65,11 @@ export default {
     },
     userEmail(state) {
       const result = state.userDetails.email
-      return result ? result : '(no email stored)'
+      return result || '(no email stored)'
     },
     userIcon(state) {
       const result = state.userDetails.icon
-      return result ? result : constants.noProfilePicPlaceholderUrl
+      return result || constants.noProfilePicPlaceholderUrl
     },
     myUserId(state) {
       return state.userDetails.id
@@ -100,7 +100,7 @@ export default {
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
         // TODO handle a 422: unknown user
-        throw chainedError(
+        throw ChainedError(
           `Failed to make GET to API with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -117,7 +117,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make DELETE to API with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -147,7 +147,7 @@ export default {
         )
         return resp
       } catch (err) {
-        throw chainedError(
+        throw ChainedError(
           `Failed to make GET to iNat with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -163,7 +163,7 @@ export default {
         )
         return resp
       } catch (err) {
-        throw chainedError(
+        throw ChainedError(
           `Failed to make POST to iNat with URL suffix='${urlSuffix}'` +
             `data='${JSON.stringify(data)}'`,
           err,
@@ -182,7 +182,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make POST to API with URL suffix='${urlSuffix}' and ` +
             `data='${JSON.stringify(data)}'`,
           err,
@@ -200,7 +200,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make PUT to API with URL suffix='${urlSuffix}' and ` +
             `data='${JSON.stringify(data)}'`,
           err,
@@ -218,7 +218,7 @@ export default {
       await dispatch('_generatePkcePair')
       const challenge = state.code_challenge
       await dispatch('_assertReadyForOauthCallback')
-      location.assign(
+      window.location.assign(
         `${constants.inatUrlBase}/oauth/authorize?
         client_id=${constants.appId}&
         redirect_uri=${constants.redirectUri}&
@@ -272,7 +272,7 @@ export default {
         // to https://stackoverflow.com/a/12909563/1410035 for the primer on
         // this.
       } catch (err) {
-        throw chainedError('Failed to revoke iNat token while logging out', err)
+        throw ChainedError('Failed to revoke iNat token while logging out', err)
       }
     },
     _generatePkcePair({ commit }) {
@@ -305,7 +305,7 @@ export default {
             commit('_setToken', null) // triggers the toast to login again
             return
           }
-          throw chainedError('Failed to get API token using iNat token', err)
+          throw ChainedError('Failed to get API token using iNat token', err)
         } finally {
           updateApiTokenPromise = null
         }
@@ -343,8 +343,8 @@ export default {
         return
       }
       console.debug(`Setting username=${username} on Sentry`)
-      Sentry.configureScope(scope => {
-        scope.setUser({ username: username })
+      Sentry.configureScope((scope) => {
+        scope.setUser({ username })
       })
       dispatch('sendSwUpdatedErrorTrackerContext', { username })
     },
@@ -356,7 +356,7 @@ export default {
         method: 'POST',
         retries: 0,
         body: JSON.stringify({
-          username: username,
+          username,
         }),
       })
     },
@@ -368,9 +368,10 @@ export default {
       }
       try {
         const decodedJwt = jwtDecode(state.apiToken)
-        const now = new Date().getTime() / 1000
+        const nowSeconds = new Date().getTime() / 1000
         const fiveMinutes = 5 * 60
-        const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
+        const isTokenExpiredOrCloseTo =
+          nowSeconds > decodedJwt.exp - fiveMinutes
         if (!isTokenExpiredOrCloseTo) {
           return
         }

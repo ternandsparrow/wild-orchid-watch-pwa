@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default-executor:
     docker:
-      - image: cypress/base:12
+      - image: cypress/base:16
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -16,8 +16,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v2-deps-{{ checksum "yarn.lock" }}
-            - v2-deps
+            - v3-deps-{{ checksum "yarn.lock" }}
+            - v3-deps
 
       - run:
           name: 'Install dependencies'
@@ -26,7 +26,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.cache/yarn
-          key: v2-deps-{{ checksum "yarn.lock" }}
+          key: v3-deps-{{ checksum "yarn.lock" }}
 
       - persist_to_workspace:
           root: .
@@ -57,8 +57,8 @@ jobs:
           at: .
       - restore_cache:
           keys:
-            - v2-deps-{{ checksum "yarn.lock" }}
-            - v2-deps
+            - v3-deps-{{ checksum "yarn.lock" }}
+            - v3-deps
       - run:
           name: 'Run e2e tests'
           command: echo "FIXME get working"

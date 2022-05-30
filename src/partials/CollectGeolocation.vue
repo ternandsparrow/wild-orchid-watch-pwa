@@ -130,7 +130,7 @@
                 style="width: 62vw; padding-top: 10px"
                 :centered-marker="true"
                 @pinDropped="
-                  coords => {
+                  (coords) => {
                     $store.commit('ephemeral/setPinCoords', coords)
                     pokeParentToReadCoords()
                   }
@@ -251,13 +251,13 @@
 
 <script>
 import { mapGetters, mapState } from 'vuex'
+import _ from 'lodash'
 import {
   isInBoundingBox,
   wowErrorHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
 import { blocked, failed, notSupported } from '@/misc/constants'
-import _ from 'lodash'
 
 export default {
   name: 'CollectGeolocation',
@@ -334,7 +334,7 @@ export default {
       if (!this.isManualLatAndLon) {
         return 'incomplete'
       }
-      if (isNaN(this.manualLat) || isNaN(this.manualLon)) {
+      if (Number.isNaN(this.manualLat) || Number.isNaN(this.manualLon)) {
         return 'invalid'
       }
       const lat = parseFloat(this.manualLat)
@@ -365,17 +365,17 @@ export default {
     defaultMarkerPos() {
       if (this.isEdit) {
         const uuid = this.$store.state.obs.selectedObservationUuid
-        const currentObs = _.find(this.$store.state.obs.allRemoteObs, function(
-          obs,
-        ) {
-          if (obs.uuid === uuid) {
-            return true
-          }
-        })
+        const currentObs = _.find(
+          this.$store.state.obs.allRemoteObs,
+          function (obs) {
+            if (obs.uuid === uuid) {
+              return true
+            }
+          },
+        )
         return { lat: currentObs.lat, lng: currentObs.lng }
-      } else {
-        return { lat: -34.927485, lng: 138.599927 } // Default position of Adelaide
       }
+      return { lat: -34.927485, lng: 138.599927 } // Default position of Adelaide
     },
   },
   watch: {
@@ -384,7 +384,9 @@ export default {
         device: this.getDeviceGpsLocation,
       }
       const strat = strategies[newVal]
-      strat && strat()
+      if (strat) {
+        strat()
+      }
       // always poke the parent so it can "clear" old coords if needed
       this.pokeParentToReadCoords()
       if (!this.obsCoords) {
@@ -439,8 +441,8 @@ export default {
       try {
         await this.$store.dispatch('ephemeral/markUserGeolocation')
         const coords = this.$store.state.ephemeral.deviceCoords
-        const lat = coords.lat
-        const lng = coords.lng
+        const { lat } = coords
+        const { lng } = coords
         if (!isInBoundingBox(lat, lng)) {
           await this.$ons.notification.alert(
             `Your coordinates (${lat},${lng}) look like they're outside Australia. ` +

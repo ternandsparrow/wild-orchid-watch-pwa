@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import {
   arrayBufferToBlob,
   blobToArrayBuffer,
-  chainedError,
+  ChainedError,
   getExifFromBlob,
 } from '@/misc/only-common-deps-helpers'
 import * as cc from '@/misc/constants'
@@ -62,7 +62,7 @@ async function storeRecordImpl(obsStore, photoStore, record) {
     log('Saving record')
     return obsStore.setItem(key, record)
   } catch (err) {
-    throw chainedError(`Failed to store db record with ID='${key}'`, err)
+    throw ChainedError(`Failed to store db record with ID='${key}'`, err)
   }
   async function savePhotosAndReplaceWithThumbnails(record, propPath) {
     const photos = _.get(record, propPath, [])
@@ -84,12 +84,14 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       )
       result.push(currThumb)
       // update the array of all photos to use the thumbnail
-      const foundIndex = record.photos.findIndex(e => e.id === curr.id)
+      const foundIndex = record.photos.findIndex((e) => e.id === curr.id)
       if (!~foundIndex) {
         warnHandler(
           `Inconsistent data error: could not find photo with ` +
             `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
-            ` available photo IDs=${JSON.stringify(photos.map(e => e.id))}. ` +
+            ` available photo IDs=${JSON.stringify(
+              photos.map((e) => e.id),
+            )}. ` +
             `Adding it to the list of photos.`,
         )
         record.photos.push(currThumb)
@@ -154,7 +156,7 @@ async function getRecordImpl(store, recordId) {
     }
     return store.getItem(recordId)
   } catch (err) {
-    throw chainedError(`Failed to get DB record with ID='${recordId}'`, err)
+    throw ChainedError(`Failed to get DB record with ID='${recordId}'`, err)
   }
 }
 
@@ -167,7 +169,7 @@ async function getPhotoRecordImpl(store, recordId) {
     }
     return store.getItem(recordId)
   } catch (err) {
-    throw chainedError(
+    throw ChainedError(
       `Failed to get photo DB record with ID='${recordId}'`,
       err,
     )
@@ -191,7 +193,7 @@ async function deleteDbRecordByIdImpl(obsStore, photoStore, id) {
       return
     }
     const idsToDelete = (existingObsRecord.photos || [])
-      .map(e => e.id)
+      .map((e) => e.id)
       .filter(isLocalPhotoId)
     for (const curr of idsToDelete) {
       console.debug(`Deleting local photo with ID=${curr}`)
@@ -199,7 +201,7 @@ async function deleteDbRecordByIdImpl(obsStore, photoStore, id) {
     }
     return obsStore.removeItem(id)
   } catch (err) {
-    throw chainedError(`Failed to delete db record with ID='${id}'`, err)
+    throw ChainedError(`Failed to delete db record with ID='${id}'`, err)
   }
 }
 
@@ -224,18 +226,12 @@ export function mapOverObsStore(mapperFn) {
   return mapOverObsStoreImpl(store, mapperFn)
 }
 
-export function mapOverObsStoreImpl(obsStore, mapperFn) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const result = []
-      await obsStore.iterate(r => {
-        result.push(mapperFn(r))
-      })
-      return resolve(result)
-    } catch (err) {
-      return reject(err)
-    }
+export async function mapOverObsStoreImpl(obsStore, mapperFn) {
+  const result = []
+  await obsStore.iterate((r) => {
+    result.push(mapperFn(r))
   })
+  return result
 }
 
 export function setRecordProcessingOutcome(dbId, targetOutcome) {
@@ -258,7 +254,7 @@ async function setRecordProcessingOutcomeImpl(
   console.debug(`Transitioning dbId=${dbId} to outcome=${targetOutcome}`)
   const record = await getRecordImpl(obsStore, dbId)
   if (!record) {
-    throw new Error('Could not find record for ID=' + dbId)
+    throw new Error(`Could not find record for ID=${dbId}`)
   }
   record.wowMeta[cc.recordProcessingOutcomeFieldName] = targetOutcome
   record.wowMeta[cc.outcomeLastUpdatedAtFieldName] = new Date().toString()
@@ -407,7 +403,7 @@ export async function mapObsCoreFromOurDomainOntoApi(dbRecord) {
     'wowMeta',
   ]
   const recordIdObjFragment = (() => {
-    const inatId = dbRecord.inatId
+    const { inatId } = dbRecord
     if (inatId) {
       return { id: inatId }
     }
@@ -462,9 +458,8 @@ async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
   for (const currId of obsIds) {
     log(`Checking record UUID=${currId}`)
     const record = await obsStore.getItem(currId)
-    const isInNeedOfMigration = !record.wowMeta[
-      cc.outcomeLastUpdatedAtFieldName
-    ]
+    const isInNeedOfMigration =
+      !record.wowMeta[cc.outcomeLastUpdatedAtFieldName]
     if (!isInNeedOfMigration) {
       log(`record UUID=${currId} does not need migrating`)
       continue

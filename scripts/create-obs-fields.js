@@ -255,8 +255,7 @@ const obsFields = [
     allowedValues: `${obsFieldConstants.notCollected}|>30|10-30|3-10|1-3|0.5-1|<0.5`,
   },
   {
-    name:
-      'Foliage cover of the most dominant vegetation layer (lower storey, mid storey or upper storey)',
+    name: 'Foliage cover of the most dominant vegetation layer (lower storey, mid storey or upper storey)',
     description:
       'The proportion of the ground, which would be shaded by branches and leaves, if sunshine came from directly overhead.',
     datatype: 'text',
@@ -307,7 +306,7 @@ const obsFields = [
 ]
 
 function multiselect(containerQuestionName, description, values) {
-  return values.split('|').map(curr => ({
+  return values.split('|').map((curr) => ({
     name: `${containerQuestionName}${obsFieldConstants.multiselectSeparator}${curr}`,
     description,
     datatype: 'text',
@@ -351,18 +350,16 @@ async function createObsField({ name, description, datatype, allowedValues }) {
       const baseMsg = `[ERROR] failed to create obsField with name='${name}'.`
       if (isBeingRedirectedToSignin) {
         return (
-          baseMsg +
-          ` It looks like we're being redirected to sign in. Make sure you ` +
+          `${baseMsg} It looks like we're being redirected to sign in. Make sure you ` +
           `session is still alive and that you're using the server URL it ` +
           `wants to serve under, e.g. using inaturalist.org when it wants ` +
           `you to use www.inaturalist.org`
         )
       }
-      return (
-        baseMsg +
-        ` HTTP status code = ${sc}, start of response body is:` +
-        respBody.substring(0, 200)
-      )
+      return `${baseMsg} HTTP status code = ${sc}, start of response body is:${respBody.substring(
+        0,
+        200,
+      )}`
     })()
     console.error(msg)
     process.exit(1)
@@ -392,7 +389,7 @@ function requiredEnvVar(key) {
     console.log(`#[INFO] processing name='${curr.name}'...`)
     if (isPrintOnly) {
       // copy+paste friendly for manually updating fields
-      console.log('  ' + curr.allowedValues)
+      console.log(`  ${curr.allowedValues}`)
       continue
     }
     if (isMakeHttpie) {
@@ -401,8 +398,9 @@ function requiredEnvVar(key) {
         --form \\
         ${serverBaseUrl}/observation_fields \\
         Cookie:${sessionCookieName}=${sessionCookieValue} \\
-        'observation_field[name]=${obsFieldConstants.obsFieldNamePrefix +
-          curr.name}' \\
+        'observation_field[name]=${
+          obsFieldConstants.obsFieldNamePrefix + curr.name
+        }' \\
         'observation_field[description]=${curr.description}' \\
         'observation_field[datatype]=${curr.datatype}' \\
         'observation_field[allowed_values]=${curr.allowedValues}' \\

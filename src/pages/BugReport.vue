@@ -50,9 +50,7 @@
       <p v-if="reportState === 'success'" class="success-alert">
         Successfully reported
       </p>
-      <p v-if="reportState === 'error'" class="error-alert">
-        Failed to report
-      </p>
+      <p v-if="reportState === 'error'" class="error-alert">Failed to report</p>
       <p>
         <v-ons-button @click="sendBugReport">
           Send report
@@ -67,12 +65,8 @@
     <v-ons-card>
       <p>
         <v-ons-button modifier="quiet" @click="showTechDetails">
-          <span v-if="!techDetailsLastUpdated">
-            Display
-          </span>
-          <span v-if="techDetailsLastUpdated">
-            Refresh
-          </span>
+          <span v-if="!techDetailsLastUpdated"> Display </span>
+          <span v-if="techDetailsLastUpdated"> Refresh </span>
           technical details
         </v-ons-button>
       </p>
@@ -105,7 +99,7 @@
 import { mapGetters } from 'vuex'
 import * as gcpError from 'stackdriver-error-reporting-clientside-js-client'
 import * as constants from '@/misc/constants'
-import { chainedError } from '@/misc/helpers'
+import { ChainedError } from '@/misc/helpers'
 import { encryptAndBase64Encode } from '@/misc/no-deps-helpers'
 
 export default {
@@ -210,7 +204,7 @@ export default {
         await this.gatherContextObsStore()
         await this.gatherContextConstants()
       } catch (err) {
-        throw chainedError('Failed to gather context on bug report page', err)
+        throw ChainedError('Failed to gather context on bug report page', err)
       }
     },
     gatherContextAppStore() {
@@ -254,7 +248,7 @@ export default {
       const obsState = this.$store.state.obs
       this.vuexStoreObs = {
         ...obsState,
-        allRemoteObs: obsState.allRemoteObs.map(e => ({
+        allRemoteObs: obsState.allRemoteObs.map((e) => ({
           inatId: e.inatId,
           uuid: e.uuid,
         })),
@@ -279,7 +273,7 @@ function trimAndMeasure(str) {
   if (!str) {
     return null
   }
-  return str.substring(0, 5) + `...(string length=${str.length})`
+  return `${str.substring(0, 5)}...(string length=${str.length})`
 }
 </script>
 

@@ -82,7 +82,7 @@ const router = new VueRouter({
       path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
-      beforeEnter: function(to, from, next) {
+      beforeEnter(to, from, next) {
         const selectedMethod = 'existing'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
@@ -97,7 +97,7 @@ const router = new VueRouter({
       path: '/obs/new',
       name: 'ObsNewSingleSpecies',
       component: SingleSpecies,
-      beforeEnter: function(to, from, next) {
+      beforeEnter(to, from, next) {
         const selectedMethod = 'photo'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
@@ -207,7 +207,7 @@ router.afterEach((to, from) => {
   // to go somewhere that makes sense. That's up the tree, so we want to go to
   // /foo. The matchedComponents will be an array of all the matches down the
   // routing tree.
-  const matchedComponents = to.matched.map(m => m.components.default)
+  const matchedComponents = to.matched.map((m) => m.components.default)
   const isNoMatches = !matchedComponents.length
   if (isNoMatches) {
     console.error(
@@ -221,9 +221,11 @@ router.afterEach((to, from) => {
 })
 
 async function resolveObsByIdOrNotFound(to, from, next) {
-  const wowId = isNaN(to.params.id) ? to.params.id : parseInt(to.params.id)
+  const wowId = Number.isNaN(to.params.id)
+    ? to.params.id
+    : parseInt(to.params.id, 10)
   try {
-    const uuid = await (async function() {
+    const uuid = await (async function () {
       if (!wowId) {
         return wowId
       }
@@ -263,7 +265,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       msg: `Failed to resolve wowId=${wowId} during nav`,
       err,
     })
-    const matchedComponents = from.matched.map(m => m.components.default)
+    const matchedComponents = from.matched.map((m) => m.components.default)
     const isNoMatches = !matchedComponents.length
     if (isNoMatches) {
       wowWarnHandler(

@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Force recordProcessingOutcome for obs
-    </div>
+    <div class="title">Force recordProcessingOutcome for obs</div>
     <div>
       <v-ons-button @click="prepResetRpoList"
         >1. Get list of local obs</v-ons-button
@@ -15,8 +13,9 @@
           v-for="curr of setRpoAvailableUuids"
           :key="curr.uuid"
           :value="curr.uuid"
-          >{{ curr.title }}</option
         >
+          {{ curr.title }}
+        </option>
       </select>
     </div>
     <div>
@@ -26,8 +25,9 @@
           v-for="curr of setRpoAvailableOutcomes"
           :key="curr"
           :value="curr"
-          >{{ curr }}</option
         >
+          {{ curr }}
+        </option>
       </select>
     </div>
     <div>
@@ -68,12 +68,12 @@ export default {
         this.setRpoStatus = 'done'
       } catch (err) {
         console.error('Failed to reset status of obs', err)
-        this.setRpoStatus = 'error: ' + err.message
+        this.setRpoStatus = `error: ${err.message}`
       }
     },
     prepResetRpoList() {
       this.setRpoAvailableUuids = this.$store.getters['obs/localRecords'].map(
-        e => ({
+        (e) => ({
           title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
           uuid: e.uuid,
         }),

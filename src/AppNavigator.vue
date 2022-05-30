@@ -39,9 +39,7 @@
     </v-ons-toast>
     <v-ons-toast :visible.sync="notLoggedInToastVisible" animation="ascend">
       <div class="warn-text" @click="onHeaderClick">WARNING</div>
-      <p>
-        You are not logged in.
-      </p>
+      <p>You are not logged in.</p>
       <p>
         If you were previously logged in then your session has expired. You
         <em>must</em> login to continue using the app.

@@ -30,7 +30,7 @@ expect.extend({
 // modify them and it will affect all others that use them too. Comlink has
 // dependencies that make it hard to run in Node so we just replace the
 // function that uses Comlink completely in tests.
-workerMgrTestOnly.interceptableFns.buildWorker = function() {
+workerMgrTestOnly.interceptableFns.buildWorker = function () {
   return require('@/misc/web.worker')._testonly.exposed
 }
 
@@ -63,8 +63,8 @@ class LocalStorageMock {
 global.localStorage = new LocalStorageMock()
 
 // various stubs
-global.Worker = function() {}
-global.URL = (function() {
+global.Worker = function () {}
+global.URL = (function () {
   const result = URL
   result.createObjectURL = () => {}
   return result
@@ -99,7 +99,7 @@ global.MessageChannel = function MockMessageChannel() {
 global.clients = new (function MockClients() {
   const self = this
   self.messagesSentToClients = []
-  self.matchAll = function() {
+  self.matchAll = function () {
     const aClient = {
       postMessage(msg, channels) {
         self.messagesSentToClients.push(msg)
@@ -110,7 +110,7 @@ global.clients = new (function MockClients() {
     }
     return [aClient]
   }
-  self.clearMessages = function() {
+  self.clearMessages = function () {
     self.messagesSentToClients = []
   }
 })()

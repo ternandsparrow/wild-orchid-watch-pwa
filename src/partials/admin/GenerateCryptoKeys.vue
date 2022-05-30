@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Generate a JWK key pair.
-    </div>
+    <div class="title">Generate a JWK key pair.</div>
     <div v-if="!isShow">
       <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>

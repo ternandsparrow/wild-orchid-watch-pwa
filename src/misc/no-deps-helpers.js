@@ -5,7 +5,7 @@ export function base64StrToArrayBuffer(base64Str) {
   // thanks for the conversion https://stackoverflow.com/a/16245768/1410035
   const byteCharacters = atob(base64Str)
   const byteNumbers = new Array(byteCharacters.length)
-  for (let i = 0; i < byteCharacters.length; i++) {
+  for (let i = 0; i < byteCharacters.length; i += 1) {
     byteNumbers[i] = byteCharacters.charCodeAt(i)
   }
   const byteArray = new Uint8Array(byteNumbers)
@@ -17,7 +17,7 @@ export function arrayBufferToBase64(buffer) {
   let binary = ''
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < len; i += 1) {
     binary += String.fromCharCode(bytes[i])
   }
   return window.btoa(binary)

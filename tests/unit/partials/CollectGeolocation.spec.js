@@ -4,7 +4,7 @@ import CollectGeolocation from '@/partials/CollectGeolocation'
 
 const localVue = createLocalVue()
 localVue.use(Vuex)
-localVue.prototype.$wow = { uiTrace: function() {} }
+localVue.prototype.$wow = { uiTrace() {} }
 
 describe('CollectGeolocation', () => {
   it('should toggle map visibility', () => {

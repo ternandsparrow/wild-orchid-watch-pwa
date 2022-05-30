@@ -1,7 +1,7 @@
 <template>
   <v-ons-page>
     <custom-toolbar back-label="Home" title="Observation">
-      <template v-slot:right>
+      <template #right>
         <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
           Edit
         </v-ons-toolbar-button>
@@ -88,9 +88,7 @@
       <div v-if="!isPhotos" class="photo-container">
         <div v-if="isLoadingPhotos" class="text-center no-photo">
           <v-ons-progress-circular indeterminate />
-          <p>
-            Loading photos...
-          </p>
+          <p>Loading photos...</p>
           <img
             :src="noImagePlaceholderUrl"
             class="a-photo"
@@ -177,9 +175,7 @@
               <div v-show="nullSafeObs.notes">
                 {{ nullSafeObs.notes }}
               </div>
-              <div v-show="!nullSafeObs.notes" class="no-notes">
-                (no notes)
-              </div>
+              <div v-show="!nullSafeObs.notes" class="no-notes">(no notes)</div>
             </v-ons-list-item>
           </template>
         </v-ons-list>
@@ -302,7 +298,7 @@
               </v-ons-list-item>
             </template>
             <template v-else>
-              <h1 :key="curr.uuid + '-error'" style="color: red;">
+              <h1 :key="curr.uuid + '-error'" style="color: red">
                 Programmer problem - unsupported type {{ curr.wowType }}
               </h1>
             </template>
@@ -455,7 +451,7 @@ export default {
         Accuracy: formatMetricDistance(this.nullSafeObs.geolocationAccuracy),
         Geoprivacy: this.nullSafeObs.geoprivacy,
       }
-      return Object.keys(config).map(k => ({
+      return Object.keys(config).map((k) => ({
         label: k,
         value: config[k],
       }))
@@ -493,7 +489,7 @@ export default {
         // only act when it was deleted
         return
       }
-      const uuid = oldVal.uuid
+      const { uuid } = oldVal
       this.navigateToNewDetailPage(uuid)
     },
   },
@@ -572,7 +568,7 @@ export default {
             animation: 'ascend',
           })
         })
-        .catch(err => {
+        .catch((err) => {
           this.$store.dispatch(
             'flagGlobalError',
             {
@@ -594,7 +590,7 @@ export default {
           this.$wow.uiTrace('ObsDetail', `delete observation`)
           this.$ons.notification
             .confirm('Are you sure about deleting this record?')
-            .then(answer => {
+            .then((answer) => {
               if (!answer) {
                 this.$wow.uiTrace('ObsDetail', `abort delete observation`)
                 return
@@ -608,7 +604,7 @@ export default {
                     animation: 'ascend',
                   })
                 })
-                .catch(err => {
+                .catch((err) => {
                   this.handleMenuError(err, {
                     msg: 'Failed to (completely) delete record',
                     userMsg: 'Error while deleting record.',
@@ -627,7 +623,7 @@ export default {
                 'synchronised to the server. Do you want to delete only the local ' +
                 'changes so the record on the server stays unchanged?',
             )
-            .then(answer => {
+            .then((answer) => {
               if (!answer) {
                 this.$wow.uiTrace(
                   'ObsDetail',
@@ -647,7 +643,7 @@ export default {
                     animation: 'ascend',
                   })
                 })
-                .catch(err => {
+                .catch((err) => {
                   this.handleMenuError(err, {
                     msg: 'Failed to delete local edit on remote record',
                     userMsg: 'Error while deleting local edit.',
@@ -666,10 +662,12 @@ export default {
           cancelable: true,
           destructive: 1,
         })
-        .then(selIndex => {
+        .then((selIndex) => {
           const key = Object.keys(menu)[selIndex]
           const selectedItemFn = menu[key]
-          selectedItemFn && selectedItemFn()
+          if (selectedItemFn) {
+            selectedItemFn()
+          }
         })
     },
     onCommentActionMenu(commentRecord) {
@@ -677,7 +675,7 @@ export default {
         Delete: () => {
           this.$ons.notification
             .confirm('Are you sure about deleting this comment?')
-            .then(answer => {
+            .then((answer) => {
               if (!answer) {
                 return
               }
@@ -692,7 +690,7 @@ export default {
                     animation: 'fall',
                   })
                 })
-                .catch(err => {
+                .catch((err) => {
                   this.handleMenuError(err, {
                     msg: 'Failed to delete comment',
                     userMsg: 'Error while deleting comment.',
@@ -714,10 +712,12 @@ export default {
           cancelable: true,
           destructive: 1,
         })
-        .then(selIndex => {
+        .then((selIndex) => {
           const key = Object.keys(menu)[selIndex]
           const selectedItemFn = menu[key]
-          selectedItemFn && selectedItemFn()
+          if (selectedItemFn) {
+            selectedItemFn()
+          }
         })
     },
     handleMenuError(err, { msg, userMsg }) {

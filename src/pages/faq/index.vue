@@ -40,8 +40,7 @@ function getItems() {
         'the answer, you can leave non-required questions blank.',
     },
     {
-      q:
-        'Who will make definitive Identifications of the orchids that are sighted?',
+      q: 'Who will make definitive Identifications of the orchids that are sighted?',
       a: [
         'Orchid observations submitted via the WOW app will be stored and ' +
           'manged on the iNaturalist platform. iNaturalist uses crowd-sourcing ' +
@@ -116,8 +115,7 @@ function getItems() {
           different camera app can give different results.`,
     },
     {
-      q:
-        'Can I use an external camera to take the photos and the app to submit them?',
+      q: 'Can I use an external camera to take the photos and the app to submit them?',
       a: `Yes, instructions are <a target="_blank"
           href="https://static1.squarespace.com/static/5a262efba9db09c818b5d8d0/t/5ecb2bcce7d73d6dee2ac1b8/1590373329341/Bulk+upload.docx.pdf">
           here</a>.`,
@@ -129,8 +127,7 @@ function getItems() {
           here</a>.`,
     },
     {
-      q:
-        'Will the orchids be "safe" when I make sightings with their location?',
+      q: 'Will the orchids be "safe" when I make sightings with their location?',
       a:
         'All orchid observations submitted via the WOW app will have ' +
         'geoprivacy set to ‘obscured’. This means that when a user looks at a ' +
@@ -152,7 +149,7 @@ function getItems() {
         'government agencies.',
     },
   ]
-  return theData.map(e => ({
+  return theData.map((e) => ({
     ...e,
     // map single paragraph answers to a common format
     a: typeof e.a === 'string' ? [e.a] : e.a,

@@ -1,5 +1,5 @@
 import localForage from 'localforage'
-import { chainedError } from '@/misc/only-common-deps-helpers'
+import { ChainedError } from '@/misc/only-common-deps-helpers'
 
 const knownInstances = {}
 // we don't support localStorage because need to store binary data. We could
@@ -12,7 +12,7 @@ export function getOrCreateInstance(name) {
     return existingInstance
   }
   const lfConfig = {
-    name: name,
+    name,
   }
   if (lfDriver) {
     lfConfig.driver = lfDriver
@@ -46,8 +46,8 @@ async function dropInstanceByName(name) {
     .then(() => {
       console.debug(`Successfully dropped store '${name}'`)
     })
-    .catch(err => {
-      throw chainedError(`Failed to delete store with name=${name}`, err)
+    .catch((err) => {
+      throw ChainedError(`Failed to delete store with name=${name}`, err)
     })
 }
 

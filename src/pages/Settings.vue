@@ -150,7 +150,7 @@ import {
 } from '@/misc/helpers'
 
 export default {
-  name: 'Settings',
+  name: 'WowSettings',
   data() {
     return {
       whenToSyncOptions: [
@@ -229,7 +229,7 @@ export default {
             'no data will be lost.'
           )
         })()
-        const msg = 'Are you sure you want to logout? ' + msgFragmentLocalData
+        const msg = `Are you sure you want to logout? ${msgFragmentLocalData}`
         const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
           this.$ons.notification.toast('Logout cancelled', {
@@ -271,7 +271,7 @@ export default {
     doManualUpdateCheck() {
       this.$store
         .dispatch('ephemeral/manualServiceWorkerUpdateCheck')
-        .then(isChecking => {
+        .then((isChecking) => {
           if (isChecking) {
             this.$ons.notification.toast('Checking for updates', {
               timeout: 3000,
@@ -295,7 +295,7 @@ export default {
       this.storageQuota = estimate.quota
       this.storageUsage = estimate.usage
       const usedPercentRaw = (this.storageUsage / this.storageQuota) * 100
-      if (isNaN(usedPercentRaw)) {
+      if (Number.isNaN(usedPercentRaw)) {
         this.isStorageReadable = false
         this.storageUsedPercent = 0
       } else {

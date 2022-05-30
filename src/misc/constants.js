@@ -126,6 +126,7 @@ export const thresholdForStuckWithSwMinutes = convertAndAssertInteger(
 // service worker
 export const isForceVueDevtools = !!parseInt(
   process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
+  10,
 )
 
 export const isEnableWorkboxLogging = parseBoolean(
@@ -306,8 +307,7 @@ function parseFieldIdList(envVarKey, msgFragment) {
     return JSON.parse(`[${ids}]`)
   } catch (err) {
     throw new Error(
-      `Failed while parsing ${msgFragment} multiselect IDs from env var: ` +
-        err.message,
+      `Failed while parsing ${msgFragment} multiselect IDs from env var: ${err.message}`,
     )
   }
 }
@@ -324,7 +324,7 @@ export function getMultiselectId(fieldId) {
     [floralVisitorsObsFieldIds]: floralVisitorsMultiselectId,
     [phenologyObsFieldIds]: phenologyMultiselectId,
   }
-  const found = Object.entries(multiselectIdMapping).find(e =>
+  const found = Object.entries(multiselectIdMapping).find((e) =>
     e[0].includes(fieldId),
   )
   return (found || [])[1]
@@ -466,12 +466,9 @@ export const systemErrorOutcome = 'systemError' // processed but encountered an 
 // header. Or make the SW respond to CORS. Need to make sure the requests don't
 // go somewhere else if there's no SW
 const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
-export const serviceWorkerIsAliveMagicUrl =
-  serviceWorkerMagicUrlPrefix + '/are-you-alive'
-export const serviceWorkerUpdateErrorTrackerContextUrl =
-  serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
-export const serviceWorkerPlatformTestUrl =
-  serviceWorkerMagicUrlPrefix + '/platorm-test'
+export const serviceWorkerIsAliveMagicUrl = `${serviceWorkerMagicUrlPrefix}/are-you-alive`
+export const serviceWorkerUpdateErrorTrackerContextUrl = `${serviceWorkerMagicUrlPrefix}/update-error-tracker-context`
+export const serviceWorkerPlatformTestUrl = `${serviceWorkerMagicUrlPrefix}/platorm-test`
 
 export const wowUuidCustomHttpHeader = 'x-wow-uuid'
 
@@ -503,8 +500,8 @@ export const cryptoConfig = (() => {
 })()
 
 function convertAndAssertInteger(val) {
-  const result = parseInt(val)
-  if (isNaN(result)) {
+  const result = parseInt(val, 10)
+  if (Number.isNaN(result)) {
     throw new Error(
       `Runtime config problem: expected integer is not a number='${val}'`,
     )
@@ -514,7 +511,7 @@ function convertAndAssertInteger(val) {
 
 function convertAndAssertFloat(val) {
   const result = parseFloat(val)
-  if (isNaN(result)) {
+  if (Number.isNaN(result)) {
     throw new Error(
       `Runtime config problem: expected float is not a number='${val}'`,
     )

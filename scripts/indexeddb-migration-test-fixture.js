@@ -8,7 +8,7 @@
 //   - UUID=444-DDD: (new) obs record present, waiting for photos to upload
 
 ;(function runTest() {
-  connect('workbox-background-sync', 3, 'requests', async objectStore => {
+  connect('workbox-background-sync', 3, 'requests', async (objectStore) => {
     // gotta be idempotent; clear any old stuff
     await deleteWorkboxReqsIfExists(
       [99901, 99902, 99903, 99904, 99905, 99906, 99907],
@@ -95,7 +95,7 @@
     })
   })
 
-  connect('wow-sw', 2, 'keyvaluepairs', async objectStore => {
+  connect('wow-sw', 2, 'keyvaluepairs', async (objectStore) => {
     // gotta be idempotent; clear any old stuff
     await deleteBundlesIfExists(
       ['create:111-AAA', 'update:333-CCC', '444-DDD'],
@@ -130,7 +130,7 @@
     )
   })
 
-  connect('wow-obs', 2, 'keyvaluepairs', async objectStore => {
+  connect('wow-obs', 2, 'keyvaluepairs', async (objectStore) => {
     // gotta be idempotent; clear any old stuff
     await deleteObsIfExists(
       ['111-AAA', '222-BBB', '333-CCC', '444-DDD'],
@@ -194,14 +194,14 @@
 function connect(dbName, dbVersion, objectStoreName, callback) {
   console.log(`Populating ${dbName} DB`)
   const connection = indexedDB.open(dbName, dbVersion)
-  connection.onsuccess = e => {
+  connection.onsuccess = (e) => {
     const db = e.target.result
     try {
       const transaction = db.transaction([objectStoreName], 'readwrite')
       const objectStore = transaction.objectStore([objectStoreName])
       callback(objectStore)
-        .catch(err =>
-          console.error('Error while dealing with DB=' + dbName, err),
+        .catch((err) =>
+          console.error(`Error while dealing with DB=${dbName}`, err),
         )
         .finally(() => {
           console.log(`[${dbName}] closing DB`)
@@ -213,8 +213,8 @@ function connect(dbName, dbVersion, objectStoreName, callback) {
       )
     }
   }
-  connection.onerror = err => {
-    console.error('Failed to connect to DB ' + dbName, err)
+  connection.onerror = (err) => {
+    console.error(`Failed to connect to DB ${dbName}`, err)
   }
 }
 
@@ -238,7 +238,7 @@ async function add(objectStore, record, key) {
 function deleteWorkboxReqsIfExists(ids, objectStore) {
   return doCursor(
     objectStore,
-    cursor => ids.includes(cursor.value.id),
+    (cursor) => ids.includes(cursor.value.id),
     'workbox requests',
   )
 }
@@ -246,7 +246,7 @@ function deleteWorkboxReqsIfExists(ids, objectStore) {
 function deleteBundlesIfExists(uuids, objectStore) {
   return doCursor(
     objectStore,
-    cursor => uuids.includes(cursor.key),
+    (cursor) => uuids.includes(cursor.key),
     'deps bundles',
   )
 }
@@ -254,7 +254,7 @@ function deleteBundlesIfExists(uuids, objectStore) {
 function deleteObsIfExists(uuids, objectStore) {
   return doCursor(
     objectStore,
-    cursor => uuids.includes(cursor.key),
+    (cursor) => uuids.includes(cursor.key),
     'observations',
   )
 }
@@ -263,7 +263,7 @@ async function doCursor(objectStore, isDeleteCallback, errMsgFragment) {
   try {
     return await new Promise((resolve, reject) => {
       const request = objectStore.openCursor()
-      request.addEventListener('success', e => {
+      request.addEventListener('success', (e) => {
         const cursor = e.target.result
         if (!cursor) {
           return resolve()
@@ -274,10 +274,10 @@ async function doCursor(objectStore, isDeleteCallback, errMsgFragment) {
         }
         const delReq = cursor.delete()
         delReq.onsuccess = () => {
-          console.log('delete success for a ' + errMsgFragment)
+          console.log(`delete success for a ${errMsgFragment}`)
           cursor.continue()
         }
-        delReq.onerror = err => {
+        delReq.onerror = (err) => {
           return reject({
             msg: `Failed to delete a ${errMsgFragment} record=${JSON.stringify(
               cursor.value,
@@ -289,7 +289,7 @@ async function doCursor(objectStore, isDeleteCallback, errMsgFragment) {
       request.addEventListener('error', reject)
     })
   } catch (err) {
-    console.warn('Failed while doing pre-run cleanup of ' + errMsgFragment)
+    console.warn(`Failed while doing pre-run cleanup of ${errMsgFragment}`)
     throw err
   }
 }

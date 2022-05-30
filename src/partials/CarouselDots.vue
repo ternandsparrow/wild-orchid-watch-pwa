@@ -39,7 +39,7 @@ export default {
     },
   },
   created() {
-    for (let i = 0; i < this.dotCount; i++) {
+    for (let i = 0; i < this.dotCount; i += 1) {
       this.dotIndexes.push(i)
     }
     this.carouselIndex = this.selectedIndex

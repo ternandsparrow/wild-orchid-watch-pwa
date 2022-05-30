@@ -68,7 +68,7 @@ export default {
       // we want the delete to update the UI immediately, even though the HTTP
       // call and server indexing takes a few seconds
       return this.availableMissions.filter(
-        e => !this.deletedMissionIds.includes(e.id),
+        (e) => !this.deletedMissionIds.includes(e.id),
       )
     },
     isNoRecords() {
@@ -80,7 +80,7 @@ export default {
         return false
       }
       return !!pi.admins.find(
-        e => e.user_id === this.$store.getters['auth/myUserId'],
+        (e) => e.user_id === this.$store.getters['auth/myUserId'],
       )
     },
   },
@@ -104,7 +104,9 @@ export default {
         )
         this.availableMissions = missions
       }
-      done && done()
+      if (done) {
+        done()
+      }
     },
     getTimelineString(record) {
       const duration = dayjs.duration(
@@ -115,7 +117,7 @@ export default {
       } (${duration.asDays()} days)`
     },
     truncateGoal(goal) {
-      return (goal || '').length > 150 ? goal.substring(0, 150) + '...' : goal
+      return (goal || '').length > 150 ? `${goal.substring(0, 150)}...` : goal
     },
     async onDelete(missionId) {
       const answer = await this.$ons.notification.confirm(

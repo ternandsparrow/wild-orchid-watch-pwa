@@ -27,7 +27,7 @@ describe('obs-store-common', () => {
     await testMetaStore.clear()
   }
 
-  beforeAll(function() {
+  beforeAll(function () {
     origConsoleDebug = console.debug
     console.debug = () => {}
   })
@@ -101,7 +101,7 @@ describe('obs-store-common', () => {
       )
       const result = await testObsStore.getItem('123A')
       const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos.map((e) => e.id)).toEqual(['1234'])
       expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
       const photoDbId = photos[0].id
       const photoRecord = await testPhotoStore.getItem(photoDbId)
@@ -135,7 +135,7 @@ describe('obs-store-common', () => {
         },
       }
       let warnMsg
-      objectUnderTest.registerWarnHandler(msg => (warnMsg = msg))
+      objectUnderTest.registerWarnHandler((msg) => (warnMsg = msg))
       await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
@@ -144,7 +144,7 @@ describe('obs-store-common', () => {
       expect(warnMsg.startsWith('Inconsistent data error')).toBeTruthy()
       const result = await testObsStore.getItem('123A')
       const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos.map((e) => e.id)).toEqual(['1234'])
       expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
       const photoDbId = photos[0].id
       const photoRecord = await testPhotoStore.getItem(photoDbId)
@@ -184,7 +184,7 @@ describe('obs-store-common', () => {
       expect(warnHandler.mock.calls.length).toBe(1)
       const result = await testObsStore.getItem('123A')
       const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos.map((e) => e.id)).toEqual(['1234'])
       expect(photos[0].file).toBeNull()
       const photoDbId = photos[0].id
       const photoRecord = await testPhotoStore.getItem(photoDbId)
@@ -224,7 +224,7 @@ describe('obs-store-common', () => {
       expect(warnHandler.mock.calls.length).toBe(1)
       const result = await testObsStore.getItem('123A')
       const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos.map((e) => e.id)).toEqual(['1234'])
       expect(photos[0].file).toBeNull()
       const photoDbId = photos[0].id
       const photoRecord = await testPhotoStore.getItem(photoDbId)
@@ -262,7 +262,7 @@ describe('obs-store-common', () => {
       expect(warnHandler.mock.calls.length).toBe(0)
       const result = await testObsStore.getItem('123A')
       const photos = result.wowMeta[cc.photosToAddFieldName]
-      expect(photos.map(e => e.id)).toEqual(['1234'])
+      expect(photos.map((e) => e.id)).toEqual(['1234'])
       expect(photos[0].file).toBeNull()
     })
 
@@ -445,7 +445,7 @@ describe('obs-store-common', () => {
         result.wowMeta[cc.blockedActionFieldName].wowMeta[
           cc.photosToAddFieldName
         ]
-      expect(photos.map(e => e.id)).toEqual([photoId, '5678'])
+      expect(photos.map((e) => e.id)).toEqual([photoId, '5678'])
       expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
       expect(photos[1].file.data.byteLength).toEqual(byteLengthOfThumbnail)
       const firstPhotoDbId = photos[0].id
@@ -532,20 +532,21 @@ describe('obs-store-common', () => {
       // confirm the obs was saved
       expect(savedRecord).toBeTruthy()
       // now we do the migration
-      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-        testObsStore,
-        testPhotoStore,
-        testMetaStore,
-      )
+      const migratedIds =
+        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
+          testObsStore,
+          testPhotoStore,
+          testMetaStore,
+        )
       expect(migratedIds[0]).toEqual(recordId)
       const migratedObs = await testObsStore.getItem(recordId)
       expect(migratedObs.wowMeta[cc.versionFieldName]).toEqual(
         cc.currentRecordVersion,
       )
-      const photoIds = _.get(migratedObs, 'photos', []).map(e => e.id)
+      const photoIds = _.get(migratedObs, 'photos', []).map((e) => e.id)
       try {
         expect(
-          photoIds.every(e => {
+          photoIds.every((e) => {
             const isMigratedPhotoId = typeof e === 'string'
             return isMigratedPhotoId
           }),
@@ -594,11 +595,12 @@ describe('obs-store-common', () => {
       // confirm the obs was saved
       expect(savedRecord).toBeTruthy()
       // now we do the migration
-      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-        testObsStore,
-        testPhotoStore,
-        testMetaStore,
-      )
+      const migratedIds =
+        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
+          testObsStore,
+          testPhotoStore,
+          testMetaStore,
+        )
       expect(migratedIds.length).toEqual(0)
     })
 
@@ -614,11 +616,12 @@ describe('obs-store-common', () => {
       }
       await testObsStore.setItem(recordId, record)
       // now we do the migration
-      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-        testObsStore,
-        testPhotoStore,
-        testMetaStore,
-      )
+      const migratedIds =
+        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
+          testObsStore,
+          testPhotoStore,
+          testMetaStore,
+        )
       expect(migratedIds.length).toEqual(1)
       const savedRecord = await testObsStore.getItem(recordId)
       expect(savedRecord.wowMeta[cc.versionFieldName]).toEqual(
@@ -628,15 +631,16 @@ describe('obs-store-common', () => {
 
     it(`should not migrate when it's already been done`, async () => {
       await testMetaStore.setItem(cc.gh69MigrationKey, new Date().toISOString())
-      const migratedIds = await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-        {
-          keys: async () => {
-            throw new Error('Should not be called')
+      const migratedIds =
+        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
+          {
+            keys: async () => {
+              throw new Error('Should not be called')
+            },
           },
-        },
-        null,
-        testMetaStore,
-      )
+          null,
+          testMetaStore,
+        )
       expect(migratedIds.length).toEqual(0)
     })
   })
@@ -654,11 +658,12 @@ describe('obs-store-common', () => {
       }
       await testObsStore.setItem(recordId, record)
       // now we do the migration
-      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-        testObsStore,
-        testPhotoStore,
-        testMetaStore,
-      )
+      const migratedIds =
+        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+          testObsStore,
+          testPhotoStore,
+          testMetaStore,
+        )
       expect(migratedIds[0]).toEqual(recordId)
       const migratedRecord = await testObsStore.getItem(recordId)
       expect(
@@ -679,11 +684,12 @@ describe('obs-store-common', () => {
       }
       await testObsStore.setItem(recordId, record)
       // now we do the migration
-      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-        testObsStore,
-        testPhotoStore,
-        testMetaStore,
-      )
+      const migratedIds =
+        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+          testObsStore,
+          testPhotoStore,
+          testMetaStore,
+        )
       expect(migratedIds.length).toEqual(0)
     })
 
@@ -692,15 +698,16 @@ describe('obs-store-common', () => {
         cc.noOutcomeLastUpdatedMigrationKey,
         new Date().toISOString(),
       )
-      const migratedIds = await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-        {
-          keys: async () => {
-            throw new Error('Should not be called')
+      const migratedIds =
+        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
+          {
+            keys: async () => {
+              throw new Error('Should not be called')
+            },
           },
-        },
-        null,
-        testMetaStore,
-      )
+          null,
+          testMetaStore,
+        )
       expect(migratedIds.length).toEqual(0)
     })
   })

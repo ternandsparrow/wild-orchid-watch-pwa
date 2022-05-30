@@ -1,7 +1,4 @@
-import { getOrCreateInstance } from '@/indexeddb/storage-manager'
-import * as cc from '@/misc/constants'
-import objectUnderTest, { _testonly, extractGeolocationText } from '@/store/obs'
-import { _testonly as workerTestOnly } from '@/misc/web.worker'
+import objectUnderTest, { extractGeolocationText } from '@/store/obs'
 import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
 
 const originalFn = obsStoreCommonTestOnly.interceptableFns.storePhotoRecord
@@ -65,7 +62,7 @@ describe('mutations', () => {
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
       expect(
-        state.recentlyUsedTaxa.speciesGuess.map(e => e.preferredCommonName),
+        state.recentlyUsedTaxa.speciesGuess.map((e) => e.preferredCommonName),
       ).toEqual(['ccc', 'aaa', 'bbb'])
     })
 
@@ -85,7 +82,7 @@ describe('mutations', () => {
       })
       expect(state.recentlyUsedTaxa.speciesGuess).toHaveLength(3)
       expect(
-        state.recentlyUsedTaxa.speciesGuess.map(e => e.preferredCommonName),
+        state.recentlyUsedTaxa.speciesGuess.map((e) => e.preferredCommonName),
       ).toEqual(['aaa', 'bbb', 'ccc'])
     })
 
@@ -113,7 +110,7 @@ describe('mutations', () => {
             '18',
             '19',
             '20',
-          ].map(e => ({ name: e, preferredCommonName: e })),
+          ].map((e) => ({ name: e, preferredCommonName: e })),
         },
       }
       objectUnderTest.mutations.addRecentlyUsedTaxa(state, {
@@ -132,12 +129,12 @@ describe('mutations', () => {
 describe('actions', () => {
   let origConsoleDebug
 
-  beforeAll(function() {
+  beforeAll(function () {
     origConsoleDebug = console.debug
     console.debug = () => {}
   })
 
-  afterAll(function() {
+  afterAll(function () {
     console.debug = origConsoleDebug
   })
 
@@ -321,7 +318,7 @@ describe('actions', () => {
       })
       const result = sorterFn(obsFieldsToSort, 'id')
       // a hacky "ordered array matcher"
-      expect(JSON.stringify(result.map(e => e.name))).toEqual(
+      expect(JSON.stringify(result.map((e) => e.name))).toEqual(
         JSON.stringify(['dasher', 'prancer', 'blitzen', 'comet']),
       )
     })
@@ -330,7 +327,7 @@ describe('actions', () => {
       const obsFieldsToSort = [
         { fieldId: 333, name: 'prancer' },
         { fieldId: 111, name: 'dasher' },
-        { /* missing fieldId*/ name: 'blitzen' },
+        { /* missing fieldId */ name: 'blitzen' },
       ]
       const getters = {
         obsFieldPositions: {
@@ -437,9 +434,9 @@ describe('getters', () => {
       }
       const result = objectUnderTest.getters.obsFieldPositions(null, getters)
       expect(result).toEqual({
-        [11]: 0,
-        [22]: 2,
-        [666]: 1,
+        11: 0,
+        22: 2,
+        666: 1,
       })
     })
   })
@@ -462,7 +459,7 @@ async function buildDumbContext({ state, getters }, stubbedDispatchNames = []) {
       const action = objectUnderTest.actions[actionName]
       if (!action) {
         console.error(
-          `Cannot find action with name='${actionName}'` + '. Passed args = ',
+          `Cannot find action with name='${actionName}'. Passed args = `,
           argsObj,
         )
         return // can't throw because there's nothing to catch
@@ -471,38 +468,4 @@ async function buildDumbContext({ state, getters }, stubbedDispatchNames = []) {
     },
   }
   return result
-}
-
-async function buildAutoQueueRefreshContext(
-  state,
-  capturedCommits,
-  selectedObservationUuid,
-) {
-  const result = await buildDumbContext({
-    state: {
-      _uiVisibleLocalRecords: [],
-      localQueueSummary: [],
-      selectedObservationUuid,
-      allRemoteObs: [],
-      ...state,
-    },
-  })
-  result.commit = (name, value) => {
-    switch (name) {
-      case 'setLocalQueueSummary':
-      case 'setUiVisibleLocalRecords':
-        objectUnderTest.mutations[name](result.state, value)
-        refreshGetters()
-        break
-      default:
-        capturedCommits[name] = value
-    }
-  }
-  await objectUnderTest.actions.refreshLocalRecordQueue(result)
-  return result
-  function refreshGetters() {
-    result.getters.localRecords = objectUnderTest.getters.localRecords(
-      result.state,
-    )
-  }
 }

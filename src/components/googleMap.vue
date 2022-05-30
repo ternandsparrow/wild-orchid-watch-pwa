@@ -53,7 +53,7 @@ export default {
     },
     mapOptions: {
       type: Object,
-      default: function() {
+      default: () => {
         return { gestureHandling: 'cooperative' }
       },
       required: false,
@@ -89,14 +89,13 @@ export default {
   mounted() {
     this.centerPosition()
     // Save the map object once it is loaded
-    this.$refs.mapRef.$mapPromise.then(map => {
+    this.$refs.mapRef.$mapPromise.then((map) => {
       this.map = map
     })
   },
   methods: {
     centerPosition() {
-      const lat = this.markerPosition.lat
-      const lng = this.markerPosition.lng
+      const { lat, lng } = this.markerPosition
       if (!lat || !lng) {
         return
       }

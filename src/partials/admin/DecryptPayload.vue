@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Decrypt encrypted payload
-    </div>
+    <div class="title">Decrypt encrypted payload</div>
     <div v-if="!isShow">
       <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>

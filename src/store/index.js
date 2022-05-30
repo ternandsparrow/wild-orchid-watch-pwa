@@ -29,7 +29,7 @@ const store = new Vuex.Store({
     createPersistedState({
       key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
-        const cleanedState = Object.assign({}, state)
+        const cleanedState = { ...state }
         // don't persist anything in the ephemeral module, we assume nothing in
         // it will serialise nicely or should be saved.
         delete cleanedState.ephemeral
@@ -108,7 +108,7 @@ const store = new Vuex.Store({
     },
     isJoinedProject(state, getters) {
       const joinedUserIds = (state.obs.projectInfo || {}).user_ids || []
-      const myUserId = getters['myUserId']
+      const { myUserId } = getters
       return joinedUserIds.includes(myUserId)
     },
   },
@@ -137,7 +137,7 @@ subscribeToWorkerMessage(workerMessages.facadeEditSuccess, ({ summary }) => {
   return store.commit('obs/handleObsCreateOrEditCompletion', summary)
 })
 
-subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, args => {
+subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
   return store.commit('obs/handleLocalRecordTransition', args)
 })
 
@@ -145,11 +145,11 @@ subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, args => {
 const allApiTokenHooks = [...obsApiTokenHooks]
 
 store.watch(
-  state => state.auth.apiTokenAndUserLastUpdated,
+  (state) => state.auth.apiTokenAndUserLastUpdated,
   () => {
     console.debug('API Token and user details changed, triggering hooks')
-    for (const curr of allApiTokenHooks) {
-      curr(store).catch(err => {
+    allApiTokenHooks.forEach((curr) => {
+      curr(store).catch((err) => {
         store.dispatch(
           'flagGlobalError',
           {
@@ -160,7 +160,7 @@ store.watch(
           { root: true },
         )
       })
-    }
+    })
   },
 )
 
@@ -170,6 +170,6 @@ export default store
  * Add any code here that migrates vuex stores on user devices to match what we
  * expect in this version of the codebase.
  */
-export async function migrateOldStores(store) {
-  await obsMigrate(store)
+export async function migrateOldStores(storeParam) {
+  await obsMigrate(storeParam)
 }

@@ -1,8 +1,8 @@
 import nodeResolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
 import sourcesmaps from 'rollup-plugin-sourcemaps'
-import injectProcess from './rollup-plugin-inject-process'
 import alias from '@rollup/plugin-alias'
+import injectProcess from './rollup-plugin-inject-process'
 
 export default {
   input: 'sw-src/sw.js',
@@ -16,7 +16,7 @@ export default {
   ],
   plugins: [
     alias({
-      entries: [{ find: '@', replacement: __dirname + '/src' }],
+      entries: [{ find: '@', replacement: `${__dirname}/src` }],
     }),
     nodeResolve({
       jail: __dirname,

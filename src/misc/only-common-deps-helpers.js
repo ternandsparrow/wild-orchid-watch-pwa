@@ -10,8 +10,8 @@ const Sentry = sentryInit('only-obs-common-deps-helpers')
 
 export function wowErrorHandler(msg, err) {
   console.error(msg, err || '(no error object passed)')
-  const processedError = chainedError(msg, err)
-  Sentry.withScope(function(scope) {
+  const processedError = ChainedError(msg, err)
+  Sentry.withScope(function (scope) {
     if (err && err.httpStatus) {
       scope.setTag('http-status', err.httpStatus)
     }
@@ -22,25 +22,25 @@ export function wowErrorHandler(msg, err) {
 // for errors that are only warnings
 export function wowWarnHandler(msg, err) {
   console.warn(msg, err || '(no error object passed)')
-  Sentry.withScope(scope => {
+  Sentry.withScope((scope) => {
     scope.setLevel('warning')
-    Sentry.captureException(chainedError(msg, err))
+    Sentry.captureException(ChainedError(msg, err))
   })
 }
 
 // for warn messages, send errors to wowWarnHandler
 export function wowWarnMessage(msg) {
   console.warn(msg)
-  Sentry.withScope(function(scope) {
+  Sentry.withScope(function (scope) {
     scope.setLevel('warning')
     Sentry.captureMessage(msg)
   })
 }
 
-export function chainedError(msg, err) {
+export function ChainedError(msg, err) {
   if (!err) {
     return new Error(
-      `${msg}\nWARNING: chainedError was called without an error to chain`,
+      `${msg}\nWARNING: ChainedError was called without an error to chain`,
     )
   }
   if (typeof err === 'object') {
@@ -52,8 +52,7 @@ export function chainedError(msg, err) {
       // we can't construct a new DOMException because support for the
       // constructor isn't great.
       return new Error(
-        newMsg +
-          `\nOriginal stack (immutable original error forced ` +
+        `${newMsg}\nOriginal stack (immutable original error forced ` +
           `creation of a new Error with new stack):\n${err.stack}`,
       )
     }
@@ -65,16 +64,15 @@ export function chainedError(msg, err) {
       // to always be but there may be others.
       console.warn(
         `While handling the first error:\n` +
-          `  [name=${err.name}, type=${
-            (err.constructor || {}).name
-          }] ${err.message || '(no message)'}\n` +
+          `  [name=${err.name}, type=${(err.constructor || {}).name}] ${
+            err.message || '(no message)'
+          }\n` +
           `encountered this error:\n` +
           `  ${err2.message}\n` +
           `but we're working around it! Bubbling original error now.`,
       )
       return new Error(
-        newMsg +
-          `\nOriginal stack (readonly Error.message forced ` +
+        `${newMsg}\nOriginal stack (readonly Error.message forced ` +
           `creation of a new Error with new stack):\n${err.stack}`,
       )
     }
@@ -83,6 +81,7 @@ export function chainedError(msg, err) {
 }
 
 function isImmutableError(err) {
+  // eslint-disable-next-line no-restricted-globals
   return self.DOMException && err instanceof DOMException
 }
 
@@ -100,7 +99,7 @@ export function iterateIdb(
   return new Promise((resolve, reject) => {
     const openRequest = indexedDB.open(dbName, dbVersion)
     let dontPanicWeCalledTheAbort = false
-    openRequest.onupgradeneeded = e => {
+    openRequest.onupgradeneeded = (e) => {
       // if an upgrade is needed, the requested DB version did NOT exist
       e.target.transaction.abort()
       dontPanicWeCalledTheAbort = true
@@ -115,7 +114,7 @@ export function iterateIdb(
         return
       }
       const isVersionError = openRequest.error.name === 'VersionError'
-      const newErr = chainedError(
+      const newErr = ChainedError(
         `Failed to open IndexedDB '${dbName}' (version ${dbVersion})`,
         openRequest.error,
       )
@@ -124,7 +123,7 @@ export function iterateIdb(
       }
       reject(newErr)
     }
-    openRequest.onsuccess = e => {
+    openRequest.onsuccess = (e) => {
       const database = e.target.result
       const mode = isWrite ? 'readwrite' : 'readonly'
       try {
@@ -132,7 +131,7 @@ export function iterateIdb(
         const mappedItems = new Set()
         const objectStore = transaction.objectStore(objectStoreName)
         const request = objectStore.openCursor()
-        request.addEventListener('success', e => {
+        request.addEventListener('success', (e) => {
           const cursor = e.target.result
           if (cursor) {
             const mapped = cursorMapFn(cursor)
@@ -156,7 +155,7 @@ export function iterateIdb(
           return resolve([])
         }
         return reject(
-          chainedError(`Failed to open objectStore '${objectStoreName}'`, err),
+          ChainedError(`Failed to open objectStore '${objectStoreName}'`, err),
         )
       }
     }
@@ -165,15 +164,15 @@ export function iterateIdb(
 
 export function getExifFromBlob(blobish) {
   return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function(err) {
+    EXIF.getData(blobish, function (err) {
       try {
         if (err) {
-          return reject(chainedError('Failed to extract EXIF', err))
+          return reject(ChainedError('Failed to extract EXIF', err))
         }
         const result = EXIF.getAllTags(this)
         return resolve(result)
       } catch (err) {
-        return reject(chainedError('Failed to work with extracted EXIF', err))
+        return reject(ChainedError('Failed to work with extracted EXIF', err))
       }
     })
   })
@@ -186,7 +185,7 @@ export function getExifFromBlob(blobish) {
 // UI control. So we have to convert them to ArrayBuffers, which do have
 // support. If we ever stop supporting Safari 10, I think these can be removed.
 export function arrayBufferToBlob(buffer, type) {
-  return new Blob([buffer], { type: type })
+  return new Blob([buffer], { type })
 }
 
 export function blobToArrayBuffer(blob) {
@@ -211,7 +210,7 @@ export function makeEnumValidator(validValues) {
   if (!Array.isArray(validValues) || !validValues.length) {
     throw new Error('Input must be a non-empty array!')
   }
-  return function(enumItem) {
+  return function (enumItem) {
     const isValid = validValues.includes(enumItem)
     if (!isValid) {
       throw new Error(

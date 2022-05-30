@@ -28,14 +28,14 @@ function enableSwConsoleProxy() {
   )
   function doProxy(fnNameToProxy) {
     origConsole[fnNameToProxy] = console[fnNameToProxy]
-    console[fnNameToProxy] = function(msg) {
+    console[fnNameToProxy] = function (msg) {
       sendMessageToAllClients(msg)
         .then(() =>
           origConsole.debug(
             `proxied console message='${msg.substring(0, 30)}...' to clients`,
           ),
         )
-        .catch(err => {
+        .catch((err) => {
           origConsole.error('Failed to proxy console to clients', err)
         })
     }
@@ -95,7 +95,7 @@ registerRoute(
       devHelpers.platformTestReqBlob(),
     ]
     const testResults = await Promise.all(
-      tests.map(async f => ({ name: f.name, result: await f() })),
+      tests.map(async (f) => ({ name: f.name, result: await f() })),
     )
     return new Response(JSON.stringify(testResults, null, 2), {
       status: 200,
@@ -108,11 +108,11 @@ registerRoute(
   cc.serviceWorkerUpdateErrorTrackerContextUrl,
   async ({ event }) => {
     const newContext = await event.request.json()
-    const username = newContext.username
+    const { username } = newContext
     if (username) {
       console.debug(`[SW] Updating error tracker username to '${username}'`)
-      Sentry.configureScope(scope => {
-        scope.setUser({ username: username })
+      Sentry.configureScope((scope) => {
+        scope.setUser({ username })
       })
     }
     return jsonResponse({
@@ -134,7 +134,7 @@ registerRoute(
 
 let shouldClaimClients = false
 
-self.addEventListener('install', function() {
+self.addEventListener('install', function () {
   console.debug(`[SW] I'm installed!`)
   if (!self.registration.active) {
     console.debug('[SW] no existing active SW')
@@ -143,7 +143,7 @@ self.addEventListener('install', function() {
   }
 })
 
-self.addEventListener('activate', function() {
+self.addEventListener('activate', function () {
   console.debug(`[SW] I'm activated!`)
   if (shouldClaimClients) {
     // note: this triggers a page refresh. Eagerly claiming clients is probably
@@ -157,7 +157,7 @@ self.addEventListener('activate', function() {
 // FIXME might be able to replace this (and corresponding client side) with
 // built-in workbox magic
 // https://developer.chrome.com/docs/workbox/modules/workbox-window/#window-to-service-worker-communication
-self.addEventListener('message', function(event) {
+self.addEventListener('message', function (event) {
   switch (event.data) {
     case cc.skipWaitingMsg:
       console.debug('SW is skipping waiting')
@@ -170,7 +170,6 @@ self.addEventListener('message', function(event) {
       return
     case cc.testTriggerManualUncaughtErrorMsg:
       doManualErrorTest(false)
-      return
   }
 })
 
@@ -187,9 +186,9 @@ function doManualErrorTest(isCaught) {
 }
 
 function sendMessageToClient(client, msg) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     const msgChan = new MessageChannel()
-    msgChan.port1.onmessage = function(event) {
+    msgChan.port1.onmessage = function (event) {
       if (event.data.error) {
         return reject(event.data.error)
       }
@@ -210,7 +209,7 @@ async function sendMessageToAllClients(msg) {
     try {
       const clientResp = await sendMessageToClient(client, msg)
       const noProxyConsoleDebug = origConsole.debug || console.debug
-      noProxyConsoleDebug('SW received message: ' + clientResp)
+      noProxyConsoleDebug(`SW received message: ${clientResp}`)
     } catch (err) {
       const noProxyConsoleError = origConsole.error || console.error
       noProxyConsoleError(`Failed to send message=${msg} to client`, err)

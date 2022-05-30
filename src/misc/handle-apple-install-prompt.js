@@ -2,7 +2,7 @@ import { isNil } from 'lodash'
 import store from '@/store'
 import { isOnboarderVisible } from '@/misc/nav-stacks'
 
-export default function() {
+export default function () {
   const ua = window.navigator.userAgent
   const iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i)
   const webkit = !!ua.match(/WebKit/i)
@@ -18,11 +18,10 @@ export default function() {
   if (iOSSafari && !isInStandaloneMode && !isOnboarderVisible()) {
     const now = Date.now()
     let limitDate = null
-    const addToHomeIosPromptLastDate =
-      store.state.app.addToHomeIosPromptLastDate
+    const { addToHomeIosPromptLastDate } = store.state.app
 
     if (!isNil(addToHomeIosPromptLastDate)) {
-      limitDate = new Date(parseInt(addToHomeIosPromptLastDate))
+      limitDate = new Date(parseInt(addToHomeIosPromptLastDate, 10))
       limitDate.setMonth(limitDate.getMonth() + 1)
     }
 

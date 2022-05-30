@@ -20,7 +20,7 @@ import { wowIdOf } from '@/misc/helpers'
 const galleryImgSize = 'small'
 
 export default {
-  name: 'Gallery',
+  name: 'WowGallery',
   computed: {
     ...mapGetters('obs', ['localRecords', 'remoteRecords']),
     isNoPhotos() {
@@ -32,7 +32,7 @@ export default {
           // FIXME we only include uploaded photos. Including local photos
           // means loading them all into memory, which can get pretty big
           // pretty fast.
-          for (const currPhoto of currRecord.photos || []) {
+          ;(currRecord.photos || []).forEach((currPhoto) => {
             accum.push({
               _id: `${currRecord.uuid}_${currPhoto.id}`,
               wowId: wowIdOf(currRecord),
@@ -41,7 +41,7 @@ export default {
                 url: currPhoto.url.replace('square', galleryImgSize),
               },
             })
-          }
+          })
           return accum
         },
         [],
@@ -50,7 +50,7 @@ export default {
   },
   methods: {
     handleClick(record) {
-      const url = record.photo.url
+      const { url } = record.photo
       this.$store.commit('ephemeral/previewPhoto', {
         url: url.replace(galleryImgSize, 'medium'),
         wowId: record.wowId,

@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import * as objectUnderTest from '@/misc/helpers'
 
-beforeEach(function() {
+beforeEach(function () {
   global.fetch = undefined
 })
 
@@ -227,10 +227,10 @@ describe('isInBoundingBoxImpl', () => {
   })
 })
 
-describe('chainedError', () => {
+describe('ChainedError', () => {
   it('should handle no error passed in', () => {
     const err = null
-    const result = objectUnderTest.chainedError('some msg', err)
+    const result = objectUnderTest.ChainedError('some msg', err)
     expect(result.message).toEqual(
       expect.stringMatching(/some msg\nWARNING:.*/),
     )
@@ -238,7 +238,7 @@ describe('chainedError', () => {
 
   it('should handle an error object passed in', () => {
     const err = new Error('some cause')
-    const result = objectUnderTest.chainedError('some caller', err)
+    const result = objectUnderTest.ChainedError('some caller', err)
     expect(result.message).toEqual(
       expect.stringMatching(/some caller\nCaused by: some cause/),
     )
@@ -246,7 +246,7 @@ describe('chainedError', () => {
 
   it('should handle an error string passed in', () => {
     const err = 'some cause string'
-    const result = objectUnderTest.chainedError('some caller', err)
+    const result = objectUnderTest.ChainedError('some caller', err)
     expect(result.message).toEqual(
       expect.stringMatching(/some caller\nCaused by: some cause string/),
     )
@@ -260,7 +260,7 @@ describe('chainedError', () => {
       value: 'some readonly msg',
       writable: false,
     })
-    const result = objectUnderTest.chainedError('some caller', err)
+    const result = objectUnderTest.ChainedError('some caller', err)
     expect(result.message).toEqual(
       expect.stringMatching(/some caller\nCaused by: some readonly msg/),
     )
@@ -463,9 +463,8 @@ describe('formatStorageSize', () => {
 
 describe('rectangleAlongPathAreaValueToTitle', () => {
   it('should handle value < 1', () => {
-    const result = objectUnderTest.rectangleAlongPathAreaValueToTitle(
-      'less than 1',
-    )
+    const result =
+      objectUnderTest.rectangleAlongPathAreaValueToTitle('less than 1')
     expect(result).toEqual('less than 1m² (i.e. 0.5x0.5 or similar)')
   })
 
@@ -615,7 +614,7 @@ function mockResp(mimeStr) {
 }
 
 function cloneableResp(obj) {
-  obj.clone = function() {
+  obj.clone = function () {
     return obj
   }
   return obj

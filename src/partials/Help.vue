@@ -50,7 +50,7 @@
 import helpData from '@/misc/help-structure'
 
 export default {
-  name: 'Help',
+  name: 'WowHelp',
   props: {
     hideCloseBtn: {
       type: Boolean,

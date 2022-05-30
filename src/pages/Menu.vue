@@ -77,6 +77,7 @@ import {
 } from '@/misc/constants'
 
 export default {
+  name: 'WowMenu',
   data() {
     return {
       appVersion,
@@ -175,7 +176,7 @@ export default {
       return `[${deployedEnvName} build]`
     },
     enabledAccess() {
-      return this.access.filter(e => !e.isDisabled)
+      return this.access.filter((e) => !e.isDisabled)
     },
   },
   methods: {

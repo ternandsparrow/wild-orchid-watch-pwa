@@ -18,9 +18,7 @@
       refresh, the migration code will run.<br />
     </p>
     <p>
-      <label for="record-count">
-        Number of records to create
-      </label>
+      <label for="record-count"> Number of records to create </label>
       <br />
       <v-ons-input
         v-model="recordsCount"
@@ -68,7 +66,7 @@ export default {
   },
   methods: {
     async doIt() {
-      const log = msg => {
+      const log = (msg) => {
         console.debug(msg)
         this.runStatus = msg
       }
@@ -102,6 +100,7 @@ export default {
         })()
         log('opening indexeddb...')
         const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+        const recordSavePromises = []
         while (recordsCreated < this.recordsCount) {
           recordsCreated += 1
           log(`creating record ${recordsCreated}...`)
@@ -111,7 +110,7 @@ export default {
             geoprivacy: 'obscured',
             lat: -36.1,
             lng: 144.7,
-            speciesGuess: 'orchid ' + recordsCreated,
+            speciesGuess: `orchid ${recordsCreated}`,
             observedAt: new Date(),
             obsFieldValues: [
               {
@@ -146,8 +145,9 @@ export default {
             },
             uuid: recordId,
           }
-          await obsStore.setItem(recordId, record)
+          recordSavePromises.push(obsStore.setItem(recordId, record))
         }
+        await Promise.all(recordSavePromises)
         this.$store.dispatch('obs/refreshLocalRecordQueue')
         log('Clearing migration flag')
         const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
@@ -155,7 +155,7 @@ export default {
         log('done :D')
       } catch (err) {
         console.error('Failed to run', err)
-        log('Failed. ' + err.message)
+        log(`Failed. ${err.message}`)
       }
     },
     async getPhotoBytes() {
@@ -172,7 +172,7 @@ export default {
         this.migrateStatus = 'done :D'
       } catch (err) {
         console.error('Failed to migrate', err)
-        this.migrateStatus = 'Failed. ' + err.message
+        this.migrateStatus = `Failed. ${err.message}`
       }
     },
   },

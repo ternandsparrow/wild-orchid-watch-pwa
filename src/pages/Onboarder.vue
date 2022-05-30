@@ -17,9 +17,7 @@
             class="wow-onboarder-logo"
           />
           <p class="version-number text-center">Version: {{ appVersion }}</p>
-          <div class="title text-center mt-1">
-            Welcome!
-          </div>
+          <div class="title text-center mt-1">Welcome!</div>
           <div class="content">
             Thanks for installing the Wild Orchid Watch Field Data collection
             App. We're excited to have your help with the project!
@@ -35,9 +33,7 @@
             alt="Using the App"
             class="wow-onboarder-logo"
           />
-          <div class="title">
-            Data Collection
-          </div>
+          <div class="title">Data Collection</div>
           <div class="content">
             The App allows you to collect and automatically submit native orchid
             sightings. You can let the App know if you prefer to use either WiFi
@@ -52,9 +48,7 @@
             alt="Watch for trampling"
             class="wow-onboarder-logo"
           />
-          <div class="title">
-            Safety
-          </div>
+          <div class="title">Safety</div>
           <div class="content">
             Always make sure you tread carefully, for your safety and also for
             the native orchids. They can easily be trampled by accident!
@@ -68,9 +62,7 @@
             alt="Scaling Card"
             class="wow-onboarder-logo"
           />
-          <div class="title">
-            Scientific use
-          </div>
+          <div class="title">Scientific use</div>
           <div class="content">
             The Observations you collect will be directly used by Scientists
             researching how native Australian orchids can act as indicators of

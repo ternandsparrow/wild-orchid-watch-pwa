@@ -22,9 +22,7 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Clone an obs N times
-      </div>
+      <div class="title">Clone an obs N times</div>
       <p>
         Ever wondered if 30 local observations will bring a device to its knees?
         Find out. You might want to turn off syncing before cloning.
@@ -37,12 +35,9 @@
       <div>
         Obs to clone
         <select v-model="cloneSubjectUuid">
-          <option
-            v-for="curr of cloneList"
-            :key="curr.uuid"
-            :value="curr.uuid"
-            >{{ curr.title }}</option
-          >
+          <option v-for="curr of cloneList" :key="curr.uuid" :value="curr.uuid">
+            {{ curr.title }}
+          </option>
         </select>
       </div>
       <div>
@@ -56,15 +51,11 @@
     </v-ons-card>
     <wow-force-rpo />
     <v-ons-card>
-      <div class="title">
-        Dump vuex
-      </div>
+      <div class="title">Dump vuex</div>
       <p>
         <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
         </v-ons-checkbox>
-        <label for="include-project">
-          Include project details
-        </label>
+        <label for="include-project"> Include project details </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -72,9 +63,7 @@
           input-id="include-local-obs"
         >
         </v-ons-checkbox>
-        <label for="include-local-obs">
-          Include local observations
-        </label>
+        <label for="include-local-obs"> Include local observations </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -82,9 +71,7 @@
           input-id="include-remote-obs"
         >
         </v-ons-checkbox>
-        <label for="include-remote-obs">
-          Include remote observations
-        </label>
+        <label for="include-remote-obs"> Include remote observations </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -92,9 +79,7 @@
           input-id="include-species-list"
         >
         </v-ons-checkbox>
-        <label for="include-species-list">
-          Include species list
-        </label>
+        <label for="include-species-list"> Include species list </label>
       </p>
       <p>
         <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
@@ -107,9 +92,7 @@
       <div class="code-style">{{ vuexDump }}</div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Enable service worker console proxy
-      </div>
+      <div class="title">Enable service worker console proxy</div>
       <p>
         For when you can't get access to the SW console. iOS Safari in
         BrowserStack is one offender.
@@ -125,12 +108,8 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Enable console proxying to UI
-      </div>
-      <p>
-        For when you can't get access debug tools (like on a mobile device)
-      </p>
+      <div class="title">Enable console proxying to UI</div>
+      <p>For when you can't get access debug tools (like on a mobile device)</p>
       <p>
         <v-ons-button
           :disabled="hasConsoleBeenProxiedToUi"
@@ -151,9 +130,7 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Location test
-      </div>
+      <div class="title">Location test</div>
       <div class="text-center">
         <p v-if="isLocSuccess" class="success-msg">
           Location: lat=<span class="mono">{{ lat }}</span
@@ -174,9 +151,7 @@
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />
     <v-ons-card>
-      <div class="title">
-        Platform test
-      </div>
+      <div class="title">Platform test</div>
       <p>
         Run a series of tests to make sure the platform is working like we
         expect.
@@ -185,17 +160,13 @@
       <v-ons-button @click="doPlatformTest">Do platform test</v-ons-button>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        User agent
-      </div>
+      <div class="title">User agent</div>
       <div class="text-center">
         {{ userAgent }}
       </div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Service Worker statuses
-      </div>
+      <div class="title">Service Worker statuses</div>
       <p class="mono">
         <span v-if="isSwStatusActive" class="success-msg"
           >All ready to go!</span
@@ -219,9 +190,7 @@
       <p class="mono">Result: {{ swCheckResult }}</p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Force refresh
-      </div>
+      <div class="title">Force refresh</div>
       <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
       <p>
         <v-ons-button @click="doProjectInfoRefresh"
@@ -249,9 +218,7 @@
     </v-ons-card>
     <configuration-dump />
     <v-ons-card>
-      <div class="title">
-        Manually trigger an error
-      </div>
+      <div class="title">Manually trigger an error</div>
       <p>
         <v-ons-input
           v-model="manualErrorMsg"
@@ -286,9 +253,7 @@
       >
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        ML Test
-      </div>
+      <div class="title">ML Test</div>
       <p>
         Load the Trained Model, Load a test Image and then do a predict on the
         image.
@@ -330,7 +295,7 @@ import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
 const wowModelPath = '/image-ml/v1/model.json'
 
 export default {
-  name: 'Admin',
+  name: 'WowAdmin',
   data() {
     return {
       lat: null,
@@ -437,13 +402,13 @@ export default {
         return
       }
       navigator.geolocation.getCurrentPosition(
-        loc => {
+        (loc) => {
           this.lat = loc.coords.latitude
           this.lng = loc.coords.longitude
           this.alt = loc.coords.altitude
           this.acc = loc.coords.accuracy
         },
-        err => {
+        (err) => {
           const msg = 'Location access is failed. '
           console.error(msg, err)
           this.locErrorMsg = msg + err.message
@@ -459,7 +424,7 @@ export default {
     },
     doManualError() {
       const err = new Error(
-        '[Manually triggered error from /admin] ' + this.manualErrorMsg,
+        `[Manually triggered error from /admin] ${this.manualErrorMsg}`,
       )
       err.httpStatus = 418
       err.name = 'ManuallyTriggeredError'
@@ -487,27 +452,28 @@ export default {
       console.debug('Firing check to SW')
       this.swCheckResult = 'checking...'
       isSwActive()
-        .then(result => {
-          console.log('Is SW alive? ' + result)
-          this.swCheckResult = 'is SW alive = ' + result
+        .then((result) => {
+          console.log(`Is SW alive? ${result}`)
+          this.swCheckResult = `is SW alive = ${result}`
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Failed to send check to SW', err)
-          this.swCheckResult = 'Error ' + err.message
+          this.swCheckResult = `Error ${err.message}`
         })
     },
     _sendMessageToSw(msg) {
-      return new Promise(function(resolve, reject) {
+      return new Promise(function (resolve, reject) {
         const msgChan = new MessageChannel()
-        msgChan.port1.onmessage = function(event) {
+        msgChan.port1.onmessage = function (event) {
           if ((event.data || {}).error) {
             return reject(event.data.error)
           }
           return resolve(event.data)
         }
-        const controller = navigator.serviceWorker.controller
+        const { controller } = navigator.serviceWorker
         if (!controller) {
-          return reject('No service worker active. Cannot send msg=' + msg)
+          reject(new Error(`No service worker active. Cannot send msg=${msg}`))
+          return
         }
         controller.postMessage(msg, [msgChan.port2])
       })
@@ -533,8 +499,7 @@ export default {
         origConsole[curr] = console[curr]
         console[curr] = (...theArgs) => {
           const simpleMsg = theArgs.reduce((accum, curr) => {
-            accum += curr + ' ' // TODO do we need to handle Errors or objects specially?
-            return accum
+            return `${accum}${curr} ` // TODO do we need to handle Errors or objects specially?
           }, '')
           this.$store.commit('ephemeral/pushConsoleMsg', {
             level: curr,
@@ -567,22 +532,23 @@ export default {
       const cloneSubject = await getRecord(this.cloneSubjectUuid)
       let counter = 0
       while (counter < this.cloneCount) {
-        counter++
+        counter += 1
         const msg = `Making clone #${counter}`
         console.debug(msg)
         this.cloneStatus = msg
-        const cloned = Object.assign({}, cloneSubject, {
+        const cloned = {
+          ...cloneSubject,
           speciesGuess: `[Clone ${counter}] ${cloneSubject.speciesGuess}`,
           uuid: uuid(),
           observedAt: new Date(),
-        })
+        }
         await storeRecord(cloned)
       }
       await this.$store.dispatch('obs/refreshLocalRecordQueue')
       this.cloneStatus = 'Done :D'
     },
     prepCloneList() {
-      this.cloneList = this.$store.getters['obs/localRecords'].map(e => ({
+      this.cloneList = this.$store.getters['obs/localRecords'].map((e) => ({
         title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
@@ -610,8 +576,7 @@ export default {
         try {
           await this.enableSwConsoleProxy()
         } catch (err) {
-          this.remoteJsAttachStatus =
-            'attached but SW console proxy failed: ' + err.message
+          this.remoteJsAttachStatus = `attached but SW console proxy failed: ${err.message}`
           return
         }
       }
@@ -641,7 +606,7 @@ export default {
         }
       } catch (err) {
         console.error('Failed to perform platform test', err)
-        this.platformTestResult = 'Failed. ' + err.message
+        this.platformTestResult = `Failed. ${err.message}`
       }
     },
     async loadMl5Library() {
@@ -655,7 +620,8 @@ export default {
         try {
           if (isScriptAlreadyLoaded(src)) {
             console.debug('ML5 already loaded')
-            return resolve()
+            resolve()
+            return
           }
           // thanks https://stackoverflow.com/a/47002863/1410035
           const ml5Script = document.createElement('script')
@@ -671,11 +637,11 @@ export default {
               type: 'module',
             })
             this.ourWorker = Comlink.wrap(worker)
-            return resolve()
+            resolve()
           }
           document.head.appendChild(ml5Script)
         } catch (err) {
-          return reject(err)
+          reject(err)
         }
       })
     },

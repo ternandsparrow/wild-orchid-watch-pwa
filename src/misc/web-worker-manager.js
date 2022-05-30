@@ -18,10 +18,10 @@ export function getWebWorker() {
 
 const interceptableFns = {
   buildWorker() {
-    const result = new Worker('./web.worker.js', {
+    const result = new Worker(new URL('./web.worker.js', import.meta.url), {
       type: 'module',
     })
-    result.addEventListener('message', event => {
+    result.addEventListener('message', (event) => {
       // we'll get all the comlink events here too, but we don't care about
       // them. We only want to look for ones that we explicitly send
       const key = event.data.wowKey
@@ -36,7 +36,7 @@ const interceptableFns = {
       for (const currCb of subscribers) {
         const result = currCb(event.data.data)
         if (result && result.constructor === Promise) {
-          result.catch(err => {
+          result.catch((err) => {
             console.error(`Async subscriber for key=${key} threw an error`, err)
           })
         }

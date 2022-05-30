@@ -18,7 +18,7 @@ import {
  *  - shouldn't be saved between sessions, like "are we online" flag
  */
 
-const state = {
+const stateObj = {
   // not sure if GA and Sentry belong here but it's easier to pass from UI to
   // store than the other way
   $ga: null,
@@ -52,7 +52,7 @@ const state = {
   routerNavPromise: null,
 }
 
-const mutations = {
+const mutationsObj = {
   setUiTraceTools: (state, value) => {
     state.$ga = value.ga
     state.$sentry = value.sentry
@@ -93,20 +93,20 @@ const mutations = {
     }
     state.globalErrorUserMsg = value || '(no message provided)'
   },
-  resetGlobalErrorState: state => {
+  resetGlobalErrorState: (state) => {
     state.isGlobalErrorState = false
     state.globalErrorUserMsg = null
     state.globalErrorImgUrl = null
   },
-  enableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = true),
-  disableWarnOnLeaveRoute: state => (state.isWarnOnLeaveRoute = false),
-  showHelpModal: state => (state.isHelpModalVisible = true),
-  hideHelpModal: state => (state.isHelpModalVisible = false),
+  enableWarnOnLeaveRoute: (state) => (state.isWarnOnLeaveRoute = true),
+  disableWarnOnLeaveRoute: (state) => (state.isWarnOnLeaveRoute = false),
+  showHelpModal: (state) => (state.isHelpModalVisible = true),
+  hideHelpModal: (state) => (state.isHelpModalVisible = false),
   previewPhoto: (state, previewedPhoto) =>
     (state.previewedPhoto = previewedPhoto),
-  closePhotoPreview: state => (state.previewedPhoto = null),
+  closePhotoPreview: (state) => (state.previewedPhoto = null),
   pushConsoleMsg: (state, msg) => state.consoleMsgs.push(msg),
-  clearConsoleMsgs: state => (state.consoleMsgs = []),
+  clearConsoleMsgs: (state) => (state.consoleMsgs = []),
   resetCoordsState: (state, geolocationMethod) => {
     state.photoCoords = []
     state.deviceCoords = null
@@ -120,20 +120,20 @@ const mutations = {
     state.manualDatetime = null
     state.datetimeMethod = datetimeMethod || 'photo'
   },
-  resetPhotoProcessingTasks: state => {
+  resetPhotoProcessingTasks: (state) => {
     state.photoProcessingTasks = []
   },
   setDatetimeMethod: (state, method) => (state.datetimeMethod = method),
   setDeviceCoords: (state, value) => (state.deviceCoords = value),
   setPhotoOutsideBboxErrorMsg: (state, value) =>
     (state.photoOutsideBboxErrorMsg = value),
-  clearPhotoOutsideBboxErrorMsg: state =>
+  clearPhotoOutsideBboxErrorMsg: (state) =>
     (state.photoOutsideBboxErrorMsg = null),
   pushPhotoDatetime: (state, newDatetime) =>
     state.photoDatetimes.push(newDatetime),
   popDatetimeForPhoto: (state, photoUuid) => {
     const indexOfPhoto = state.photoDatetimes.findIndex(
-      p => p.photoUuid === photoUuid,
+      (p) => p.photoUuid === photoUuid,
     )
     if (!~indexOfPhoto) {
       // we don't have datetime for this photo, nothing to do
@@ -144,7 +144,7 @@ const mutations = {
   pushPhotoCoords: (state, newCoords) => state.photoCoords.push(newCoords),
   popCoordsForPhoto: (state, photoUuid) => {
     const indexOfPhoto = state.photoCoords.findIndex(
-      p => p.photoUuid === photoUuid,
+      (p) => p.photoUuid === photoUuid,
     )
     if (!~indexOfPhoto) {
       // we don't have coords for this photo, nothing to do
@@ -164,18 +164,18 @@ const mutations = {
     // in their finally clause. We achieve that by using the photo ID so if
     // we've since "forgotten" about a running promise (by leaving this page
     // and coming back) then it won't interfere with us.
-    const found = state.photoProcessingTasks.find(e => e.uuid === taskUuid)
+    const found = state.photoProcessingTasks.find((e) => e.uuid === taskUuid)
     if (!found) {
       return
     }
     found.isDone = true
   },
-  recordSuccessfulDeviceLocReq: state =>
+  recordSuccessfulDeviceLocReq: (state) =>
     (state.hadSuccessfulDeviceLocReq = true),
   setRouterNavPromise: (state, value) => (state.routerNavPromise = value),
 }
 
-const actions = {
+const actionsObj = {
   async closeAddToHomeScreenModalForApple({ commit }) {
     commit('app/setAddToHomeIosPromptLastDate', Date.now(), { root: true })
     commit('setShowAddToHomeScreenModalForApple', false)
@@ -242,7 +242,7 @@ const actions = {
         return blobish
       }
       ;(function debugMetadata() {
-        const slightlyTerserMetadata = Object.assign({}, originalMetadata)
+        const slightlyTerserMetadata = { ...originalMetadata }
         if (slightlyTerserMetadata.UserComment) {
           slightlyTerserMetadata.UserComment = `(hidden ${slightlyTerserMetadata.UserComment.length} bytes)`
         }
@@ -289,7 +289,7 @@ const actions = {
       })
       const debugInfo = {
         gpsFields: Object.keys(originalMetadata)
-          .filter(k => k.startsWith('GPS'))
+          .filter((k) => k.startsWith('GPS'))
           .reduce((accum, currKey) => {
             accum[currKey] = originalMetadata[currKey]
             return accum
@@ -336,13 +336,16 @@ const actions = {
     })
   },
   uiTrace({ state }, { category, action }) {
-    state.$sentry &&
+    if (state.$sentry) {
       state.$sentry.addBreadcrumb({
         category: 'ui',
         level: 'info',
         message: `"${category}" had "${action}" occur`,
       })
-    state.$ga && state.$ga.event(category, action)
+    }
+    if (state.$ga) {
+      state.$ga.event(category, action)
+    }
   },
   markUserGeolocation({ commit, rootState }) {
     if (!navigator.geolocation) {
@@ -351,7 +354,7 @@ const actions = {
     }
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
-        loc => {
+        (loc) => {
           commit('setDeviceCoords', {
             lat: loc.coords.latitude,
             lng: loc.coords.longitude,
@@ -360,7 +363,7 @@ const actions = {
           commit('recordSuccessfulDeviceLocReq')
           return resolve()
         },
-        err => {
+        (err) => {
           // enum from https://developer.mozilla.org/en-US/docs/Web/API/PositionError
           const permissionDenied = 1
           const positionUnavailable = 2
@@ -375,13 +378,12 @@ const actions = {
               // tethered through a mobile hotspot. You allow access but it
               // still fails.
               console.warn(
-                'Geolocation is supported but not available. Error code=' +
-                  errCode,
+                `Geolocation is supported but not available. Error code=${errCode}`,
               )
               return reject(constants.failed)
             case timeout:
               console.warn(
-                'Geolocation is supported but timed out. Error code=' + errCode,
+                `Geolocation is supported but timed out. Error code=${errCode}`,
               )
               return reject(constants.failed)
             default:
@@ -399,9 +401,9 @@ const actions = {
 
 const ACTIVE = 'active'
 
-const getters = {
-  newContentAvailable: state => !isNil(state.SWRegistrationForNewContent),
-  swStatus: state => {
+const gettersObj = {
+  newContentAvailable: (state) => !isNil(state.SWRegistrationForNewContent),
+  swStatus: (state) => {
     const nullSafeSwReg = state.swReg || {}
     return [ACTIVE, 'installing', 'waiting'].reduce((accum, curr) => {
       accum[curr] = !!nullSafeSwReg[curr]
@@ -410,7 +412,7 @@ const getters = {
   },
   isSwStatusActive: (state, getters) => getters.swStatus[ACTIVE],
   datetimeForCurrentlyEditingObs(state, getters, _, rootGetters) {
-    const datetimeMethod = state.datetimeMethod
+    const { datetimeMethod } = state
     switch (datetimeMethod) {
       case 'existing':
         return (() => {
@@ -425,7 +427,7 @@ const getters = {
         return { value: state.manualDatetime }
       default:
         throw new Error(
-          'Programmer problem: unhandled datetimeMethod=' + datetimeMethod,
+          `Programmer problem: unhandled datetimeMethod=${datetimeMethod}`,
         )
     }
   },
@@ -450,7 +452,7 @@ const getters = {
         return state.pinCoords
       default:
         throw new Error(
-          'Programmer problem: unhandled geolocationMethod=' + geoMethod,
+          `Programmer problem: unhandled geolocationMethod=${geoMethod}`,
         )
     }
   },
@@ -461,16 +463,16 @@ const getters = {
     return state.photoDatetimes[0]
   },
   photosStillProcessingCount(state) {
-    return state.photoProcessingTasks.filter(e => !e.isDone).length
+    return state.photoProcessingTasks.filter((e) => !e.isDone).length
   },
 }
 
 export default {
   namespaced: true,
-  state,
-  mutations,
-  actions,
-  getters,
+  state: stateObj,
+  mutations: mutationsObj,
+  actions: actionsObj,
+  getters: gettersObj,
 }
 
 function extractGps(parsedExif) {
@@ -480,7 +482,7 @@ function extractGps(parsedExif) {
     parsedExif.GPSLongitude,
     parsedExif.GPSLongitudeRef,
   ]
-  const isAllFieldsPresent = theArgs.every(e => !!e)
+  const isAllFieldsPresent = theArgs.every((e) => !!e)
   if (!isAllFieldsPresent) {
     return {}
   }
