@@ -364,8 +364,6 @@ const actions = {
     try {
       const localQueueSummary = await getWebWorker().getLocalQueueSummary()
       commit('setLocalQueueSummary', localQueueSummary)
-      // TODO do we need to wait for nextTick before revoking the old URLs?
-      console.debug('[refreshLocalRecordQueue] finished')
     } catch (err) {
       throw chainedError('Failed to refresh localRecordQueue', err)
     } finally {

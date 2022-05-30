@@ -606,17 +606,6 @@ describe('Mission body', () => {
   })
 })
 
-describe('isPossiblyStuck', () => {
-  it('should return false when no record is supplied', () => {
-    const record = null
-    const store = {
-      getters: {},
-    }
-    const result = objectUnderTest.isPossiblyStuck(store, record)
-    expect(result).toEqual(false)
-  })
-})
-
 function mockResp(mimeStr) {
   return {
     headers: {

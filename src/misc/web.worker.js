@@ -208,6 +208,9 @@ async function cleanLocalRecord(recordUuid, newRecordSummary) {
     if (!record) {
       return
     }
+    if (!newRecordSummary) {
+      throw new Error(`Blocked action present, but no summary passed for UUID=${recordUuid}`)
+    }
     const blockedActionFromDb = record.wowMeta[cc.blockedActionFieldName]
     if (!blockedActionFromDb) {
       return
@@ -1135,8 +1138,8 @@ function isObsStateProcessing(state) {
 }
 
 function deleteRecord(theUuid, apiToken) {
-  const doDeleteFn = deleteDbRecordById
-  return _deleteRecord(theUuid, apiToken, doDeleteFn)
+  const doDeleteReqFn = deleteWithAuth
+  return _deleteRecord(theUuid, apiToken, doDeleteReqFn)
 }
 
 async function cancelFailedDeletes(dbRecordUuids) {
@@ -1144,7 +1147,7 @@ async function cancelFailedDeletes(dbRecordUuids) {
   notifyUiToRefreshLocalRecordQueue()
 }
 
-async function _deleteRecord(theUuid, apiToken, doDeleteFn) {
+async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
   if (!theUuid) {
     throw namedError(
       'InvalidState',
@@ -1155,7 +1158,7 @@ async function _deleteRecord(theUuid, apiToken, doDeleteFn) {
   const localRecord = await getRecord(theUuid)
   if (localRecord) {
     try {
-      await doDeleteFn(theUuid)
+      await deleteDbRecordById(theUuid)
     } catch (err) {
       throw new chainedError(
         `Failed to delete local record for UUID='${theUuid}'`,
@@ -1180,16 +1183,8 @@ async function _deleteRecord(theUuid, apiToken, doDeleteFn) {
       )}`,
     )
   }
-  // FIXME handling failed bundle requests could be tricky. If request 1 fails,
-  // but then request 2 succeeds, we don't need to retry req 1. We need a way
-  // to know what the most recent request is and how many pending requests
-  // there are. I guess we keep an array of these in wowMeta, so we can make
-  // the decision on how to deal with fails/successes as they come in. We can
-  // use timestamps as the keys and pass that to the callback fn closure. We
-  // also need logic to kick off pending "polling for completion" checks on app
-  // start.
   // FIXME handle errors
-  await deleteWithAuth(
+  await doDeleteReqFn(
     `${cc.apiUrlBase}/observations/${inatRecordId}`,
     apiToken,
   )
@@ -1427,7 +1422,8 @@ async function metaStoreWrite(key, val) {
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
   exposed,
+  mapObsFromApiIntoOurDomain,
   upsertBlockedAction,
   upsertQueuedAction,
-  _deleteRecord, // FIXME test this
+  _deleteRecord,
 }

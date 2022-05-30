@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
-import { _testonly as obsStoreTestOnly } from '@/store/obs'
+import { _testonly as workerMgrTestOnly } from '@/misc/web-worker-manager'
 
 expect.extend({
   toBeValidDateString(received) {
@@ -30,8 +30,8 @@ expect.extend({
 // modify them and it will affect all others that use them too. Comlink has
 // dependencies that make it hard to run in Node so we just replace the
 // function that uses Comlink completely in tests.
-obsStoreTestOnly.interceptableFns.buildWorker = function() {
-  return require('@/store/obs-store.worker.js')._testonly
+workerMgrTestOnly.interceptableFns.buildWorker = function() {
+  return require('@/misc/web.worker')._testonly.exposed
 }
 
 // we load "fake-indexeddb/auto" in the test setupFiles, but just to make sure
