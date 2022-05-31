@@ -7,6 +7,8 @@ executors:
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
+    # https://circleci.com/docs/2.0/configuration-reference/#docker-executor
+    resource_class: medium+
 
 jobs:
   install-dependencies:
@@ -57,7 +59,6 @@ jobs:
 
   build-prod:
     executor: default-executor
-    resource_class: medium
     steps:
       - attach_workspace:
           at: .
@@ -145,7 +146,6 @@ jobs:
 
   build-beta:
     executor: default-executor
-    resource_class: medium
     steps:
       - attach_workspace:
           at: .
@@ -233,7 +233,6 @@ jobs:
 
   build-dev:
     executor: default-executor
-    resource_class: medium
     steps:
       - attach_workspace:
           at: .
