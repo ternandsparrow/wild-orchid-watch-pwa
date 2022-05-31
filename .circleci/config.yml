@@ -8,7 +8,7 @@ executors:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
     # https://circleci.com/docs/2.0/configuration-reference/#docker-executor
-    resource_class: medium+
+    resource_class: xlarge
 
 jobs:
   install-dependencies:
