@@ -7,8 +7,6 @@ executors:
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
-    # https://circleci.com/docs/2.0/configuration-reference/#docker-executor
-    resource_class: xlarge
 
 jobs:
   install-dependencies:
@@ -232,7 +230,12 @@ jobs:
           paths: .
 
   build-dev:
-    executor: default-executor
+    docker:
+      - image: cypress/base:16.14.2
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
+    resource_class: xlarge
     steps:
       - attach_workspace:
           at: .
