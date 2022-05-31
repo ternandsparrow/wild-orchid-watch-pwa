@@ -57,6 +57,7 @@ jobs:
 
   build-prod:
     executor: default-executor
+    resource_class: medium
     steps:
       - attach_workspace:
           at: .
@@ -144,6 +145,7 @@ jobs:
 
   build-beta:
     executor: default-executor
+    resource_class: medium
     steps:
       - attach_workspace:
           at: .
@@ -231,6 +233,7 @@ jobs:
 
   build-dev:
     executor: default-executor
+    resource_class: medium
     steps:
       - attach_workspace:
           at: .
