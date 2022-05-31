@@ -134,6 +134,8 @@ jobs:
       - run:
           name: 'Build prod'
           command: |
+            apt update
+            apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=production
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
@@ -219,6 +221,8 @@ jobs:
       - run:
           name: 'Build beta'
           command: |
+            apt update
+            apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=beta
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
@@ -304,6 +308,8 @@ jobs:
       - run:
           name: 'Build dev'
           command: |
+            apt update
+            apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=development
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
