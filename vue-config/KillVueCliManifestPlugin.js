@@ -14,6 +14,7 @@
  */
 const ID = 'KillVueCliManifestPlugin'
 module.exports = class KillVueCliManifestPlugin {
+  // eslint-disable-next-line class-methods-use-this
   apply(compiler) {
     compiler.hooks.compilation.tap(ID, (compilation) => {
       compilation.hooks.htmlWebpackPluginAlterAssetTags.tapAsync(

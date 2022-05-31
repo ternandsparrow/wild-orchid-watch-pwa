@@ -37,7 +37,7 @@
     "is-svg": "^4.2.2",
     "is_js": "^0.9.0",
     "jwt-decode": "^2.2.0",
-    "localforage": "^1.10.0",
+    "localforage": "ternandsparrow/localForage#gh-910",
     "lodash": "^4.17.11",
     "node-notifier": "^8.0.1",
     "onsenui": "^2.12.0",
@@ -78,6 +78,7 @@
     "@vue/vue2-jest": "^27",
     "babel-jest": "^27",
     "babel-plugin-lodash": "^3.3.4",
+    "babel-plugin-transform-import-meta": "^2.1.1",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
@@ -126,7 +127,7 @@
       "mjs"
     ],
     "transform": {
-      "^.+\\.vue$": "vue-jest",
+      "^.+\\.vue$": "@vue/vue2-jest",
       ".+\\.(css|styl|less|sass|scss|svg|png|jpg|ttf|woff|woff2)$": "jest-transform-stub",
       "^.+\\.(jsx?|mjs)$": "babel-jest"
     },
@@ -145,9 +146,6 @@
     ],
     "setupFilesAfterEnv": [
       "<rootDir>/tests/unit/setup.js"
-    ],
-    "transformIgnorePatterns": [
-      "/node_modules/(?!workbox-).+\\.js$"
     ]
   },
   "engines": {

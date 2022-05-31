@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import 'formdata-polyfill'
 import { BackgroundSyncPlugin } from 'workbox-background-sync'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
@@ -158,18 +159,22 @@ self.addEventListener('activate', function () {
 // built-in workbox magic
 // https://developer.chrome.com/docs/workbox/modules/workbox-window/#window-to-service-worker-communication
 self.addEventListener('message', function (event) {
-  switch (event.data) {
-    case cc.skipWaitingMsg:
+  const strategies = {
+    [cc.skipWaitingMsg]: () => {
       console.debug('SW is skipping waiting')
       return self.skipWaiting()
-    case cc.proxySwConsoleMsg:
-      enableSwConsoleProxy()
-      return
-    case cc.testTriggerManualCaughtErrorMsg:
+    },
+    [cc.proxySwConsoleMsg]: enableSwConsoleProxy,
+    [cc.testTriggerManualCaughtErrorMsg]: () => {
       doManualErrorTest(true)
-      return
-    case cc.testTriggerManualUncaughtErrorMsg:
+    },
+    [cc.testTriggerManualUncaughtErrorMsg]: () => {
       doManualErrorTest(false)
+    },
+  }
+  const strat = strategies[event.data]
+  if (strat) {
+    strat()
   }
 })
 

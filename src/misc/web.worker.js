@@ -1320,7 +1320,6 @@ async function getAllPendingTasks() {
 }
 
 async function _getPendingTasks() {
-  // FIXME consider updating our fork of localForage
   const raw = await metaStoreRead(cc.pendingTasksKey)
   return raw || {}
 }
