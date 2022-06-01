@@ -309,8 +309,8 @@ jobs:
           name: 'Build dev'
           command: |
             apt update
-            apt install -y git procps
-            free -h
+            apt install -y git procps  # to get free and ps
+            free -h  # shows host memory :(
             ps -eF
             export VUE_APP_DEPLOYED_ENV_NAME=development
             ./scripts/build-and-sentry-release.sh
@@ -319,7 +319,11 @@ jobs:
           paths: .
       - run:
           # thanks https://support.circleci.com/hc/en-us/articles/360043994872
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          command: |
+            ps -eF
+            uname -a
+            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+            cat /sys/fs/cgroup/memory/memory.limit_in_bytes
           when: always
 
   deploy-prod:

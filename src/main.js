@@ -4,7 +4,7 @@ import 'onsenui/css/onsen-css-components.css' // Default Onsen UI CSS components
 import './wow-global.scss'
 
 import Vue from 'vue'
-import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
+import VueOnsen from 'vue-onsenui'
 import VueAnalytics from 'vue-analytics'
 import 'pwacompat'
 import * as Integrations from '@sentry/integrations'
