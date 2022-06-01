@@ -230,12 +230,7 @@ jobs:
           paths: .
 
   build-dev:
-    docker:
-      - image: cypress/base:16.14.2
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    resource_class: xlarge
+    executor: default-executor
     steps:
       - attach_workspace:
           at: .
@@ -313,6 +308,7 @@ jobs:
       - run:
           name: 'Build dev'
           command: |
+            free -h
             apt update
             apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=development
@@ -320,6 +316,9 @@ jobs:
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .
+      - run:
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
 
   deploy-prod:
     executor: default-executor
