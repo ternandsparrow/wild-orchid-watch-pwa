@@ -2,11 +2,8 @@ version: 2.1
 
 executors:
   default-executor:
-    docker:
-      - image: cypress/base:16.14.2
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
+    machine: true
+    resource_class: ternandsparrow/fatty-webpack
 
 jobs:
   install-dependencies:
@@ -308,23 +305,11 @@ jobs:
       - run:
           name: 'Build dev'
           command: |
-            apt update
-            apt install -y git procps  # to get free and ps
-            free -h  # shows host memory :(
-            ps -eF
             export VUE_APP_DEPLOYED_ENV_NAME=development
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
           root: .
           paths: .
-      - run:
-          # thanks https://support.circleci.com/hc/en-us/articles/360043994872
-          command: |
-            ps -eF
-            uname -a
-            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-            cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-          when: always
 
   deploy-prod:
     executor: default-executor
