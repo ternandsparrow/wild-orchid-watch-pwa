@@ -122,7 +122,7 @@ function configureSentry(config) {
       'Cannot do Sentry.io release if VUE_APP_VERSION is not defined',
     )
   }
-  config.plugin.push(
+  config.plugins.push(
     new SentryWebpackPlugin({
       release: appVersion,
       include: './dist',
