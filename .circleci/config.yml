@@ -316,6 +316,7 @@ jobs:
           root: .
           paths: .
       - run:
+          # thanks https://support.circleci.com/hc/en-us/articles/360043994872
           command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
           when: always
 
