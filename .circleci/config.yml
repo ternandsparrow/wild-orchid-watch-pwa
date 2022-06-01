@@ -19,8 +19,6 @@ jobs:
       - run:
           name: 'Install dependencies'
           command: |
-            apt update
-            apt install -y git
             yarn install --frozen-lockfile
 
       - save_cache:
@@ -131,8 +129,6 @@ jobs:
       - run:
           name: 'Build prod'
           command: |
-            apt update
-            apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=production
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
@@ -218,8 +214,6 @@ jobs:
       - run:
           name: 'Build beta'
           command: |
-            apt update
-            apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=beta
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
