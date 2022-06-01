@@ -88,7 +88,7 @@ export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
 export const frequencyOfTaskChecksSeconds = convertAndAssertInteger(
-  process.env.VUE_APP_TASK_CHECK_FREQ || 60,
+  process.env.VUE_APP_TASK_CHECK_FREQ || 20,
 )
 
 // The URL where we can load the taxa list for populating the orchid

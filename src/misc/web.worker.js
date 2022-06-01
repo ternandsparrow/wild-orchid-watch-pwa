@@ -1341,7 +1341,8 @@ async function addPendingTask(task) {
   task.dateAdded = new Date().toString() // for debugging
   taskMapping[task.uuid] = task
   await _setPendingTasks(taskMapping)
-  scheduleTaskChecks()
+  const enoughMsForServerToPossiblyProcessUpload = 20 * 1000
+  scheduleTaskChecks(enoughMsForServerToPossiblyProcessUpload)
 }
 
 async function deletePendingTask(theUuid) {
@@ -1356,7 +1357,7 @@ async function deletePendingTask(theUuid) {
 //  that doing something will trigger these task checks
 function scheduleTaskChecks(delayMs = 13) {
   if (taskChecksTracker) {
-    console.warn('Asked to schedule checks, but already running')
+    console.debug('Asked to schedule checks, but already running')
     return
   }
   taskChecksTracker = {}
