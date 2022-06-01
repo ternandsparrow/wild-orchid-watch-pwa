@@ -309,7 +309,9 @@ jobs:
           name: 'Build dev'
           command: |
             apt update
-            apt install -y git
+            apt install -y git procps
+            free -h
+            ps -eF
             export VUE_APP_DEPLOYED_ENV_NAME=development
             ./scripts/build-and-sentry-release.sh
       - persist_to_workspace: # FIXME only need dist/ right?
