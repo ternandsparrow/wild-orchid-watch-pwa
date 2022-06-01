@@ -308,7 +308,6 @@ jobs:
       - run:
           name: 'Build dev'
           command: |
-            free -h
             apt update
             apt install -y git
             export VUE_APP_DEPLOYED_ENV_NAME=development
