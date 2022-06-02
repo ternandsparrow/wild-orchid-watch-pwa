@@ -17,16 +17,39 @@ This is pretty much what QA is.
 ## speed run, no EXIF
 - open app and login
 - click the (+) button to create a new obs
-- add the 3 mandatory photos, that contain EXIF data
+- add the 3 mandatory photos using photos with no EXIF
 - give a species name
+- *expected*: the app should prompt you to enter datetime and coords as the
+  photos didn't contain that data
 - select an Orchid Type
 - press save
 - *expected*: the observation saves successfully (no error messages)
 - *expected*: you're redirected to the detail view of the observation
 - navigate back to My Observations
 - *expected*: the new observations shows at the top of the list, has a
-  thumbnail (**FIXME** probably just the placeholder because no EXIF means no
-  thumbnail) and is shown as "being processed"
+  placeholder thumbnail (grey leaf?) and is shown as "being processed"
+- wait 40 seconds
+- *expected*: the facade has uploaded your obs to iNat, the check in the app
+  has fired and seen the finished upload and replaced the obs in the list with
+  the remote item.
+- *expected*: (programmers only) the local obs data has been removed from indexeddb
+- click the new obs item
+- *expected*: the URL contains the remote iNat ID (an integer), not the UUID
+
+## With EXIF
+- open app and login
+- click the (+) button to create a new obs
+- add the 3 mandatory photos using photos *with* EXIF data (coords too)
+- give a species name
+- *expected*: the datetime and coords should be read from the first uploaded
+  photo
+- select an Orchid Type
+- press save
+- *expected*: the observation saves successfully (no error messages)
+- *expected*: you're redirected to the detail view of the observation
+- navigate back to My Observations
+- *expected*: the new observations shows at the top of the list, has a
+  thumbnail and is shown as "being processed"
 - wait 40 seconds
 - *expected*: the facade has uploaded your obs to iNat, the check in the app
   has fired and seen the finished upload and replaced the obs in the list with
@@ -37,11 +60,9 @@ This is pretty much what QA is.
 
 ## Detailed mode
 
-## With EXIF
-
 ---------------------------------------------------------
 
-# Edit 
+# Edit
 
 ## Edit local record
 
