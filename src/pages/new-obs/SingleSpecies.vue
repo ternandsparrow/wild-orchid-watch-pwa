@@ -1171,11 +1171,12 @@ export default {
     async finishSaving(isDraft) {
       this.updateLastUsedResponses()
       this.updateRecentlyUsedTaxa()
-      const strategyKey = this.isEdit ? 'Edit' : 'New'
-      const strategy = this[`doSave${strategyKey}`]
-      if (!strategy) {
-        throw new Error(`Programmer error: unhandled strategy='${strategyKey}'`)
-      }
+      const strategy = (() => {
+        if (this.isEdit) {
+          return this.doSaveEdit
+        }
+        return this.doSaveNew
+      })()
       const record = this.buildRecordToSave()
       await strategy(record, isDraft)
     },

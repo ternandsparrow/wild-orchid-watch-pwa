@@ -221,30 +221,25 @@ router.afterEach((to, from) => {
 })
 
 async function resolveObsByIdOrNotFound(to, from, next) {
-  const wowId = Number.isNaN(to.params.id)
-    ? to.params.id
-    : parseInt(to.params.id, 10)
+  const { id } = to.params
   try {
-    const uuid = await (async function () {
-      if (!wowId) {
-        return wowId
-      }
-      const isNotNumber = typeof wowId !== 'number'
-      if (isNotNumber) {
-        // it's a UUID
-        return wowId
+    const uuid = await (() => {
+      const isIdNumeric = /^\d+$/.test(id)
+      if (!isIdNumeric) {
+        // id is a UUID
+        return id
       }
       try {
-        return await store.dispatch('obs/inatIdToUuid', wowId)
+        return store.dispatch('obs/inatIdToUuid', id)
       } catch (err) {
-        console.warn(`Could not find UUID for inatId=${wowId}`)
+        console.warn(`Could not find UUID for inatId=${id}`)
         return null // we'll handle the "not found"-ness later
       }
     })()
     store.commit('obs/setSelectedObservationUuid', uuid)
     const found = store.getters['obs/selectedObsSummary']
     if (!found) {
-      console.warn(`Could not find obs record for wowId=${wowId}`)
+      console.warn(`Could not find obs record for id=${id}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
     }
     const isNonMigratedLocalRecord =
@@ -262,7 +257,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
   } catch (err) {
     store.dispatch('flagGlobalError', {
       userMsg: 'Failed to navigate to that page',
-      msg: `Failed to resolve wowId=${wowId} during nav`,
+      msg: `Failed to resolve id=${id} during nav`,
       err,
     })
     const matchedComponents = from.matched.map((m) => m.components.default)

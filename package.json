@@ -11,7 +11,7 @@
     "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 VUE_APP_FORCE_VUE_DEVTOOLS=1 yarn build && servor dist/ index.html --no-browser",
     "build:serve:watch": "nodemon --ext vue,js,mjs,json --delay 2 --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
-    "lint": "vue-cli-service lint src/ tests/ vue-config/ sw-src/",
+    "lint": "vue-cli-service lint src/ tests/ sw-src/",
     "lint:specified": "vue-cli-service lint",
     "lint:check": "yarn lint --no-fix --max-warnings 0",
     "lint:check:scripts": "vue-cli-service lint --no-fix --max-warnings 0 scripts/",

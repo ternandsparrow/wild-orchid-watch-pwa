@@ -78,7 +78,9 @@ export default {
     $scrollbarWidthGuess: 10vw - $itemCount;
     $totalUseableViewportWidth: 100vw - $scrollbarWidthGuess;
     $totalPhotoMargin: ($itemCount * 2 * $photoMargin);
-    $photoSize: calc(($totalUseableViewportWidth - $totalPhotoMargin) / $itemCount);
+    $photoSize: calc(
+      ($totalUseableViewportWidth - $totalPhotoMargin) / $itemCount
+    );
     width: $photoSize;
     height: $photoSize;
   }
