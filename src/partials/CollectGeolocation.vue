@@ -254,6 +254,7 @@ import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import {
   isInBoundingBox,
+  isNotPositiveInteger,
   wowErrorHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
@@ -334,7 +335,10 @@ export default {
       if (!this.isManualLatAndLon) {
         return 'incomplete'
       }
-      if (Number.isNaN(this.manualLat) || Number.isNaN(this.manualLon)) {
+      if (
+        isNotPositiveInteger(this.manualLat) ||
+        isNotPositiveInteger(this.manualLon)
+      ) {
         return 'invalid'
       }
       const lat = parseFloat(this.manualLat)

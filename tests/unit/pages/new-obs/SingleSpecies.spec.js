@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import VueRouter from 'vue-router'
 import Vuex from 'vuex'
 // import VueOnsen from 'vue-onsenui'

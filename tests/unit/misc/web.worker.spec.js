@@ -1,7 +1,10 @@
+/**
+ * @jest-environment jsdom
+ */
 import dayjs from 'dayjs'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
-import { _testonly } from '@/misc/web.worker'
+import * as objectUnderTest from '@/misc/web.worker.nocomlink'
 import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
 import {
   byteLengthOfThumbnail,
@@ -9,7 +12,7 @@ import {
   sizeOfPhotoWithExifThumbnail,
 } from '@/../tests/unit/test-helpers'
 
-const objectUnderTest = _testonly.exposed
+const { _testonly } = objectUnderTest
 
 describe('things that need a datastore', () => {
   let origConsoleDebug

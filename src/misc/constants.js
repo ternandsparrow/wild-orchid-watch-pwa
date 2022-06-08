@@ -500,23 +500,23 @@ export const cryptoConfig = (() => {
 })()
 
 function convertAndAssertInteger(val) {
-  const result = parseInt(val, 10)
-  if (Number.isNaN(result)) {
+  const isNotInteger = !/^-?\d+$/.test(val)
+  if (isNotInteger) {
     throw new Error(
-      `Runtime config problem: expected integer is not a number='${val}'`,
+      `Runtime config problem: expected integer is not valid='${val}'`,
     )
   }
-  return result
+  return parseInt(val, 10)
 }
 
 function convertAndAssertFloat(val) {
-  const result = parseFloat(val)
-  if (Number.isNaN(result)) {
+  const isNotFloat = !/^-?\d+(\.\d+)?$/.test(val)
+  if (isNotFloat) {
     throw new Error(
-      `Runtime config problem: expected float is not a number='${val}'`,
+      `Runtime config problem: expected float is not valid='${val}'`,
     )
   }
-  return result
+  return parseFloat(val)
 }
 
 function parseBoolean(val) {
@@ -528,4 +528,10 @@ function parseBoolean(val) {
     return false
   }
   return !!(val || false)
+}
+
+export const _testonly = {
+  convertAndAssertFloat,
+  convertAndAssertInteger,
+  parseBoolean,
 }

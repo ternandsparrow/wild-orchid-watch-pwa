@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
 import { _testonly as workerMgrTestOnly } from '@/misc/web-worker-manager'
-import { _testonly as workerTestOnly } from '@/misc/web.worker'
+import * as webWorkerExposed from '@/misc/web.worker.nocomlink'
 
 expect.extend({
   toBeValidDateString(received) {
@@ -32,7 +32,7 @@ expect.extend({
 // dependencies that make it hard to run in Node so we just replace the
 // function that uses Comlink completely in tests.
 workerMgrTestOnly.interceptableFns.buildWorker = function () {
-  return workerTestOnly.exposed
+  return webWorkerExposed
 }
 
 // we load "fake-indexeddb/auto" in the test setupFiles, but just to make sure

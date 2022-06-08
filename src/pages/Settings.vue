@@ -145,6 +145,7 @@ import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
 import {
   clearLocalStorage,
+  isNotPositiveInteger,
   formatStorageSize,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
@@ -295,7 +296,7 @@ export default {
       this.storageQuota = estimate.quota
       this.storageUsage = estimate.usage
       const usedPercentRaw = (this.storageUsage / this.storageQuota) * 100
-      if (Number.isNaN(usedPercentRaw)) {
+      if (isNotPositiveInteger(usedPercentRaw)) {
         this.isStorageReadable = false
         this.storageUsedPercent = 0
       } else {

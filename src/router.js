@@ -8,11 +8,14 @@ import {
   isOnboarderVisible as isOnboarderVisibleFn,
 } from '@/misc/nav-stacks'
 import {
+  currentRecordVersion,
   onboarderPath,
   versionFieldName,
-  currentRecordVersion,
 } from '@/misc/constants'
-import { wowWarnHandler } from '@/misc/helpers'
+import { 
+  isNotPositiveInteger,
+  wowWarnHandler,
+} from '@/misc/helpers'
 
 import Admin from '@/pages/Admin'
 import BugReport from '@/pages/BugReport'
@@ -224,8 +227,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
   const { id } = to.params
   try {
     const uuid = await (() => {
-      const isIdNumeric = /^\d+$/.test(id)
-      if (!isIdNumeric) {
+      if (isNotPositiveInteger(id)) {
         // id is a UUID
         return id
       }

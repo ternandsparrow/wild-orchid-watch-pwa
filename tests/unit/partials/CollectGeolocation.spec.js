@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import Vuex from 'vuex'
 import { shallowMount, createLocalVue } from '@vue/test-utils'
 import CollectGeolocation from '@/partials/CollectGeolocation'

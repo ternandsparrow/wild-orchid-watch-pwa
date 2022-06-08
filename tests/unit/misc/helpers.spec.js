@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import dayjs from 'dayjs'
 import * as objectUnderTest from '@/misc/helpers'
 

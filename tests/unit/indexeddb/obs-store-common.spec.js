@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as objectUnderTest from '@/indexeddb/obs-store-common'
