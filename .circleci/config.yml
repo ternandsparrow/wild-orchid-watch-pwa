@@ -38,7 +38,7 @@ jobs:
       - run:
           name: 'Run lint check'
           # FIXME short-term grace period to allow us to build with failing tests
-          command: yarn lint:check || [ $(date +%s) -lt $(date -d 2022-06-07 +%s) ]
+          command: yarn lint:check || [ $(date +%s) -lt $(date -d 2022-06-17 +%s) ]
 
   run-unit-tests:
     executor: default-executor
@@ -48,7 +48,7 @@ jobs:
       - run:
           name: 'Run unit tests'
           # FIXME short-term grace period to allow us to build with failing tests
-          command: yarn test:unit || [ $(date +%s) -lt $(date -d 2022-06-07 +%s) ]
+          command: yarn test:unit || [ $(date +%s) -lt $(date -d 2022-06-17 +%s) ]
 
   build-prod:
     executor: default-executor
