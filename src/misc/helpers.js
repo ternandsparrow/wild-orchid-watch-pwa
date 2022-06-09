@@ -346,6 +346,11 @@ export function isNotPositiveInteger(str) {
   return !/^\d+$/.test(str)
 }
 
+export function isNotInteger(str) {
+  // isNaN doesn't do what you think it does
+  return !/^-?\d+$/.test(str)
+}
+
 export function rectangleAlongPathAreaValueToTitle(v) {
   if (isNotPositiveInteger(v)) {
     const ltPrefix = 'less than'

@@ -59,6 +59,14 @@ This is pretty much what QA is.
 - *expected*: the URL contains the remote iNat ID (an integer), not the UUID
 
 ## Detailed mode
+- open app and login
+- click the (+) button to create a new obs
+- scroll to the very bottom of the page
+- use the slider to enable Detailed Mode
+- *expected*: the view is updated and all observation fields are shown
+- continue testing as in the "With EXIF" case
+- be sure to provide values for all inputs
+- *expected*: once uploaded, confirm all the fields have the values you provided
 
 ---------------------------------------------------------
 
@@ -85,6 +93,42 @@ This is pretty much what QA is.
 # Coords
 
 ## Manual decimal coords
+- open app and login
+- click the (+) button to create a new obs
+- scroll to the bottom of the page
+- enable "Detailed Mode"
+- scroll back up the "Geolocation" section
+
+### Radio group is selected
+- click in either of the input field
+- *expected*: the radio group (the dot to the left of the choices) for
+  "Manually enter decimal GPS coordinates" should be automatically selected
+
+### Not a number input
+- input lat=`123` and lon=`abc`
+- *expected*: a warning is shown to indicate invalid input
+
+### Valid decimals in Australia
+- input lat=`-33.123` and lon=`150.456`
+- *expected*: the values are valid
+
+### Valid decimals outside Australia
+- input lat that is [less than
+  -55](https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/55af7f60afa3080eb2fef3dea95f97e85961223e/src/misc/constants.js#L350)
+  or [greater than
+  -10](https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/55af7f60afa3080eb2fef3dea95f97e85961223e/src/misc/constants.js#L354)
+  and lon that is [less than
+  105](https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/55af7f60afa3080eb2fef3dea95f97e85961223e/src/misc/constants.js#L366)
+  or [greater than
+  168](https://github.com/ternandsparrow/wild-orchid-watch-pwa/blob/55af7f60afa3080eb2fef3dea95f97e85961223e/src/misc/constants.js#L370)
+- *expected*: you get a warning saying the values are outside of Australia
+
+### Valid integers
+- input lat=`-33` and lon=`150`
+- *expected*: the values are valid
+- fill out the rest of the observation
+- save
+- *expected*: the coords are saved successfully and show in the observation details page (on the map tab)
 
 ## Drop pin on map coords
 

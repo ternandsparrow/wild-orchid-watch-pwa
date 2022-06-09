@@ -254,7 +254,7 @@ import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
 import {
   isInBoundingBox,
-  isNotPositiveInteger,
+  isNotInteger,
   wowErrorHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
@@ -336,8 +336,8 @@ export default {
         return 'incomplete'
       }
       if (
-        isNotPositiveInteger(this.manualLat) ||
-        isNotPositiveInteger(this.manualLon)
+        isNotInteger(this.manualLat) ||
+        isNotInteger(this.manualLon)
       ) {
         return 'invalid'
       }
