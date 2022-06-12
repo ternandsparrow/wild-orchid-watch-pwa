@@ -418,10 +418,15 @@ describe('things that need a datastore', () => {
         addedPhotos: [],
         observedAt: 1595491950028,
       }
-      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload({
-        record,
-        isDraft: true,
-      })
+      let sendToFacadeNewRecordIdParam = null
+      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload(
+        {
+          record,
+          isDraft: true,
+        },
+        newRecordId => { sendToFacadeNewRecordIdParam = newRecordId },
+      )
+      expect(sendToFacadeNewRecordIdParam).toEqual(newRecordId)
       const result = await obsStore.getItem(newRecordId)
       expect(result).toEqual({
         captive_flag: false,
@@ -444,6 +449,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should save a new record with photos', async () => {
+  debugger // FIXME delete
       obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn // undo stub
       const record = {
         speciesGuess: 'species new',
@@ -458,10 +464,13 @@ describe('things that need a datastore', () => {
           },
         ],
       }
-      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload({
-        record,
-        isDraft: false,
-      })
+      const newRecordId = await objectUnderTest.saveNewAndScheduleUpload(
+        {
+          record,
+          isDraft: false,
+        },
+        () => {},
+      )
       const result = await obsStore.getItem(newRecordId)
       const expectedPhoto1 = {
         file: {
@@ -514,7 +523,7 @@ describe('things that need a datastore', () => {
       expect(resultPhoto2.file.data.byteLength).toEqual(
         sizeOfPhotoWithExifThumbnail,
       )
-      stubStorePhotoRecordFn()
+      stubStorePhotoRecordFn() // because we undid the stub at the start
     })
   })
 
@@ -531,26 +540,9 @@ describe('things that need a datastore', () => {
         speciesGuess: 'species new',
         addedPhotos: [],
       }
+      let sendToFacadeEditedUuidParam = null
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
-        {
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species old',
-              photos: [],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: '123A',
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'edit',
-            },
-          ],
-          localRecords: [{ uuid: '123A' }],
-        },
         {
           record,
           photoIdsToDelete: [],
@@ -558,7 +550,9 @@ describe('things that need a datastore', () => {
           isDraft: false,
         },
         (_, params) => (result = params),
+        editedUuid => { sendToFacadeEditedUuidParam = editedUuid },
       )
+      expect(sendToFacadeEditedUuidParam).toEqual('123A')
       expect(result).toEqual({
         newPhotos: [],
         photoIdsToDelete: [],
@@ -601,23 +595,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          allRemoteObs: [],
-          localQueueSummary: [
-            {
-              uuid: '123A',
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'new',
-            },
-          ],
-          localRecords: [{ uuid: '123A' }],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       const expectedPhoto = {
         file: expect.any(Blob),
@@ -655,26 +639,13 @@ describe('things that need a datastore', () => {
         }
         expect(
           objectUnderTest.saveEditAndScheduleUpdate(
-            // no record in the store, it was deleted (by WOW in another browser
-            // tab) but we haven't updated our local queue in this tab
-            {
-              _uiVisibleLocalRecords: [{ uuid: '123A' }],
-              localQueueSummary: [
-                {
-                  // we think there's a record in the store
-                  uuid: '123A',
-                  [cc.recordProcessingOutcomeFieldName]: 'waiting',
-                  [cc.recordTypeFieldName]: 'new',
-                },
-              ],
-              allRemoteObs: [],
-            },
             {
               record,
               photoIdsToDelete: [],
               obsFieldIdsToDelete: [],
             },
             stubRunStrategy,
+            () => {},
           ),
         ).rejects.toThrow(`Failed to save edited record with UUID='123A'`)
       },
@@ -689,24 +660,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [],
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species old',
-              photos: [],
-            },
-          ],
-          localQueueSummary: [],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result).toEqual({
         newPhotos: [],
@@ -740,24 +700,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [],
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species blah',
-              photos: [],
-            },
-          ],
-          localQueueSummary: [],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       const expectedPhoto1 = {
         file: expect.any(Blob),
@@ -812,30 +761,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species blah',
-              photos: [existingRemotePhoto],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: '123A',
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'new',
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       const expectedExistingLocalPhoto = { id: -2, tag: 'photo1 placeholder' }
       const expectedNewPhoto = {
@@ -886,37 +818,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [],
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species blah',
-              photos: [
-                {
-                  url: 'https://blah...',
-                  uuid: 'dc813734-7182-46a5-a58a-7cb2d81cea4f',
-                  id: 841,
-                  isRemote: true,
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: '123A',
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'new',
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [841],
           obsFieldIdsToDelete: [],
           isDraft: true,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result).toEqual({
         photoIdsToDelete: [841],
@@ -946,37 +854,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [],
-          allRemoteObs: [
-            {
-              inatId: 666,
-              uuid: '123A',
-              speciesGuess: 'species blah',
-              photos: [],
-              obsFieldValues: {
-                relationshipId: 32423,
-                fieldId: 1,
-                datatype: 'text',
-                name: 'Orchid type',
-                value: 'Lithophyte',
-              },
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: '123A',
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'new',
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [32423],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result).toEqual({
         obsFieldIdsToDelete: [32423],
@@ -1022,36 +906,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [
-                {
-                  id: 888,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: 'systemError',
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: true,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result.newPhotos).toHaveLength(0)
       expect(result.record.photos).toHaveLength(3)
@@ -1128,36 +989,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [
-                {
-                  id: 888,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: true,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       const expectedPhoto1 = {
         file: expect.any(Blob),
@@ -1232,30 +1070,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: true,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: true,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result).toEqual({
         photoIdsToDelete: [],
@@ -1304,36 +1125,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [
-                {
-                  id: 888,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: true,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [888],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result.record.photos).toHaveLength(0)
       expect(result).toEqual({
@@ -1384,36 +1182,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [
-                {
-                  id: 888,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: true,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result.record.photos).toHaveLength(0)
       expect(result).toEqual({
@@ -1459,41 +1234,13 @@ describe('things that need a datastore', () => {
       let result
       await objectUnderTest.saveEditAndScheduleUpdate(
         {
-          localRecords: [{ uuid: '123A' }],
-          allRemoteObs: [
-            {
-              inatId: record.inatId,
-              uuid: record.uuid,
-              photos: [
-                {
-                  id: 888,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-                {
-                  id: 889,
-                  isRemote: true,
-                  url: 'http://whatever...',
-                },
-              ],
-            },
-          ],
-          localQueueSummary: [
-            {
-              uuid: record.uuid,
-              [cc.recordProcessingOutcomeFieldName]: 'waiting',
-              [cc.recordTypeFieldName]: 'edit',
-              [cc.hasBlockedActionFieldName]: false,
-            },
-          ],
-        },
-        {
           record,
           photoIdsToDelete: [889],
           obsFieldIdsToDelete: [],
           isDraft: false,
         },
         (_, params) => (result = params),
+        () => {},
       )
       expect(result.record.photos).toHaveLength(0)
       expect(result).toEqual({

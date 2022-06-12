@@ -80,7 +80,7 @@ export async function getFullRemoteObsDetail(
   throwOnMissing = true,
 ) {
   const remoteObs = await metaStoreRead(cc.remoteObsKey)
-  const found = remoteObs.find((e) => e.uuid === theUuid)
+  const found = remoteObs?.find((e) => e.uuid === theUuid)
   if (!found && throwOnMissing) {
     throw new Error(`Selected obs ${theUuid} has no remote record in the db`)
   }
@@ -645,12 +645,10 @@ function zUrl() {
   )
 }
 
-export async function saveNewAndScheduleUpload({
-  record,
-  isDraft,
-  apiToken,
-  projectId,
-}) {
+export async function saveNewAndScheduleUpload(
+  { record, isDraft, apiToken, projectId},
+  sendNewObsToFacadeFn = sendNewObsToFacade,
+) {
   const newRecordId = uuid()
   let enhancedRecord
   try {
@@ -696,7 +694,7 @@ export async function saveNewAndScheduleUpload({
   } catch (err) {
     throw ChainedError(`Failed to save new record to local queue.`, err)
   }
-  sendNewObsToFacade(newRecordId, apiToken, projectId)
+  sendNewObsToFacadeFn(newRecordId, apiToken, projectId)
   return newRecordId
 }
 
@@ -885,6 +883,7 @@ async function _sendEditObsToFacade(recordUuid, apiToken) {
 export async function saveEditAndScheduleUpdate(
   { record, photoIdsToDelete, obsFieldIdsToDelete, isDraft, apiToken },
   runStrategy = realRunStrategy,
+  sendEditObsToFacadeFn = sendEditObsToFacade,
 ) {
   const editedUuid = record.uuid
   let enhancedRecord
@@ -961,7 +960,7 @@ export async function saveEditAndScheduleUpdate(
       err,
     )
   }
-  sendEditObsToFacade(editedUuid, apiToken)
+  sendEditObsToFacadeFn(editedUuid, apiToken)
   return wowIdOf(enhancedRecord)
 }
 
@@ -1406,8 +1405,8 @@ async function metaStoreWrite(key, val) {
 
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
+  _deleteRecord,
   mapObsFromApiIntoOurDomain,
   upsertBlockedAction,
   upsertQueuedAction,
-  _deleteRecord,
 }
