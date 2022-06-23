@@ -5,12 +5,9 @@
         <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
           Edit
         </v-ons-toolbar-button>
-        <v-ons-toolbar-button
-          name="toolbar-action-btn"
-          @click="onMainActionMenu"
-        >
-          <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
-        ></v-ons-toolbar-button>
+        <v-ons-toolbar-button name="toolbar-delete-btn" @click="onDelete">
+          Delete
+        </v-ons-toolbar-button>
       </template>
     </custom-toolbar>
 
@@ -584,92 +581,6 @@ export default {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
-    onMainActionMenu() {
-      const menu = {
-        Delete: () => {
-          this.$wow.uiTrace('ObsDetail', `delete observation`)
-          this.$ons.notification
-            .confirm('Are you sure about deleting this record?')
-            .then((answer) => {
-              if (!answer) {
-                this.$wow.uiTrace('ObsDetail', `abort delete observation`)
-                return
-              }
-              this.$wow.uiTrace('ObsDetail', `confirm delete observation`)
-              this.$store
-                .dispatch('obs/deleteSelectedRecord')
-                .then(() => {
-                  this.$ons.notification.toast('Record deleted!', {
-                    timeout: 3000,
-                    animation: 'ascend',
-                  })
-                })
-                .catch((err) => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to (completely) delete record',
-                    userMsg: 'Error while deleting record.',
-                  })
-                })
-              this.$router.push({ name: 'Home' })
-            })
-        },
-      }
-      if (this.isSelectedRecordEditOfRemote) {
-        menu['Delete only local edit'] = () => {
-          this.$wow.uiTrace('ObsDetail', `delete local edit observation`)
-          this.$ons.notification
-            .confirm(
-              'This record has an edit that has NOT yet been ' +
-                'synchronised to the server. Do you want to delete only the local ' +
-                'changes so the record on the server stays unchanged?',
-            )
-            .then((answer) => {
-              if (!answer) {
-                this.$wow.uiTrace(
-                  'ObsDetail',
-                  `abort delete local edit observation`,
-                )
-                return
-              }
-              this.$wow.uiTrace(
-                'ObsDetail',
-                `confirm delete local edit observation`,
-              )
-              this.$store
-                .dispatch('obs/deleteSelectedRecord')
-                .then(() => {
-                  this.$ons.notification.toast('Local edit deleted!', {
-                    timeout: 3000,
-                    animation: 'ascend',
-                  })
-                })
-                .catch((err) => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to delete local edit on remote record',
-                    userMsg: 'Error while deleting local edit.',
-                  })
-                })
-              this.$router.push({ name: 'Home' })
-            })
-        }
-      }
-      if (!this.md) {
-        menu.Cancel = () => {}
-      }
-      this.$ons
-        .openActionSheet({
-          buttons: Object.keys(menu),
-          cancelable: true,
-          destructive: 1,
-        })
-        .then((selIndex) => {
-          const key = Object.keys(menu)[selIndex]
-          const selectedItemFn = menu[key]
-          if (selectedItemFn) {
-            selectedItemFn()
-          }
-        })
-    },
     onCommentActionMenu(commentRecord) {
       const menu = {
         Delete: () => {
@@ -731,6 +642,33 @@ export default {
       this.$wow.uiTrace('ObsDetail', `edit observation`)
       const obsId = wowIdOf(this.nullSafeObs)
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
+    },
+    onDelete() {
+      this.$wow.uiTrace('ObsDetail', `delete observation`)
+      this.$ons.notification
+        .confirm('Are you sure about deleting this record?')
+        .then((answer) => {
+          if (!answer) {
+            this.$wow.uiTrace('ObsDetail', `abort delete observation`)
+            return
+          }
+          this.$wow.uiTrace('ObsDetail', `confirm delete observation`)
+          this.$store
+            .dispatch('obs/deleteSelectedRecord')
+            .then(() => {
+              this.$ons.notification.toast('Record deleted!', {
+                timeout: 3000,
+                animation: 'ascend',
+              })
+            })
+            .catch((err) => {
+              this.handleMenuError(err, {
+                msg: 'Failed to (completely) delete record',
+                userMsg: 'Error while deleting record.',
+              })
+            })
+          this.$router.push({ name: 'Home' })
+        })
     },
     showPhotoPreview(url) {
       this.$store.commit('ephemeral/previewPhoto', {
