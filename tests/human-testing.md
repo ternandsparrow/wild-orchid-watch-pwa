@@ -132,6 +132,14 @@ This is pretty much what QA is.
 
 ## Drop pin on map coords
 
+### Moving map updates coordinates
+
+### Coords are correctly saved
+
+### Map shows correct coordinate when editing record
+
+### Swapping between coord input methods works
+
 ---------------------------------------------------------
 
 # Chaos monkey ideas

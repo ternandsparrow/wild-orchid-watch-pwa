@@ -498,8 +498,8 @@ export default {
       for (const curr of ['debug', 'info', 'warn', 'error']) {
         origConsole[curr] = console[curr]
         console[curr] = (...theArgs) => {
-          const simpleMsg = theArgs.reduce((accum, curr) => {
-            return `${accum}${curr} ` // TODO do we need to handle Errors or objects specially?
+          const simpleMsg = theArgs.reduce((accum, curr2) => {
+            return `${accum}${curr2} ` // TODO do we need to handle Errors or objects specially?
           }, '')
           this.$store.commit('ephemeral/pushConsoleMsg', {
             level: curr,
@@ -556,8 +556,9 @@ export default {
     async attachRemoteJs() {
       console.debug('attaching to RemoteJS')
       this.remoteJsAttachStatus = 'attaching...'
-      const uuid = this.remoteJsUuid
-      if (!uuid) {
+      const theUuid = this.remoteJsUuid
+      if (!theUuid) {
+        // eslint-disable-next-line no-alert
         alert('You must supply the UUID for the RemoteJS session')
         return
       }
@@ -570,7 +571,7 @@ export default {
       const s = document.createElement('script')
       s.src = 'https://remotejs.com/agent/agent.js'
       s.id = scriptTagId
-      s.setAttribute('data-consolejs-channel', uuid)
+      s.setAttribute('data-consolejs-channel', theUuid)
       document.head.appendChild(s)
       if (!this.hasSwConsoleBeenProxied) {
         try {

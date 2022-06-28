@@ -358,7 +358,6 @@ if (bboxLatMin >= bboxLatMax) {
   const msg =
     `Config problem: bboxLatMin=${bboxLatMin} is NOT less than ` +
     `bboxLatMax=${bboxLatMax}`
-  alert(msg)
   throw new Error(msg)
 }
 
@@ -374,7 +373,6 @@ if (bboxLonMin >= bboxLonMax) {
   const msg =
     `Config problem: bboxLonMin=${bboxLonMin} is NOT less than ` +
     `bboxLonMax=${bboxLonMax}`
-  alert(msg)
   throw new Error(msg)
 }
 
@@ -393,8 +391,7 @@ export const apiTokenKey = 'api-token' // for localStorage
 
 export const workerMessages = {
   facadeDeleteSuccess: 'facade-delete-success',
-  facadeCreateSuccess: 'facade-create-success',
-  facadeEditSuccess: 'facade-edit-success',
+  facadeUpdateSuccess: 'facade-update-success',
   onLocalRecordTransition: 'local-record-transition',
 }
 
@@ -439,8 +436,6 @@ export const photoIdsToDeleteFieldName = 'photos-delete'
 export const photosToAddFieldName = 'photos-add'
 export const obsFieldIdsToDeleteFieldName = 'obsFields-delete'
 export const projectIdFieldName = 'projectId'
-export const blockedActionFieldName = 'blockedAction'
-export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const wowUpdatedAtFieldName = 'wowUpdatedAt'
 export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'

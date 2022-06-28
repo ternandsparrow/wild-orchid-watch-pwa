@@ -131,8 +131,8 @@ export function iterateIdb(
         const mappedItems = new Set()
         const objectStore = transaction.objectStore(objectStoreName)
         const request = objectStore.openCursor()
-        request.addEventListener('success', (e) => {
-          const cursor = e.target.result
+        request.addEventListener('success', (e2) => {
+          const cursor = e2.target.result
           if (cursor) {
             const mapped = cursorMapFn(cursor)
             if (mapped) {
@@ -171,8 +171,8 @@ export function getExifFromBlob(blobish) {
         }
         const result = EXIF.getAllTags(this)
         return resolve(result)
-      } catch (err) {
-        return reject(ChainedError('Failed to work with extracted EXIF', err))
+      } catch (err2) {
+        return reject(ChainedError('Failed to work with extracted EXIF', err2))
       }
     })
   })
@@ -199,7 +199,7 @@ export function blobToArrayBuffer(blob) {
   })
 }
 
-export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
+export const recordTypeEnum = makeEnumValidator(['delete', 'update'])
 
 /**
  * Takes an array of valid values and returns a validator function. The

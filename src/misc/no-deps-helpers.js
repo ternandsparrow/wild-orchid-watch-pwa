@@ -57,47 +57,6 @@ export async function encryptAndBase64Encode(
     )
   }
 
-  async function encryptPayload(plainText, symKey) {
-    const encodedMsg = new TextEncoder().encode(plainText)
-    const iv = window.crypto.getRandomValues(new Uint8Array(12))
-    const encrypted = await window.crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv,
-      },
-      symKey,
-      encodedMsg,
-    )
-    return {
-      payloadCipherText: arrayBufferToBase64(encrypted),
-      iv,
-    }
-  }
-
-  async function encryptSymKeyBundle(symKey, iv, pubKey) {
-    const exportedSymKey = await window.crypto.subtle.exportKey('raw', symKey)
-    const base64ExportedSymKey = arrayBufferToBase64(exportedSymKey)
-    const base64Iv = arrayBufferToBase64(iv)
-    const encodedMsg = new TextEncoder().encode(
-      JSON.stringify({ symKey: base64ExportedSymKey, iv: base64Iv }),
-    )
-    console.debug('Size of sym key bundle message', encodedMsg.byteLength)
-    if (encodedMsg.byteLength > 190) {
-      console.warn(
-        'sym key bundle is too large, the encrypt is probably about to fail',
-      )
-    }
-    const encrypted = await window.crypto.subtle.encrypt(
-      // I chose this over wrapKey because I can include the IV
-      {
-        name: 'RSA-OAEP',
-      },
-      pubKey,
-      encodedMsg,
-    )
-    return arrayBufferToBase64(encrypted)
-  }
-
   function getPublicAsymKey() {
     const parsedKey = JSON.parse(publicKeyJwkString)
     return window.crypto.subtle.importKey(
@@ -108,6 +67,47 @@ export async function encryptAndBase64Encode(
       ['encrypt'],
     )
   }
+}
+
+async function encryptPayload(plainText, symKey) {
+  const encodedMsg = new TextEncoder().encode(plainText)
+  const iv = window.crypto.getRandomValues(new Uint8Array(12))
+  const encrypted = await window.crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+    },
+    symKey,
+    encodedMsg,
+  )
+  return {
+    payloadCipherText: arrayBufferToBase64(encrypted),
+    iv,
+  }
+}
+
+async function encryptSymKeyBundle(symKey, iv, pubKey) {
+  const exportedSymKey = await window.crypto.subtle.exportKey('raw', symKey)
+  const base64ExportedSymKey = arrayBufferToBase64(exportedSymKey)
+  const base64Iv = arrayBufferToBase64(iv)
+  const encodedMsg = new TextEncoder().encode(
+    JSON.stringify({ symKey: base64ExportedSymKey, iv: base64Iv }),
+  )
+  console.debug('Size of sym key bundle message', encodedMsg.byteLength)
+  if (encodedMsg.byteLength > 190) {
+    console.warn(
+      'sym key bundle is too large, the encrypt is probably about to fail',
+    )
+  }
+  const encrypted = await window.crypto.subtle.encrypt(
+    // I chose this over wrapKey because I can include the IV
+    {
+      name: 'RSA-OAEP',
+    },
+    pubKey,
+    encodedMsg,
+  )
+  return arrayBufferToBase64(encrypted)
 }
 
 export async function base64DecodeAndDecrypt(
@@ -132,35 +132,6 @@ export async function base64DecodeAndDecrypt(
   console.debug('Decrypting payload')
   return decryptPayload(dataObj.payload, decryptedSymmetricKeyBundle)
 
-  async function decryptSymKeyBundle(symKeyBundleCipherTextBase64, privateKey) {
-    // we base64 encoded the symKeyBundleCipherText for transport
-    const symKeyBundleCipherText = base64StrToArrayBuffer(
-      symKeyBundleCipherTextBase64,
-    )
-    const decryptedBundleStr = await window.crypto.subtle.decrypt(
-      {
-        name: 'RSA-OAEP',
-      },
-      privateKey,
-      symKeyBundleCipherText,
-    )
-    const bundle = JSON.parse(new TextDecoder().decode(decryptedBundleStr))
-    const importedKey = await window.crypto.subtle.importKey(
-      'raw',
-      base64StrToArrayBuffer(bundle.symKey),
-      {
-        name: 'AES-GCM',
-        length: 256,
-      },
-      true,
-      ['encrypt', 'decrypt'],
-    )
-    return {
-      symKey: importedKey,
-      iv: base64StrToArrayBuffer(bundle.iv),
-    }
-  }
-
   async function decryptPayload(payload, symKeyBundle) {
     // we base64 encoded the payload for transport
     const parsedEncrypted = base64StrToArrayBuffer(payload)
@@ -174,5 +145,34 @@ export async function base64DecodeAndDecrypt(
     )
     const decryptedPlainText = new TextDecoder().decode(decrypted)
     return decryptedPlainText
+  }
+}
+
+async function decryptSymKeyBundle(symKeyBundleCipherTextBase64, privateKey) {
+  // we base64 encoded the symKeyBundleCipherText for transport
+  const symKeyBundleCipherText = base64StrToArrayBuffer(
+    symKeyBundleCipherTextBase64,
+  )
+  const decryptedBundleStr = await window.crypto.subtle.decrypt(
+    {
+      name: 'RSA-OAEP',
+    },
+    privateKey,
+    symKeyBundleCipherText,
+  )
+  const bundle = JSON.parse(new TextDecoder().decode(decryptedBundleStr))
+  const importedKey = await window.crypto.subtle.importKey(
+    'raw',
+    base64StrToArrayBuffer(bundle.symKey),
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    true,
+    ['encrypt', 'decrypt'],
+  )
+  return {
+    symKey: importedKey,
+    iv: base64StrToArrayBuffer(bundle.iv),
   }
 }

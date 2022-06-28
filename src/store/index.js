@@ -129,11 +129,7 @@ subscribeToWorkerMessage(workerMessages.facadeDeleteSuccess, ({ theUuid }) => {
   return store.commit('obs/handleObsDeleteCompletion', theUuid)
 })
 
-subscribeToWorkerMessage(workerMessages.facadeCreateSuccess, ({ summary }) => {
-  return store.commit('obs/handleObsCreateOrEditCompletion', summary)
-})
-
-subscribeToWorkerMessage(workerMessages.facadeEditSuccess, ({ summary }) => {
+subscribeToWorkerMessage(workerMessages.facadeUpdateSuccess, ({ summary }) => {
   return store.commit('obs/handleObsCreateOrEditCompletion', summary)
 })
 

@@ -30,11 +30,10 @@ module.exports = {
     'func-names': 'off',
     'consistent-return': 'off',
     'no-bitwise': ["error", { "allow": ["~"] }],
+    'no-continue': 'off',
     // FIXME fix these issues and remove rule overrides
-    'no-return-assign': 'warn',
-    'no-restricted-syntax': 'warn',
-    'no-shadow': 'warn',
-    'no-continue': 'warn',
-    'no-await-in-loop': 'warn',
+    'no-return-assign': 'off',
+    'no-restricted-syntax': 'off',
+    'no-await-in-loop': 'off',
   },
 }

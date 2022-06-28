@@ -14,6 +14,9 @@ import {
 
 const { _testonly } = objectUnderTest
 
+// FIXME remove all tests for blocked actions
+// FIXME fix recordType [new, edit] to be 'update'
+
 describe('things that need a datastore', () => {
   let origConsoleDebug
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
@@ -424,7 +427,9 @@ describe('things that need a datastore', () => {
           record,
           isDraft: true,
         },
-        newRecordId => { sendToFacadeNewRecordIdParam = newRecordId },
+        (newRecordIdParam) => {
+          sendToFacadeNewRecordIdParam = newRecordIdParam
+        },
       )
       expect(sendToFacadeNewRecordIdParam).toEqual(newRecordId)
       const result = await obsStore.getItem(newRecordId)
@@ -449,7 +454,6 @@ describe('things that need a datastore', () => {
     })
 
     it('should save a new record with photos', async () => {
-  debugger // FIXME delete
       obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn // undo stub
       const record = {
         speciesGuess: 'species new',
@@ -550,7 +554,9 @@ describe('things that need a datastore', () => {
           isDraft: false,
         },
         (_, params) => (result = params),
-        editedUuid => { sendToFacadeEditedUuidParam = editedUuid },
+        (editedUuid) => {
+          sendToFacadeEditedUuidParam = editedUuid
+        },
       )
       expect(sendToFacadeEditedUuidParam).toEqual('123A')
       expect(result).toEqual({
@@ -746,11 +752,6 @@ describe('things that need a datastore', () => {
       const newPhoto = {
         file: new Blob([0xff, 0xd8], { type: 'image/jpeg' }),
         type: 'top',
-      }
-      const existingRemotePhoto = {
-        id: 888,
-        isRemote: true,
-        url: 'http://whatever...',
       }
       const record = {
         uuid: '123A',
@@ -1356,7 +1357,6 @@ describe('things that need a datastore', () => {
           [cc.recordTypeFieldName]: 'new',
           [cc.isEventuallyDeletedFieldName]: false, // this means UI visible
           [cc.recordProcessingOutcomeFieldName]: 'waiting',
-          [cc.hasBlockedActionFieldName]: false,
           inatId: undefined,
           uuid: '123A',
         },
@@ -1391,7 +1391,6 @@ describe('things that need a datastore', () => {
           [cc.recordTypeFieldName]: 'edit',
           [cc.isEventuallyDeletedFieldName]: true,
           [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome,
-          [cc.hasBlockedActionFieldName]: true,
           inatId: 33,
           uuid: '123A',
         },

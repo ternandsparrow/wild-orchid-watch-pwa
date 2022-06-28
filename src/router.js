@@ -12,10 +12,7 @@ import {
   onboarderPath,
   versionFieldName,
 } from '@/misc/constants'
-import { 
-  isNotPositiveInteger,
-  wowWarnHandler,
-} from '@/misc/helpers'
+import { isNotPositiveInteger, wowWarnHandler } from '@/misc/helpers'
 
 import Admin from '@/pages/Admin'
 import BugReport from '@/pages/BugReport'
@@ -191,6 +188,7 @@ router.beforeEach((to, from, next) => {
     return next(false)
   }
   if (store.state.ephemeral.isWarnOnLeaveRoute) {
+    // eslint-disable-next-line no-alert
     const resp = window.confirm(
       'WARNING are you sure you want to leave? You will lose any unsaved work',
     )
@@ -249,6 +247,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
       _.get(found, `wowMeta.${versionFieldName}`) !== currentRecordVersion
     if (isNonMigratedLocalRecord) {
       // enhancement: use something nicer than alert
+      // eslint-disable-next-line no-alert
       alert(
         'Record is currently locked while updating to suit newest app ' +
           'version. Sorry, try again in a few minutes.',

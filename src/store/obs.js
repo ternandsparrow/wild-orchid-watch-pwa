@@ -614,7 +614,7 @@ const gettersObj = {
       .filter((e) => {
         const hasRemote = !!e.inatId
         return (
-          e.wowMeta[cc.recordTypeFieldName] === recordType('edit') && hasRemote
+          e.wowMeta[cc.recordTypeFieldName] === recordType('update') && hasRemote
         )
       })
       .some((e) => e.uuid === state.selectedObservationUuid)
