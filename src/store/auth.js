@@ -14,8 +14,7 @@ import {
   putJsonWithAuth,
   wowWarnHandler,
 } from '@/misc/helpers'
-
-let updateApiTokenPromise = null
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 export default {
   namespaced: true,
@@ -281,34 +280,25 @@ export default {
       commit('_setCodeVerifier', pair.code_verifier)
     },
     async _updateApiToken({ commit, dispatch }) {
-      if (updateApiTokenPromise) {
-        // ensure we only make one refresh call
-        return updateApiTokenPromise
-      }
-      updateApiTokenPromise = impl()
-      return updateApiTokenPromise
-      async function impl() {
-        try {
-          const resp = await dispatch('doInatGet', {
-            urlSuffix: '/users/api_token',
-          })
-          const apiToken = resp.api_token
-          commit('_setApiToken', apiToken)
-          dispatch('updateUserDetails').then(() => {
-            commit('markApiTokenAndUserLastUpdated')
-            commit('setIsUpdatingApiToken', false)
-          })
-        } catch (err) {
+      try {
+        const resp = await dispatch('doInatGet', {
+          urlSuffix: '/users/api_token',
+        })
+        const apiToken = resp.api_token
+        commit('_setApiToken', apiToken)
+        await getWebWorker().saveApiToken(apiToken)
+        dispatch('updateUserDetails').then(() => {
+          commit('markApiTokenAndUserLastUpdated')
           commit('setIsUpdatingApiToken', false)
-          const status = err.httpStatus
-          if (status === 401 || status === 400) {
-            commit('_setToken', null) // triggers the toast to login again
-            return
-          }
-          throw ChainedError('Failed to get API token using iNat token', err)
-        } finally {
-          updateApiTokenPromise = null
+        })
+      } catch (err) {
+        commit('setIsUpdatingApiToken', false)
+        const status = err.httpStatus
+        if (status === 401 || status === 400) {
+          commit('_setToken', null) // triggers the toast to login again
+          return
         }
+        throw ChainedError('Failed to get API token using iNat token', err)
       }
     },
     /**

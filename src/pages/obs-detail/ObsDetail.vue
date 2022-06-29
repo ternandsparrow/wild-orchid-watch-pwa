@@ -1,15 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar back-label="Home" title="Observation">
-      <template #right>
-        <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
-          Edit
-        </v-ons-toolbar-button>
-        <v-ons-toolbar-button name="toolbar-delete-btn" @click="onDelete">
-          Delete
-        </v-ons-toolbar-button>
-      </template>
-    </custom-toolbar>
+    <custom-toolbar back-label="Home" title="Observation"></custom-toolbar>
 
     <v-ons-card v-show="isSystemError" class="error-card">
       <div class="title">Error uploading record</div>
@@ -50,6 +41,24 @@
         data. It will <em>never</em> be uploaded to iNaturalist until you edit
         it and add the missing data.
       </p>
+    </v-ons-card>
+    <v-ons-card class="action-buttons">
+      <v-ons-toolbar-button modifier="outline" @click="onEdit">
+        <v-ons-icon icon="fa-edit" />
+        Edit
+      </v-ons-toolbar-button>
+      <v-ons-toolbar-button modifier="outline" @click="onDelete">
+        <v-ons-icon icon="fa-trash" />
+        Delete
+      </v-ons-toolbar-button>
+      <v-ons-toolbar-button
+        v-if="isSelectedRecordEditOfRemote"
+        modifier="outline"
+        @click="onUndoLocalEdit"
+      >
+        <v-ons-icon icon="fa-undo" />
+        Undo local edit
+      </v-ons-toolbar-button>
     </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
@@ -652,6 +661,31 @@ export default {
           this.$router.push({ name: 'Home' })
         })
     },
+    onUndoLocalEdit() {
+      this.$wow.uiTrace('ObsDetail', `undo local edit`)
+      this.$ons.notification
+        .confirm('Are you sure about undoing your edit?')
+        .then(async (answer) => {
+          if (!answer) {
+            this.$wow.uiTrace('ObsDetail', `abort undo edit`)
+            return
+          }
+          this.$wow.uiTrace('ObsDetail', `confirm undo edit`)
+          try {
+            await this.$store.dispatch('obs/undoLocalEdit')
+            this.$ons.notification.toast('Edit undone!', {
+              timeout: 3000,
+              animation: 'ascend',
+            })
+            this.loadFullObsData()
+          } catch (err) {
+            this.handleMenuError(err, {
+              msg: 'Failed to (completely) undo edit',
+              userMsg: 'Error while undoing edit.',
+            })
+          }
+        })
+    },
     showPhotoPreview(url) {
       this.$store.commit('ephemeral/previewPhoto', {
         url: url.indexOf('medium') > 0 ? url.replace('medium', 'large') : url,
@@ -882,5 +916,9 @@ table.geolocation-detail {
 
 .more-margin {
   margin: 1em;
+}
+
+.action-buttons {
+  text-align: right;
 }
 </style>

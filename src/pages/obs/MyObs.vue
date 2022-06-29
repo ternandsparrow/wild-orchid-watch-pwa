@@ -269,7 +269,10 @@ export default {
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('obs/refreshRemoteObs').catch((err) => {
+        Promise.all([
+          this.$store.dispatch('obs/refreshRemoteObs'),
+          this.$store.dispatch('obs/refreshLocalRecordQueue'),
+        ]).catch((err) => {
           this.$store.dispatch(
             'flagGlobalError',
             {

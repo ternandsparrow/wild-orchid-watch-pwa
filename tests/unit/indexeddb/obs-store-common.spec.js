@@ -308,56 +308,6 @@ describe('obs-store-common', () => {
       expect(await testPhotoStore.getItem(photoDbId)).toBeNull()
     })
 
-    it('should delete a blocked photo', async () => {
-      const recordId = '456A'
-      const photoId = '3334'
-      const savedRecord = await getRecordWithExistingBlockedPhoto(
-        testObsStore,
-        testPhotoStore,
-        recordId,
-        photoId,
-      )
-      // make sure the photo was saved
-      const someRemotePhotoId = 8181 // iNat IDs are numbers
-      const photoDbId =
-        savedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
-          cc.photosToAddFieldName
-        ][0].id
-      expect(await testPhotoStore.getItem(photoDbId)).toBeTruthy()
-      // now we simulate a record edit that deletes a photo
-      const editedRecord = {
-        ...savedRecord,
-        photos: [],
-        wowMeta: {
-          ...savedRecord.wowMeta,
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photoIdsToDeleteFieldName]: [photoDbId, someRemotePhotoId],
-              [cc.photosToAddFieldName]: [],
-            },
-          },
-        },
-      }
-      await objectUnderTest._testonly.storeRecordImpl(
-        testObsStore,
-        testPhotoStore,
-        editedRecord,
-      )
-      // make sure the photo is gone
-      const savedEditedRecord = await testObsStore.getItem(recordId)
-      expect(
-        savedEditedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
-          cc.photosToAddFieldName
-        ].length,
-      ).toEqual(0)
-      expect(
-        savedEditedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
-          cc.photoIdsToDeleteFieldName
-        ],
-      ).toEqual([someRemotePhotoId])
-      expect(await testPhotoStore.getItem(photoDbId)).toBeNull()
-    })
-
     it('should delete all linked photos when an obs is deleted', async () => {
       const recordId = '666B'
       // set up fixture
@@ -375,12 +325,7 @@ describe('obs-store-common', () => {
         uuid: recordId,
         photos: [photo1, photo2],
         wowMeta: {
-          [cc.photosToAddFieldName]: [photo1],
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photosToAddFieldName]: [photo2],
-            },
-          },
+          [cc.photosToAddFieldName]: [photo1, photo2],
         },
       }
       await objectUnderTest._testonly.storeRecordImpl(
@@ -406,16 +351,16 @@ describe('obs-store-common', () => {
       }
     })
 
-    it('should only thumbnail-ify any given photo once for blocked photos', async () => {
+    it('should only thumbnail-ify any given photo once', async () => {
       const recordId = '456A'
       const photoId = '1234'
-      const savedRecord = await getRecordWithExistingBlockedPhoto(
+      const savedRecord = await getRecordWithExistingPhoto(
         testObsStore,
         testPhotoStore,
         recordId,
         photoId,
       )
-      // now we simulate a record edit that adds a photo to the blocked action
+      // now we simulate a record edit that adds a photo
       const newPhoto = {
         file: getPhotoWithThumbnail(),
         id: '5678',
@@ -426,16 +371,10 @@ describe('obs-store-common', () => {
         photos: [...savedRecord.photos, newPhoto],
         wowMeta: {
           ...savedRecord.wowMeta,
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photosToAddFieldName]: [
-                ...savedRecord.wowMeta[cc.blockedActionFieldName].wowMeta[
-                  cc.photosToAddFieldName
-                ],
-                newPhoto,
-              ],
-            },
-          },
+          [cc.photosToAddFieldName]: [
+            ...savedRecord.wowMeta[cc.photosToAddFieldName],
+            newPhoto,
+          ],
         },
       }
       await objectUnderTest._testonly.storeRecordImpl(
@@ -444,10 +383,7 @@ describe('obs-store-common', () => {
         editedRecord,
       )
       const result = await testObsStore.getItem(recordId)
-      const photos =
-        result.wowMeta[cc.blockedActionFieldName].wowMeta[
-          cc.photosToAddFieldName
-        ]
+      const photos = result.wowMeta[cc.photosToAddFieldName]
       expect(photos.map((e) => e.id)).toEqual([photoId, '5678'])
       expect(photos[0].file.data.byteLength).toEqual(byteLengthOfThumbnail)
       expect(photos[1].file.data.byteLength).toEqual(byteLengthOfThumbnail)
@@ -498,155 +434,7 @@ describe('obs-store-common', () => {
     })
   })
 
-  describe('doGh69SeparatingPhotosMigration', () => {
-    it('should migrate a non-migrated obs record', async () => {
-      const recordId = '92818C'
-      // set up fixture
-      const photo1 = {
-        file: {
-          data: await blobToArrayBuffer(getPhotoWithThumbnail()),
-          mime: 'image/jpeg',
-        },
-        id: -1,
-        type: 'top',
-      }
-      const photo2 = {
-        file: {
-          data: await blobToArrayBuffer(getPhotoWithThumbnail()),
-          mime: 'image/jpeg',
-        },
-        id: -2,
-        type: 'flower',
-      }
-      const record = {
-        uuid: recordId,
-        photos: [photo1, photo2],
-        wowMeta: {
-          [cc.photosToAddFieldName]: [photo1],
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photosToAddFieldName]: [photo2],
-            },
-          },
-        },
-      }
-      await testObsStore.setItem(recordId, record)
-      const savedRecord = await testObsStore.getItem(recordId)
-      // confirm the obs was saved
-      expect(savedRecord).toBeTruthy()
-      // now we do the migration
-      const migratedIds =
-        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-          testObsStore,
-          testPhotoStore,
-          testMetaStore,
-        )
-      expect(migratedIds[0]).toEqual(recordId)
-      const migratedObs = await testObsStore.getItem(recordId)
-      expect(migratedObs.wowMeta[cc.versionFieldName]).toEqual(
-        cc.currentRecordVersion,
-      )
-      const photoIds = _.get(migratedObs, 'photos', []).map((e) => e.id)
-      try {
-        expect(
-          photoIds.every((e) => {
-            const isMigratedPhotoId = typeof e === 'string'
-            return isMigratedPhotoId
-          }),
-        ).toEqual(true)
-      } catch (err) {
-        console.warn(`Failed expect Photo IDs=${JSON.stringify(photoIds)}`)
-        throw err
-      }
-      for (const curr of photoIds) {
-        expect(await testPhotoStore.getItem(curr)).toBeTruthy()
-      }
-    })
-
-    it('should not migrate an already migrated obs record', async () => {
-      const recordId = '88828Z'
-      // set up fixture
-      const photo1 = {
-        file: getPhotoWithThumbnail(),
-        id: '111',
-        type: 'top',
-      }
-      const photo2 = {
-        file: getPhotoWithThumbnail(),
-        id: '112',
-        type: 'flower',
-      }
-      const record = {
-        uuid: recordId,
-        photos: [photo1, photo2],
-        wowMeta: {
-          [cc.photosToAddFieldName]: [photo1],
-          [cc.versionFieldName]: cc.currentRecordVersion, // this means already migrated
-          [cc.blockedActionFieldName]: {
-            wowMeta: {
-              [cc.photosToAddFieldName]: [photo2],
-            },
-          },
-        },
-      }
-      await objectUnderTest._testonly.storeRecordImpl(
-        testObsStore,
-        testPhotoStore,
-        record,
-      )
-      const savedRecord = await testObsStore.getItem(recordId)
-      // confirm the obs was saved
-      expect(savedRecord).toBeTruthy()
-      // now we do the migration
-      const migratedIds =
-        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-          testObsStore,
-          testPhotoStore,
-          testMetaStore,
-        )
-      expect(migratedIds.length).toEqual(0)
-    })
-
-    it('should migrate a non-migrated record without photos to add', async () => {
-      const recordId = 'ks8188s'
-      // set up fixture
-      const record = {
-        uuid: recordId,
-        photos: [],
-        wowMeta: {
-          [cc.photosToAddFieldName]: [],
-        },
-      }
-      await testObsStore.setItem(recordId, record)
-      // now we do the migration
-      const migratedIds =
-        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-          testObsStore,
-          testPhotoStore,
-          testMetaStore,
-        )
-      expect(migratedIds.length).toEqual(1)
-      const savedRecord = await testObsStore.getItem(recordId)
-      expect(savedRecord.wowMeta[cc.versionFieldName]).toEqual(
-        cc.currentRecordVersion,
-      )
-    })
-
-    it(`should not migrate when it's already been done`, async () => {
-      await testMetaStore.setItem(cc.gh69MigrationKey, new Date().toISOString())
-      const migratedIds =
-        await objectUnderTest._testonly.doGh69SeparatingPhotosMigration(
-          {
-            keys: async () => {
-              throw new Error('Should not be called')
-            },
-          },
-          null,
-          testMetaStore,
-        )
-      expect(migratedIds.length).toEqual(0)
-    })
-  })
+  // FIXME test migration code for this new facade work
 
   describe('migrateLocalRecordsWithoutOutcomeLastUpdatedAt', () => {
     it('should migrate a non-migrated obs record', async () => {
@@ -770,32 +558,6 @@ async function getRecordWithExistingPhoto(
     photos: [existingPhoto],
     wowMeta: {
       [cc.photosToAddFieldName]: [existingPhoto],
-    },
-  }
-  await objectUnderTest._testonly.storeRecordImpl(obsStore, photoStore, record)
-  return objectUnderTest._testonly.getRecordImpl(obsStore, recordId)
-}
-
-async function getRecordWithExistingBlockedPhoto(
-  obsStore,
-  photoStore,
-  recordId,
-  photoId,
-) {
-  const existingPhoto = {
-    file: getPhotoWithThumbnail(),
-    id: photoId,
-    type: 'top',
-  }
-  const record = {
-    uuid: recordId,
-    photos: [existingPhoto],
-    wowMeta: {
-      [cc.blockedActionFieldName]: {
-        wowMeta: {
-          [cc.photosToAddFieldName]: [existingPhoto],
-        },
-      },
     },
   }
   await objectUnderTest._testonly.storeRecordImpl(obsStore, photoStore, record)

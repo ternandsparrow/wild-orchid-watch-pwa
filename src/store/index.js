@@ -137,6 +137,10 @@ subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
   return store.commit('obs/handleLocalRecordTransition', args)
 })
 
+subscribeToWorkerMessage(workerMessages.requestApiTokenRefresh, () => {
+  return store.dispatch('auth/getApiToken')
+})
+
 // make sure all your hooks are async or return promises
 const allApiTokenHooks = [...obsApiTokenHooks]
 

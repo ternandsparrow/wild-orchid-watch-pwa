@@ -409,16 +409,16 @@ export async function getLocalQueueSummary() {
         isPossiblyStuck,
         isDraft: rpo === cc.draftOutcome,
         // photosToAdd summary isn't used but is useful for debugging
-        [cc.photosToAddFieldName]: r.wowMeta[cc.photosToAddFieldName].map(
-          (p) => ({
-            type: p.type,
-            id: p.id,
-            fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
-              p,
-              'file.data.byteLength',
-            )}`,
-          }),
-        ),
+        [cc.photosToAddFieldName]: (
+          r.wowMeta[cc.photosToAddFieldName] || []
+        ).map((p) => ({
+          type: p.type,
+          id: p.id,
+          fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
+            p,
+            'file.data.byteLength',
+          )}`,
+        })),
       },
     }
     currSummary.thumbnailUrl = (() => {
@@ -718,6 +718,7 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
   console.debug('Obs update form is sent')
   await addPendingTask({
     uuid: dbRecord.uuid,
+    inatId: dbRecord.inatId,
     statusUrl: resp.statusUrl,
     type: recordType('update'),
   })
@@ -831,6 +832,19 @@ export async function cancelFailedDeletes(dbRecordUuids) {
   notifyUiToRefreshLocalRecordQueue()
 }
 
+export async function undoLocalEdit(theUuid) {
+  try {
+    await deleteDbRecordById(theUuid)
+    // kill any in-flight task for this ID
+    await deletePendingTask(theUuid)
+  } catch (err) {
+    throw new ChainedError(
+      `Failed to undo local edit record for UUID='${theUuid}'`,
+      err,
+    )
+  }
+}
+
 async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
   if (!theUuid) {
     throw namedError(
@@ -839,46 +853,46 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
         'observation is selected',
     )
   }
-  const localRecord = await getRecord(theUuid)
-  if (localRecord) {
-    try {
-      await deleteDbRecordById(theUuid)
-    } catch (err) {
-      throw new ChainedError(
-        `Failed to delete local record for UUID='${theUuid}'`,
-        err,
-      )
-    }
-  }
   const remoteRecords = await metaStoreRead(cc.remoteObsKey)
   const remoteRecord = remoteRecords.find((e) => e.uuid === theUuid)
-  if (!remoteRecord) {
-    console.info('Observation is local-only, no need to contact iNat')
-    // kill any in-flight task for this ID
-    await deletePendingTask(theUuid) // FIXME verify works
-    _postMessageToUiThread(cc.workerMessages.facadeDeleteSuccess, { theUuid })
-    return
-  }
-  const inatRecordId = remoteRecord.inatId
-  if (!inatRecordId) {
+  const localRecord = await getRecord(theUuid)
+  if (!localRecord && !remoteRecord) {
     throw new Error(
-      `Could not find inatId for ${theUuid}; remote record=${JSON.strategies(
-        remoteRecord,
-      )}`,
+      'Data problem: Cannot find existing local or remote record,' +
+        'cannot continue without at least one',
     )
   }
-  // FIXME handle errors
-  await doDeleteReqFn(
-    `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
-    apiToken,
-  )
-  console.debug(`DELETE ${inatRecordId} sent to iNat successfully`)
-  await saveApiToken(apiToken)
-  await addPendingTask({
+  const dbRecord = localRecord || {
+    inatId: (remoteRecord || {}).inatId,
     uuid: theUuid,
-    inatId: inatRecordId,
-    type: recordType('delete'),
-  })
+    wowMeta: {
+      [cc.wowUpdatedAtFieldName]: new Date().toString(),
+      [cc.recordTypeFieldName]: recordType('delete'),
+      [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
+      [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+    },
+  }
+  const inatRecordId = dbRecord.inatId || 0
+  try {
+    await storeRecord(dbRecord)
+    await transitionRecord(theUuid, cc.beingProcessedOutcome, true)
+    const resp = await doDeleteReqFn(
+      `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
+      apiToken,
+    )
+    await transitionRecord(theUuid, cc.successOutcome, true)
+    console.debug(`DELETE ${theUuid} sent to iNat successfully`)
+    await saveApiToken(apiToken)
+    await addPendingTask({
+      uuid: theUuid,
+      inatId: inatRecordId,
+      statusUrl: resp.statusUrl,
+      type: recordType('delete'),
+    })
+  } catch (err) {
+    wowErrorHandler('Failed to delete record', err)
+    await transitionRecord(theUuid, cc.systemErrorOutcome)
+  }
 }
 
 export async function doSpeciesAutocomplete(partialText, speciesListType) {
@@ -975,6 +989,9 @@ async function _getPendingTasks() {
 }
 
 async function _setPendingTasks(tasks) {
+  if (Object.keys(tasks).length === 0) {
+    clearTimeout(taskChecksTracker)
+  }
   await metaStoreWrite(cc.pendingTasksKey, tasks)
 }
 
@@ -1039,7 +1056,16 @@ async function runChecksForTasks() {
         await deletePendingTask(curr.uuid)
       }
     } catch (err) {
-      console.error(`Failed to check for task ${curr.uuid}`, err)
+      const isAuthError = err.httpStatus === 401
+      if (isAuthError) {
+        console.warn(
+          `Failed to check for task ${curr.uuid} due to ` +
+            'expired auth, requesting fresh token',
+        )
+        _postMessageToUiThread(cc.workerMessages.requestApiTokenRefresh)
+      } else {
+        console.error(`Failed to check for task ${curr.uuid}`, err)
+      }
       // FIXME do we need to cancel the task or something?
     }
   }
@@ -1117,7 +1143,7 @@ export async function optimisticallyUpdateComments(obsId, commentRecord) {
   metaStoreWrite(cc.remoteObsKey, allRemoteObs)
 }
 
-async function saveApiToken(apiToken) {
+export async function saveApiToken(apiToken) {
   await metaStoreWrite(cc.apiTokenKey, apiToken)
 }
 

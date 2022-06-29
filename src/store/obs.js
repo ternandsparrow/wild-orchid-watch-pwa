@@ -82,6 +82,10 @@ const mutations = {
     }
     removeElementWithUuid(state.localQueueSummary, theUuid)
   },
+  handleUndoEdit: (state, theUuid) => {
+    console.debug(`UI thread handling undo edit for ${theUuid}`)
+    removeElementWithUuid(state.localQueueSummary, theUuid)
+  },
   setRecentlyUsedTaxa: (state, value) => (state.recentlyUsedTaxa = value),
   addRecentlyUsedTaxa: (state, { type, value }) => {
     const isNothingSelected = !value
@@ -355,6 +359,13 @@ const actions = {
     await worker.deleteRecord(theUuid, apiToken)
     // worker will send event for UI to update record lists
     commit('setSelectedObservationUuid', null)
+    dispatch('refreshLocalRecordQueue')
+  },
+  async undoLocalEdit({ state, commit }) {
+    const theUuid = state.selectedObservationUuid
+    const worker = getWebWorker()
+    await worker.undoLocalEdit(theUuid)
+    commit('handleUndoEdit', theUuid)
   },
   async refreshLocalRecordQueue({ commit }) {
     const startMs = Date.now()
