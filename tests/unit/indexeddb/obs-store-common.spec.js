@@ -1,10 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import _ from 'lodash'
 import uuid from 'uuid/v1'
 import * as objectUnderTest from '@/indexeddb/obs-store-common'
-import { blobToArrayBuffer } from '@/misc/only-common-deps-helpers'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
 import {
