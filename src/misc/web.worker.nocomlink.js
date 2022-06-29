@@ -1053,6 +1053,70 @@ async function runChecksForTasks() {
   scheduleTaskChecks(cc.frequencyOfTaskChecksSeconds * 1000)
 }
 
+export async function optimisticallyUpdateComments(obsId, commentRecord) {
+  const allRemoteObs = await metaStoreRead(cc.remoteObsKey)
+  const targetObsIndex = allRemoteObs.findIndex((e) => e.inatId === obsId)
+  if (targetObsIndex < 0) {
+    throw new Error(
+      `Could not find existing remote obs with ID='${obsId}' from IDs=${JSON.stringify(
+        allRemoteObs.map((o) => o.inatId),
+      )}`,
+    )
+  }
+  const targetObs = allRemoteObs[targetObsIndex]
+  const obsComments = targetObs.comments || []
+  const strategy = (() => {
+    const existingCommentUuids = obsComments.map((c) => c.uuid)
+    const key =
+      `${commentRecord.body ? '' : 'no-'}body|` +
+      `${existingCommentUuids.includes(commentRecord.uuid) ? 'not-' : ''}new`
+    const result = {
+      'body|new': function newStrategy() {
+        obsComments.push(mapCommentFromApiToOurDomain(commentRecord))
+      },
+      'body|not-new': function editStrategy() {
+        const targetComment = obsComments.find(
+          (c) => c.uuid === commentRecord.uuid,
+        )
+        if (!targetComment) {
+          throw new Error(
+            `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+              `edit. Available comment UUIDs=${JSON.stringify(
+                obsComments.map((c) => c.uuid),
+              )}`,
+          )
+        }
+        Object.keys(commentRecord).forEach((currKey) => {
+          targetComment[currKey] = commentRecord[currKey]
+        })
+      },
+      'no-body|not-new': function deleteStrategy() {
+        const indexOfComment = obsComments.findIndex(
+          (e) => e.uuid === commentRecord.uuid,
+        )
+        if (!~indexOfComment) {
+          throw new Error(
+            `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+              `delete. Available comment UUIDs=${JSON.stringify(
+                obsComments.map((c) => c.uuid),
+              )}`,
+          )
+        }
+        obsComments.splice(indexOfComment, 1)
+      },
+    }[key]
+    if (!result) {
+      throw new Error(`Programmer problem: no strategy found for key='${key}'`)
+    }
+    return result
+  })()
+  console.debug(`Using strategy='${strategy.name}' to modify comments`)
+  strategy()
+  updateIdsAndCommentsFor(targetObs)
+  allRemoteObs.splice(targetObsIndex, 1, targetObs)
+  metaStoreWrite(cc.remoteObsKey, allRemoteObs)
+}
+
 async function saveApiToken(apiToken) {
   await metaStoreWrite(cc.apiTokenKey, apiToken)
 }

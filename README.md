@@ -314,3 +314,7 @@ gets merged, we'll move up two major versions of eslint-loader (from 2.x to
 4.x), which will hopefully help. In the meantime, we're forcing a lint on the
 workers during `yarn lint`. It won't catch errors in the dev server but it will
 fail the CI build.
+
+## FontAwesome
+If you want to see which icons you can use, look in
+`node_modules/onsenui/css/font_awesome/css/fontawesome.css`

@@ -284,13 +284,12 @@
                   <p class="identification-comment">{{ curr.body }}</p>
                 </div>
                 <div class="right">
-                  <v-ons-button
-                    name="comment-menu-btn"
-                    modifier="quiet"
-                    @click="onCommentActionMenu(curr)"
-                  >
-                    <v-ons-icon icon="fa-ellipsis-v" class="muted" />
-                  </v-ons-button>
+                  <v-ons-toolbar-button @click="onCommentEdit(curr)">
+                    <v-ons-icon icon="fa-edit" class="muted" />
+                  </v-ons-toolbar-button>
+                  <v-ons-toolbar-button @click="onCommentDelete(curr)">
+                    <v-ons-icon icon="fa-trash" class="muted" />
+                  </v-ons-toolbar-button>
                 </div>
               </v-ons-list-item>
             </template>
@@ -581,55 +580,38 @@ export default {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
-    onCommentActionMenu(commentRecord) {
-      const menu = {
-        Delete: () => {
-          this.$ons.notification
-            .confirm('Are you sure about deleting this comment?')
-            .then((answer) => {
-              if (!answer) {
-                return
-              }
-              this.$store
-                .dispatch('obs/deleteComment', {
-                  obsId: this.selectedObsInatId,
-                  commentRecord,
-                })
-                .then(() => {
-                  this.$ons.notification.toast('Comment deleted!', {
-                    timeout: 3000,
-                    animation: 'fall',
-                  })
-                })
-                .catch((err) => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to delete comment',
-                    userMsg: 'Error while deleting comment.',
-                  })
-                })
-            })
-        },
-        Edit: () => {
-          this.isShowCommentEditModal = true
-          this.editCommentRecord = commentRecord
-        },
+    // FIXME can't comment on a remote record with local edit
+    async onCommentDelete(commentRecord) {
+      const handler = async () => {
+        try {
+          await this.$store.dispatch('obs/deleteComment', {
+            obsId: this.selectedObsInatId,
+            commentRecord,
+          })
+          this.$ons.notification.toast('Comment deleted!', {
+            timeout: 3000,
+            animation: 'fall',
+          })
+          await this.loadFullObsData()
+        } catch (err) {
+          this.handleMenuError(err, {
+            msg: 'Failed to delete comment',
+            userMsg: 'Error while deleting comment.',
+          })
+        }
       }
-      if (!this.md) {
-        menu.Cancel = () => {}
-      }
-      this.$ons
-        .openActionSheet({
-          buttons: Object.keys(menu),
-          cancelable: true,
-          destructive: 1,
-        })
-        .then((selIndex) => {
-          const key = Object.keys(menu)[selIndex]
-          const selectedItemFn = menu[key]
-          if (selectedItemFn) {
-            selectedItemFn()
+      this.$ons.notification
+        .confirm('Are you sure about deleting this comment?')
+        .then((answer) => {
+          if (!answer) {
+            return
           }
+          handler()
         })
+    },
+    onCommentEdit(commentRecord) {
+      this.isShowCommentEditModal = true
+      this.editCommentRecord = commentRecord
     },
     handleMenuError(err, { msg, userMsg }) {
       this.$store.dispatch(
@@ -689,6 +671,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentBody: this.newCommentBody,
         })
+        await this.loadFullObsData()
         this.newCommentBody = null
         this.$ons.notification.toast('Comment created', {
           timeout: 3000,
@@ -716,6 +699,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentRecord: this.editCommentRecord,
         })
+        await this.loadFullObsData()
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',

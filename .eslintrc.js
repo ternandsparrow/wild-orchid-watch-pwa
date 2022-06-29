@@ -31,7 +31,7 @@ module.exports = {
     'consistent-return': 'off',
     'no-bitwise': ["error", { "allow": ["~"] }],
     'no-continue': 'off',
-    // FIXME fix these issues and remove rule overrides
+    // FIXME fix these \/ issues and remove rule overrides
     'no-return-assign': 'off',
     'no-restricted-syntax': 'off',
     'no-await-in-loop': 'off',

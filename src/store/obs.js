@@ -1,12 +1,10 @@
-import { omitBy, isEqual, isNil, cloneDeep, get } from 'lodash'
+import { omitBy, isEqual, isNil, get } from 'lodash'
 import {
   // FIXME ideally no store operations are called from this module. So remove
   //  all these imports and use the worker
   healthcheckStore,
-  mapCommentFromApiToOurDomain,
   processObsFieldName,
   registerWarnHandler,
-  updateIdsAndCommentsFor,
 } from '@/indexeddb/obs-store-common'
 import * as cc from '@/misc/constants'
 import {
@@ -127,8 +125,6 @@ const actions = {
         worker.getFullLocalObsDetail(theUuid, detailedModeOnlyObsFieldIds),
         worker.getPhotosForLocalObs(theUuid),
       ])
-      // FIXME are "photos" only locals and we have to merge? Or is it safe to
-      //  clobber like this?
       obsDetail.photos = photos
       return obsDetail
     }
@@ -375,72 +371,6 @@ const actions = {
   cleanupPhotosForObs() {
     return getWebWorker().cleanupPhotosForObs()
   },
-  optimisticallyUpdateComments({ state, commit }, { obsId, commentRecord }) {
-    // FIXME move this fn to the worker, and we probably don't have to clone
-    //  all the remote obs, we can just look them the right up and get it from
-    //  the DB
-    const existingRemoteObs = cloneDeep(state.allRemoteObs)
-    const targetObs = existingRemoteObs.find((e) => e.inatId === obsId)
-    if (!targetObs) {
-      throw new Error(
-        `Could not find existing remote obs with ID='${obsId}' from IDs=${JSON.stringify(
-          existingRemoteObs.map((o) => o.inatId),
-        )}`,
-      )
-    }
-    const obsComments = targetObs.comments || []
-    const strategy = (() => {
-      const existingCommentUuids = obsComments.map((c) => c.uuid)
-      const key =
-        `${commentRecord.body ? '' : 'no-'}body|` +
-        `${existingCommentUuids.includes(commentRecord.uuid) ? 'not-' : ''}new`
-      const result = {
-        'body|new': function newStrategy() {
-          targetObs.comments.push(mapCommentFromApiToOurDomain(commentRecord))
-        },
-        'body|not-new': function editStrategy() {
-          const targetComment = obsComments.find(
-            (c) => c.uuid === commentRecord.uuid,
-          )
-          if (!targetComment) {
-            throw new Error(
-              `Could not find comment with UUID='${commentRecord.uuid}' to ` +
-                `edit. Available comment UUIDs=${JSON.stringify(
-                  obsComments.map((c) => c.uuid),
-                )}`,
-            )
-          }
-          Object.keys(commentRecord).forEach((currKey) => {
-            targetComment[currKey] = commentRecord[currKey]
-          })
-        },
-        'no-body|not-new': function deleteStrategy() {
-          const indexOfComment = obsComments.findIndex(
-            (e) => e.uuid === commentRecord.uuid,
-          )
-          if (!~indexOfComment) {
-            throw new Error(
-              `Could not find comment with UUID='${commentRecord.uuid}' to ` +
-                `delete. Available comment UUIDs=${JSON.stringify(
-                  obsComments.map((c) => c.uuid),
-                )}`,
-            )
-          }
-          obsComments.splice(indexOfComment, 1)
-        },
-      }[key]
-      if (!result) {
-        throw new Error(
-          `Programmer problem: no strategy found for key='${key}'`,
-        )
-      }
-      return result
-    })()
-    console.debug(`Using strategy='${strategy.name}' to modify comments`)
-    strategy()
-    updateIdsAndCommentsFor(targetObs)
-    commit('setAllRemoteObs', existingRemoteObs)
-  },
   async createComment({ dispatch }, { obsId, commentBody }) {
     try {
       // TODO support background sync with SW. Could be hard because we want
@@ -459,10 +389,7 @@ const actions = {
         },
         { root: true },
       )
-      await dispatch('optimisticallyUpdateComments', {
-        obsId,
-        commentRecord: commentResp,
-      })
+      await getWebWorker().optimisticallyUpdateComments(obsId, commentResp)
       return commentResp.id
     } catch (err) {
       throw new ChainedError('Failed to create new comment', err)
@@ -486,10 +413,7 @@ const actions = {
         },
         { root: true },
       )
-      await dispatch('optimisticallyUpdateComments', {
-        obsId,
-        commentRecord: commentResp,
-      })
+      await getWebWorker().optimisticallyUpdateComments(obsId, commentResp)
       return commentResp.id
     } catch (err) {
       throw new ChainedError('Failed to create new comment', err)
@@ -506,11 +430,8 @@ const actions = {
         },
         { root: true },
       )
-      return dispatch('optimisticallyUpdateComments', {
-        obsId,
-        commentRecord: {
-          uuid: commentRecord.uuid,
-        },
+      await getWebWorker().optimisticallyUpdateComments(obsId, {
+        uuid: commentRecord.uuid,
       })
     } catch (err) {
       throw new ChainedError(
@@ -614,7 +535,8 @@ const gettersObj = {
       .filter((e) => {
         const hasRemote = !!e.inatId
         return (
-          e.wowMeta[cc.recordTypeFieldName] === recordType('update') && hasRemote
+          e.wowMeta[cc.recordTypeFieldName] === recordType('update') &&
+          hasRemote
         )
       })
       .some((e) => e.uuid === state.selectedObservationUuid)

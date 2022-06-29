@@ -142,6 +142,20 @@ This is pretty much what QA is.
 
 ---------------------------------------------------------
 
+# Comments
+
+## comment on remote obs
+
+## comment on remote obs with local edit
+
+## assert comment on local-only record fails
+
+## edit a comment
+
+## delete a comment
+
+---------------------------------------------------------
+
 # Chaos monkey ideas
 - very large photo
 - attach video instead of photo

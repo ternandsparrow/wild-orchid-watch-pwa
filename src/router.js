@@ -230,7 +230,7 @@ async function resolveObsByIdOrNotFound(to, from, next) {
         return id
       }
       try {
-        return store.dispatch('obs/inatIdToUuid', id)
+        return store.dispatch('obs/inatIdToUuid', parseInt(id, 10))
       } catch (err) {
         console.warn(`Could not find UUID for inatId=${id}`)
         return null // we'll handle the "not found"-ness later
