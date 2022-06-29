@@ -109,12 +109,12 @@ export default {
       }
     },
     getTimelineString(record) {
-      const duration = dayjs.duration(
+      const theDuration = dayjs.duration(
         dayjs(record.endDate).diff(dayjs(record.startDate)),
       )
       return `${record.startDate} until ${
         record.endDate
-      } (${duration.asDays()} days)`
+      } (${theDuration.asDays()} days)`
     },
     truncateGoal(goal) {
       return (goal || '').length > 150 ? `${goal.substring(0, 150)}...` : goal

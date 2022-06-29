@@ -34,9 +34,9 @@ const interceptableFns = {
         return
       }
       for (const currCb of subscribers) {
-        const result = currCb(event.data.data)
-        if (result && result.constructor === Promise) {
-          result.catch((err) => {
+        const cbResult = currCb(event.data.data)
+        if (cbResult && cbResult.constructor === Promise) {
+          cbResult.catch((err) => {
             console.error(`Async subscriber for key=${key} threw an error`, err)
           })
         }

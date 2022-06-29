@@ -40,23 +40,16 @@ async function storeRecordImpl(obsStore, photoStore, record) {
       throw new Error('Record has no key, cannot continue')
     }
     log('Processing photo deletes')
-    await deleteLocalPhotos(record, `wowMeta.${cc.photoIdsToDeleteFieldName}`)
-    log('Processing photo deletes in the blocked action')
     await deleteLocalPhotos(
-      // FIXME do we need this anymore?
       record,
-      `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
+      `wowMeta.${cc.photoIdsToDeleteFieldName}`,
+      photoStore,
     )
     log('Processing photo adds')
     await savePhotosAndReplaceWithThumbnails(
       record,
       `wowMeta.${cc.photosToAddFieldName}`,
-    )
-    log('Processing photo adds in blocked action')
-    await savePhotosAndReplaceWithThumbnails(
-      // FIXME do we need this anymore?
-      record,
-      `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
+      photoStore,
     )
     record.wowMeta[cc.versionFieldName] = cc.currentRecordVersion
     log('Saving record')
@@ -64,58 +57,58 @@ async function storeRecordImpl(obsStore, photoStore, record) {
   } catch (err) {
     throw ChainedError(`Failed to store db record with ID='${key}'`, err)
   }
-  async function savePhotosAndReplaceWithThumbnails(record, propPath) {
-    const photos = _.get(record, propPath, [])
-    if (!photos.length) {
-      return
-    }
-    const result = []
-    for (const curr of photos) {
-      const isAlreadyThumbnail =
-        _.get(curr, 'file.data.constructor') === ArrayBuffer ||
-        curr.file === null
-      if (isAlreadyThumbnail) {
-        result.push(curr)
-        continue
-      }
-      const currThumb = await interceptableFns.storePhotoRecord(
-        photoStore,
-        curr,
-      )
-      result.push(currThumb)
-      // update the array of all photos to use the thumbnail
-      const foundIndex = record.photos.findIndex((e) => e.id === curr.id)
-      if (!~foundIndex) {
-        warnHandler(
-          `Inconsistent data error: could not find photo with ` +
-            `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
-            ` available photo IDs=${JSON.stringify(
-              photos.map((e) => e.id),
-            )}. ` +
-            `Adding it to the list of photos.`,
-        )
-        record.photos.push(currThumb)
-      } else {
-        record.photos.splice(foundIndex, 1, currThumb)
-      }
-    }
-    _.set(record, propPath, result)
-  }
-  async function deleteLocalPhotos(record, propPath) {
-    const ids = _.get(record, propPath, [])
-    if (!ids.length) {
-      return
-    }
-    const idsToDelete = ids.filter(isLocalPhotoId)
-    for (const curr of idsToDelete) {
-      console.debug(`Deleting local photo with ID=${curr}`)
-      await photoStore.removeItem(curr)
-    }
-    _.set(record, propPath, _.difference(ids, idsToDelete))
-  }
   function log(msg) {
     console.debug(`[storeRecordImpl] ${msg}`)
   }
+}
+
+async function savePhotosAndReplaceWithThumbnails(
+  record,
+  propPath,
+  photoStore,
+) {
+  const photos = _.get(record, propPath, [])
+  if (!photos.length) {
+    return
+  }
+  const result = []
+  for (const curr of photos) {
+    const isAlreadyThumbnail =
+      _.get(curr, 'file.data.constructor') === ArrayBuffer || curr.file === null
+    if (isAlreadyThumbnail) {
+      result.push(curr)
+      continue
+    }
+    const currThumb = await interceptableFns.storePhotoRecord(photoStore, curr)
+    result.push(currThumb)
+    // update the array of all photos to use the thumbnail
+    const foundIndex = record.photos.findIndex((e) => e.id === curr.id)
+    if (!~foundIndex) {
+      warnHandler(
+        `Inconsistent data error: could not find photo with ` +
+          `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
+          ` available photo IDs=${JSON.stringify(photos.map((e) => e.id))}. ` +
+          `Adding it to the list of photos.`,
+      )
+      record.photos.push(currThumb)
+    } else {
+      record.photos.splice(foundIndex, 1, currThumb)
+    }
+  }
+  _.set(record, propPath, result)
+}
+
+async function deleteLocalPhotos(record, propPath, photoStore) {
+  const ids = _.get(record, propPath, [])
+  if (!ids.length) {
+    return
+  }
+  const idsToDelete = ids.filter(isLocalPhotoId)
+  for (const curr of idsToDelete) {
+    console.debug(`Deleting local photo with ID=${curr}`)
+    await photoStore.removeItem(curr)
+  }
+  _.set(record, propPath, _.difference(ids, idsToDelete))
 }
 
 async function storePhotoRecord(photoStore, photoRecord) {
@@ -321,10 +314,7 @@ async function doGh69SeparatingPhotosMigration(
       record,
       `wowMeta.${cc.photosToAddFieldName}`,
     )
-    const isBlockedPhotosMigrated = await prepForMigration(
-      record,
-      `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
-    )
+    const isBlockedPhotosMigrated = true // FIXME delete this whole fn
     // before this migration, the field didn't exist
     const isOldVersion = !_.get(record, `wowMeta.${cc.versionFieldName}`)
     if (!isPhotosMigrated && !isBlockedPhotosMigrated && !isOldVersion) {

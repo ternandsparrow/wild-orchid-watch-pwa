@@ -1,15 +1,6 @@
 <template>
   <v-ons-page>
-    <custom-toolbar back-label="Home" title="Observation">
-      <template #right>
-        <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
-          Edit
-        </v-ons-toolbar-button>
-        <v-ons-toolbar-button name="toolbar-delete-btn" @click="onDelete">
-          Delete
-        </v-ons-toolbar-button>
-      </template>
-    </custom-toolbar>
+    <custom-toolbar back-label="Home" title="Observation"></custom-toolbar>
 
     <v-ons-card v-show="isSystemError" class="error-card">
       <div class="title">Error uploading record</div>
@@ -50,6 +41,24 @@
         data. It will <em>never</em> be uploaded to iNaturalist until you edit
         it and add the missing data.
       </p>
+    </v-ons-card>
+    <v-ons-card class="action-buttons">
+      <v-ons-toolbar-button modifier="outline" @click="onEdit">
+        <v-ons-icon icon="fa-edit" />
+        Edit
+      </v-ons-toolbar-button>
+      <v-ons-toolbar-button modifier="outline" @click="onDelete">
+        <v-ons-icon icon="fa-trash" />
+        Delete
+      </v-ons-toolbar-button>
+      <v-ons-toolbar-button
+        v-if="isSelectedRecordEditOfRemote"
+        modifier="outline"
+        @click="onUndoLocalEdit"
+      >
+        <v-ons-icon icon="fa-undo" />
+        Undo local edit
+      </v-ons-toolbar-button>
     </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
@@ -284,13 +293,12 @@
                   <p class="identification-comment">{{ curr.body }}</p>
                 </div>
                 <div class="right">
-                  <v-ons-button
-                    name="comment-menu-btn"
-                    modifier="quiet"
-                    @click="onCommentActionMenu(curr)"
-                  >
-                    <v-ons-icon icon="fa-ellipsis-v" class="muted" />
-                  </v-ons-button>
+                  <v-ons-toolbar-button @click="onCommentEdit(curr)">
+                    <v-ons-icon icon="fa-edit" class="muted" />
+                  </v-ons-toolbar-button>
+                  <v-ons-toolbar-button @click="onCommentDelete(curr)">
+                    <v-ons-icon icon="fa-trash" class="muted" />
+                  </v-ons-toolbar-button>
                 </div>
               </v-ons-list-item>
             </template>
@@ -581,55 +589,38 @@ export default {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
-    onCommentActionMenu(commentRecord) {
-      const menu = {
-        Delete: () => {
-          this.$ons.notification
-            .confirm('Are you sure about deleting this comment?')
-            .then((answer) => {
-              if (!answer) {
-                return
-              }
-              this.$store
-                .dispatch('obs/deleteComment', {
-                  obsId: this.selectedObsInatId,
-                  commentRecord,
-                })
-                .then(() => {
-                  this.$ons.notification.toast('Comment deleted!', {
-                    timeout: 3000,
-                    animation: 'fall',
-                  })
-                })
-                .catch((err) => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to delete comment',
-                    userMsg: 'Error while deleting comment.',
-                  })
-                })
-            })
-        },
-        Edit: () => {
-          this.isShowCommentEditModal = true
-          this.editCommentRecord = commentRecord
-        },
+    // FIXME can't comment on a remote record with local edit
+    async onCommentDelete(commentRecord) {
+      const handler = async () => {
+        try {
+          await this.$store.dispatch('obs/deleteComment', {
+            obsId: this.selectedObsInatId,
+            commentRecord,
+          })
+          this.$ons.notification.toast('Comment deleted!', {
+            timeout: 3000,
+            animation: 'fall',
+          })
+          await this.loadFullObsData()
+        } catch (err) {
+          this.handleMenuError(err, {
+            msg: 'Failed to delete comment',
+            userMsg: 'Error while deleting comment.',
+          })
+        }
       }
-      if (!this.md) {
-        menu.Cancel = () => {}
-      }
-      this.$ons
-        .openActionSheet({
-          buttons: Object.keys(menu),
-          cancelable: true,
-          destructive: 1,
-        })
-        .then((selIndex) => {
-          const key = Object.keys(menu)[selIndex]
-          const selectedItemFn = menu[key]
-          if (selectedItemFn) {
-            selectedItemFn()
+      this.$ons.notification
+        .confirm('Are you sure about deleting this comment?')
+        .then((answer) => {
+          if (!answer) {
+            return
           }
+          handler()
         })
+    },
+    onCommentEdit(commentRecord) {
+      this.isShowCommentEditModal = true
+      this.editCommentRecord = commentRecord
     },
     handleMenuError(err, { msg, userMsg }) {
       this.$store.dispatch(
@@ -670,6 +661,31 @@ export default {
           this.$router.push({ name: 'Home' })
         })
     },
+    onUndoLocalEdit() {
+      this.$wow.uiTrace('ObsDetail', `undo local edit`)
+      this.$ons.notification
+        .confirm('Are you sure about undoing your edit?')
+        .then(async (answer) => {
+          if (!answer) {
+            this.$wow.uiTrace('ObsDetail', `abort undo edit`)
+            return
+          }
+          this.$wow.uiTrace('ObsDetail', `confirm undo edit`)
+          try {
+            await this.$store.dispatch('obs/undoLocalEdit')
+            this.$ons.notification.toast('Edit undone!', {
+              timeout: 3000,
+              animation: 'ascend',
+            })
+            this.loadFullObsData()
+          } catch (err) {
+            this.handleMenuError(err, {
+              msg: 'Failed to (completely) undo edit',
+              userMsg: 'Error while undoing edit.',
+            })
+          }
+        })
+    },
     showPhotoPreview(url) {
       this.$store.commit('ephemeral/previewPhoto', {
         url: url.indexOf('medium') > 0 ? url.replace('medium', 'large') : url,
@@ -689,6 +705,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentBody: this.newCommentBody,
         })
+        await this.loadFullObsData()
         this.newCommentBody = null
         this.$ons.notification.toast('Comment created', {
           timeout: 3000,
@@ -716,6 +733,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentRecord: this.editCommentRecord,
         })
+        await this.loadFullObsData()
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
@@ -898,5 +916,9 @@ table.geolocation-detail {
 
 .more-margin {
   margin: 1em;
+}
+
+.action-buttons {
+  text-align: right;
 }
 </style>

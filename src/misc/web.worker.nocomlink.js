@@ -28,7 +28,6 @@ import {
   getJsonWithAuth,
   namedError,
   postFormDataWithAuth,
-  putFormDataWithAuth,
   recordTypeEnum as recordType,
   rectangleAlongPathAreaValueToTitle,
   verifyWowDomainPhoto,
@@ -80,7 +79,7 @@ export async function getFullRemoteObsDetail(
   throwOnMissing = true,
 ) {
   const remoteObs = await metaStoreRead(cc.remoteObsKey)
-  const found = remoteObs.find((e) => e.uuid === theUuid)
+  const found = remoteObs?.find((e) => e.uuid === theUuid)
   if (!found && throwOnMissing) {
     throw new Error(`Selected obs ${theUuid} has no remote record in the db`)
   }
@@ -175,50 +174,6 @@ function mapObsFieldValuesToUi(record, detailedModeOnlyObsFieldIds) {
   return record
 }
 
-async function cleanLocalRecord(recordUuid, newRecordSummary) {
-  console.debug(
-    `[cleanLocalRecord] cleaning local record with UUID=${recordUuid}`,
-  )
-  const blockedAction = await (async () => {
-    // FIXME not sure we need blockedAction support any more
-    const record = await getRecord(recordUuid)
-    if (!record) {
-      return
-    }
-    if (!newRecordSummary) {
-      throw new Error(
-        `Blocked action present, but no summary passed for UUID=${recordUuid}`,
-      )
-    }
-    const blockedActionFromDb = record.wowMeta[cc.blockedActionFieldName]
-    if (!blockedActionFromDb) {
-      return
-    }
-    console.debug(
-      `[cleanLocalRecord] enqueuing blocked action for UUID=${recordUuid}`,
-    )
-    return {
-      // note: the record body has already been updated in-place, it's just
-      // the wowMeta changes that store the blocked action. That's why we use
-      // the record body as-is.
-      ...record,
-      inatId: newRecordSummary.inatId,
-      wowMeta: {
-        ...blockedActionFromDb.wowMeta,
-        [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
-      },
-    }
-  })()
-  await deleteDbRecordById(recordUuid)
-  if (blockedAction) {
-    // FIXME do we need to explicitly delete photos from the replaced record?
-    // We could leverage the storeRecord fn by injecting the IDs into the
-    // record.
-    await storeRecord(blockedAction)
-    // FIXME probably should trigger sending to facade
-  }
-}
-
 function mapRemoteRecordToSummary(r) {
   const fieldsToMap = [
     'commentCount',
@@ -304,14 +259,14 @@ function mapObsFromApiIntoOurDomain(obsFromApi) {
   // not sure why the API provides .photos AND .observation_photos but the
   // latter has the IDs that we need to be working with.
   const photos = (obsFromApi.observation_photos || []).map((p) => {
-    const result = {
+    const result2 = {
       url: p.photo.url,
       uuid: p.uuid,
       id: p.id,
       [cc.isRemotePhotoFieldName]: true,
     }
-    verifyWowDomainPhoto(result)
-    return result
+    verifyWowDomainPhoto(result2)
+    return result2
   })
   result.updatedAt = obsFromApi.updated_at
   result.observedAt = getObservedAt(obsFromApi)
@@ -380,80 +335,41 @@ function getObservedAt(obsFromApi) {
   }
 }
 
-async function checkForObsCreateCompletion(task, apiToken) {
+async function checkForTaskCompletion(task, apiToken) {
   const resp = await getJsonWithAuth(task.statusUrl, apiToken, false)
   const ts = resp.taskStatus
-  if (ts === 'processing') {
-    console.debug(`facade says record ${task.uuid} is not yet created`)
+  if (ts === 'pending') {
+    console.debug(`facade says task for ${task.uuid} is not yet processed`)
     return false
   }
   if (ts === 'failure') {
-    console.warn(`Failure checking for create ${task.uuid}`)
+    console.warn(`Failure checking for task for ${task.uuid}`)
     await transitionRecord(task.uuid, cc.systemErrorOutcome)
     return true
   }
   if (ts === 'success') {
-    console.debug(`Success checking for create ${task.uuid}`)
-    const mapped = mapObsFromApiIntoOurDomain(resp.upstreamBody)
-    const summary = mapRemoteRecordToSummary(mapped)
-    await cleanLocalRecord(task.uuid, summary)
-    const remoteObs = await metaStoreRead(cc.remoteObsKey)
-    remoteObs.splice(0, 0, mapped)
-    await metaStoreWrite(cc.remoteObsKey, remoteObs)
-    _postMessageToUiThread(cc.workerMessages.facadeCreateSuccess, { summary })
-    return true
-  }
-  throw new Error(`Unhandled taskStatus: ${ts}`)
-}
-
-async function checkForObsEditCompletion(task, apiToken) {
-  const resp = await getJsonWithAuth(task.statusUrl, apiToken, false)
-  const ts = resp.taskStatus
-  if (ts === 'processing') {
-    console.debug(`facade says record ${task.uuid} is not yet edited`)
-    return false
-  }
-  if (ts === 'failure') {
-    console.warn(`Failure checking for edit ${task.uuid}`)
-    await transitionRecord(task.uuid, cc.systemErrorOutcome)
-    return true
-  }
-  if (ts === 'success') {
-    console.debug(`Success checking for edit ${task.uuid}`)
-    const mapped = mapObsFromApiIntoOurDomain(resp.upstreamBody)
-    const summary = mapRemoteRecordToSummary(mapped)
-    await cleanLocalRecord(task.uuid, summary)
-    const remoteObs = await metaStoreRead(cc.remoteObsKey)
-    const indexOfExisting = remoteObs.findIndex((e) => e.uuid === task.uuid)
+    console.debug(`Success checking for task for ${task.uuid}`)
+    const allRemoteObs = await metaStoreRead(cc.remoteObsKey)
+    const indexOfExisting = allRemoteObs.findIndex((e) => e.uuid === task.uuid)
     if (indexOfExisting >= 0) {
-      remoteObs.splice(indexOfExisting, 0)
+      allRemoteObs.splice(indexOfExisting, 0)
     }
-    remoteObs.splice(0, 0, mapped)
-    await metaStoreWrite(cc.remoteObsKey, remoteObs)
-    _postMessageToUiThread(cc.workerMessages.facadeEditSuccess, { summary })
-    return true
-  }
-  throw new Error(`Unhandled taskStatus: ${ts}`)
-}
-
-async function checkForDeleteCompletion(task, apiToken) {
-  const { inatId } = task
-  const resp = await getJsonWithAuth(
-    `${cc.facadeUrlBase}/task-status/${inatId}/delete`,
-    apiToken,
-    false,
-  )
-  const ts = resp.taskStatus
-  if (ts === 'processing') {
-    console.debug(`facade says record ${inatId} still exists`)
-    return false
-  }
-  if (ts === 'success') {
-    console.debug(`Success checking for DELETE ${inatId}`)
-    // FIXME remove obs from remote obs cache?
-    _postMessageToUiThread(cc.workerMessages.facadeDeleteSuccess, {
-      theUuid: task.uuid,
-    })
+    const isUpdateTypeTask = !!resp.upstreamBody
+    let summary
+    if (isUpdateTypeTask) {
+      const mapped = mapObsFromApiIntoOurDomain(resp.upstreamBody)
+      summary = mapRemoteRecordToSummary(mapped)
+      allRemoteObs.splice(0, 0, mapped)
+    }
+    await metaStoreWrite(cc.remoteObsKey, allRemoteObs)
+    await deleteDbRecordById(task.uuid)
+    if (isUpdateTypeTask) {
+      _postMessageToUiThread(cc.workerMessages.facadeUpdateSuccess, { summary })
+    } else {
+      _postMessageToUiThread(cc.workerMessages.facadeDeleteSuccess, {
+        theUuid: task.uuid,
+      })
+    }
     return true
   }
   throw new Error(`Unhandled taskStatus: ${ts}`)
@@ -462,16 +378,14 @@ async function checkForDeleteCompletion(task, apiToken) {
 export async function getLocalQueueSummary() {
   thumbnailObjectUrlsNoLongerInUse = thumbnailObjectUrlsInUse
   thumbnailObjectUrlsInUse = []
-  const pendingTaskUuids = (await getAllPendingTasks()).map((t) => t.uuid)
+  const pendingTasks = await getAllPendingTasks()
   const result = await mapOverObsStore((r) => {
-    const hasBlockedAction = !!r.wowMeta[cc.blockedActionFieldName]
-    const isEventuallyDeleted = hasBlockedAction
-      ? r.wowMeta[cc.blockedActionFieldName].wowMeta[cc.recordTypeFieldName] ===
-        recordType('delete')
-      : r.wowMeta[cc.recordTypeFieldName] === recordType('delete')
     const rpo = r.wowMeta[cc.recordProcessingOutcomeFieldName]
+    const isEventuallyDeleted = pendingTasks.find(
+      (t) => t.type === recordType('delete') && t.uuid === r.uuid,
+    )
     const isPossiblyStuck = (() => {
-      const isPendingTask = pendingTaskUuids.includes(r.uuid)
+      const isPendingTask = pendingTasks.find((t) => t.uuid === r.uuid)
       const isBeingProcessed = rpo === cc.beingProcessedOutcome
       return isBeingProcessed && !isPendingTask
     })()
@@ -486,9 +400,8 @@ export async function getLocalQueueSummary() {
       wowMeta: {
         [cc.versionFieldName]: r.wowMeta[cc.versionFieldName],
         [cc.recordTypeFieldName]: r.wowMeta[cc.recordTypeFieldName],
-        [cc.isEventuallyDeletedFieldName]: isEventuallyDeleted,
         [cc.recordProcessingOutcomeFieldName]: rpo,
-        [cc.hasBlockedActionFieldName]: hasBlockedAction,
+        [cc.isEventuallyDeletedFieldName]: isEventuallyDeleted,
         [cc.outcomeLastUpdatedAtFieldName]:
           r.wowMeta[cc.outcomeLastUpdatedAtFieldName],
         // wowUpdatedAt isn't used but is useful for debugging
@@ -496,16 +409,16 @@ export async function getLocalQueueSummary() {
         isPossiblyStuck,
         isDraft: rpo === cc.draftOutcome,
         // photosToAdd summary isn't used but is useful for debugging
-        [cc.photosToAddFieldName]: r.wowMeta[cc.photosToAddFieldName].map(
-          (p) => ({
-            type: p.type,
-            id: p.id,
-            fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
-              p,
-              'file.data.byteLength',
-            )}`,
-          }),
-        ),
+        [cc.photosToAddFieldName]: (
+          r.wowMeta[cc.photosToAddFieldName] || []
+        ).map((p) => ({
+          type: p.type,
+          id: p.id,
+          fileSummary: `mime=${_.get(p, 'file.mime')}, size=${_.get(
+            p,
+            'file.data.byteLength',
+          )}`,
+        })),
       },
     }
     currSummary.thumbnailUrl = (() => {
@@ -645,12 +558,10 @@ function zUrl() {
   )
 }
 
-export async function saveNewAndScheduleUpload({
-  record,
-  isDraft,
-  apiToken,
-  projectId,
-}) {
+export async function saveNewAndScheduleUpload(
+  { record, isDraft, apiToken, projectId },
+  sendUpdateToFacadeFn = sendUpdateToFacade,
+) {
   const newRecordId = uuid()
   let enhancedRecord
   try {
@@ -661,7 +572,7 @@ export async function saveNewAndScheduleUpload({
       geoprivacy: 'obscured',
       photos: newPhotos,
       wowMeta: {
-        [cc.recordTypeFieldName]: recordType('new'),
+        [cc.recordTypeFieldName]: recordType('update'),
         [cc.recordProcessingOutcomeFieldName]: outcome,
         [cc.photosToAddFieldName]: newPhotos,
         [cc.photoIdsToDeleteFieldName]: [],
@@ -696,22 +607,14 @@ export async function saveNewAndScheduleUpload({
   } catch (err) {
     throw ChainedError(`Failed to save new record to local queue.`, err)
   }
-  sendNewObsToFacade(newRecordId, apiToken, projectId)
+  sendUpdateToFacadeFn(newRecordId, apiToken, projectId)
   return newRecordId
 }
 
-// FIXME can we have the worker do all network requests and apiToken is stored
-//  in localForage. Worker can load apiToken whenever it needs it, and if
-//  expired (either decode JWT or 401) we can refresh and send message to UI
-//  that it's been updated.
-
 export async function retryUpload(ids, apiToken, projectId) {
   const strategies = {
-    [recordType('new')]: (recordUuid) => {
-      return sendNewObsToFacade(recordUuid, apiToken, projectId)
-    },
-    [recordType('edit')]: (recordUuid) => {
-      return sendEditObsToFacade(recordUuid, apiToken)
+    [recordType('update')]: (recordUuid) => {
+      return sendUpdateToFacade(recordUuid, apiToken, projectId)
     },
     [recordType('delete')]: (recordUuid) => {
       return deleteRecord(recordUuid, apiToken)
@@ -748,26 +651,23 @@ function _postMessageToUiThread(msgKey, data) {
   })
 }
 
-async function sendNewObsToFacade(recordUuid, apiToken, projectId) {
+async function sendUpdateToFacade(recordUuid, apiToken, projectId) {
   try {
     await transitionRecord(recordUuid, cc.beingProcessedOutcome, true)
-    await _sendNewObsToFacade(recordUuid, apiToken, projectId)
+    await _sendUpdateToFacade(recordUuid, apiToken, projectId)
     await transitionRecord(recordUuid, cc.successOutcome)
   } catch (err) {
     // record was saved, so we don't need to scare the user. The transition
     // above will make sure the UI reflects the failure.
-    wowErrorHandler('Failed to send new record to facade', err)
+    wowErrorHandler('Failed to send update to facade', err)
     await transitionRecord(recordUuid, cc.systemErrorOutcome)
   }
 }
 
-async function _sendNewObsToFacade(recordUuid, apiToken, projectId) {
+async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
   const dbRecord = await getRecord(recordUuid)
   await saveApiToken(apiToken)
   const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
-  const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
-    (e) => e.id,
-  )
   const resp = await postFormDataWithAuth(
     `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
     async (form) => {
@@ -778,91 +678,32 @@ async function _sendNewObsToFacade(recordUuid, apiToken, projectId) {
           type: 'application/json',
         }),
       )
-      for (const currId of newPhotoIds) {
-        const photo = await getPhotoRecord(currId)
-        if (!photo) {
-          // FIXME is it wise to push on if a photo is missing?
-          console.warn(`Could not load photo with ID=${currId}`)
-          continue
-        }
-        const theSize = photo.file.data.byteLength
-        const isPhotoEmpty = !theSize
-        if (isPhotoEmpty) {
-          throw new Error(
-            `Photo with name='${photo.type}' and type='${photo.file.mime}' ` +
-              `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
-          )
-        }
-        form.append(
-          'photos',
-          new File([photo.file.data], `${photo.id}.${photo.type}`, {
-            type: photo.file.mime,
-          }),
-        )
-      }
-    },
-    apiToken,
-  )
-  console.debug('Obs create form is sent')
-  await addPendingTask({
-    uuid: dbRecord.uuid,
-    statusUrl: resp.statusUrl,
-    type: recordType('new'),
-  })
-}
-
-async function sendEditObsToFacade(recordUuid, apiToken) {
-  try {
-    await transitionRecord(recordUuid, cc.beingProcessedOutcome, true)
-    await _sendEditObsToFacade(recordUuid, apiToken)
-    await transitionRecord(recordUuid, cc.successOutcome)
-  } catch (err) {
-    // record was saved, so we don't need to scare the user. The transition
-    // above will make sure the UI reflects the failure.
-    wowErrorHandler('Failed to send edit record to facade', err)
-    await transitionRecord(recordUuid, cc.systemErrorOutcome)
-  }
-}
-
-async function _sendEditObsToFacade(recordUuid, apiToken) {
-  const dbRecord = await getRecord(recordUuid)
-  await saveApiToken(apiToken)
-  const observation = await mapObsCoreFromOurDomainOntoApi(dbRecord)
-  const newPhotoIds = (dbRecord.wowMeta[cc.photosToAddFieldName] || []).map(
-    (e) => e.id,
-  )
-  const resp = await putFormDataWithAuth(
-    `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
-    async (form) => {
-      // FIXME refactor common code with "new" strat
-      form.set(
-        'observation',
-        new Blob([JSON.stringify(observation)], {
-          type: 'application/json',
-        }),
+      await Promise.all(
+        dbRecord.wowMeta[cc.photosToAddFieldName].map(
+          async ({ id: currId }) => {
+            const photo = await getPhotoRecord(currId)
+            if (!photo) {
+              // FIXME is it wise to push on if a photo is missing?
+              console.warn(`Could not load photo with ID=${currId}`)
+              return
+            }
+            const theSize = photo.file.data.byteLength
+            const isPhotoEmpty = !theSize
+            if (isPhotoEmpty) {
+              throw new Error(
+                `Photo with name='${photo.type}' and type='${photo.file.mime}' ` +
+                  `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
+              )
+            }
+            form.append(
+              'photos',
+              new File([photo.file.data], `${photo.id}.${photo.type}`, {
+                type: photo.file.mime,
+              }),
+            )
+          },
+        ),
       )
-      for (const currId of newPhotoIds) {
-        const photo = await getPhotoRecord(currId)
-        if (!photo) {
-          // FIXME is it wise to push on if a photo is missing?
-          console.warn(`Could not load photo with ID=${currId}`)
-          continue
-        }
-        const theSize = photo.file.data.byteLength
-        const isPhotoEmpty = !theSize
-        if (isPhotoEmpty) {
-          throw new Error(
-            `Photo with name='${photo.type}' and type='${photo.file.mime}' ` +
-              `has no size='${theSize}'. This will cause a 422 if we were to continue.`,
-          )
-        }
-        form.append(
-          'photos',
-          new File([photo.file.data], `${photo.id}.${photo.type}`, {
-            type: photo.file.mime,
-          }),
-        )
-      }
       form.set(
         cc.photoIdsToDeleteFieldName,
         JSON.stringify(dbRecord.wowMeta[cc.photoIdsToDeleteFieldName] || []),
@@ -874,20 +715,21 @@ async function _sendEditObsToFacade(recordUuid, apiToken) {
     },
     apiToken,
   )
-  console.debug('Obs edit form is sent')
+  console.debug('Obs update form is sent')
   await addPendingTask({
     uuid: dbRecord.uuid,
+    inatId: dbRecord.inatId,
     statusUrl: resp.statusUrl,
-    type: recordType('edit'),
+    type: recordType('update'),
   })
 }
 
 export async function saveEditAndScheduleUpdate(
   { record, photoIdsToDelete, obsFieldIdsToDelete, isDraft, apiToken },
-  runStrategy = realRunStrategy,
+  sendUpdateToFacadeFn = sendUpdateToFacade,
 ) {
   const editedUuid = record.uuid
-  let enhancedRecord
+  let result
   try {
     const existingRemoteRecord = await getFullRemoteObsDetail(
       record.uuid,
@@ -913,33 +755,35 @@ export async function saveEditAndScheduleUpdate(
       newPhotos,
     )
     const outcome = isDraft ? cc.draftOutcome : cc.waitingOutcome
-    enhancedRecord = Object.assign(dbRecord, record, {
+    const enhancedRecord = Object.assign(dbRecord, record, {
       photos,
-      uuid: editedUuid,
       wowMeta: {
         ...dbRecord.wowMeta,
-        [cc.recordTypeFieldName]: recordType('edit'),
         [cc.wowUpdatedAtFieldName]: new Date().toString(),
+        [cc.recordTypeFieldName]: recordType('update'),
         [cc.recordProcessingOutcomeFieldName]: outcome,
         [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+        [cc.photoIdsToDeleteFieldName]: [
+          ...(dbRecord.wowMeta?.[cc.photoIdsToDeleteFieldName] || []),
+          ...photoIdsToDelete.filter((id) => {
+            const photoIsRemote = id > 0
+            return photoIsRemote
+          }),
+        ],
+        [cc.photosToAddFieldName]: [
+          ...(dbRecord.wowMeta?.[cc.photosToAddFieldName] || []),
+          ...newPhotos,
+        ],
+        [cc.obsFieldIdsToDeleteFieldName]: [
+          ...(dbRecord.wowMeta?.[cc.obsFieldIdsToDeleteFieldName] || []),
+          ...obsFieldIdsToDelete,
+        ],
       },
     })
     delete enhancedRecord.addedPhotos
     try {
-      const strategy = getEditStrategy(
-        existingLocalRecord,
-        existingRemoteRecord,
-      )
-      console.debug(`[Edit] using strategy='${strategy.name}'`)
-      await runStrategy(strategy, {
-        record: enhancedRecord,
-        photoIdsToDelete: photoIdsToDelete.filter((id) => {
-          const photoIsRemote = id > 0
-          return photoIsRemote
-        }),
-        newPhotos,
-        obsFieldIdsToDelete,
-      })
+      await storeRecord(enhancedRecord)
+      result = wowIdOf(enhancedRecord)
     } catch (err) {
       const loggingSafeRecord = {
         ...enhancedRecord,
@@ -961,150 +805,8 @@ export async function saveEditAndScheduleUpdate(
       err,
     )
   }
-  sendEditObsToFacade(editedUuid, apiToken)
-  return wowIdOf(enhancedRecord)
-}
-
-function getEditStrategy(existingLocalRecord, existingRemoteRecord) {
-  const isProcessingQueuedNow =
-    existingLocalRecord &&
-    isObsStateProcessing(
-      existingLocalRecord.wowMeta[cc.recordProcessingOutcomeFieldName],
-    )
-  const isThisIdQueued = !!existingLocalRecord
-  const isExistingBlockedAction =
-    existingLocalRecord &&
-    existingLocalRecord.wowMeta[cc.hasBlockedActionFieldName]
-  // FIXME can we simplify this? It shouldn't be possible to catch a local
-  //  record process or queued. It should be either success or error.
-  const strategyKey =
-    `${isProcessingQueuedNow ? '' : 'no'}processing.` +
-    `${isThisIdQueued ? '' : 'no'}queued.` +
-    `${isExistingBlockedAction ? '' : 'no'}existingblocked.` +
-    `${existingRemoteRecord ? '' : 'no'}remote`
-  console.debug(`[Edit] strategy key=${strategyKey}`)
-  switch (strategyKey) {
-    // POSSIBLE
-    case 'processing.queued.existingblocked.remote':
-      // follow up edit of remote
-      return upsertBlockedAction
-    case 'processing.queued.existingblocked.noremote':
-      // follow up edit of local-only
-      return upsertBlockedAction
-    case 'processing.queued.noexistingblocked.remote':
-      // follow up edit of remote
-      return upsertBlockedAction
-    case 'processing.queued.noexistingblocked.noremote':
-      // edit of local only: add blocked PUT action
-      return upsertBlockedAction
-    case 'noprocessing.queued.noexistingblocked.remote':
-      // follow up edit of remote
-      return upsertQueuedAction
-    case 'noprocessing.queued.noexistingblocked.noremote':
-      // follow up edit of local-only
-      return (args) => {
-        // edits of local-only records *need* to result in a 'new' typed
-        // record so we process them with a POST. We can't PUT when
-        // there's nothing to update.
-        args.record.wowMeta[cc.recordTypeFieldName] = recordType('new')
-        // FIXME verify this ^ works
-        return upsertQueuedAction(args)
-      }
-    case 'noprocessing.noqueued.noexistingblocked.remote':
-      // direct edit of remote
-      return upsertQueuedAction
-    case 'noprocessing.queued.existingblocked.remote':
-    case 'noprocessing.queued.existingblocked.noremote':
-      // I thought that things NOT processing cannot have a blocked
-      // action, but it has happened in production. I think this is
-      // because the recently introduced migration can reset obs back
-      // to "noprocessing".
-      return upsertBlockedAction
-
-    // IMPOSSIBLE
-    default:
-      // case 'noprocessing.noqueued.noexistingblocked.noremote':
-      //   // impossible if there's no remote and nothing queued
-      // case 'processing.noqueued.noexistingblocked.remote':
-      // case 'processing.noqueued.noexistingblocked.noremote':
-      //   // anything that's processing but has nothing queued is
-      //   // impossible because what is it processing if nothing is queued?
-      // case 'processing.noqueued.existingblocked.remote':
-      // case 'processing.noqueued.existingblocked.noremote':
-      // case 'noprocessing.noqueued.existingblocked.remote':
-      // case 'noprocessing.noqueued.existingblocked.noremote':
-      //   // anything with noqueued and existingblocked is impossible
-      //   // because we can't have a blocked action if there's nothing
-      //   // queued to block it.
-      throw new Error(
-        `Programmer error: impossible situation with ` +
-          `strategyKey=${strategyKey}`,
-      )
-  }
-}
-
-async function upsertQueuedAction({
-  record,
-  photoIdsToDelete = [],
-  newPhotos = [],
-  obsFieldIdsToDelete = [],
-}) {
-  const mergedRecord = {
-    ...record,
-    wowMeta: {
-      ...record.wowMeta,
-      [cc.photoIdsToDeleteFieldName]: (
-        record.wowMeta[cc.photoIdsToDeleteFieldName] || []
-      ).concat(photoIdsToDelete),
-      [cc.photosToAddFieldName]: (
-        record.wowMeta[cc.photosToAddFieldName] || []
-      ).concat(newPhotos),
-      [cc.obsFieldIdsToDeleteFieldName]: (
-        record.wowMeta[cc.obsFieldIdsToDeleteFieldName] || []
-      ).concat(obsFieldIdsToDelete),
-    },
-  }
-  return storeRecord(mergedRecord)
-}
-
-async function upsertBlockedAction({
-  record,
-  photoIdsToDelete = [],
-  newPhotos = [],
-  obsFieldIdsToDelete = [],
-}) {
-  const key = record.uuid
-  const existingStoreRecord = await getRecord(key)
-  const existingBlockedActionWowMeta = _.get(
-    existingStoreRecord,
-    `wowMeta.${cc.blockedActionFieldName}.wowMeta`,
-    {},
-  )
-  const mergedPhotoIdsToDelete = (
-    existingBlockedActionWowMeta[cc.photoIdsToDeleteFieldName] || []
-  ).concat(photoIdsToDelete)
-  const mergedPhotosToAdd = (
-    existingBlockedActionWowMeta[cc.photosToAddFieldName] || []
-  ).concat(newPhotos)
-  const mergedObsFieldIdsToDelete = (
-    existingBlockedActionWowMeta[cc.obsFieldIdsToDeleteFieldName] || []
-  ).concat(obsFieldIdsToDelete)
-  const mergedRecord = {
-    ...record, // passed record is new source of truth
-    wowMeta: {
-      ...existingStoreRecord.wowMeta, // don't touch wowMeta as it's being processed
-      [cc.blockedActionFieldName]: {
-        wowMeta: {
-          ...existingBlockedActionWowMeta,
-          ...record.wowMeta, // stuff from this save
-          [cc.photoIdsToDeleteFieldName]: mergedPhotoIdsToDelete,
-          [cc.photosToAddFieldName]: mergedPhotosToAdd,
-          [cc.obsFieldIdsToDeleteFieldName]: mergedObsFieldIdsToDelete,
-        },
-      },
-    },
-  }
-  return storeRecord(mergedRecord)
+  sendUpdateToFacadeFn(editedUuid, apiToken)
+  return result
 }
 
 function processPhotos(photos) {
@@ -1120,11 +822,6 @@ function processPhotos(photos) {
   })
 }
 
-function isObsStateProcessing(state) {
-  const processingStates = [cc.beingProcessedOutcome]
-  return processingStates.includes(state)
-}
-
 export function deleteRecord(theUuid, apiToken) {
   const doDeleteReqFn = deleteWithAuth
   return _deleteRecord(theUuid, apiToken, doDeleteReqFn)
@@ -1135,6 +832,19 @@ export async function cancelFailedDeletes(dbRecordUuids) {
   notifyUiToRefreshLocalRecordQueue()
 }
 
+export async function undoLocalEdit(theUuid) {
+  try {
+    await deleteDbRecordById(theUuid)
+    // kill any in-flight task for this ID
+    await deletePendingTask(theUuid)
+  } catch (err) {
+    throw new ChainedError(
+      `Failed to undo local edit record for UUID='${theUuid}'`,
+      err,
+    )
+  }
+}
+
 async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
   if (!theUuid) {
     throw namedError(
@@ -1143,48 +853,46 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
         'observation is selected',
     )
   }
-  const localRecord = await getRecord(theUuid)
-  if (localRecord) {
-    try {
-      await deleteDbRecordById(theUuid)
-    } catch (err) {
-      throw new ChainedError(
-        `Failed to delete local record for UUID='${theUuid}'`,
-        err,
-      )
-    }
-  }
   const remoteRecords = await metaStoreRead(cc.remoteObsKey)
   const remoteRecord = remoteRecords.find((e) => e.uuid === theUuid)
-  if (!remoteRecord) {
-    console.info('Observation is local-only, no need to contact iNat')
-    // kill any in-flight task for this ID
-    await deletePendingTask(theUuid) // FIXME verify works
-    _postMessageToUiThread(cc.workerMessages.facadeDeleteSuccess, { theUuid })
-    return
-  }
-  const inatRecordId = remoteRecord.inatId
-  if (!inatRecordId) {
+  const localRecord = await getRecord(theUuid)
+  if (!localRecord && !remoteRecord) {
     throw new Error(
-      `Could not find inatId for ${theUuid}; remote record=${JSON.strategies(
-        remoteRecord,
-      )}`,
+      'Data problem: Cannot find existing local or remote record,' +
+        'cannot continue without at least one',
     )
   }
-  // FIXME handle errors
-  await doDeleteReqFn(`${cc.apiUrlBase}/observations/${inatRecordId}`, apiToken)
-  console.debug(`DELETE ${inatRecordId} sent to iNat successfully`)
-  await saveApiToken(apiToken)
-  await addPendingTask({
+  const dbRecord = localRecord || {
+    inatId: (remoteRecord || {}).inatId,
     uuid: theUuid,
-    inatId: inatRecordId,
-    type: recordType('delete'),
-  })
-}
-
-function realRunStrategy(strategyFn, ...args) {
-  // only exists so we can stub it during tests
-  return strategyFn(...args)
+    wowMeta: {
+      [cc.wowUpdatedAtFieldName]: new Date().toString(),
+      [cc.recordTypeFieldName]: recordType('delete'),
+      [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
+      [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+    },
+  }
+  const inatRecordId = dbRecord.inatId || 0
+  try {
+    await storeRecord(dbRecord)
+    await transitionRecord(theUuid, cc.beingProcessedOutcome, true)
+    const resp = await doDeleteReqFn(
+      `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
+      apiToken,
+    )
+    await transitionRecord(theUuid, cc.successOutcome, true)
+    console.debug(`DELETE ${theUuid} sent to iNat successfully`)
+    await saveApiToken(apiToken)
+    await addPendingTask({
+      uuid: theUuid,
+      inatId: inatRecordId,
+      statusUrl: resp.statusUrl,
+      type: recordType('delete'),
+    })
+  } catch (err) {
+    wowErrorHandler('Failed to delete record', err)
+    await transitionRecord(theUuid, cc.systemErrorOutcome)
+  }
 }
 
 export async function doSpeciesAutocomplete(partialText, speciesListType) {
@@ -1240,36 +948,14 @@ function computePhotos(
   photoIdsToDelete,
   newPhotos,
 ) {
-  const existingRemotePhotos = _.get(existingRemoteRecord, 'photos', [])
-  const existingLocalPhotos = _.get(
-    dbRecord,
-    `wowMeta.${cc.photosToAddFieldName}`,
-    [],
-  )
-  const existingQueuedDeletes = _.get(
-    dbRecord,
-    `wowMeta.${cc.photoIdsToDeleteFieldName}`,
-    [],
-  )
-  const existingBlockedLocalPhotos = _.get(
-    dbRecord,
-    `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photosToAddFieldName}`,
-    [],
-  )
-  const photoDeletesFromBlockedAction = _.get(
-    dbRecord,
-    `wowMeta.${cc.blockedActionFieldName}.wowMeta.${cc.photoIdsToDeleteFieldName}`,
-    [],
-  )
-  const allPendingPhotoDeletes = [
-    ...photoIdsToDelete,
-    ...existingQueuedDeletes,
-    ...photoDeletesFromBlockedAction,
-  ]
+  const existingRemotePhotos = existingRemoteRecord.photos || []
+  const wowMeta = dbRecord.wowMeta || {}
+  const existingLocalPhotos = wowMeta[cc.photosToAddFieldName] || []
+  const existingQueuedDeletes = wowMeta?.[cc.photoIdsToDeleteFieldName] || []
+  const allPendingPhotoDeletes = [...photoIdsToDelete, ...existingQueuedDeletes]
   const photosWithDeletesApplied = [
     ...existingRemotePhotos,
     ...existingLocalPhotos,
-    ...existingBlockedLocalPhotos,
     ...newPhotos,
   ].filter((p) => {
     const isPhotoDeleted = allPendingPhotoDeletes.includes(p.id)
@@ -1303,6 +989,9 @@ async function _getPendingTasks() {
 }
 
 async function _setPendingTasks(tasks) {
+  if (Object.keys(tasks).length === 0) {
+    clearTimeout(taskChecksTracker)
+  }
   await metaStoreWrite(cc.pendingTasksKey, tasks)
 }
 
@@ -1355,28 +1044,28 @@ async function runChecksForTasks() {
     console.warn('No apiToken, refusing to run checks')
     return
   }
-  // FIXME could decode JWT and check expiry
+  // FIXME could decode JWT and check expiry. If expired, renew and send
+  //  message to UI thread to update vuex.
   const tasks = await getAllPendingTasks()
   for (const curr of tasks) {
-    const strategies = {
-      [recordType('new')]: checkForObsCreateCompletion,
-      [recordType('edit')]: checkForObsEditCompletion,
-      [recordType('delete')]: checkForDeleteCompletion,
-    }
-    const rType = curr.type
-    const strat = strategies[rType]
-    if (!strat) {
-      throw new Error(`Unhandled record type: ${rType}`)
-    }
     console.debug('[Poll] Doing check for task', curr.uuid)
     try {
-      const isComplete = await strat(curr, apiToken)
+      const isComplete = await checkForTaskCompletion(curr, apiToken)
       if (isComplete) {
         // note: complete != success
         await deletePendingTask(curr.uuid)
       }
     } catch (err) {
-      console.error(`Failed to "${strat.name}" for task ${curr.uuid}`, err)
+      const isAuthError = err.httpStatus === 401
+      if (isAuthError) {
+        console.warn(
+          `Failed to check for task ${curr.uuid} due to ` +
+            'expired auth, requesting fresh token',
+        )
+        _postMessageToUiThread(cc.workerMessages.requestApiTokenRefresh)
+      } else {
+        console.error(`Failed to check for task ${curr.uuid}`, err)
+      }
       // FIXME do we need to cancel the task or something?
     }
   }
@@ -1390,7 +1079,71 @@ async function runChecksForTasks() {
   scheduleTaskChecks(cc.frequencyOfTaskChecksSeconds * 1000)
 }
 
-async function saveApiToken(apiToken) {
+export async function optimisticallyUpdateComments(obsId, commentRecord) {
+  const allRemoteObs = await metaStoreRead(cc.remoteObsKey)
+  const targetObsIndex = allRemoteObs.findIndex((e) => e.inatId === obsId)
+  if (targetObsIndex < 0) {
+    throw new Error(
+      `Could not find existing remote obs with ID='${obsId}' from IDs=${JSON.stringify(
+        allRemoteObs.map((o) => o.inatId),
+      )}`,
+    )
+  }
+  const targetObs = allRemoteObs[targetObsIndex]
+  const obsComments = targetObs.comments || []
+  const strategy = (() => {
+    const existingCommentUuids = obsComments.map((c) => c.uuid)
+    const key =
+      `${commentRecord.body ? '' : 'no-'}body|` +
+      `${existingCommentUuids.includes(commentRecord.uuid) ? 'not-' : ''}new`
+    const result = {
+      'body|new': function newStrategy() {
+        obsComments.push(mapCommentFromApiToOurDomain(commentRecord))
+      },
+      'body|not-new': function editStrategy() {
+        const targetComment = obsComments.find(
+          (c) => c.uuid === commentRecord.uuid,
+        )
+        if (!targetComment) {
+          throw new Error(
+            `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+              `edit. Available comment UUIDs=${JSON.stringify(
+                obsComments.map((c) => c.uuid),
+              )}`,
+          )
+        }
+        Object.keys(commentRecord).forEach((currKey) => {
+          targetComment[currKey] = commentRecord[currKey]
+        })
+      },
+      'no-body|not-new': function deleteStrategy() {
+        const indexOfComment = obsComments.findIndex(
+          (e) => e.uuid === commentRecord.uuid,
+        )
+        if (!~indexOfComment) {
+          throw new Error(
+            `Could not find comment with UUID='${commentRecord.uuid}' to ` +
+              `delete. Available comment UUIDs=${JSON.stringify(
+                obsComments.map((c) => c.uuid),
+              )}`,
+          )
+        }
+        obsComments.splice(indexOfComment, 1)
+      },
+    }[key]
+    if (!result) {
+      throw new Error(`Programmer problem: no strategy found for key='${key}'`)
+    }
+    return result
+  })()
+  console.debug(`Using strategy='${strategy.name}' to modify comments`)
+  strategy()
+  updateIdsAndCommentsFor(targetObs)
+  allRemoteObs.splice(targetObsIndex, 1, targetObs)
+  metaStoreWrite(cc.remoteObsKey, allRemoteObs)
+}
+
+export async function saveApiToken(apiToken) {
   await metaStoreWrite(cc.apiTokenKey, apiToken)
 }
 
@@ -1406,8 +1159,6 @@ async function metaStoreWrite(key, val) {
 
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
-  mapObsFromApiIntoOurDomain,
-  upsertBlockedAction,
-  upsertQueuedAction,
   _deleteRecord,
+  mapObsFromApiIntoOurDomain,
 }

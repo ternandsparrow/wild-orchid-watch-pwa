@@ -335,10 +335,7 @@ export default {
       if (!this.isManualLatAndLon) {
         return 'incomplete'
       }
-      if (
-        isNotInteger(this.manualLat) ||
-        isNotInteger(this.manualLon)
-      ) {
+      if (isNotInteger(this.manualLat) || isNotInteger(this.manualLon)) {
         return 'invalid'
       }
       const lat = parseFloat(this.manualLat)

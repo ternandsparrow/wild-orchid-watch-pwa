@@ -76,10 +76,6 @@ export function postFormDataWithAuth(...params) {
   return _formDataWithAuthHelper('POST', ...params)
 }
 
-export function putFormDataWithAuth(...params) {
-  return _formDataWithAuthHelper('PUT', ...params)
-}
-
 async function _formDataWithAuthHelper(
   method,
   url,
@@ -149,7 +145,6 @@ export async function isSwActive() {
 
 export function deleteWithAuth(url, authHeaderValue) {
   const alsoOkHttpStatuses = [404]
-  const extraHeaders = {}
   return doManagedFetch(
     url,
     {
@@ -158,7 +153,6 @@ export function deleteWithAuth(url, authHeaderValue) {
       headers: {
         ...jsonHeaders,
         Authorization: authHeaderValue,
-        ...extraHeaders,
       },
     },
     alsoOkHttpStatuses,

@@ -83,6 +83,33 @@ This is pretty much what QA is.
 # Delete
 
 ## Delete local record
+Note: this is a hard one to test. You probably want to be a developer running,
+the stack locally so you can control when the callback runs.
+
+- reduce status check frequency to give you more time, set this in `.env.local`
+    ```
+    VUE_APP_TASK_CHECK_FREQ=120
+    ```
+- (re)start the PWA dev server
+- create new obs
+- prep "create callback" and "delete callback" curl commands
+    ```
+    http POST http://localhost:3000/task-callback/${uuid} authorization:blah
+    http DELETE http://localhost:3000/task-callback/${uuid} authorization:blah
+    ```
+- wait for status check to run, note you have 120 seconds to complete the next steps
+- run "create callback" curl command
+- *expected*: should see inatId is set in `uploads` table in facade
+- use PWA to delete the obs
+- run "delete callback" curl command
+- *expected*: facade should find inatId using "lookback"
+- *expected*: facade should send delete request to iNat
+- wait for status check in PWA
+- *expected*: status check shows complete, local record is removed, task is
+  deleted, record is spliced from "allRemoteObs" array
+- refresh the obs list in PWA
+- *expected*: the obs doesn't come back, it *is* deleted on iNat too
+
 
 ## Delete local (in progress) record
 
@@ -131,6 +158,38 @@ This is pretty much what QA is.
 - *expected*: the coords are saved successfully and show in the observation details page (on the map tab)
 
 ## Drop pin on map coords
+
+### Moving map updates coordinates
+
+### Coords are correctly saved
+
+### Map shows correct coordinate when editing record
+
+### Swapping between coord input methods works
+
+---------------------------------------------------------
+
+# Photos
+
+## edit with no new photos
+
+## edit with 1 new photo
+
+## edit with >1 new photos
+
+---------------------------------------------------------
+
+# Comments
+
+## comment on remote obs
+
+## comment on remote obs with local edit
+
+## assert comment on local-only record fails
+
+## edit a comment
+
+## delete a comment
 
 ---------------------------------------------------------
 

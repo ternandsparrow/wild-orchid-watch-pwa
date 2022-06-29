@@ -95,6 +95,7 @@ new Vue({
       }, 10000)
     } catch (err) {
       wowErrorHandler('Failed to run beforeCreate for root element', err)
+      // eslint-disable-next-line no-alert
       alert(
         'Failed to start app, sorry. Try restarting the app to fix the problem.',
       )

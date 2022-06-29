@@ -636,7 +636,7 @@ export default {
         const isMultiselect = v.constructor === Object
         if (isMultiselect) {
           accum[k] = {
-            title: `${Object.values(v).filter((v) => !!v).length} selections`,
+            title: `${Object.values(v).filter((v2) => !!v2).length} selections`,
             value: v,
           }
         } else {
