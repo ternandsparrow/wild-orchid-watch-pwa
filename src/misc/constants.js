@@ -416,9 +416,7 @@ export const lfWowObsStoreName = 'wow-obs' // observations
 export const lfWowPhotoStoreName = 'wow-photo' // photos
 export const lfWowMetaStoreName = 'wow-meta' // things about the app
 
-export const gh69MigrationKey = 'gh69-migration'
-export const noOutcomeLastUpdatedMigrationKey =
-  'no-outcome-last-updated-migration'
+export const facadeMigrationKey = 'facade-migration'
 export const remoteObsKey = 'remote-obs'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
@@ -445,8 +443,6 @@ export const versionFieldName = 'version'
 export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
-export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
-export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
 
 // Record processing outcomes
 export const draftOutcome = 'draft' // incomplete observation
@@ -481,7 +477,7 @@ export const photoTypeFloralVisitors = 'floral-visitors'
 export const photoTypeEpiphyteHostTree = 'host-tree'
 
 // gives the UI a cheap way to tell if the record is pre-migration
-export const currentRecordVersion = 2
+export const currentRecordVersion = 3
 
 export const cryptoConfig = (() => {
   const algorithm = 'RSA-OAEP'

@@ -1,7 +1,6 @@
 /**
  * @jest-environment jsdom
  */
-import uuid from 'uuid/v1'
 import * as objectUnderTest from '@/indexeddb/obs-store-common'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
@@ -14,8 +13,6 @@ import {
   sizeOfPhotoWithExifNoThumbnail,
   sizeOfPhotoWithExifThumbnail,
 } from '@/../tests/unit/test-helpers'
-
-objectUnderTest.registerUuidGenerator(uuid)
 
 describe('obs-store-common', () => {
   let origConsoleDebug
@@ -433,73 +430,6 @@ describe('obs-store-common', () => {
   })
 
   // FIXME test migration code for this new facade work
-
-  describe('migrateLocalRecordsWithoutOutcomeLastUpdatedAt', () => {
-    it('should migrate a non-migrated obs record', async () => {
-      const recordId = '92818C'
-      // set up fixture
-      const record = {
-        uuid: recordId,
-        photos: [],
-        wowMeta: {
-          [cc.photosToAddFieldName]: [],
-        },
-      }
-      await testObsStore.setItem(recordId, record)
-      // now we do the migration
-      const migratedIds =
-        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-          testObsStore,
-          testPhotoStore,
-          testMetaStore,
-        )
-      expect(migratedIds[0]).toEqual(recordId)
-      const migratedRecord = await testObsStore.getItem(recordId)
-      expect(
-        migratedRecord.wowMeta[cc.outcomeLastUpdatedAtFieldName],
-      ).toBeTruthy()
-    })
-
-    it('should not migrate a migrated obs record', async () => {
-      const recordId = '228836'
-      // set up fixture
-      const record = {
-        uuid: recordId,
-        photos: [],
-        wowMeta: {
-          [cc.photosToAddFieldName]: [],
-          [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
-        },
-      }
-      await testObsStore.setItem(recordId, record)
-      // now we do the migration
-      const migratedIds =
-        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-          testObsStore,
-          testPhotoStore,
-          testMetaStore,
-        )
-      expect(migratedIds.length).toEqual(0)
-    })
-
-    it(`should not migrate when it's already been done`, async () => {
-      await testMetaStore.setItem(
-        cc.noOutcomeLastUpdatedMigrationKey,
-        new Date().toISOString(),
-      )
-      const migratedIds =
-        await objectUnderTest._testonly.migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-          {
-            keys: async () => {
-              throw new Error('Should not be called')
-            },
-          },
-          null,
-          testMetaStore,
-        )
-      expect(migratedIds.length).toEqual(0)
-    })
-  })
 
   describe('getRecord', () => {
     it('should get an existing record', async () => {

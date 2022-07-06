@@ -4,7 +4,6 @@
 import _ from 'lodash'
 import dayjs from 'dayjs'
 import {
-  arrayBufferToBlob,
   blobToArrayBuffer,
   ChainedError,
   getExifFromBlob,
@@ -19,16 +18,6 @@ import { getOrCreateInstance } from './storage-manager'
 let warnHandler = console.warn
 export function registerWarnHandler(handler) {
   warnHandler = handler
-}
-
-// rationale: ideally we'd import 'uuid/v1' here but rollup doesn't play nice
-// with that. We don't actually need this function in the SW so we'll just let
-// the worker supply it.
-let uuidGenerator = () => {
-  throw new Error('Programmer error: pass a real generator in')
-}
-export function registerUuidGenerator(fn) {
-  uuidGenerator = fn
 }
 
 async function storeRecordImpl(obsStore, photoStore, record) {
@@ -264,118 +253,6 @@ function isLocalPhotoId(id) {
   return typeof id === 'string'
 }
 
-export async function performMigrationsInWorker() {
-  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
-  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  logResult(
-    'GH-69',
-    await doGh69SeparatingPhotosMigration(obsStore, photoStore, metaStore),
-  )
-  logResult(
-    'local records without outcomeLastUpdatedAt',
-    await migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-      obsStore,
-      photoStore,
-      metaStore,
-    ),
-  )
-  function logResult(name, result) {
-    if (!result.length) {
-      return
-    }
-    warnHandler(`Migrated ${result.length} records in ${name} migration`)
-  }
-}
-
-async function doGh69SeparatingPhotosMigration(
-  obsStore,
-  photoStore,
-  metaStore,
-) {
-  const start = Date.now()
-  const migrationName = '"GH-69 separating photos"'
-  console.debug(`Starting ${migrationName} migration`)
-  const isAlreadyMigrated = await isMigrationDoneImpl(
-    metaStore,
-    cc.gh69MigrationKey,
-  )
-  const migratedIds = []
-  if (isAlreadyMigrated) {
-    console.debug(
-      `Already done ${migrationName} migration previously, skipping`,
-    )
-    return migratedIds
-  }
-  const obsIds = await obsStore.keys()
-  for (const currId of obsIds) {
-    const record = await obsStore.getItem(currId)
-    const isPhotosMigrated = await prepForMigration(
-      record,
-      `wowMeta.${cc.photosToAddFieldName}`,
-    )
-    const isBlockedPhotosMigrated = true // FIXME delete this whole fn
-    // before this migration, the field didn't exist
-    const isOldVersion = !_.get(record, `wowMeta.${cc.versionFieldName}`)
-    if (!isPhotosMigrated && !isBlockedPhotosMigrated && !isOldVersion) {
-      continue
-    }
-    console.debug(`Doing ${migrationName} migration for UUID=${record.uuid}`)
-    await storeRecordImpl(obsStore, photoStore, record)
-    migratedIds.push(record.uuid)
-  }
-  const elapsedMsg = `Took ${Date.now() - start}ms.`
-  if (!migratedIds.length) {
-    console.debug(
-      `Migration ${migrationName} found no records needing migration. ${elapsedMsg}`,
-    )
-  } else {
-    console.debug(
-      `Successfully performed ${migrationName} migration on IDs=${JSON.stringify(
-        migratedIds,
-      )}. ${elapsedMsg}`,
-    )
-  }
-  await markMigrationDoneImpl(metaStore, cc.gh69MigrationKey)
-  return migratedIds
-}
-
-async function prepForMigration(obsRecord, propPath) {
-  const photos = _.get(obsRecord, propPath, [])
-  if (!photos.length) {
-    return false
-  }
-  let isMigrationRequired = false
-  for (const curr of photos) {
-    const isMigratedLocalPhoto = isLocalPhotoId(curr.id)
-    if (isMigratedLocalPhoto) {
-      continue
-    }
-    curr.id = uuidGenerator()
-    curr.file = await arrayBufferToBlob(curr.file.data, curr.file.mime)
-    isMigrationRequired = true
-  }
-  return isMigrationRequired
-}
-
-export function markMigrationDone(key) {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  return markMigrationDoneImpl(metaStore, key)
-}
-
-function markMigrationDoneImpl(metaStore, key) {
-  return metaStore.setItem(key, new Date().toISOString())
-}
-
-export function isMigrationDone(key) {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  return isMigrationDoneImpl(metaStore, key)
-}
-
-function isMigrationDoneImpl(metaStore, key) {
-  return metaStore.getItem(key)
-}
-
 /**
  * Map only the observation payload
  */
@@ -431,45 +308,6 @@ function isAnswer(val) {
   return !['undefined', 'null'].includes(typeof val)
 }
 
-async function migrateLocalRecordsWithoutOutcomeLastUpdatedAt(
-  obsStore,
-  photoStore,
-  metaStore,
-) {
-  log('Starting migration')
-  if (
-    await isMigrationDoneImpl(metaStore, cc.noOutcomeLastUpdatedMigrationKey)
-  ) {
-    log('Already done migration previously, skipping')
-    return []
-  }
-  const result = []
-  const obsIds = await obsStore.keys()
-  for (const currId of obsIds) {
-    log(`Checking record UUID=${currId}`)
-    const record = await obsStore.getItem(currId)
-    const isInNeedOfMigration =
-      !record.wowMeta[cc.outcomeLastUpdatedAtFieldName]
-    if (!isInNeedOfMigration) {
-      log(`record UUID=${currId} does not need migrating`)
-      continue
-    }
-    result.push(currId)
-    const outcome = record.wowMeta[cc.recordProcessingOutcomeFieldName]
-    log(
-      `setting outcomeLastUpdatedAt for UUID=${currId} that ` +
-        `has outcome=${outcome}`,
-    )
-    await setRecordProcessingOutcomeImpl(obsStore, photoStore, currId, outcome)
-  }
-  await markMigrationDone(cc.noOutcomeLastUpdatedMigrationKey)
-  log('Migration done')
-  return result
-  function log(msg) {
-    console.debug(`[outcomeLastUpdatedAt migrate] ${msg}`)
-  }
-}
-
 export function mapCommentFromApiToOurDomain(apiComment) {
   return {
     inatId: apiComment.id,
@@ -503,10 +341,8 @@ const interceptableFns = {
 
 export const _testonly = {
   deleteDbRecordByIdImpl,
-  doGh69SeparatingPhotosMigration,
   getRecordImpl,
   getPhotoRecordImpl,
   interceptableFns,
-  migrateLocalRecordsWithoutOutcomeLastUpdatedAt,
   storeRecordImpl,
 }

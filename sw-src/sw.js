@@ -5,7 +5,6 @@ import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/
 import { registerRoute } from 'workbox-routing/registerRoute'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
 import sentryInit from '@/misc/sentry-init'
-import { wowErrorHandler } from '@/misc/only-common-deps-helpers'
 import * as devHelpers from '@/misc/dev-helpers'
 import * as cc from '@/misc/constants'
 
@@ -165,30 +164,12 @@ self.addEventListener('message', function (event) {
       return self.skipWaiting()
     },
     [cc.proxySwConsoleMsg]: enableSwConsoleProxy,
-    [cc.testTriggerManualCaughtErrorMsg]: () => {
-      doManualErrorTest(true)
-    },
-    [cc.testTriggerManualUncaughtErrorMsg]: () => {
-      doManualErrorTest(false)
-    },
   }
   const strat = strategies[event.data]
   if (strat) {
     strat()
   }
 })
-
-function doManualErrorTest(isCaught) {
-  const err = new Error(
-    '[Manually triggered error from /admin] thrown inside service worker',
-  )
-  err.httpStatus = 418
-  err.name = 'ManuallyTriggeredErrorInSw'
-  if (!isCaught) {
-    throw err
-  }
-  wowErrorHandler(`Handling manually thrown error with our code`, err)
-}
 
 function sendMessageToClient(client, msg) {
   return new Promise(function (resolve, reject) {

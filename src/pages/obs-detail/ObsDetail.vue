@@ -57,7 +57,7 @@
         @click="onUndoLocalEdit"
       >
         <v-ons-icon icon="fa-undo" />
-        Undo local edit
+        Undo edit
       </v-ons-toolbar-button>
     </v-ons-card>
     <v-ons-card>

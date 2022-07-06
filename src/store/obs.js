@@ -623,8 +623,11 @@ export function isObsSystemError(record) {
 }
 
 export async function migrate(store) {
-  // FIXME remove old migration logic
-  // await getWebWorker().performMigrations()
+  const apiToken = await store.dispatch('auth/getApiToken', null, {
+    root: true,
+  })
+  const projectId = store.getters['obs/projectId']
+  await getWebWorker().doFacadeMigration(apiToken, projectId)
   await store.dispatch('obs/refreshLocalRecordQueue')
 }
 

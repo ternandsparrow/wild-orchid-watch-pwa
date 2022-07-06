@@ -146,7 +146,7 @@
     </v-ons-card>
     <join-leave-project @refresh="doProjectInfoRefresh" />
     <wow-extract-thumbnail-from-exif />
-    <wow-gh69-migration-test />
+    <wow-facade-migration-test />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />
@@ -239,11 +239,6 @@
       <p>
         <v-ons-button @click="doManualError"
           >Trigger error in main thread</v-ons-button
-        >
-      </p>
-      <p>
-        <v-ons-button @click="doManualErrorSw"
-          >Trigger error in service worker</v-ons-button
         >
       </p>
     </v-ons-card>
@@ -440,13 +435,6 @@ export default {
         },
         { root: true },
       )
-    },
-    doManualErrorSw() {
-      if (this.isManualErrorCaught) {
-        this._sendMessageToSw(cc.testTriggerManualCaughtErrorMsg)
-        return
-      }
-      this._sendMessageToSw(cc.testTriggerManualUncaughtErrorMsg)
     },
     fireCheckSwCall() {
       console.debug('Firing check to SW')

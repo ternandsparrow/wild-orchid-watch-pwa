@@ -9,7 +9,7 @@ import DecryptPayload from '@/partials/admin/DecryptPayload'
 import ExtractThumbnailFromExif from '@/partials/admin/ExtractThumbnailFromExif'
 import ForceRpo from '@/partials/admin/ForceRpo'
 import GenerateCryptoKeys from '@/partials/admin/GenerateCryptoKeys'
-import Gh69MigrationTest from '@/partials/admin/Gh69MigrationTest'
+import FacadeMigrationTest from '@/partials/admin/FacadeMigrationTest'
 import GoogleMap from '@/components/googleMap'
 import Help from '@/partials/Help'
 import JoinLeaveProject from '@/partials/admin/JoinLeaveProject'
@@ -39,7 +39,7 @@ Vue.component('WowDecryptPayload', DecryptPayload)
 Vue.component('WowExtractThumbnailFromExif', ExtractThumbnailFromExif)
 Vue.component('WowForceRpo', ForceRpo)
 Vue.component('WowGenerateCryptoKeys', GenerateCryptoKeys)
-Vue.component('WowGh69MigrationTest', Gh69MigrationTest)
+Vue.component('WowFacadeMigrationTest', FacadeMigrationTest)
 Vue.component('WowHeader', WowHeader)
 Vue.component('WowHelp', Help)
 Vue.component('WowInputStatus', WowInputStatus)

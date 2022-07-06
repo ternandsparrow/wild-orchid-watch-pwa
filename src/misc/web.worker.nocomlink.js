@@ -12,9 +12,7 @@ import {
   mapCommentFromApiToOurDomain,
   mapObsCoreFromOurDomainOntoApi,
   mapOverObsStore,
-  performMigrationsInWorker,
   processObsFieldName,
-  registerUuidGenerator,
   registerWarnHandler,
   setRecordProcessingOutcome,
   storeRecord,
@@ -39,15 +37,82 @@ import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import { deserialise } from '@/misc/taxon-s11n'
 
 registerWarnHandler(wowWarnMessage)
-registerUuidGenerator(uuid)
 let taxaIndex = null
 let taskChecksTracker = null
 let thumbnailObjectUrlsInUse = []
 let thumbnailObjectUrlsNoLongerInUse = []
 let obsDetailObjectUrls = []
 
-export async function performMigrations() {
-  await performMigrationsInWorker()
+export async function doFacadeMigration(apiToken, projectId) {
+  const start = Date.now()
+  const migrationName = '"facade"'
+  console.debug(`Starting ${migrationName} migration`)
+  const isAlreadyMigrated = await isMigrationDone(cc.facadeMigrationKey)
+  const migratedIds = []
+  if (isAlreadyMigrated) {
+    console.debug(
+      `Already done ${migrationName} migration previously, skipping`,
+    )
+    return migratedIds
+  }
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const obsIds = await obsStore.keys()
+  for (const currId of obsIds) {
+    const record = await obsStore.getItem(currId)
+    if (record.wowMeta[cc.versionFieldName] === cc.currentRecordVersion) {
+      continue
+    }
+    console.debug(`Doing ${migrationName} migration for UUID=${record.uuid}`)
+    delete record.wowMeta.blockedAction
+    record.wowMeta[cc.recordProcessingOutcomeFieldName] = cc.waitingOutcome
+    if (record.wowMeta[cc.recordTypeFieldName] === 'delete') {
+      await storeRecord(record)
+      await deleteRecord(record.uuid, apiToken)
+    } else {
+      record.wowMeta[cc.recordTypeFieldName] = recordType('update')
+      await storeRecord(record)
+      await sendUpdateToFacade(record.uuid, apiToken, projectId)
+    }
+    migratedIds.push(record.uuid)
+  }
+  const elapsedMsg = `Took ${Date.now() - start}ms.`
+  if (!migratedIds.length) {
+    console.debug(
+      `Migration ${migrationName} found no records needing migration. ${elapsedMsg}`,
+    )
+  } else {
+    console.debug(
+      `Successfully performed ${migrationName} migration on IDs=${JSON.stringify(
+        migratedIds,
+      )} (${migratedIds.length} records). ${elapsedMsg}`,
+    )
+  }
+  await deleteIndexedDbDatabase('wow-sw')
+  await markMigrationDone(cc.facadeMigrationKey)
+}
+
+function deleteIndexedDbDatabase(dbName) {
+  return new Promise((r) => {
+    const DBDeleteRequest = window.indexedDB.deleteDatabase(dbName)
+    DBDeleteRequest.onerror = function () {
+      wowWarnMessage(`Failed to delete DB=${dbName}`)
+      r()
+    }
+    DBDeleteRequest.onsuccess = function () {
+      console.debug(`DB=${dbName} deleted successfully`)
+      r()
+    }
+  })
+}
+
+function markMigrationDone(key) {
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  return metaStore.setItem(key, new Date().toISOString())
+}
+
+function isMigrationDone(key) {
+  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
+  return metaStore.getItem(key)
 }
 
 export async function getAllJournalPosts(apiToken) {
@@ -715,7 +780,7 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
     },
     apiToken,
   )
-  console.debug('Obs update form is sent')
+  console.debug('Obs update form is sent successfully')
   await addPendingTask({
     uuid: dbRecord.uuid,
     inatId: dbRecord.inatId,
@@ -881,7 +946,7 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
       apiToken,
     )
     await transitionRecord(theUuid, cc.successOutcome, true)
-    console.debug(`DELETE ${theUuid} sent to iNat successfully`)
+    console.debug(`DELETE ${theUuid} sent to API facade successfully`)
     await saveApiToken(apiToken)
     await addPendingTask({
       uuid: theUuid,
@@ -1161,4 +1226,5 @@ async function metaStoreWrite(key, val) {
 export const _testonly = {
   _deleteRecord,
   mapObsFromApiIntoOurDomain,
+  doFacadeMigration,
 }
