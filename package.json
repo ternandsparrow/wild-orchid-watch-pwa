@@ -43,7 +43,7 @@
     "stackdriver-error-reporting-clientside-js-client": "https://github.com/ternandsparrow/stackdriver-error-reporting-clientside-js-client#v0.1.0",
     "uuid": "^3.3.3",
     "vue": "^2",
-    "vue-analytics": "^5.17.2",
+    "vue-gtag": "1.16.1",
     "vue-head": "^2.1.1",
     "vue-onsenui": "^2.7.0",
     "vue-router": "3.0.7",

@@ -5,7 +5,7 @@ import './wow-global.scss'
 
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui'
-import VueAnalytics from 'vue-analytics'
+import VueGtag from "vue-gtag"
 import 'pwacompat'
 import * as Integrations from '@sentry/integrations'
 import * as VueGoogleMaps from 'gmap-vue'
@@ -37,9 +37,8 @@ Vue.use(VueGoogleMaps, {
 smoothscroll.polyfill()
 
 if (constants.googleAnalyticsTrackerCode !== 'off') {
-  Vue.use(VueAnalytics, {
-    id: constants.googleAnalyticsTrackerCode,
-    router,
+  Vue.use(VueGtag, {
+    config: { id: constants.googleAnalyticsTrackerCode },
   })
 }
 
