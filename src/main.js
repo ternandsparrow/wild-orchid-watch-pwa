@@ -63,7 +63,7 @@ new Vue({
       Vue.prototype.md = this.$ons.platform.isAndroid()
 
       this.$store.commit('ephemeral/setUiTraceTools', {
-        ga: this.$ga,
+        ga: this.$gtag,
         sentry: Sentry,
       })
       Vue.prototype.$wow = {
