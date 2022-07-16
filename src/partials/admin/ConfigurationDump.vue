@@ -37,6 +37,7 @@ export default {
   methods: {
     computeConfigItems() {
       const nonSecretKeys = [
+        'apiUrlBase',
         'appVersion',
         'bboxLatMax',
         'bboxLatMin',
@@ -44,14 +45,15 @@ export default {
         'bboxLonMin',
         'countOfIndividualsObsFieldDefault',
         'deployedEnvName',
+        'facadeUrlBase',
         'inatProjectSlug',
         'inatStaticUrlBase',
         'inatUrlBase',
+        'isBugReportFeatureEnabled',
+        'isDraftFeatureEnabled',
         'isForceVueDevtools',
         'isMissionsFeatureEnabled',
         'isNewsFeatureEnabled',
-        'isDraftFeatureEnabled',
-        'isBugReportFeatureEnabled',
         'maxReqFailureCountInSw',
         'maxSpeciesAutocompleteResultLength',
         'obsFieldNamePrefix',
