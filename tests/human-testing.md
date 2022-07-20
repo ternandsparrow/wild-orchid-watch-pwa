@@ -1,6 +1,14 @@
 # Test cases for humans to run
 This is pretty much what QA is.
 
+Be sure to run the tests on various devices/browsers, e.g:
+- iOS (all browsers are Safari under the covers)
+- Android Chromium
+- Android Firefox
+- Android Samsung Internet
+- macOS Safari
+- macOS/Windows/Linux Chromium/Firefox/Edge
+
 
 ## Login
 - open a clean browser window (private/incognito will do)
@@ -185,7 +193,7 @@ the stack locally so you can control when the callback runs.
 
 ## comment on remote obs with local edit
 
-## assert comment on local-only record fails
+## assert commenting fail for a record that hasn't hit iNat yet
 
 ## edit a comment
 

@@ -5,7 +5,7 @@ import './wow-global.scss'
 
 import Vue from 'vue'
 import VueOnsen from 'vue-onsenui'
-import VueGtag from "vue-gtag"
+import VueGtag from 'vue-gtag'
 import 'pwacompat'
 import * as Integrations from '@sentry/integrations'
 import * as VueGoogleMaps from 'gmap-vue'

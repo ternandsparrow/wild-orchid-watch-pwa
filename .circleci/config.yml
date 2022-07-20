@@ -46,8 +46,7 @@ jobs:
           at: .
       - run:
           name: 'Run unit tests'
-          # FIXME short-term grace period to allow us to build with failing tests
-          command: yarn test:unit || [ $(date +%s) -lt $(date -d 2022-07-07 +%s) ]
+          command: yarn test:unit
 
   build-prod:
     executor: default-executor

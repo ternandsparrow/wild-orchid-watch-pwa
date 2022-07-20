@@ -346,9 +346,12 @@ need the locales from moment and that is what makes it a bloated package.
 # Design decisions
 
 ## Strategy for databases in IndexedDB
-Currently we run two databases:
+Currently we run three databases:
   1. one for storing observations, the `obsStore`
-  1. one just for the Service Worker, the `swStore`
+  1. one for the photos, the `photoStore`
+  1. one for other data, the `metaStore`
+
+<!-- FIXME this is outdated, update it -->
 
 The `obsStore` is really the main store you should worry about. It stores the
 observations locally until we've uploaded them to iNat. The main (UI) thread
@@ -376,33 +379,6 @@ Apparently connections from one tab will block connections from the others. The
 other connections won't fail, they'll just block until they can run. At the
 time of writing, I wasn't able to reproduce this behaviour but if you see weird
 things happening, this is something to investigate.
-
-
-## Pseudo code for edit strategy
-if 'item is queued for ID'
-  we need to modify the queued item somehow
-else
-  queue up our item
-
-
-if 'is local only'
-  edit: changes need to result in a 'new' action
-  delete: just delete the record (unless processing)
-else
-  leave record as 'new' or 'edit'
-
-
-if 'is processing queued item'
-  we can only act on the blocked placeholder
-else
-  we can act on the queued item
-
-
-if 'is existing blocked action'
-  edit: merge with existing
-  delete: replace with delete action
-else
-  set value to our action
 
 
 ## Getting photos from the user
@@ -537,9 +513,10 @@ can't find any usages of it in our code.
 ## Gathering geolocation
 Creating observations that have GPS coordinates is essential for them to be
 useful at the other end when scientists use them. For this reason we make
-geolocation mandatory and offer three ways to collect that data:
+geolocation mandatory and offer four ways to collect that data:
   1. extracted from the EXIF of attached photos (also mandatory)
   1. using the location of the device
+  1. dropping a pin on a map
   1. (in detailed mode) manually entered
 This is also in the order that we prefer as more automated options are more
 reliable. We've seen some devices that don't work as well as we'd hope. A

@@ -42,6 +42,7 @@ let taskChecksTracker = null
 let thumbnailObjectUrlsInUse = []
 let thumbnailObjectUrlsNoLongerInUse = []
 let obsDetailObjectUrls = []
+let postMessageFnOverride
 
 export async function doFacadeMigration(apiToken, projectId) {
   const start = Date.now()
@@ -106,8 +107,7 @@ function deleteIndexedDbDatabase(dbName) {
 }
 
 function markMigrationDone(key) {
-  const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
-  return metaStore.setItem(key, new Date().toISOString())
+  return metaStoreWrite(key, new Date().toISOString())
 }
 
 function isMigrationDone(key) {
@@ -466,7 +466,7 @@ export async function getLocalQueueSummary() {
         [cc.versionFieldName]: r.wowMeta[cc.versionFieldName],
         [cc.recordTypeFieldName]: r.wowMeta[cc.recordTypeFieldName],
         [cc.recordProcessingOutcomeFieldName]: rpo,
-        [cc.isEventuallyDeletedFieldName]: isEventuallyDeleted,
+        [cc.isEventuallyDeletedFieldName]: !!isEventuallyDeleted,
         [cc.outcomeLastUpdatedAtFieldName]:
           r.wowMeta[cc.outcomeLastUpdatedAtFieldName],
         // wowUpdatedAt isn't used but is useful for debugging
@@ -709,8 +709,9 @@ function notifyUiToRefreshLocalRecordQueue() {
 }
 
 function _postMessageToUiThread(msgKey, data) {
-  // eslint-disable-next-line no-restricted-globals
-  self.postMessage({
+  /* eslint-disable-next-line no-restricted-globals */
+  const fnToUse = postMessageFnOverride || self.postMessage
+  fnToUse({
     wowKey: msgKey,
     data,
   })
@@ -804,15 +805,15 @@ export async function saveEditAndScheduleUpdate(
     const existingLocalRecord = await getRecord(editedUuid)
     if (!existingLocalRecord && !existingRemoteRecord) {
       throw new Error(
-        'Data problem: Cannot find existing local or remote record,' +
+        'Data problem: Cannot find existing local or remote record, ' +
           'cannot continue without at least one',
       )
     }
     const dbRecord = existingLocalRecord || {
-      inatId: (existingRemoteRecord || {}).inatId,
+      inatId: existingRemoteRecord.inatId,
       uuid: editedUuid,
     }
-    const newPhotos = (await processPhotos(record.addedPhotos)) || []
+    const newPhotos = await processPhotos(record.addedPhotos || [])
     const photos = computePhotos(
       existingRemoteRecord,
       dbRecord,
@@ -927,10 +928,12 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
         'cannot continue without at least one',
     )
   }
-  const dbRecord = localRecord || {
+  const dbRecord = {
+    ...(localRecord || {}),
     inatId: (remoteRecord || {}).inatId,
     uuid: theUuid,
     wowMeta: {
+      ...(localRecord?.wowMeta || {}),
       [cc.wowUpdatedAtFieldName]: new Date().toString(),
       [cc.recordTypeFieldName]: recordType('delete'),
       [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
@@ -1013,7 +1016,7 @@ function computePhotos(
   photoIdsToDelete,
   newPhotos,
 ) {
-  const existingRemotePhotos = existingRemoteRecord.photos || []
+  const existingRemotePhotos = existingRemoteRecord?.photos || []
   const wowMeta = dbRecord.wowMeta || {}
   const existingLocalPhotos = wowMeta[cc.photosToAddFieldName] || []
   const existingQueuedDeletes = wowMeta?.[cc.photoIdsToDeleteFieldName] || []
@@ -1227,4 +1230,7 @@ export const _testonly = {
   _deleteRecord,
   mapObsFromApiIntoOurDomain,
   doFacadeMigration,
+  overridePostMessageFn(fn) {
+    postMessageFnOverride = fn
+  },
 }
