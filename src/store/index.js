@@ -6,6 +6,7 @@ import { subscribeToWorkerMessage } from '@/misc/web-worker-manager'
 import {
   isForceVueDevtools,
   persistedStateLocalStorageKey,
+  recordProcessingOutcomeFieldName,
   workerMessages,
 } from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
@@ -134,7 +135,19 @@ subscribeToWorkerMessage(workerMessages.facadeUpdateSuccess, ({ summary }) => {
 })
 
 subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
-  return store.commit('obs/handleLocalRecordTransition', args)
+  return store.commit('obs/handleLocalQueueSummaryPatch', {
+    recordUuid: args.recordUuid,
+    updateKey: recordProcessingOutcomeFieldName,
+    updateValue: args.targetOutcome,
+  })
+})
+
+subscribeToWorkerMessage(workerMessages.onRetryComplete, (recordUuid) => {
+  return store.commit('obs/handleLocalQueueSummaryPatch', {
+    recordUuid,
+    updateKey: 'isPossiblyStuck',
+    updateValue: false,
+  })
 })
 
 subscribeToWorkerMessage(workerMessages.requestApiTokenRefresh, () => {

@@ -13,10 +13,7 @@
         class="list-item__subtitle error-indicator"
         >Error uploading record</span
       >
-      <span
-        v-show="record.isPossiblyStuck"
-        class="list-item__subtitle warn-indicator"
-      >
+      <span v-show="isPossiblyStuck" class="list-item__subtitle warn-indicator">
         <v-ons-icon icon="fa-exclamation-triangle"></v-ons-icon>
         Possible problem</span
       >
@@ -80,6 +77,9 @@ export default {
         cc.recordProcessingOutcomeFieldName
       ]
       return val === cc.draftOutcome
+    },
+    isPossiblyStuck() {
+      return this.record.wowMeta?.isPossiblyStuck
     },
   },
   methods: {

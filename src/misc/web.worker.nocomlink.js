@@ -154,6 +154,16 @@ export async function getFullRemoteObsDetail(
   return found
 }
 
+function computeIsPossiblyStuck(record, pendingTasks) {
+  const rpo = record.wowMeta[cc.recordProcessingOutcomeFieldName]
+  const isPendingTask = !!pendingTasks.find((t) => t.uuid === record.uuid)
+  const shouldHaveTask = [cc.beingProcessedOutcome, cc.successOutcome].includes(
+    rpo,
+  )
+  return shouldHaveTask && !isPendingTask
+  // FIXME what about when offline and it's been sent to SW but no response has come back?
+}
+
 export async function getFullLocalObsDetail(
   theUuid,
   detailedModeOnlyObsFieldIds,
@@ -164,6 +174,8 @@ export async function getFullLocalObsDetail(
   const result = await getRecord(theUuid)
   result.geolocationAccuracy = result.positional_accuracy
   delete result.positional_accuracy
+  const pendingTasks = await getAllPendingTasks()
+  result.wowMeta.isPossiblyStuck = computeIsPossiblyStuck(result, pendingTasks)
   mapObsFieldValuesToUi(result, detailedModeOnlyObsFieldIds)
   return result
 }
@@ -449,11 +461,7 @@ export async function getLocalQueueSummary() {
     const isEventuallyDeleted = pendingTasks.find(
       (t) => t.type === recordType('delete') && t.uuid === r.uuid,
     )
-    const isPossiblyStuck = (() => {
-      const isPendingTask = pendingTasks.find((t) => t.uuid === r.uuid)
-      const isBeingProcessed = rpo === cc.beingProcessedOutcome
-      return isBeingProcessed && !isPendingTask
-    })()
+    const isPossiblyStuck = computeIsPossiblyStuck(r, pendingTasks)
     const currSummary = {
       geolocationAccuracy: r.positional_accuracy,
       inatId: r.inatId,
@@ -693,6 +701,10 @@ export async function retryUpload(ids, apiToken, projectId) {
       throw new Error(`Unhandled record type: ${rType}`)
     }
     await strat(currId)
+    // this is fairly implicit. We could recompute things about the obs like
+    // isPossiblyStuck and send the values, but I'm trying to avoid the expense
+    // of computing that.
+    _postMessageToUiThread(cc.workerMessages.onRetryComplete, currId)
   }
 }
 

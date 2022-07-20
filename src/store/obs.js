@@ -51,13 +51,16 @@ const mutations = {
   },
   setIsUpdatingRemoteObs: (state, value) => (state.isUpdatingRemoteObs = value),
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
-  handleLocalRecordTransition: (state, { recordUuid, targetOutcome }) => {
+  handleLocalQueueSummaryPatch: (
+    state,
+    { recordUuid, updateKey, updateValue },
+  ) => {
     const lqs = state.localQueueSummary
     const i = lqs.findIndex((e) => e.uuid === recordUuid)
     if (i < 0) {
       return
     }
-    lqs[i].wowMeta[cc.recordProcessingOutcomeFieldName] = targetOutcome
+    lqs[i].wowMeta[updateKey] = updateValue
   },
   handleObsCreateOrEditCompletion: (state, obsSummary) => {
     console.debug(

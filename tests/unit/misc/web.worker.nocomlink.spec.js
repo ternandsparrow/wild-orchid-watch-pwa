@@ -773,14 +773,10 @@ describe('things that need a datastore', () => {
       await metaStore.setItem(cc.remoteObsKey, [])
       let actualRemoteDeleteUrl = null
       const statusUrl = '/blah-blah'
-      await _testonly._deleteRecord(
-        '123A',
-        null,
-        (url) => {
-          actualRemoteDeleteUrl = url
-          return { statusUrl }
-        },
-      )
+      await _testonly._deleteRecord('123A', null, (url) => {
+        actualRemoteDeleteUrl = url
+        return { statusUrl }
+      })
       const result = await obsStore.getItem('123A')
       expect(result.wowMeta[cc.recordTypeFieldName]).toEqual('delete')
       expect(

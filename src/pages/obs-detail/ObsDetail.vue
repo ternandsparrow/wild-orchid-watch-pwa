@@ -514,6 +514,7 @@ export default {
   methods: {
     async loadFullObsData() {
       this.isLoadingPhotos = true
+      // FIXME handle errors from this call to store
       const obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
       this.obsDetail = obsDetail
       // TODO enhancement idea: when landing from gallery, could preselect the
@@ -568,10 +569,11 @@ export default {
       this.$store
         .dispatch('obs/retryForSelectedRecord')
         .then(() => {
-          this.$ons.notification.toast('Retrying upload', {
+          this.$ons.notification.toast('Observation upload retried', {
             timeout: 3000,
             animation: 'ascend',
           })
+          this.loadFullObsData()
         })
         .catch((err) => {
           this.$store.dispatch(

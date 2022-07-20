@@ -394,6 +394,7 @@ export const workerMessages = {
   facadeUpdateSuccess: 'facade-update-success',
   onLocalRecordTransition: 'local-record-transition',
   requestApiTokenRefresh: 'request-api-token-refresh',
+  onRetryComplete: 'retry-complete',
 }
 
 export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
