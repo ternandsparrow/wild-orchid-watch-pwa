@@ -1,24 +1,15 @@
 import { omitBy, isEqual, isNil, get } from 'lodash'
-import {
-  // FIXME ideally no store operations are called from this module. So remove
-  //  all these imports and use the worker
-  healthcheckStore,
-  processObsFieldName,
-  registerWarnHandler,
-} from '@/indexeddb/obs-store-common'
 import * as cc from '@/misc/constants'
 import {
-  buildStaleCheckerFn,
   ChainedError,
+  buildStaleCheckerFn,
   fetchSingleRecord,
   namedError,
   now,
+  processObsFieldName,
   recordTypeEnum as recordType,
-  wowWarnMessage,
 } from '@/misc/helpers'
 import { getWebWorker } from '@/misc/web-worker-manager'
-
-registerWarnHandler(wowWarnMessage)
 
 const initialState = {
   allRemoteObs: [],
@@ -51,16 +42,16 @@ const mutations = {
   },
   setIsUpdatingRemoteObs: (state, value) => (state.isUpdatingRemoteObs = value),
   setLocalQueueSummary: (state, value) => (state.localQueueSummary = value),
-  handleLocalQueueSummaryPatch: (
-    state,
-    { recordUuid, updateKey, updateValue },
-  ) => {
+  handleLocalQueueSummaryPatch: (state, { recordUuid, thePatch }) => {
     const lqs = state.localQueueSummary
     const i = lqs.findIndex((e) => e.uuid === recordUuid)
     if (i < 0) {
       return
     }
-    lqs[i].wowMeta[updateKey] = updateValue
+    lqs[i].wowMeta = {
+      ...lqs[i].wowMeta,
+      ...thePatch,
+    }
   },
   handleObsCreateOrEditCompletion: (state, obsSummary) => {
     console.debug(
@@ -496,7 +487,7 @@ const actions = {
   },
   async healthcheck() {
     try {
-      await healthcheckStore()
+      await getWebWorker().healthcheckStore()
     } catch (err) {
       throw ChainedError('Failed to init localForage instance', err)
     }
@@ -626,10 +617,14 @@ export function isObsSystemError(record) {
 }
 
 export async function migrate(store) {
+  const projectId = store.getters['obs/projectId']
+  if (!projectId) {
+    console.warn('App is not initialised, refusing to perform migration')
+    return
+  }
   const apiToken = await store.dispatch('auth/getApiToken', null, {
     root: true,
   })
-  const projectId = store.getters['obs/projectId']
   await getWebWorker().doFacadeMigration(apiToken, projectId)
   await store.dispatch('obs/refreshLocalRecordQueue')
 }

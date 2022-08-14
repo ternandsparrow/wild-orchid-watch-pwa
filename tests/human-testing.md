@@ -76,6 +76,17 @@ Be sure to run the tests on various devices/browsers, e.g:
 - be sure to provide values for all inputs
 - *expected*: once uploaded, confirm all the fields have the values you provided
 
+## Offline
+- disconnect your device from any network, go fully offline
+- tap the button to create a new observation
+- *expected*: the page should load to create new obs, you should *not* get an
+  error about not being able to load project info. That should already be
+  cached.
+- try to create an observation as per any of above
+- *expected*: the observation won't be uploaded, but there should be no error
+- reconnect to the network
+- *expected*: within a few minutes, the observation should be uploaded
+
 ---------------------------------------------------------
 
 # Edit
@@ -85,6 +96,21 @@ Be sure to run the tests on various devices/browsers, e.g:
 ## Edit local (in progress) record
 
 ## Edit remote record
+
+## Offline edit remote
+- disconnect your device from any network, go fully offline
+- try to edit a remote observation
+- the edit won't be uploaded, but there should be no error
+- reconnect to the network
+- within a few minutes, the observation should be uploaded
+
+## Offline edit local
+- disconnect your device from any network, go fully offline
+- create an observation, save it
+- edit that new, local observation
+- the observation won't be uploaded, but there should be no error
+- reconnect to the network
+- within a few minutes, the observation should be uploaded
 
 ---------------------------------------------------------
 

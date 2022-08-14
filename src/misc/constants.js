@@ -413,6 +413,8 @@ export const neverUpload = 'NEVER'
 
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
+export const xWowUuidHeader = 'x-wow-uuid'
+
 export const lfWowObsStoreName = 'wow-obs' // observations
 export const lfWowPhotoStoreName = 'wow-photo' // photos
 export const lfWowMetaStoreName = 'wow-meta' // things about the app
@@ -441,7 +443,6 @@ export const wowUpdatedAtFieldName = 'wowUpdatedAt'
 export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
 export const versionFieldName = 'version'
 
-export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
 
@@ -453,7 +454,6 @@ export const beingProcessedOutcome = 'withLocalProcessor' // we're actively proc
 export const successOutcome = 'success' // successfully processed
 export const systemErrorOutcome = 'systemError' // processed but encountered an error
 
-// FIXME do we need any of this service worker magic any more?
 // FIXME this URL fails CORS in Firefox, can we use something else? If we still
 // need it. registerRoute can use a matchCallback so we could hook on a custom
 // header. Or make the SW respond to CORS. Need to make sure the requests don't
@@ -462,8 +462,7 @@ const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
 export const serviceWorkerIsAliveMagicUrl = `${serviceWorkerMagicUrlPrefix}/are-you-alive`
 export const serviceWorkerUpdateErrorTrackerContextUrl = `${serviceWorkerMagicUrlPrefix}/update-error-tracker-context`
 export const serviceWorkerPlatformTestUrl = `${serviceWorkerMagicUrlPrefix}/platorm-test`
-
-export const wowUuidCustomHttpHeader = 'x-wow-uuid'
+export const serviceWorkerGetQueueUuids = `${serviceWorkerMagicUrlPrefix}/get-queue-uuids`
 
 export const isRemotePhotoFieldName = 'isRemote'
 

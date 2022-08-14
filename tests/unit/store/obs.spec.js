@@ -1,18 +1,4 @@
 import objectUnderTest, { extractGeolocationText } from '@/store/obs'
-import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
-
-const originalFn = obsStoreCommonTestOnly.interceptableFns.storePhotoRecord
-beforeAll(() => {
-  // stub blob handling to avoid supplying full, valid Blobs for every test.
-  obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = (_, r) => ({
-    ...r,
-    thumb: true,
-  })
-})
-
-afterAll(() => {
-  obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn
-})
 
 describe('mutations', () => {
   describe('addRecentlyUsedTaxa', () => {

@@ -285,7 +285,7 @@ import {
 } from '@/misc/helpers'
 import * as devHelpers from '@/misc/dev-helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 const wowModelPath = '/image-ml/v1/model.json'
 
@@ -517,7 +517,8 @@ export default {
       console.debug(
         `Cloning obs UUID=${this.cloneSubjectUuid} a count of ${this.cloneCount} times`,
       )
-      const cloneSubject = await getRecord(this.cloneSubjectUuid)
+      const ww = getWebWorker()
+      const cloneSubject = await ww.getRecord(this.cloneSubjectUuid)
       let counter = 0
       while (counter < this.cloneCount) {
         counter += 1
@@ -530,7 +531,7 @@ export default {
           uuid: uuid(),
           observedAt: new Date(),
         }
-        await storeRecord(cloned)
+        await ww.storeRecord(cloned)
       }
       await this.$store.dispatch('obs/refreshLocalRecordQueue')
       this.cloneStatus = 'Done :D'

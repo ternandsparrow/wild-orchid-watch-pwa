@@ -117,7 +117,8 @@
           </label>
           <div class="center wow-radio-option-label">
             <label for="radio-gm-pin">
-              Manually input a location by dragging a pin on a map.
+              Manually input a location by dragging a pin on a map. (must have
+              internet connection)
             </label>
             <div v-if="geolocationMethod === 'pin'">
               <google-map

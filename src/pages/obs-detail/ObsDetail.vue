@@ -16,7 +16,7 @@
         >
       </p>
     </v-ons-card>
-    <v-ons-card v-show="nullSafeObs.wowMeta.isPossiblyStuck" class="warn-card">
+    <v-ons-card v-show="isPossiblyStuck" class="warn-card">
       <div class="title">Possible problem</div>
       <p>
         It looks like this observation might be stuck while trying to upload to
@@ -414,7 +414,6 @@ export default {
       'isSelectedRecordEditOfRemote',
       'selectedObsSummary',
     ]),
-    ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
     ...mapState('app', ['isDetailedUserMode']),
     isSelectedRecordOnRemote() {
       return !!this.selectedObsInatId
@@ -438,13 +437,11 @@ export default {
       }
       const targetField = 'fieldId'
       this.obsFieldSorterFn(result.obsFieldValues, targetField)
-      return {
-        ...result,
-        wowMeta: {
-          // remote obs don't have wowMeta, always adding it simplifies code elsewhere
-          ...result.wowMeta,
-        },
+      if (!result.wowMeta) {
+        // remote obs don't have wowMeta, always adding it simplifies code elsewhere
+        result.wowMeta = {}
       }
+      return result
     },
     isPhotos() {
       return this.nullSafeObs.photos.length
@@ -482,6 +479,9 @@ export default {
     },
     obsOnInatUrl() {
       return `${constants.inatUrlBase}/observations/${this.nullSafeObs.inatId}`
+    },
+    isPossiblyStuck() {
+      return this.selectedObsSummary?.wowMeta?.isPossiblyStuck
     },
   },
   watch: {

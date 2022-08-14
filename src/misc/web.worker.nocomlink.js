@@ -6,26 +6,17 @@ import uuid from 'uuid/v1'
 import * as cc from '@/misc/constants'
 import {
   // importing this module will implicitly call sentryInit()
-  deleteDbRecordById,
-  getPhotoRecord,
-  getRecord,
-  mapCommentFromApiToOurDomain,
-  mapObsCoreFromOurDomainOntoApi,
-  mapOverObsStore,
-  processObsFieldName,
-  registerWarnHandler,
-  setRecordProcessingOutcome,
-  storeRecord,
-  updateIdsAndCommentsFor,
-} from '@/indexeddb/obs-store-common'
-import {
-  arrayBufferToBlob,
   ChainedError,
+  arrayBufferToBlob,
+  blobToArrayBuffer,
   deleteWithAuth,
   findCommonString,
+  getExifFromBlob,
   getJsonWithAuth,
+  isNoSwActive,
   namedError,
   postFormDataWithAuth,
+  processObsFieldName,
   recordTypeEnum as recordType,
   rectangleAlongPathAreaValueToTitle,
   verifyWowDomainPhoto,
@@ -36,13 +27,18 @@ import {
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import { deserialise } from '@/misc/taxon-s11n'
 
-registerWarnHandler(wowWarnMessage)
 let taxaIndex = null
 let taskChecksTracker = null
 let thumbnailObjectUrlsInUse = []
 let thumbnailObjectUrlsNoLongerInUse = []
 let obsDetailObjectUrls = []
 let postMessageFnOverride
+
+// to make testing easier
+const interceptableFns = {
+  storePhotoRecord,
+  wowWarnMessage,
+}
 
 export async function doFacadeMigration(apiToken, projectId) {
   const start = Date.now()
@@ -56,11 +52,13 @@ export async function doFacadeMigration(apiToken, projectId) {
     )
     return migratedIds
   }
+  await deleteIndexedDbDatabase('wow-sw')
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
   const obsIds = await obsStore.keys()
   for (const currId of obsIds) {
     const record = await obsStore.getItem(currId)
     if (record.wowMeta[cc.versionFieldName] === cc.currentRecordVersion) {
+      console.debug(`Record ${record.uuid} doesn't need migrating`)
       continue
     }
     console.debug(`Doing ${migrationName} migration for UUID=${record.uuid}`)
@@ -68,11 +66,16 @@ export async function doFacadeMigration(apiToken, projectId) {
     record.wowMeta[cc.recordProcessingOutcomeFieldName] = cc.waitingOutcome
     if (record.wowMeta[cc.recordTypeFieldName] === 'delete') {
       await storeRecord(record)
-      await deleteRecord(record.uuid, apiToken)
+      // don't await, if doing the network req fails, it's just like any other
+      // failure in the app and can be handled. The migration is done.
+      deleteRecord(record.uuid, apiToken)
     } else {
+      /* "new" and "edit" typed records */
       record.wowMeta[cc.recordTypeFieldName] = recordType('update')
       await storeRecord(record)
-      await sendUpdateToFacade(record.uuid, apiToken, projectId)
+      // don't await, if doing the network req fails, it's just like any other
+      // failure in the app and can be handled. The migration is done.
+      sendUpdateToFacade(record.uuid, apiToken, projectId)
     }
     migratedIds.push(record.uuid)
   }
@@ -88,13 +91,13 @@ export async function doFacadeMigration(apiToken, projectId) {
       )} (${migratedIds.length} records). ${elapsedMsg}`,
     )
   }
-  await deleteIndexedDbDatabase('wow-sw')
   await markMigrationDone(cc.facadeMigrationKey)
 }
 
 function deleteIndexedDbDatabase(dbName) {
   return new Promise((r) => {
-    const DBDeleteRequest = window.indexedDB.deleteDatabase(dbName)
+    // eslint-disable-next-line no-restricted-globals
+    const DBDeleteRequest = self.indexedDB.deleteDatabase(dbName)
     DBDeleteRequest.onerror = function () {
       wowWarnMessage(`Failed to delete DB=${dbName}`)
       r()
@@ -123,7 +126,6 @@ export async function getAllJournalPosts(apiToken) {
 
 export async function getAllRemoteRecords(myUserId, apiToken) {
   await saveApiToken(apiToken)
-  // FIXME cancel any pending checks, await current one to finish, and trigger a check now
   const baseUrl =
     `/observations` +
     `?user_id=${myUserId}` +
@@ -154,14 +156,14 @@ export async function getFullRemoteObsDetail(
   return found
 }
 
-function computeIsPossiblyStuck(record, pendingTasks) {
+function computeIsPossiblyStuck(record, pendingTasks, uuidsInSwQueue) {
   const rpo = record.wowMeta[cc.recordProcessingOutcomeFieldName]
   const isPendingTask = !!pendingTasks.find((t) => t.uuid === record.uuid)
   const shouldHaveTask = [cc.beingProcessedOutcome, cc.successOutcome].includes(
     rpo,
   )
-  return shouldHaveTask && !isPendingTask
-  // FIXME what about when offline and it's been sent to SW but no response has come back?
+  const isProcessedBySw = !uuidsInSwQueue.find((e) => e === record.uuid)
+  return shouldHaveTask && !isPendingTask && isProcessedBySw
 }
 
 export async function getFullLocalObsDetail(
@@ -175,7 +177,12 @@ export async function getFullLocalObsDetail(
   result.geolocationAccuracy = result.positional_accuracy
   delete result.positional_accuracy
   const pendingTasks = await getAllPendingTasks()
-  result.wowMeta.isPossiblyStuck = computeIsPossiblyStuck(result, pendingTasks)
+  const uuidsInSwQueue = await getUuidsInSwQueue()
+  result.wowMeta.isPossiblyStuck = computeIsPossiblyStuck(
+    result,
+    pendingTasks,
+    uuidsInSwQueue,
+  )
   mapObsFieldValuesToUi(result, detailedModeOnlyObsFieldIds)
   return result
 }
@@ -280,12 +287,6 @@ function mapRemoteRecordToSummary(r) {
 }
 
 async function fetchAllPages(baseUrl, pageSize, apiToken) {
-  // FIXME move to worker, but that means we also have to
-  // - move all the helper fns from store/auth
-  // - store the required auth keys in the worker (and update them)
-  // - update calling code to use the worker
-  // - maybe rename the worker to something that supports the whole app, and
-  //   move the reference to a shared location
   let isMorePages = true
   let allRecords = []
   let currPage = 1
@@ -456,12 +457,17 @@ export async function getLocalQueueSummary() {
   thumbnailObjectUrlsNoLongerInUse = thumbnailObjectUrlsInUse
   thumbnailObjectUrlsInUse = []
   const pendingTasks = await getAllPendingTasks()
+  const uuidsInSwQueue = await getUuidsInSwQueue()
   const result = await mapOverObsStore((r) => {
     const rpo = r.wowMeta[cc.recordProcessingOutcomeFieldName]
     const isEventuallyDeleted = pendingTasks.find(
       (t) => t.type === recordType('delete') && t.uuid === r.uuid,
     )
-    const isPossiblyStuck = computeIsPossiblyStuck(r, pendingTasks)
+    const isPossiblyStuck = computeIsPossiblyStuck(
+      r,
+      pendingTasks,
+      uuidsInSwQueue,
+    )
     const currSummary = {
       geolocationAccuracy: r.positional_accuracy,
       inatId: r.inatId,
@@ -749,7 +755,9 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
   const resp = await postFormDataWithAuth(
     `${cc.facadeSendObsUrlPrefix}/${observation.uuid}`,
     async (form) => {
-      form.set('projectId', projectId)
+      if (projectId) {
+        form.set('projectId', projectId)
+      }
       form.set(
         'observation',
         new Blob([JSON.stringify(observation)], {
@@ -761,7 +769,7 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
           async ({ id: currId }) => {
             const photo = await getPhotoRecord(currId)
             if (!photo) {
-              // FIXME is it wise to push on if a photo is missing?
+              // is it wise to push on if a photo is missing?
               console.warn(`Could not load photo with ID=${currId}`)
               return
             }
@@ -792,6 +800,7 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
       )
     },
     apiToken,
+    { [cc.xWowUuidHeader]: recordUuid }, // only used in SW, not used by the server
   )
   console.debug('Obs update form is sent successfully')
   await addPendingTask({
@@ -959,6 +968,7 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
     const resp = await doDeleteReqFn(
       `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
       apiToken,
+      { [cc.xWowUuidHeader]: theUuid }, // only used in SW, not used by the server
     )
     await transitionRecord(theUuid, cc.successOutcome, true)
     console.debug(`DELETE ${theUuid} sent to API facade successfully`)
@@ -1052,13 +1062,19 @@ function computePhotos(
   }
 }
 
-// FIXME hook poll call that results in terminal failure, to update UI
 // FIXME can we simplify the alerts around "saved but not uploaded", single and
 //   double tick like WhatsApp
 // FIXME need to flag when sent to SW, so we can show in the UI and know we
 //   don't have to fire it off when the app loads again
+// FIXME did I break the offline functionality by requesting project data more often?
 
-export async function getAllPendingTasks() {
+// FIXME what about when offline and it's been sent to SW but no response has
+//  come back (no network)? This is a broader problem: we don't want the app to
+//  think it fails if it's still queued in the SW. We need a custom handler in
+//  the SW to send a response so the UI knows it's queued, then when the SW
+//  processes the request, it should poke to the UI with the new state.
+
+async function getAllPendingTasks() {
   const taskMapping = await _getPendingTasks()
   return Object.values(taskMapping)
 }
@@ -1066,6 +1082,14 @@ export async function getAllPendingTasks() {
 async function _getPendingTasks() {
   const raw = await metaStoreRead(cc.pendingTasksKey)
   return raw || {}
+}
+
+async function getUuidsInSwQueue() {
+  if (await isNoSwActive()) {
+    return []
+  }
+  const resp = await fetch(cc.serviceWorkerGetQueueUuids)
+  return (await resp.json()).queuedUuids
 }
 
 async function _setPendingTasks(tasks) {
@@ -1079,11 +1103,6 @@ async function addPendingTask(task) {
   if (!task.uuid) {
     throw new Error(`Task has no UUID: ${JSON.stringify(task)}`)
   }
-  // FIXME is it safe to only have one pending task for a uuid? When a new task
-  //  comes in, we clobber the old one. If that's the case, we also need a way
-  //  to cancell the polling. Maybe stop spinning off separate fns and have a
-  //  periodic processor that fires all due tasks and sends events on
-  //  completion.
   const taskMapping = await _getPendingTasks()
   task.dateAdded = new Date().toString() // for debugging
   taskMapping[task.uuid] = task
@@ -1112,8 +1131,7 @@ export function scheduleTaskChecks(delayMs = 13) {
     const promise = runChecksForTasks()
     taskChecksTracker.promise = promise
     promise.catch((err) => {
-      // FIXME send to Sentry?
-      console.error('Failed to run checks for tasks', err)
+      wowErrorHandler('Failed to run checks for tasks', err)
     })
   }, delayMs)
 }
@@ -1145,8 +1163,8 @@ async function runChecksForTasks() {
         _postMessageToUiThread(cc.workerMessages.requestApiTokenRefresh)
       } else {
         console.error(`Failed to check for task ${curr.uuid}`, err)
+        // FIXME do we need to cancel the task or something?
       }
-      // FIXME do we need to cancel the task or something?
     }
   }
   taskChecksTracker = null
@@ -1237,6 +1255,317 @@ async function metaStoreWrite(key, val) {
   return metaStore.setItem(key, val)
 }
 
+async function storeRecordImpl(obsStore, photoStore, record) {
+  // enhancement idea: when clobbering an existing record, we could calculate
+  // if any photos are implicity deleted (orphaned) and delete them.
+  const key = record.uuid
+  try {
+    if (!key) {
+      throw new Error('Record has no key, cannot continue')
+    }
+    log('Processing photo deletes')
+    await deleteLocalPhotos(
+      record,
+      `wowMeta.${cc.photoIdsToDeleteFieldName}`,
+      photoStore,
+    )
+    log('Processing photo adds')
+    await savePhotosAndReplaceWithThumbnails(
+      record,
+      `wowMeta.${cc.photosToAddFieldName}`,
+      photoStore,
+    )
+    record.wowMeta[cc.versionFieldName] = cc.currentRecordVersion
+    log('Saving record')
+    return obsStore.setItem(key, record)
+  } catch (err) {
+    throw ChainedError(`Failed to store db record with ID='${key}'`, err)
+  }
+  function log(msg) {
+    console.debug(`[storeRecordImpl] ${msg}`)
+  }
+}
+
+async function savePhotosAndReplaceWithThumbnails(
+  record,
+  propPath,
+  photoStore,
+) {
+  const photos = _.get(record, propPath, [])
+  if (!photos.length) {
+    return
+  }
+  const result = []
+  for (const curr of photos) {
+    const isAlreadyThumbnail =
+      _.get(curr, 'file.data.constructor') === ArrayBuffer || curr.file === null
+    if (isAlreadyThumbnail) {
+      result.push(curr)
+      continue
+    }
+    const currThumb = await interceptableFns.storePhotoRecord(photoStore, curr)
+    result.push(currThumb)
+    // update the array of all photos to use the thumbnail
+    const foundIndex = record.photos.findIndex((e) => e.id === curr.id)
+    if (!~foundIndex) {
+      interceptableFns.wowWarnMessage(
+        `Inconsistent data error: could not find photo with ` +
+          `ID=${curr.id} to replace with thumbnail. Processing ${propPath},` +
+          ` available photo IDs=${JSON.stringify(photos.map((e) => e.id))}. ` +
+          `Adding it to the list of photos.`,
+      )
+      record.photos.push(currThumb)
+    } else {
+      record.photos.splice(foundIndex, 1, currThumb)
+    }
+  }
+  _.set(record, propPath, result)
+}
+
+async function deleteLocalPhotos(record, propPath, photoStore) {
+  const ids = _.get(record, propPath, [])
+  if (!ids.length) {
+    return
+  }
+  const idsToDelete = ids.filter(isLocalPhotoId)
+  for (const curr of idsToDelete) {
+    console.debug(`Deleting local photo with ID=${curr}`)
+    await photoStore.removeItem(curr)
+  }
+  _.set(record, propPath, _.difference(ids, idsToDelete))
+}
+
+async function storePhotoRecord(photoStore, photoRecord) {
+  const photoDataAsArrayBuffer = await blobToArrayBuffer(photoRecord.file)
+  const photoDbId = photoRecord.id
+  const recordToSave = {
+    ...photoRecord,
+    file: {
+      data: photoDataAsArrayBuffer,
+      mime: photoRecord.file.type,
+    },
+  }
+  await photoStore.setItem(photoDbId, recordToSave)
+  const exif = await getExifFromBlob(photoRecord.file)
+  const thumbBlob = _.get(exif, 'thumbnail.blob')
+  if (!thumbBlob) {
+    interceptableFns.wowWarnMessage(
+      `Photo of type=${photoRecord.type} and ID=${photoRecord.id} does not ` +
+        `have a thumbnail in EXIF`,
+    )
+    return { ...photoRecord, file: null }
+  }
+  const thumbnailDataAsArrayBuffer = await blobToArrayBuffer(thumbBlob)
+  const thumbnailRecord = {
+    ...photoRecord,
+    file: {
+      data: thumbnailDataAsArrayBuffer,
+      mime: thumbBlob.type,
+    },
+  }
+  return thumbnailRecord
+}
+
+async function getRecordImpl(store, recordId) {
+  try {
+    if (!recordId) {
+      throw new Error(`No record ID='${recordId}' supplied, cannot continue`)
+    }
+    return store.getItem(recordId)
+  } catch (err) {
+    throw ChainedError(`Failed to get DB record with ID='${recordId}'`, err)
+  }
+}
+
+async function getPhotoRecordImpl(store, recordId) {
+  try {
+    if (!recordId) {
+      throw new Error(
+        `No photo record ID='${recordId}' supplied, cannot continue`,
+      )
+    }
+    return store.getItem(recordId)
+  } catch (err) {
+    throw ChainedError(
+      `Failed to get photo DB record with ID='${recordId}'`,
+      err,
+    )
+  }
+}
+
+export function deleteDbRecordById(id) {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return deleteDbRecordByIdImpl(obsStore, photoStore, id)
+}
+
+async function deleteDbRecordByIdImpl(obsStore, photoStore, id) {
+  try {
+    const existingObsRecord = await obsStore.getItem(id)
+    if (!existingObsRecord) {
+      console.warn(
+        `Asked to delete ${id} from the DB, but it doesn't exist. Not a ` +
+          `concern if a remote-only record. Nothing to do.`,
+      )
+      return
+    }
+    const idsToDelete = (existingObsRecord.photos || [])
+      .map((e) => e.id)
+      .filter(isLocalPhotoId)
+    for (const curr of idsToDelete) {
+      console.debug(`Deleting local photo with ID=${curr}`)
+      await photoStore.removeItem(curr)
+    }
+    return obsStore.removeItem(id)
+  } catch (err) {
+    throw ChainedError(`Failed to delete db record with ID='${id}'`, err)
+  }
+}
+
+export function storeRecord(record) {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return storeRecordImpl(obsStore, photoStore, record)
+}
+
+export function getRecord(recordId) {
+  const store = getOrCreateInstance(cc.lfWowObsStoreName)
+  return getRecordImpl(store, recordId)
+}
+
+export function getPhotoRecord(recordId) {
+  const store = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return getPhotoRecordImpl(store, recordId)
+}
+
+export function mapOverObsStore(mapperFn) {
+  const store = getOrCreateInstance(cc.lfWowObsStoreName)
+  return mapOverObsStoreImpl(store, mapperFn)
+}
+
+async function mapOverObsStoreImpl(obsStore, mapperFn) {
+  const result = []
+  await obsStore.iterate((r) => {
+    result.push(mapperFn(r))
+  })
+  return result
+}
+
+export function setRecordProcessingOutcome(dbId, targetOutcome) {
+  const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+  const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+  return setRecordProcessingOutcomeImpl(
+    obsStore,
+    photoStore,
+    dbId,
+    targetOutcome,
+  )
+}
+
+async function setRecordProcessingOutcomeImpl(
+  obsStore,
+  photoStore,
+  dbId,
+  targetOutcome,
+) {
+  console.debug(`Transitioning dbId=${dbId} to outcome=${targetOutcome}`)
+  const record = await getRecordImpl(obsStore, dbId)
+  if (!record) {
+    throw new Error(`Could not find record for ID=${dbId}`)
+  }
+  record.wowMeta[cc.recordProcessingOutcomeFieldName] = targetOutcome
+  record.wowMeta[cc.outcomeLastUpdatedAtFieldName] = new Date().toString()
+  return storeRecordImpl(obsStore, photoStore, record)
+}
+
+export function healthcheckStore() {
+  const store = getOrCreateInstance(cc.lfWowObsStoreName)
+  return store.ready()
+}
+
+function isLocalPhotoId(id) {
+  // we use strings for photo IDs locally, iNat uses numbers
+  return typeof id === 'string'
+}
+
+/**
+ * Map only the observation payload
+ */
+export async function mapObsCoreFromOurDomainOntoApi(dbRecord) {
+  const ignoredKeys = [
+    'id',
+    'inatId',
+    'lat',
+    'lng',
+    'obsFieldValues',
+    'observedAt',
+    'photos',
+    'placeGuess',
+    'speciesGuess',
+    'wowMeta',
+  ]
+  const recordIdObjFragment = (() => {
+    const { inatId } = dbRecord
+    if (inatId) {
+      return { id: inatId }
+    }
+    return {}
+  })()
+  return Object.keys(dbRecord).reduce(
+    (accum, currKey) => {
+      const isNotIgnored = !ignoredKeys.includes(currKey)
+      const value = dbRecord[currKey]
+      if (isNotIgnored && isAnswer(value)) {
+        accum[currKey] = value
+      }
+      return accum
+    },
+    {
+      ...recordIdObjFragment,
+      latitude: dbRecord.lat,
+      longitude: dbRecord.lng,
+      observed_on_string: dbRecord.observedAt,
+      species_guess: dbRecord.speciesGuess,
+      observation_field_values_attributes: (
+        dbRecord.obsFieldValues || []
+      ).reduce((accum, curr, index) => {
+        accum[index] = {
+          observation_field_id: curr.fieldId,
+          value: curr.value,
+        }
+        return accum
+      }, {}),
+    },
+  )
+}
+
+function isAnswer(val) {
+  return !['undefined', 'null'].includes(typeof val)
+}
+
+export function mapCommentFromApiToOurDomain(apiComment) {
+  return {
+    inatId: apiComment.id,
+    uuid: apiComment.uuid,
+    body: apiComment.body, // we are trusting iNat to sanitise this
+    createdAt: apiComment.created_at,
+    isHidden: apiComment.hidden,
+    userLogin: apiComment.user.login,
+    userId: apiComment.user.id,
+    wowType: 'comment',
+  }
+}
+
+export function updateIdsAndCommentsFor(obs) {
+  obs.idsAndComments = [...obs.comments, ...obs.identifications]
+  obs.idsAndComments.sort((a, b) => {
+    const f = 'createdAt'
+    if (dayjs(a[f]).isBefore(b[f])) return -1
+    if (dayjs(a[f]).isAfter(b[f])) return 1
+    return 0
+  })
+}
+
 // eslint-disable-next-line import/prefer-default-export
 export const _testonly = {
   _deleteRecord,
@@ -1245,4 +1574,9 @@ export const _testonly = {
   overridePostMessageFn(fn) {
     postMessageFnOverride = fn
   },
+  deleteDbRecordByIdImpl,
+  getRecordImpl,
+  getPhotoRecordImpl,
+  interceptableFns,
+  storeRecordImpl,
 }

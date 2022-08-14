@@ -155,6 +155,7 @@ export default {
   data() {
     return {
       whenToSyncOptions: [
+        // FIXME should this be deleted (and associated code)
         { value: cc.alwaysUpload, label: 'Automatic' },
         { value: cc.neverUpload, label: 'Manual' },
       ],

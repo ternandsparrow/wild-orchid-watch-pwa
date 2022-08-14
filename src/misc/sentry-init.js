@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/browser'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 
 let isInited = false
 
@@ -11,15 +11,15 @@ export default function sentryInit(initLocationName, extraInitArgs = {}) {
   if (process.env.NODE_ENV === 'test') {
     return Sentry
   }
-  if (constants.sentryDsn === 'off') {
+  if (cc.sentryDsn === 'off') {
     console.debug(
       `No sentry DSN provided, refusing to init Sentry in ${initLocationName}`,
     )
   } else {
     Sentry.init({
-      dsn: constants.sentryDsn,
-      release: constants.appVersion,
-      environment: constants.deployedEnvName,
+      dsn: cc.sentryDsn,
+      release: cc.appVersion,
+      environment: cc.deployedEnvName,
       ...extraInitArgs,
     })
   }

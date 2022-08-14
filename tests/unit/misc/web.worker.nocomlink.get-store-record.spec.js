@@ -1,7 +1,20 @@
 /**
  * @jest-environment jsdom
  */
-import * as objectUnderTest from '@/indexeddb/obs-store-common'
+// I tried moving these into ./web.worker.nocomlink.spec.js but I got 8 test
+// failures with this error message:
+//    DataCloneError: Failed to store db record with ID='123A'
+//    Caused by: The data being stored could not be cloned by the internal structured cloning algorithm.
+//
+//      at new DataCloneError (node_modules/fake-indexeddb/build/lib/errors.js:57:28)
+//      at Object.structuredClone [as default] (node_modules/fake-indexeddb/build/lib/structuredClone.js:10:15)
+//      at buildRecordAddPut (node_modules/fake-indexeddb/build/FDBObjectStore.js:36:42)
+//      at FDBObjectStore.Object.<anonymous>.FDBObjectStore.put (node_modules/fake-indexeddb/build/FDBObjectStore.js:130:22)
+//      at node_modules/localforage/dist/localforage.js:1053:37
+//      at createTransaction (node_modules/localforage/dist/localforage.js:806:9)
+//      at node_modules/localforage/dist/localforage.js:1037:13
+// I don't know why, but I don't have time to look into it. Things are working like this.
+import * as objectUnderTest from '@/misc/web.worker.nocomlink'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
 import {
@@ -14,7 +27,7 @@ import {
   sizeOfPhotoWithExifThumbnail,
 } from '@/../tests/unit/test-helpers'
 
-describe('obs-store-common', () => {
+describe('get/store record', () => {
   let origConsoleDebug
   const testObsStore = getOrCreateInstance('test-store')
   const testPhotoStore = getOrCreateInstance('test-photo-store')
@@ -133,7 +146,8 @@ describe('obs-store-common', () => {
         },
       }
       let warnMsg
-      objectUnderTest.registerWarnHandler((msg) => (warnMsg = msg))
+      objectUnderTest._testonly.interceptableFns.wowWarnMessage = (msg) =>
+        (warnMsg = msg)
       await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
@@ -173,7 +187,7 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      objectUnderTest.registerWarnHandler(warnHandler)
+      objectUnderTest._testonly.interceptableFns.wowWarnMessage = warnHandler
       await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
@@ -213,7 +227,7 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      objectUnderTest.registerWarnHandler(warnHandler)
+      objectUnderTest._testonly.interceptableFns.wowWarnMessage = warnHandler
       await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,
@@ -251,7 +265,7 @@ describe('obs-store-common', () => {
         },
       }
       const warnHandler = jest.fn()
-      objectUnderTest.registerWarnHandler(warnHandler)
+      objectUnderTest._testonly.interceptableFns.wowWarnMessage = warnHandler
       await objectUnderTest._testonly.storeRecordImpl(
         testObsStore,
         testPhotoStore,

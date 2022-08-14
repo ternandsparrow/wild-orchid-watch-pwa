@@ -50,7 +50,7 @@
 
 <script>
 import * as constants from '@/misc/constants'
-import { mapOverObsStore } from '@/indexeddb/obs-store-common'
+import { getWebWorker } from '@/misc/web-worker-manager'
 import { getExifFromBlob } from '@/misc/helpers'
 
 export default {
@@ -69,7 +69,7 @@ export default {
       try {
         const start = Date.now()
         const blobs = []
-        const photoPresence = await mapOverObsStore((r) => {
+        const photoPresence = await getWebWorker().mapOverObsStore((r) => {
           const photos = r.wowMeta[constants.photosToAddFieldName] || []
           const isPresentFlags = []
           photos.forEach((curr) => {

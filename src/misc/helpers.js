@@ -42,6 +42,10 @@ const jsonHeaders = {
   ...commonHeaders,
 }
 
+export function processObsFieldName(fieldName) {
+  return (fieldName || '').replace(cc.obsFieldNamePrefix, '')
+}
+
 export function postJson(url, data = {}) {
   const authHeaderValue = null
   return postJsonWithAuth(url, data, authHeaderValue)
@@ -72,24 +76,21 @@ export function putJsonWithAuth(url, data, authHeaderValue) {
   })
 }
 
-export function postFormDataWithAuth(...params) {
-  return _formDataWithAuthHelper('POST', ...params)
-}
-
-async function _formDataWithAuthHelper(
-  method,
+export async function postFormDataWithAuth(
   url,
   populateFormDataCallback,
   authHeaderValue,
+  extraHeadersParam,
 ) {
   const formData = new FormData()
   await populateFormDataCallback(formData)
   return doManagedFetch(url, {
-    method,
+    method: 'POST',
     mode: 'cors',
     headers: {
       ...commonHeaders,
       Authorization: authHeaderValue,
+      ...(extraHeadersParam || {}),
     },
     body: formData._blob ? formData._blob() : formData,
   })
@@ -143,7 +144,7 @@ export async function isSwActive() {
   }
 }
 
-export function deleteWithAuth(url, authHeaderValue) {
+export function deleteWithAuth(url, authHeaderValue, extraHeadersParam) {
   const alsoOkHttpStatuses = [404]
   return doManagedFetch(
     url,
@@ -153,6 +154,7 @@ export function deleteWithAuth(url, authHeaderValue) {
       headers: {
         ...jsonHeaders,
         Authorization: authHeaderValue,
+        ...(extraHeadersParam || {}),
       },
     },
     alsoOkHttpStatuses,

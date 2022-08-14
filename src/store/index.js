@@ -137,16 +137,21 @@ subscribeToWorkerMessage(workerMessages.facadeUpdateSuccess, ({ summary }) => {
 subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
   return store.commit('obs/handleLocalQueueSummaryPatch', {
     recordUuid: args.recordUuid,
-    updateKey: recordProcessingOutcomeFieldName,
-    updateValue: args.targetOutcome,
+    thePatch: {
+      [recordProcessingOutcomeFieldName]: args.targetOutcome,
+      // Ideally we'd recompute, but let's try the lazy way
+      isPossiblyStuck: false,
+    },
   })
 })
 
 subscribeToWorkerMessage(workerMessages.onRetryComplete, (recordUuid) => {
   return store.commit('obs/handleLocalQueueSummaryPatch', {
     recordUuid,
-    updateKey: 'isPossiblyStuck',
-    updateValue: false,
+    thePatch: {
+      // Ideally we'd recompute, but let's try the lazy way
+      isPossiblyStuck: false,
+    },
   })
 })
 

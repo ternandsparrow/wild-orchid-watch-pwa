@@ -5,7 +5,6 @@ import dayjs from 'dayjs'
 import { getOrCreateInstance } from '@/indexeddb/storage-manager'
 import * as cc from '@/misc/constants'
 import * as objectUnderTest from '@/misc/web.worker.nocomlink'
-import { _testonly as obsStoreCommonTestOnly } from '@/indexeddb/obs-store-common'
 import {
   byteLengthOfThumbnail,
   getPhotoWithThumbnail,
@@ -21,10 +20,10 @@ describe('things that need a datastore', () => {
   const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
   const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
 
-  const originalFn = obsStoreCommonTestOnly.interceptableFns.storePhotoRecord
+  const originalFn = _testonly.interceptableFns.storePhotoRecord
   function stubStorePhotoRecordFn() {
     // stub blob handling to avoid supplying full, valid Blobs for every test.
-    obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = async (_, r) => {
+    _testonly.interceptableFns.storePhotoRecord = async (_, r) => {
       await photoStore.setItem(`${r.id}`, r)
       return r
     }
@@ -89,7 +88,7 @@ describe('things that need a datastore', () => {
     })
 
     it('should save a new record with photos', async () => {
-      obsStoreCommonTestOnly.interceptableFns.storePhotoRecord = originalFn // undo stub
+      _testonly.interceptableFns.storePhotoRecord = originalFn // undo stub for this test
       const record = {
         speciesGuess: 'species new',
         addedPhotos: [

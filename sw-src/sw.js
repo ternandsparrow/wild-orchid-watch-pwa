@@ -42,6 +42,8 @@ function enableSwConsoleProxy() {
   }
 }
 
+const queueName = 'wow-queue-v2'
+
 // FIXME have to clear and remove 'wow-queue' queue from old code; and reset
 // all in-flight requests
 
@@ -49,13 +51,18 @@ function enableSwConsoleProxy() {
 // Can we trigger the sync event with the expected tag, probably
 // `workbox-background-sync:<queueName>, that is expected? Maybe we can still
 // access bgSyncPlugin._queue because we don't care about TypeScript.
-const bgSyncPlugin = new BackgroundSyncPlugin('wow-queue-v2', {
+const bgSyncPlugin = new BackgroundSyncPlugin(queueName, {
   maxRetentionTime: cc.swQueueMaxRetentionMinutes,
 })
 
 for (const currMethod of ['POST', 'PUT']) {
   registerRoute(
     new RegExp(`${cc.facadeSendObsUrlPrefix}/.*`),
+    // FIXME need to handle error and send a "it's been queued" response. Or
+    // modify the caller code to suppress the error message if the uuid is
+    // still queued in the SW. That latter approach could be good because if
+    // the queue eventually gives up and refuses to retry, the UI will suddenly
+    // show the error.
     new NetworkOnly({
       plugins: [bgSyncPlugin],
     }),
@@ -121,6 +128,27 @@ registerRoute(
     })
   },
   'POST',
+)
+
+registerRoute(
+  cc.serviceWorkerGetQueueUuids,
+  async () => {
+    // we're using internal details of Workbox here, so updates to newer
+    // versions might break this code
+    const db = bgSyncPlugin._queue._queueStore._queueDb
+    const queueEntries = await db.getAllEntriesByQueueName(queueName)
+    // FIXME de-dupe with a Set
+    const result = queueEntries.map(
+      (e) => e.requestData.headers[cc.xWowUuidHeader],
+    )
+    if (result.find((e) => !e)) {
+      console.warn('At least one queue entry is missing our custom header')
+    }
+    return jsonResponse({
+      queuedUuids: result,
+    })
+  },
+  'GET',
 )
 
 // We don't want the SW to interfere here but if we have a mapping, calls to

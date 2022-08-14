@@ -18,14 +18,10 @@
         Possible problem</span
       >
       <div class="obs-badges">
-        <img
-          v-if="isWaiting"
-          src="@/assets/img/cloud-wait.svg"
-          class="wow-icon"
-        />
-        <span v-if="isBeingProcessedOnServer"
-          >Being processed by server...</span
-        >
+        <span v-if="isBeingProcessedOnServer">
+          <img src="@/assets/img/cloud-wait.svg" class="wow-icon" />
+          Being processed by server...
+        </span>
         <span v-if="isDraft" class="wow-badge">
           <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
           Draft

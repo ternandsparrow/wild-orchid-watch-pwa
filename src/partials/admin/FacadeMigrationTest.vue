@@ -76,7 +76,7 @@ export default {
       // between versions of the app.
       try {
         let recordsCreated = 0
-        this.log('opening indexeddb...')
+        this.log('starting to write "old" data...')
         const recordSavePromises = []
         while (recordsCreated < this.recordsCount) {
           recordsCreated += 1
@@ -84,7 +84,7 @@ export default {
           const fns = [
             this.createNewTypeRecord,
             this.createEditTypeRecord,
-            // FIXME add delete
+            this.createDeleteTypeRecord,
           ]
           const theFn = fns[Math.floor(Math.random() * fns.length)]
           recordSavePromises.push(theFn(recordsCreated))
@@ -102,13 +102,23 @@ export default {
     },
     async createNewTypeRecord(i) {
       const newPhotos = await this.getPhotos()
+      const newPhotoThumbs = newPhotos.map((p) => {
+        return {
+          ...p,
+          file: {
+            ...p.file,
+            // should be a thumbnail but this is easier
+            data: new ArrayBuffer([]),
+          },
+        }
+      })
       const recordId = uuid()
       const record = {
         captive_flag: false,
         geoprivacy: 'obscured',
         lat: -36.1,
         lng: 144.7,
-        speciesGuess: `orchid ${i}`,
+        speciesGuess: `migtest ${i}`,
         observedAt: new Date(),
         obsFieldValues: [
           {
@@ -130,12 +140,12 @@ export default {
             value: 1,
           },
         ],
-        photos: newPhotos,
+        photos: newPhotoThumbs,
         positional_accuracy: null,
         wowMeta: {
           [cc.recordTypeFieldName]: 'new', // can't use recordType()
           [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
-          [cc.photosToAddFieldName]: newPhotos,
+          [cc.photosToAddFieldName]: newPhotoThumbs,
           [cc.photoIdsToDeleteFieldName]: [],
           [cc.obsFieldIdsToDeleteFieldName]: [],
           [cc.wowUpdatedAtFieldName]: new Date().toString(),
@@ -150,17 +160,60 @@ export default {
       }
       const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
       await obsStore.setItem(recordId, record)
+      const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+      await Promise.all(newPhotos.map((p) => photoStore.setItem(p.id, p)))
     },
-    async createEditTypeRecord() {
+    async createEditTypeRecord(i) {
       const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
-      const recordId =
-        this.remoteRecords[
-          Math.floor(Math.random() * this.remoteRecords.length)
-        ].uuid
-      // FIXME won't work, need to get from remote obs store
-      const record = await obsStore.getItem(recordId)
-      record.speciesGuess += ' edit'
-      await obsStore.setItem(recordId, record)
+      const remoteRecord = this.remoteRecords[i % this.remoteRecords.length]
+      const newPhotos = await this.getPhotos()
+      const newPhotoThumbs = newPhotos.map((p) => {
+        return {
+          ...p,
+          file: {
+            ...p.file,
+            // should be a thumbnail but this is easier
+            data: new ArrayBuffer([]),
+          },
+        }
+      })
+      const record = {
+        ...remoteRecord,
+        speciesGuess: `edit migtest ${i} ${remoteRecord.speciesGuess}`,
+        photos: [...(remoteRecord.photos || []), ...newPhotoThumbs],
+        wowMeta: {
+          [cc.recordTypeFieldName]: 'edit', // can't use recordType()
+          [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
+          [cc.photosToAddFieldName]: newPhotoThumbs,
+          [cc.photoIdsToDeleteFieldName]: [],
+          [cc.obsFieldIdsToDeleteFieldName]: [],
+          [cc.wowUpdatedAtFieldName]: new Date().toString(),
+          [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+          [cc.versionFieldName]: 2,
+        },
+      }
+      await obsStore.setItem(record.uuid, record)
+      const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+      await Promise.all(newPhotos.map((p) => photoStore.setItem(p.id, p)))
+    },
+    async createDeleteTypeRecord(i) {
+      const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+      const remoteRecord = this.remoteRecords[i % this.remoteRecords.length]
+      const record = {
+        inatId: remoteRecord.inatId,
+        uuid: remoteRecord.uuid,
+        wowMeta: {
+          [cc.recordTypeFieldName]: 'delete', // can't use recordType()
+          [cc.recordProcessingOutcomeFieldName]: cc.waitingOutcome,
+          [cc.photosToAddFieldName]: [],
+          [cc.photoIdsToDeleteFieldName]: [],
+          [cc.obsFieldIdsToDeleteFieldName]: [],
+          [cc.wowUpdatedAtFieldName]: new Date().toString(),
+          [cc.outcomeLastUpdatedAtFieldName]: new Date().toString(),
+          [cc.versionFieldName]: 2,
+        },
+      }
+      await obsStore.setItem(record.uuid, record)
     },
     async getPhotos() {
       if (!this.isIncludePhotos) {
@@ -175,11 +228,9 @@ export default {
         cc.photoTypeWholePlant,
         cc.photoTypeHabitat,
         cc.photoTypeMicrohabitat,
-        cc.photoTypeLeaf,
-        cc.photoTypeFlower,
       ]
-      this.cachedPhotos = photoTypes.map((currType, i) => ({
-        id: -1 * (i + 1),
+      this.cachedPhotos = photoTypes.map((currType) => ({
+        id: uuid(),
         url: '(set at render time)',
         file: {
           data: photoBytes,
