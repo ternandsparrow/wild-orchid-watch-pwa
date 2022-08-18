@@ -514,7 +514,8 @@ const actions = {
 }
 
 const gettersObj = {
-  // FIXME try to remove these as they're expensive to compute
+  // FIXME try to remove these as they're expensive to compute. They could
+  //  probably be moved into the mutators that set the underlying value
   selectedObsSummary(state, getters) {
     const allObs = [...getters.remoteRecords, ...getters.localRecords]
     const found = allObs.find((e) => e.uuid === state.selectedObservationUuid)

@@ -69,6 +69,7 @@
                 Sync {{ isUpdatingRemoteObs ? 'in progress' : 'all done' }}
               </span>
             </div>
+            <div class="flex-br"></div>
             <div v-if="deletesWithErrorCount" class="delete-error-container">
               <div>
                 <span class="red">Error</span> while deleting
@@ -233,12 +234,14 @@ export default {
     if (this.isRemoteObsStale) {
       this.doRefresh()
     }
-    this.deletesWithErrorCount = this.$store.dispatch(
-      'obs/getDbIdsWithErroredDeletes',
-    ).length
-    this.waitingForDeleteCount = this.$store.dispatch(
-      'obs/getWaitingForDeleteCount',
-    )
+    this.$store
+      .dispatch('obs/getDbIdsWithErroredDeletes')
+      .then((result) => (this.deletesWithErrorCount = result.length))
+      .catch(wowErrorHandler)
+    this.$store
+      .dispatch('obs/getWaitingForDeleteCount')
+      .then((result) => (this.waitingForDeleteCount = result))
+      .catch(wowErrorHandler)
   },
   methods: {
     onNewSingleSpecies() {
@@ -323,12 +326,18 @@ export default {
   color: red;
 }
 
+.flex-br {
+  flex-basis: 100%;
+  height: 0;
+}
+
 .delete-error-container {
   border: 1px solid red;
   border-radius: 10px;
   padding: 1em;
   margin-top: 1em;
   background-color: #ffe9ed;
+  flex-grow: 1;
 
   .delete-fail-button-container {
     display: flex;
