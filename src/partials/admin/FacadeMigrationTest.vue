@@ -94,11 +94,21 @@ export default {
         this.log('Clearing migration flag')
         const metaStore = getOrCreateInstance(cc.lfWowMetaStoreName)
         await metaStore.removeItem(cc.facadeMigrationKey)
+        this.log('Creating wow-sw DB, which migration should delete')
+        await this.createWowSwDb()
         this.log('done :D')
       } catch (err) {
         console.error('Failed to run', err)
         this.log(`Failed. ${err.message}`)
       }
+    },
+    createWowSwDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('wow-sw')
+        request.onerror = reject
+        request.onsuccess = resolve
+        setTimeout(() => reject(new Error('Took too long, timeout!')), 10000)
+      })
     },
     async createNewTypeRecord(i) {
       const newPhotos = await this.getPhotos()
