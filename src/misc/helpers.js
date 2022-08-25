@@ -127,23 +127,6 @@ export function getJsonWithAuth(
   })
 }
 
-export async function isNoSwActive() {
-  const result = !(await isSwActive())
-  return result
-}
-
-export async function isSwActive() {
-  try {
-    const resp = await fetch(cc.serviceWorkerIsAliveMagicUrl, {
-      method: 'GET',
-      retries: 0,
-    })
-    return resp.ok // if we get a response, it should be ok
-  } catch (err) {
-    return false
-  }
-}
-
 export function deleteWithAuth(url, authHeaderValue, extraHeadersParam) {
   const alsoOkHttpStatuses = [404]
   return doManagedFetch(

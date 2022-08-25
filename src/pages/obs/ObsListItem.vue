@@ -13,10 +13,6 @@
         class="list-item__subtitle error-indicator"
         >Error uploading record</span
       >
-      <span v-show="isPossiblyStuck" class="list-item__subtitle warn-indicator">
-        <v-ons-icon icon="fa-exclamation-triangle"></v-ons-icon>
-        Possible problem</span
-      >
       <div class="obs-badges">
         <span v-if="isBeingProcessedOnServer">
           <img src="@/assets/img/cloud-wait.svg" class="wow-icon" />
@@ -74,9 +70,6 @@ export default {
       ]
       return val === cc.draftOutcome
     },
-    isPossiblyStuck() {
-      return this.record.wowMeta?.isPossiblyStuck
-    },
   },
   methods: {
     speciesGuess(record) {
@@ -103,9 +96,5 @@ export default {
 @import '@/theme/variables.scss';
 .error-indicator {
   color: red;
-}
-
-.warn-indicator {
-  color: $wowWarnOrange;
 }
 </style>

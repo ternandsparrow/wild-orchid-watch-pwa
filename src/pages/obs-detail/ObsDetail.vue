@@ -16,23 +16,6 @@
         >
       </p>
     </v-ons-card>
-    <v-ons-card v-show="isPossiblyStuck" class="warn-card">
-      <div class="title">Possible problem</div>
-      <p>
-        It looks like this observation might be stuck while trying to upload to
-        the server. This can happen when this app is closed/crashes midway
-        through uploading.
-      </p>
-      <p>
-        You can choose to do nothing and see if it eventually solves itself.
-        This option will remain available as long as we think it's stuck.
-      </p>
-      <p>
-        <v-ons-button name="retry-stuck-upload-btn" @click="retryFromStuck"
-          >Retry upload</v-ons-button
-        >
-      </p>
-    </v-ons-card>
     <v-ons-card v-show="isDraft" class="warn-card">
       <div class="title">Draft observation</div>
       <p>
@@ -480,9 +463,6 @@ export default {
     obsOnInatUrl() {
       return `${constants.inatUrlBase}/observations/${this.nullSafeObs.inatId}`
     },
-    isPossiblyStuck() {
-      return this.selectedObsSummary?.wowMeta?.isPossiblyStuck
-    },
   },
   watch: {
     // FIXME replace with event listener and tear down when component is destroyed
@@ -558,12 +538,6 @@ export default {
     retryFromSystemError() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from system error`)
       this.debouncedRetry('Failed to reset processing outcome after error')
-    },
-    retryFromStuck() {
-      this.$wow.uiTrace('ObsDetail', `reset an obs from stuck`)
-      this.debouncedRetry(
-        'Failed to reset processing outcome from a possibly stuck record',
-      )
     },
     _retryUpload(errMsg) {
       this.$store

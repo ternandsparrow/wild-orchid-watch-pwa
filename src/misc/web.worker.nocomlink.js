@@ -13,7 +13,6 @@ import {
   findCommonString,
   getExifFromBlob,
   getJsonWithAuth,
-  isNoSwActive,
   namedError,
   postFormDataWithAuth,
   processObsFieldName,
@@ -156,16 +155,6 @@ export async function getFullRemoteObsDetail(
   return found
 }
 
-function computeIsPossiblyStuck(record, pendingTasks, uuidsInSwQueue) {
-  const rpo = record.wowMeta[cc.recordProcessingOutcomeFieldName]
-  const isPendingTask = !!pendingTasks.find((t) => t.uuid === record.uuid)
-  const shouldHaveTask = [cc.beingProcessedOutcome, cc.successOutcome].includes(
-    rpo,
-  )
-  const isNotInSwQueue = !uuidsInSwQueue.find((e) => e === record.uuid)
-  return shouldHaveTask && !isPendingTask && isNotInSwQueue
-}
-
 export async function getFullLocalObsDetail(
   theUuid,
   detailedModeOnlyObsFieldIds,
@@ -176,13 +165,6 @@ export async function getFullLocalObsDetail(
   const result = await getRecord(theUuid)
   result.geolocationAccuracy = result.positional_accuracy
   delete result.positional_accuracy
-  const pendingTasks = await getAllPendingTasks()
-  const uuidsInSwQueue = await getUuidsInSwQueue()
-  result.wowMeta.isPossiblyStuck = computeIsPossiblyStuck(
-    result,
-    pendingTasks,
-    uuidsInSwQueue,
-  )
   mapObsFieldValuesToUi(result, detailedModeOnlyObsFieldIds)
   return result
 }
@@ -457,16 +439,10 @@ export async function getLocalQueueSummary() {
   thumbnailObjectUrlsNoLongerInUse = thumbnailObjectUrlsInUse
   thumbnailObjectUrlsInUse = []
   const pendingTasks = await getAllPendingTasks()
-  const uuidsInSwQueue = await getUuidsInSwQueue()
   const result = await mapOverObsStore((r) => {
     const rpo = r.wowMeta[cc.recordProcessingOutcomeFieldName]
     const isEventuallyDeleted = pendingTasks.find(
       (t) => t.type === recordType('delete') && t.uuid === r.uuid,
-    )
-    const isPossiblyStuck = computeIsPossiblyStuck(
-      r,
-      pendingTasks,
-      uuidsInSwQueue,
     )
     const currSummary = {
       geolocationAccuracy: r.positional_accuracy,
@@ -485,7 +461,6 @@ export async function getLocalQueueSummary() {
           r.wowMeta[cc.outcomeLastUpdatedAtFieldName],
         // wowUpdatedAt isn't used but is useful for debugging
         wowUpdatedAt: r.wowMeta[cc.wowUpdatedAtFieldName],
-        isPossiblyStuck,
         isDraft: rpo === cc.draftOutcome,
         // photosToAdd summary isn't used but is useful for debugging
         [cc.photosToAddFieldName]: (
@@ -707,9 +682,6 @@ export async function retryUpload(ids, apiToken, projectId) {
       throw new Error(`Unhandled record type: ${rType}`)
     }
     await strat(currId)
-    // this is fairly implicit. We could recompute things about the obs like
-    // isPossiblyStuck and send the values, but I'm trying to avoid the expense
-    // of computing that.
     _postMessageToUiThread(cc.workerMessages.onRetryComplete, currId)
   }
 }
@@ -800,7 +772,7 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
       )
     },
     apiToken,
-    { [cc.xWowUuidHeader]: recordUuid }, // only used in SW, not used by the server
+    { [cc.xWowUuidHeader]: recordUuid }, // purely for debugging
   )
   console.debug('Obs update form is sent successfully')
   await addPendingTask({
@@ -953,6 +925,7 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
     ...(localRecord || {}),
     inatId: (remoteRecord || {}).inatId,
     uuid: theUuid,
+    photos: [],
     wowMeta: {
       ...(localRecord?.wowMeta || {}),
       [cc.wowUpdatedAtFieldName]: new Date().toString(),
@@ -963,12 +936,15 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
   }
   const inatRecordId = dbRecord.inatId || 0
   try {
+    dbRecord.wowMeta[cc.photoIdsToDeleteFieldName] = dbRecord.wowMeta[
+      cc.photosToAddFieldName
+    ].map((p) => p.id)
     await storeRecord(dbRecord)
     await transitionRecord(theUuid, cc.beingProcessedOutcome, true)
     const resp = await doDeleteReqFn(
       `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
       apiToken,
-      { [cc.xWowUuidHeader]: theUuid }, // only used in SW, not used by the server
+      { [cc.xWowUuidHeader]: theUuid }, // purely for debugging
     )
     await transitionRecord(theUuid, cc.successOutcome, true)
     console.debug(`DELETE ${theUuid} sent to API facade successfully`)
@@ -1084,14 +1060,6 @@ async function _getPendingTasks() {
   return raw || {}
 }
 
-async function getUuidsInSwQueue() {
-  if (await isNoSwActive()) {
-    return []
-  }
-  const resp = await fetch(cc.serviceWorkerGetQueueUuids)
-  return (await resp.json()).queuedUuids
-}
-
 async function _setPendingTasks(tasks) {
   if (Object.keys(tasks).length === 0) {
     clearTimeout(taskChecksTracker)
@@ -1171,10 +1139,39 @@ async function runChecksForTasks() {
   const remainingTasks = await getAllPendingTasks()
   if (!remainingTasks.length) {
     console.debug('[Poll] no tasks left, not scheduling another check')
+    await checkStoreIsEmpty()
     return
   }
-  console.debug('[Poll] tasks remain, scheduling another check')
+  const secs = cc.frequencyOfTaskChecksSeconds
+  console.debug(`[Poll] tasks remain, scheduling another check in ${secs}s`)
   scheduleTaskChecks(cc.frequencyOfTaskChecksSeconds * 1000)
+}
+
+async function checkStoreIsEmpty() {
+  try {
+    const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
+    const obsStoreKeys = await obsStore.keys()
+    const photoStore = getOrCreateInstance(cc.lfWowPhotoStoreName)
+    const photoStoreKeys = await photoStore.keys()
+    let msg = ''
+    if (obsStoreKeys.length) {
+      msg += `obsStore has ${obsStoreKeys.length} keys: ${obsStoreKeys.join(
+        ',',
+      )}; `
+    }
+    if (photoStoreKeys.length) {
+      msg += `photoStore has ${
+        photoStoreKeys.length
+      } keys: ${photoStoreKeys.join(',')}`
+    }
+    if (msg) {
+      wowWarnMessage(`All tasks finished, but store still has records; ${msg}`)
+    }
+  } catch (err) {
+    const msg = 'failed to check store'
+    console.error(msg, err)
+    return `${msg}: ${err.message}`
+  }
 }
 
 export async function optimisticallyUpdateComments(obsId, commentRecord) {
@@ -1578,6 +1575,5 @@ export const _testonly = {
   getRecordImpl,
   getPhotoRecordImpl,
   interceptableFns,
-  computeIsPossiblyStuck,
   storeRecordImpl,
 }

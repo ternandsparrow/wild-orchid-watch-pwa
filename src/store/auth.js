@@ -8,7 +8,6 @@ import {
   ChainedError,
   deleteWithAuth,
   getJsonWithAuth,
-  isNoSwActive,
   now,
   postJsonWithAuth,
   putJsonWithAuth,
@@ -326,7 +325,7 @@ export default {
         )
       }
     },
-    setUsernameOnSentry({ getters, dispatch }) {
+    setUsernameOnSentry({ getters }) {
       const username = getters.myUsername
       if (!username) {
         console.debug('No username present, cannot set on Sentry')
@@ -335,19 +334,6 @@ export default {
       console.debug(`Setting username=${username} on Sentry`)
       Sentry.configureScope((scope) => {
         scope.setUser({ username })
-      })
-      dispatch('sendSwUpdatedErrorTrackerContext', { username })
-    },
-    async sendSwUpdatedErrorTrackerContext(_, { username }) {
-      if (await isNoSwActive()) {
-        return
-      }
-      return fetch(constants.serviceWorkerUpdateErrorTrackerContextUrl, {
-        method: 'POST',
-        retries: 0,
-        body: JSON.stringify({
-          username,
-        }),
       })
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {

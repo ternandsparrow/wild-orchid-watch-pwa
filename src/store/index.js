@@ -139,8 +139,6 @@ subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
     recordUuid: args.recordUuid,
     thePatch: {
       [recordProcessingOutcomeFieldName]: args.targetOutcome,
-      // Ideally we'd recompute, but let's try the lazy way
-      isPossiblyStuck: false,
     },
   })
 })
@@ -149,8 +147,7 @@ subscribeToWorkerMessage(workerMessages.onRetryComplete, (recordUuid) => {
   return store.commit('obs/handleLocalQueueSummaryPatch', {
     recordUuid,
     thePatch: {
-      // Ideally we'd recompute, but let's try the lazy way
-      isPossiblyStuck: false,
+      wowRetryAt: new Date().toISOString(),
     },
   })
 })

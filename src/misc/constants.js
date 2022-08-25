@@ -116,12 +116,6 @@ export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
   process.env.VUE_APP_SW_QUEUE_MAX_RETENTION || 365 * 24 * 60, // one year
 )
 
-// how many minutes need to have elapsed before we can consider an obs as stuck
-// with the service worker. Set to 0 to disable check completely.
-export const thresholdForStuckWithSwMinutes = convertAndAssertInteger(
-  process.env.VUE_APP_STUCK_WITH_SW_MINUTES || 20,
-)
-
 // useful for enabling devtools in "production mode" while debugging with a
 // service worker
 export const isForceVueDevtools = !!parseInt(
@@ -453,16 +447,6 @@ export const waitingOutcome = 'waiting' // waiting to be processed
 export const beingProcessedOutcome = 'withLocalProcessor' // we're actively processing it
 export const successOutcome = 'success' // successfully processed
 export const systemErrorOutcome = 'systemError' // processed but encountered an error
-
-// FIXME this URL fails CORS in Firefox, can we use something else? If we still
-// need it. registerRoute can use a matchCallback so we could hook on a custom
-// header. Or make the SW respond to CORS. Need to make sure the requests don't
-// go somewhere else if there's no SW
-const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
-export const serviceWorkerIsAliveMagicUrl = `${serviceWorkerMagicUrlPrefix}/are-you-alive`
-export const serviceWorkerUpdateErrorTrackerContextUrl = `${serviceWorkerMagicUrlPrefix}/update-error-tracker-context`
-export const serviceWorkerPlatformTestUrl = `${serviceWorkerMagicUrlPrefix}/platorm-test`
-export const serviceWorkerGetQueueUuids = `${serviceWorkerMagicUrlPrefix}/get-queue-uuids`
 
 export const isRemotePhotoFieldName = 'isRemote'
 

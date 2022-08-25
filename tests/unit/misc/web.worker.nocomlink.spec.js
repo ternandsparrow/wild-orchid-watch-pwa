@@ -638,7 +638,6 @@ describe('things that need a datastore', () => {
             [cc.recordProcessingOutcomeFieldName]: 'waiting',
             [cc.recordTypeFieldName]: 'update',
             isDraft: false,
-            isPossiblyStuck: false,
             outcomeLastUpdatedAt: undefined,
             [cc.versionFieldName]: undefined,
             wowUpdatedAt: undefined,
@@ -680,7 +679,6 @@ describe('things that need a datastore', () => {
             [cc.recordProcessingOutcomeFieldName]: 'success',
             [cc.recordTypeFieldName]: 'delete',
             isDraft: false,
-            isPossiblyStuck: false,
             outcomeLastUpdatedAt: expect.any(String),
             [cc.versionFieldName]: cc.currentRecordVersion,
             wowUpdatedAt: expect.any(String),
@@ -832,21 +830,6 @@ describe('mapObsFromApiIntoOurDomain', () => {
       },
     ])
     expect(result).toHaveProperty('notes', 'some notes')
-  })
-})
-
-describe('computeIsPossiblyStuck', () => {
-  it('should consider a newly saved record as not stuck', () => {
-    const record = {
-      uuid: '123A',
-      wowMeta: {
-        [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome
-      }
-    }
-    const pendingTasks = [{uuid: '123A'}]
-    const uuidsInSwQueue = []
-    const result = _testonly.computeIsPossiblyStuck(record, pendingTasks, uuidsInSwQueue)
-    expect(result).toEqual(false)
   })
 })
 

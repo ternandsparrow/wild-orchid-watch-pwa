@@ -166,30 +166,6 @@
       </div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">Service Worker statuses</div>
-      <p class="mono">
-        <span v-if="isSwStatusActive" class="success-msg"
-          >All ready to go!</span
-        >
-        <span v-if="!isSwStatusActive" class="error-msg"
-          >SW is either not ready or not supported :(</span
-        >
-      </p>
-      <p class="mono">
-        <strong>Active = {{ swStatus.active }}</strong
-        ><br />
-        <strong>Installing = {{ swStatus.installing }}</strong
-        ><br />
-        <strong>Waiting = {{ swStatus.waiting }}</strong>
-      </p>
-      <p>
-        <button name="check-sw-btn" @click="fireCheckSwCall">
-          Fire check to SW
-        </button>
-      </p>
-      <p class="mono">Result: {{ swCheckResult }}</p>
-    </v-ons-card>
-    <v-ons-card>
       <div class="title">Force refresh</div>
       <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
       <p>
@@ -280,7 +256,6 @@ import * as cc from '@/misc/constants'
 import {
   clearLocalStorage,
   humanDateString,
-  isSwActive,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 import * as devHelpers from '@/misc/dev-helpers'
@@ -297,7 +272,6 @@ export default {
       lng: null,
       alt: null,
       locErrorMsg: null,
-      meResp: '(nothing yet)',
       vuexDump: '(nothing yet)',
       isIncludeLocalObs: false,
       isIncludeRemoteObs: false,
@@ -317,13 +291,11 @@ export default {
       cloneStatus: 'not started',
       remoteJsUuid: null,
       platformTestResult: '(not run yet)',
-      swCheckResult: '(not run yet)',
       remoteJsAttachStatus: '(no connection attempted, yet)',
     }
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapGetters('ephemeral', ['swStatus', 'isSwStatusActive']),
     ...mapState('ephemeral', ['consoleMsgs']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
@@ -435,19 +407,6 @@ export default {
         },
         { root: true },
       )
-    },
-    fireCheckSwCall() {
-      console.debug('Firing check to SW')
-      this.swCheckResult = 'checking...'
-      isSwActive()
-        .then((result) => {
-          console.log(`Is SW alive? ${result}`)
-          this.swCheckResult = `is SW alive = ${result}`
-        })
-        .catch((err) => {
-          console.error('Failed to send check to SW', err)
-          this.swCheckResult = `Error ${err.message}`
-        })
     },
     _sendMessageToSw(msg) {
       return new Promise(function (resolve, reject) {
@@ -574,7 +533,7 @@ export default {
     },
     async doPlatformTest() {
       try {
-        const mainThreadResults = [
+        this.platformTestResult = [
           {
             name: 'platformTestReqFileMainThread',
             result: await devHelpers.platformTestReqFile(),
@@ -584,16 +543,6 @@ export default {
             result: await devHelpers.platformTestReqBlob(),
           },
         ]
-        try {
-          const resp = await fetch(cc.serviceWorkerPlatformTestUrl, {
-            method: 'POST',
-          })
-          const swResults = await resp.json()
-          this.platformTestResult = [...mainThreadResults, ...swResults]
-        } catch (err) {
-          console.warn('No SW or failed to call', err)
-          this.platformTestResult = [...mainThreadResults, 'no SW available']
-        }
       } catch (err) {
         console.error('Failed to perform platform test', err)
         this.platformTestResult = `Failed. ${err.message}`

@@ -4,11 +4,7 @@ import { BackgroundSyncPlugin } from 'workbox-background-sync'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
 import { registerRoute } from 'workbox-routing/registerRoute'
 import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
-import sentryInit from '@/misc/sentry-init'
-import * as devHelpers from '@/misc/dev-helpers'
 import * as cc from '@/misc/constants'
-
-const Sentry = sentryInit('SW')
 
 /**
  * Some situations mean we can't see console messages from the SW (sometimes we
@@ -44,25 +40,18 @@ function enableSwConsoleProxy() {
 
 const queueName = 'wow-queue-v2'
 
-// FIXME have to clear and remove 'wow-queue' queue from old code; and reset
-// all in-flight requests
-
-// FIXME do we want a separate reference to the queue so we can kick/clear it?
-// Can we trigger the sync event with the expected tag, probably
-// `workbox-background-sync:<queueName>, that is expected? Maybe we can still
-// access bgSyncPlugin._queue because we don't care about TypeScript.
 const bgSyncPlugin = new BackgroundSyncPlugin(queueName, {
   maxRetentionTime: cc.swQueueMaxRetentionMinutes,
 })
 
+// FIXME need to handle error and send a "it's been queued" response. Or
+// modify the caller code to suppress the error message if the uuid is
+// still queued in the SW. That latter approach could be good because if
+// the queue eventually gives up and refuses to retry, the UI will suddenly
+// show the error.
 for (const currMethod of ['POST', 'PUT']) {
   registerRoute(
     new RegExp(`${cc.facadeSendObsUrlPrefix}/.*`),
-    // FIXME need to handle error and send a "it's been queued" response. Or
-    // modify the caller code to suppress the error message if the uuid is
-    // still queued in the SW. That latter approach could be good because if
-    // the queue eventually gives up and refuses to retry, the UI will suddenly
-    // show the error.
     new NetworkOnly({
       plugins: [bgSyncPlugin],
     }),
@@ -70,85 +59,13 @@ for (const currMethod of ['POST', 'PUT']) {
   )
 }
 
+// FIXME need offline handler for this too (continued from above)
 registerRoute(
   new RegExp(`${cc.apiUrlBase}/observations/.*`),
   new NetworkOnly({
     plugins: [bgSyncPlugin],
   }),
   'DELETE',
-)
-
-registerRoute(
-  cc.serviceWorkerIsAliveMagicUrl,
-  async () => {
-    console.debug('[SW] Still alive over here!')
-    return jsonResponse({
-      result: new Date().toISOString(),
-    })
-  },
-  'GET',
-)
-
-// "the web" is not *a* platform. A platform offers a controlled runtime
-// environment. It's a collection of platforms. This tests some of the corner
-// cases that make targeting multiple platforms a challenge. Purely for dev
-// use.
-registerRoute(
-  cc.serviceWorkerPlatformTestUrl,
-  async () => {
-    console.debug('[SW] Performing platform test')
-    const tests = [
-      devHelpers.platformTestReqFile(),
-      devHelpers.platformTestReqBlob(),
-    ]
-    const testResults = await Promise.all(
-      tests.map(async (f) => ({ name: f.name, result: await f() })),
-    )
-    return new Response(JSON.stringify(testResults, null, 2), {
-      status: 200,
-    })
-  },
-  'POST',
-)
-
-registerRoute(
-  cc.serviceWorkerUpdateErrorTrackerContextUrl,
-  async ({ event }) => {
-    const newContext = await event.request.json()
-    const { username } = newContext
-    if (username) {
-      console.debug(`[SW] Updating error tracker username to '${username}'`)
-      Sentry.configureScope((scope) => {
-        scope.setUser({ username })
-      })
-    }
-    return jsonResponse({
-      result: 'thanks',
-      suppliedContext: newContext,
-    })
-  },
-  'POST',
-)
-
-registerRoute(
-  cc.serviceWorkerGetQueueUuids,
-  async () => {
-    // we're using internal details of Workbox here, so updates to newer
-    // versions might break this code
-    const db = bgSyncPlugin._queue._queueStore._queueDb
-    const queueEntries = await db.getAllEntriesByQueueName(queueName)
-    // FIXME de-dupe with a Set
-    const result = queueEntries.map(
-      (e) => e.requestData.headers[cc.xWowUuidHeader],
-    )
-    if (result.find((e) => !e)) {
-      console.warn('At least one queue entry is missing our custom header')
-    }
-    return jsonResponse({
-      queuedUuids: result,
-    })
-  },
-  'GET',
 )
 
 // We don't want the SW to interfere here but if we have a mapping, calls to
@@ -227,7 +144,6 @@ async function sendMessageToAllClients(msg) {
     } catch (err) {
       const noProxyConsoleError = origConsole.error || console.error
       noProxyConsoleError(`Failed to send message=${msg} to client`, err)
-      Sentry.captureException(err)
     }
   }
 }
