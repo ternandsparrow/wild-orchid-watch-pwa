@@ -162,8 +162,8 @@ function computeIsPossiblyStuck(record, pendingTasks, uuidsInSwQueue) {
   const shouldHaveTask = [cc.beingProcessedOutcome, cc.successOutcome].includes(
     rpo,
   )
-  const isProcessedBySw = !uuidsInSwQueue.find((e) => e === record.uuid)
-  return shouldHaveTask && !isPendingTask && isProcessedBySw
+  const isNotInSwQueue = !uuidsInSwQueue.find((e) => e === record.uuid)
+  return shouldHaveTask && !isPendingTask && isNotInSwQueue
 }
 
 export async function getFullLocalObsDetail(
@@ -1578,5 +1578,6 @@ export const _testonly = {
   getRecordImpl,
   getPhotoRecordImpl,
   interceptableFns,
+  computeIsPossiblyStuck,
   storeRecordImpl,
 }

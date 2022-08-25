@@ -5,11 +5,11 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build && rollup -c --failAfterWarnings && workbox injectManifest",
+    "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 VUE_APP_FORCE_VUE_DEVTOOLS=1 yarn build && static --spa -i index.html dist/",
+    "build:serve:watch": "nodemon --ext vue,js,mjs,json --delay 2 --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "build:resource-constrained": "IS_ENABLE_ESLINT=false IS_ENABLE_BUNDLE_ANALYZER=false IS_ENABLE_SOURCEMAPS=false yarn build",
     "test:unit": "vue-cli-service test:unit",
     "analyse-bundle": "yarn build && webpack-bundle-analyzer dist/stats.json",
-    "build:serve": "BROWSERSLIST_ENV=debug DISABLE_MINIFY=1 VUE_APP_FORCE_VUE_DEVTOOLS=1 yarn build && static --spa -i index.html dist/",
-    "build:serve:watch": "nodemon --ext vue,js,mjs,json --delay 2 --watch src --watch sw-src --watch package.json --exec bash -c 'yarn build:serve'",
     "firebase:deploy:ci": "doit() { firebase --non-interactive --token ${FIREBASE_TOKEN:?} deploy --only hosting:${1:?}; }; doit",
     "lint": "vue-cli-service lint src/ tests/ sw-src/",
     "lint:specified": "vue-cli-service lint",

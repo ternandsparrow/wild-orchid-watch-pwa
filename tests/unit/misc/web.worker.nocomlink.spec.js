@@ -835,6 +835,21 @@ describe('mapObsFromApiIntoOurDomain', () => {
   })
 })
 
+describe('computeIsPossiblyStuck', () => {
+  it('should consider a newly saved record as not stuck', () => {
+    const record = {
+      uuid: '123A',
+      wowMeta: {
+        [cc.recordProcessingOutcomeFieldName]: cc.beingProcessedOutcome
+      }
+    }
+    const pendingTasks = [{uuid: '123A'}]
+    const uuidsInSwQueue = []
+    const result = _testonly.computeIsPossiblyStuck(record, pendingTasks, uuidsInSwQueue)
+    expect(result).toEqual(false)
+  })
+})
+
 function stubRunStrategy() {
   // do nothing
 }
