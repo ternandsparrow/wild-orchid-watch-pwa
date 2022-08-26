@@ -1,81 +1,105 @@
 /* eslint-disable no-restricted-globals */
 import 'formdata-polyfill'
-import { BackgroundSyncPlugin } from 'workbox-background-sync'
+import { Queue } from 'workbox-background-sync'
 import { precacheAndRoute as workboxPrecacheAndRoute } from 'workbox-precaching/precacheAndRoute'
 import { registerRoute } from 'workbox-routing/registerRoute'
-import { NetworkOnly } from 'workbox-strategies/NetworkOnly'
 import * as cc from '@/misc/constants'
+import { recordTypeEnum as recordType } from '@/misc/only-common-deps-helpers'
 
-/**
- * Some situations mean we can't see console messages from the SW (sometimes we
- * can't see anything from the SW). This will send all console messages to all
- * clients (there's probably only one) where we *can* see the messages.
- */
-const origConsole = {}
-function enableSwConsoleProxy() {
-  for (const curr of ['debug', 'info', 'warn', 'error']) {
-    doProxy(curr)
-  }
-  origConsole.debug(
-    'SW console has been proxied. You should see this in the *SW*',
-  )
-  console.debug(
-    'SW console has been proxied. You should see this in the *client*',
-  )
-  function doProxy(fnNameToProxy) {
-    origConsole[fnNameToProxy] = console[fnNameToProxy]
-    console[fnNameToProxy] = function (msg) {
-      sendMessageToAllClients(msg)
-        .then(() =>
-          origConsole.debug(
-            `proxied console message='${msg.substring(0, 30)}...' to clients`,
-          ),
-        )
-        .catch((err) => {
-          origConsole.error('Failed to proxy console to clients', err)
-        })
-    }
-  }
-}
-
+// kick the queue with workbox-background-sync:<queueName>
 const queueName = 'wow-queue-v2'
-
-const bgSyncPlugin = new BackgroundSyncPlugin(queueName, {
+const queue = new Queue(queueName, {
   maxRetentionTime: cc.swQueueMaxRetentionMinutes,
+  onSync: async () => {
+    let entry
+    // eslint-disable-next-line no-cond-assign
+    while ((entry = await queue.shiftRequest())) {
+      const uuid = entry.request.headers.get(cc.xWowUuidHeader)
+      const inatId = entry.request.headers.get(cc.xWowInatIdHeader)
+      try {
+        const theType = computeTaskType(entry)
+        console.debug(`SW queue sending req for ${uuid}/${inatId}`)
+        const resp = await fetch(entry.request.clone())
+        if (resp.status !== 200) {
+          // FIXME notify UI of failure 4xx/5xx outcome. Send message to mark
+          // obs as error status?
+        }
+        const bodyJson = await resp.json()
+        sendMessageToAllClients({
+          msgId: cc.queueItemProcessed,
+          taskDetails: {
+            uuid,
+            inatId,
+            statusUrl: bodyJson.statusUrl,
+            type: theType,
+          },
+        })
+      } catch (error) {
+        console.debug(`SW queue failed to send req for ${uuid}/${inatId}`)
+        await queue.unshiftRequest(entry)
+        throw new Error('queue-replay-failed')
+      }
+    }
+  },
 })
 
-// FIXME need to handle error and send a "it's been queued" response. Or
-// modify the caller code to suppress the error message if the uuid is
-// still queued in the SW. That latter approach could be good because if
-// the queue eventually gives up and refuses to retry, the UI will suddenly
-// show the error.
+function askQueueToProcessSoon() {
+  console.debug('SW queue asked to process soon')
+  // there seems to be some rate limiting in effect, because it doesn't always
+  // fire right away.
+  return queue.registerSync()
+}
+
+function computeTaskType(entry) {
+  const { method } = entry.request
+  if (method === 'POST') {
+    return recordType('update')
+  }
+  if (method === 'DELETE') {
+    return recordType('delete')
+  }
+  throw new Error(`Unhandled method ${method}`)
+}
+
 for (const currMethod of ['POST', 'PUT']) {
   registerRoute(
     new RegExp(`${cc.facadeSendObsUrlPrefix}/.*`),
-    new NetworkOnly({
-      plugins: [bgSyncPlugin],
-    }),
+    wowBackgroundSyncHandler,
     currMethod,
   )
 }
 
-// FIXME need offline handler for this too (continued from above)
 registerRoute(
   new RegExp(`${cc.apiUrlBase}/observations/.*`),
-  new NetworkOnly({
-    plugins: [bgSyncPlugin],
-  }),
+  wowBackgroundSyncHandler,
   'DELETE',
 )
 
-// We don't want the SW to interfere here but if we have a mapping, calls to
-// this endpoint will "wake up" the SW. This will prompt queue processing if
-// required so things will get processed sooner.
-registerRoute(
-  new RegExp(`${cc.apiUrlBase}/observations.*cache-bust.*`),
-  new NetworkOnly(),
-  'GET',
-)
+// the out-of-the-box Workbox background sync handler *will* queue the req when
+// we're offline, but it'll return an error to the UI. This is confusing to the
+// UI, so we roll our own plugin that sends a nice resp.
+async function wowBackgroundSyncHandler({ event }) {
+  const uuid = event.request.headers.get(cc.xWowUuidHeader)
+  try {
+    console.debug(`SW attempting req for ${uuid}`)
+    const response = await fetch(event.request.clone())
+    // this request worked, so fire the others off!
+    askQueueToProcessSoon() // don't await it
+    return response
+  } catch (err) {
+    console.warn(`SW attempted req for ${uuid} failed, queuing for later`)
+    // FIXME if multiple requests for a single UUID are queued, things could
+    // get weird. The first req might trigger cleanup of the local record and
+    // subsequent queued reqs won't have a local record to operate against when
+    // they complete.
+    await queue.pushRequest({ request: event.request })
+    return jsonResponse({
+      status: 'resp queued in SW for later background sync',
+      isQueuedInSw: true,
+      errMsg: err.message,
+    })
+  }
+}
 
 let shouldClaimClients = false
 
@@ -99,9 +123,6 @@ self.addEventListener('activate', function () {
   }
 })
 
-// FIXME might be able to replace this (and corresponding client side) with
-// built-in workbox magic
-// https://developer.chrome.com/docs/workbox/modules/workbox-window/#window-to-service-worker-communication
 self.addEventListener('message', function (event) {
   const strategies = {
     [cc.skipWaitingMsg]: () => {
@@ -109,6 +130,7 @@ self.addEventListener('message', function (event) {
       return self.skipWaiting()
     },
     [cc.proxySwConsoleMsg]: enableSwConsoleProxy,
+    [cc.swForceProcessingMsg]: askQueueToProcessSoon,
   }
   const strat = strategies[event.data]
   if (strat) {
@@ -155,6 +177,38 @@ function jsonResponse(bodyObj, status = 200) {
       'Content-type': 'application/json',
     },
   })
+}
+
+/**
+ * Some situations mean we can't see console messages from the SW (sometimes we
+ * can't see anything from the SW). This will send all console messages to all
+ * clients (there's probably only one) where we *can* see the messages.
+ */
+const origConsole = {}
+function enableSwConsoleProxy() {
+  for (const curr of ['debug', 'info', 'warn', 'error']) {
+    doProxy(curr)
+  }
+  origConsole.debug(
+    'SW console has been proxied. You should see this in the *SW*',
+  )
+  console.debug(
+    'SW console has been proxied. You should see this in the *client*',
+  )
+  function doProxy(fnNameToProxy) {
+    origConsole[fnNameToProxy] = console[fnNameToProxy]
+    console[fnNameToProxy] = function (msg) {
+      sendMessageToAllClients(msg)
+        .then(() =>
+          origConsole.debug(
+            `proxied console message='${msg.substring(0, 30)}...' to clients`,
+          ),
+        )
+        .catch((err) => {
+          origConsole.error('Failed to proxy console to clients', err)
+        })
+    }
+  }
 }
 
 // build process will inject manifest into the following statement.

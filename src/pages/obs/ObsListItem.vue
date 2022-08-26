@@ -16,7 +16,7 @@
       <div class="obs-badges">
         <span v-if="isBeingProcessedOnServer">
           <img src="@/assets/img/cloud-wait.svg" class="wow-icon" />
-          Being processed by server...
+          Waiting on upload/processing...
         </span>
         <span v-if="isDraft" class="wow-badge">
           <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>

@@ -52,6 +52,7 @@ export async function doFacadeMigration(apiToken, projectId) {
     return migratedIds
   }
   await deleteIndexedDbDatabase('wow-sw')
+  // FIXME do we have to empty the workbox-background-sync DB of entries from the old queue?
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
   const obsIds = await obsStore.keys()
   for (const currId of obsIds) {
@@ -772,11 +773,15 @@ async function _sendUpdateToFacade(recordUuid, apiToken, projectId) {
       )
     },
     apiToken,
-    { [cc.xWowUuidHeader]: recordUuid }, // purely for debugging
+    { [cc.xWowUuidHeader]: recordUuid, [cc.xWowInatIdHeader]: dbRecord.inatId },
   )
   console.debug('Obs update form is sent successfully')
+  if (resp.isQueuedInSw) {
+    console.debug(`Update req for ${recordUuid} is queued in SW`)
+    return
+  }
   await addPendingTask({
-    uuid: dbRecord.uuid,
+    uuid: recordUuid,
     inatId: dbRecord.inatId,
     statusUrl: resp.statusUrl,
     type: recordType('update'),
@@ -936,19 +941,23 @@ async function _deleteRecord(theUuid, apiToken, doDeleteReqFn) {
   }
   const inatRecordId = dbRecord.inatId || 0
   try {
-    dbRecord.wowMeta[cc.photoIdsToDeleteFieldName] = dbRecord.wowMeta[
-      cc.photosToAddFieldName
-    ].map((p) => p.id)
+    dbRecord.wowMeta[cc.photoIdsToDeleteFieldName] = (
+      dbRecord.wowMeta[cc.photosToAddFieldName] || []
+    ).map((p) => p.id)
     await storeRecord(dbRecord)
     await transitionRecord(theUuid, cc.beingProcessedOutcome, true)
     const resp = await doDeleteReqFn(
       `${cc.facadeUrlBase}/observations/${inatRecordId}/${theUuid}`,
       apiToken,
-      { [cc.xWowUuidHeader]: theUuid }, // purely for debugging
+      { [cc.xWowUuidHeader]: theUuid, [cc.xWowInatIdHeader]: dbRecord.inatId },
     )
     await transitionRecord(theUuid, cc.successOutcome, true)
     console.debug(`DELETE ${theUuid} sent to API facade successfully`)
     await saveApiToken(apiToken)
+    if (resp.isQueuedInSw) {
+      console.debug(`DELETE req for ${theUuid} is queued in SW`)
+      return
+    }
     await addPendingTask({
       uuid: theUuid,
       inatId: inatRecordId,
@@ -1044,12 +1053,6 @@ function computePhotos(
 //   don't have to fire it off when the app loads again
 // FIXME did I break the offline functionality by requesting project data more often?
 
-// FIXME what about when offline and it's been sent to SW but no response has
-//  come back (no network)? This is a broader problem: we don't want the app to
-//  think it fails if it's still queued in the SW. We need a custom handler in
-//  the SW to send a response so the UI knows it's queued, then when the SW
-//  processes the request, it should poke to the UI with the new state.
-
 async function getAllPendingTasks() {
   const taskMapping = await _getPendingTasks()
   return Object.values(taskMapping)
@@ -1067,9 +1070,11 @@ async function _setPendingTasks(tasks) {
   await metaStoreWrite(cc.pendingTasksKey, tasks)
 }
 
-async function addPendingTask(task) {
-  if (!task.uuid) {
-    throw new Error(`Task has no UUID: ${JSON.stringify(task)}`)
+export async function addPendingTask(task) {
+  if (!task.uuid || !task.statusUrl || !task.type) {
+    throw new Error(
+      `Task must have uuid, statusUrl and type fields: ${JSON.stringify(task)}`,
+    )
   }
   const taskMapping = await _getPendingTasks()
   task.dateAdded = new Date().toString() // for debugging
@@ -1165,6 +1170,7 @@ async function checkStoreIsEmpty() {
       } keys: ${photoStoreKeys.join(',')}`
     }
     if (msg) {
+      // FIXME will happen when the SW has queued reqs, which is a bit misleading
       wowWarnMessage(`All tasks finished, but store still has records; ${msg}`)
     }
   } catch (err) {

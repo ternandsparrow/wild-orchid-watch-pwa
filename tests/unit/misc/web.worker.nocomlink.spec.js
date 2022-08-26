@@ -702,18 +702,19 @@ describe('things that need a datastore', () => {
     it('should queue a delete action for the remote record', async () => {
       await metaStore.setItem(cc.remoteObsKey, [{ uuid: '123A', inatId: 661 }])
       let actualRemoteDeleteUrl = null
-      await _testonly._deleteRecord(
-        '123A',
-        null,
-        (url) => (actualRemoteDeleteUrl = url),
-      )
+      await _testonly._deleteRecord('123A', null, (url) => {
+        actualRemoteDeleteUrl = url
+        return { statusUrl: 'http://blah' }
+      })
       const obsRecord = await obsStore.getItem('123A')
       expect(obsRecord).toEqual({
         inatId: 661,
         uuid: '123A',
+        photos: [],
         wowMeta: {
           [cc.recordTypeFieldName]: 'delete',
           [cc.recordProcessingOutcomeFieldName]: 'success',
+          [cc.photoIdsToDeleteFieldName]: [],
           outcomeLastUpdatedAt: expect.any(String),
           [cc.versionFieldName]: cc.currentRecordVersion,
           wowUpdatedAt: expect.any(String),

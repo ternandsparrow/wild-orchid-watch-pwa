@@ -1,7 +1,7 @@
 import { isNil } from 'lodash'
 import dayjs from 'dayjs'
 import dms2dec from 'dms2dec'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   convertExifDateStr,
   getExifFromBlob,
@@ -190,9 +190,7 @@ const actionsObj = {
     }
     commit('setRefreshingApp', true)
     console.debug('Swapping to new service worker (AKA skipWaiting)')
-    state.SWRegistrationForNewContent.waiting.postMessage(
-      constants.skipWaitingMsg,
-    )
+    state.SWRegistrationForNewContent.waiting.postMessage(cc.skipWaitingMsg)
   },
   async manualServiceWorkerUpdateCheck({ commit, state }) {
     if (!state.swReg) {
@@ -350,7 +348,7 @@ const actionsObj = {
   markUserGeolocation({ commit, rootState }) {
     if (!navigator.geolocation) {
       console.debug('Geolocation is not supported by user agent')
-      return Promise.reject(constants.notSupported)
+      return Promise.reject(cc.notSupported)
     }
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -372,7 +370,7 @@ const actionsObj = {
           switch (errCode) {
             case permissionDenied:
               console.debug('Geolocation is blocked')
-              return reject(constants.blocked)
+              return reject(cc.blocked)
             case positionUnavailable:
               // I think this could be in situations like a desktop computer
               // tethered through a mobile hotspot. You allow access but it
@@ -380,12 +378,12 @@ const actionsObj = {
               console.warn(
                 `Geolocation is supported but not available. Error code=${errCode}`,
               )
-              return reject(constants.failed)
+              return reject(cc.failed)
             case timeout:
               console.warn(
                 `Geolocation is supported but timed out. Error code=${errCode}`,
               )
-              return reject(constants.failed)
+              return reject(cc.failed)
             default:
               return reject(err)
           }
@@ -396,6 +394,12 @@ const actionsObj = {
         },
       )
     })
+  },
+  pokeSwQueueToProcess({ state }) {
+    if (!state.swReg || !state.swReg.active) {
+      return
+    }
+    state.swReg.active.postMessage(cc.swForceProcessingMsg)
   },
 }
 

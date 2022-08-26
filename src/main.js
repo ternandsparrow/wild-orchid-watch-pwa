@@ -19,11 +19,11 @@ import store, { migrateOldStores } from '@/store'
 import router from '@/router'
 import AppNavigator from '@/AppNavigator.vue'
 import '@/global-components'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
 import { getWebWorker } from '@/misc/web-worker-manager'
 
-if (constants.isForceVueDevtools) {
+if (cc.isForceVueDevtools) {
   Vue.config.devtools = true
 }
 
@@ -31,14 +31,14 @@ Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
 Vue.use(VueGoogleMaps, {
-  load: { key: constants.googleMapsApiKey },
+  load: { key: cc.googleMapsApiKey },
 })
 
 smoothscroll.polyfill()
 
-if (constants.googleAnalyticsTrackerCode !== 'off') {
+if (cc.googleAnalyticsTrackerCode !== 'off') {
   Vue.use(VueGtag, {
-    config: { id: constants.googleAnalyticsTrackerCode },
+    config: { id: cc.googleAnalyticsTrackerCode },
   })
 }
 
@@ -111,12 +111,19 @@ new Vue({
         return
       }
       navigator.serviceWorker.addEventListener('message', (event) => {
-        const msgId = event.data.id
+        const { msgId, taskDetails } = event.data
         if (msgId) {
           console.debug(`Message received from SW with ID='${msgId}'`)
         }
         try {
           switch (msgId) {
+            case cc.queueItemProcessed:
+              getWebWorker()
+                .addPendingTask(taskDetails)
+                .catch((err) => {
+                  wowErrorHandler('Failed to add pending task', err)
+                })
+              return
             default:
               console.debug(`[unhandled message from SW] ${event.data}`)
               return

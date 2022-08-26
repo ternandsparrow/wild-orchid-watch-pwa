@@ -166,6 +166,7 @@ const actions = {
         apiToken,
       )
       commit('setAllRemoteObs', allSummaries)
+      dispatch('ephemeral/pokeSwQueueToProcess', {}, { root: true })
     } catch (err) {
       dispatch(
         'flagGlobalError',

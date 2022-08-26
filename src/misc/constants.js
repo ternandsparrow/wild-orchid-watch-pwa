@@ -408,6 +408,8 @@ export const neverUpload = 'NEVER'
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
 export const xWowUuidHeader = 'x-wow-uuid'
+export const xWowInatIdHeader = 'x-wow-inatid'
+export const queueItemProcessed = 'queueItemProcessed'
 
 export const lfWowObsStoreName = 'wow-obs' // observations
 export const lfWowPhotoStoreName = 'wow-photo' // photos
@@ -425,7 +427,6 @@ export const failed = 'FAILED'
 export const autocompleteTypeHost = 'host'
 export const autocompleteTypeOrchid = 'orchid'
 
-export const obsFieldName = 'obs'
 export const recordTypeFieldName = 'recordType'
 export const photosFieldName = 'photos'
 export const photoIdsToDeleteFieldName = 'photos-delete'
@@ -439,6 +440,7 @@ export const versionFieldName = 'version'
 
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
+export const swForceProcessingMsg = 'SW_FORCE_PROCESSING'
 
 // Record processing outcomes
 export const draftOutcome = 'draft' // incomplete observation
