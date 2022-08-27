@@ -45,7 +45,7 @@ describe('app module action', () => {
       expect(commit).toHaveBeenCalledWith('setRefreshingApp', true)
       expect(
         state.SWRegistrationForNewContent.waiting.postMessage,
-      ).toHaveBeenCalledWith({msgId: constants.skipWaitingMsg})
+      ).toHaveBeenCalledWith({ msgId: constants.skipWaitingMsg })
     })
 
     it('should not set app refreshing status and call sw postMessage with skipWaiting', () => {
