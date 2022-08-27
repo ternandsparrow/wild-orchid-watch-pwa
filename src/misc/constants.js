@@ -402,14 +402,12 @@ export const onboarderPath = '/onboarder'
 
 export const oauthCallbackComponentName = 'OauthCallback'
 
-export const alwaysUpload = 'ALWAYS'
-export const neverUpload = 'NEVER'
-
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
 export const xWowUuidHeader = 'x-wow-uuid'
 export const xWowInatIdHeader = 'x-wow-inatid'
 export const queueItemProcessed = 'queueItemProcessed'
+export const queueItemHttpError = 'queueItemHttpError'
 
 export const lfWowObsStoreName = 'wow-obs' // observations
 export const lfWowPhotoStoreName = 'wow-photo' // photos

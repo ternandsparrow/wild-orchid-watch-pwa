@@ -2,14 +2,14 @@ import Vue from 'vue'
 
 import CarouselDots from '@/partials/CarouselDots'
 import CollectDate from '@/partials/CollectDate'
-import ConfigurationDump from '@/partials/admin/ConfigurationDump'
 import CollectGeolocation from '@/partials/CollectGeolocation'
+import ConfigurationDump from '@/partials/admin/ConfigurationDump'
 import CustomToolbar from '@/partials/CustomToolbar'
 import DecryptPayload from '@/partials/admin/DecryptPayload'
 import ExtractThumbnailFromExif from '@/partials/admin/ExtractThumbnailFromExif'
+import FacadeMigrationTest from '@/partials/admin/FacadeMigrationTest'
 import ForceRpo from '@/partials/admin/ForceRpo'
 import GenerateCryptoKeys from '@/partials/admin/GenerateCryptoKeys'
-import FacadeMigrationTest from '@/partials/admin/FacadeMigrationTest'
 import GoogleMap from '@/components/googleMap'
 import Help from '@/partials/Help'
 import JoinLeaveProject from '@/partials/admin/JoinLeaveProject'
@@ -19,6 +19,7 @@ import ObsListItem from '@/pages/obs/ObsListItem'
 import PhotoPreviewModal from '@/partials/PhotoPreviewModal'
 import RelativeTabbar from '@/partials/RelativeTabbar'
 import RequiredChip from '@/partials/RequiredChip'
+import SwQueueTesting from '@/partials/admin/SwQueueTesting'
 import TestEncryptPayload from '@/partials/admin/TestEncryptPayload'
 import WowAutocomplete from '@/partials/WowAutocomplete'
 import WowHeader from '@/partials/WowHeader'
@@ -40,6 +41,7 @@ Vue.component('WowExtractThumbnailFromExif', ExtractThumbnailFromExif)
 Vue.component('WowForceRpo', ForceRpo)
 Vue.component('WowGenerateCryptoKeys', GenerateCryptoKeys)
 Vue.component('WowFacadeMigrationTest', FacadeMigrationTest)
+Vue.component('WowSwQueueTesting', SwQueueTesting)
 Vue.component('WowHeader', WowHeader)
 Vue.component('WowHelp', Help)
 Vue.component('WowInputStatus', WowInputStatus)

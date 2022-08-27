@@ -111,15 +111,25 @@ new Vue({
         return
       }
       navigator.serviceWorker.addEventListener('message', (event) => {
-        const { msgId, taskDetails } = event.data
+        const { msgId } = event.data
         if (msgId) {
           console.debug(`Message received from SW with ID='${msgId}'`)
         }
         try {
           switch (msgId) {
+            case cc.queueItemHttpError:
+              getWebWorker()
+                .transitionRecord(event.data.uuid, cc.systemErrorOutcome)
+                .catch((err) => {
+                  wowErrorHandler(
+                    `Failed to transition ${event.data.uuid} to error`,
+                    err,
+                  )
+                })
+              return
             case cc.queueItemProcessed:
               getWebWorker()
-                .addPendingTask(taskDetails)
+                .addPendingTask(event.data.taskDetails)
                 .catch((err) => {
                   wowErrorHandler('Failed to add pending task', err)
                 })

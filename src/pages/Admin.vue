@@ -147,6 +147,7 @@
     <join-leave-project @refresh="doProjectInfoRefresh" />
     <wow-extract-thumbnail-from-exif />
     <wow-facade-migration-test />
+    <wow-sw-queue-testing />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />
@@ -344,7 +345,7 @@ export default {
       console.log(`Counter after: ${await this.ourWorker.counter}`)
       // Make a prediction with a selected image
       this.classifier.classify(
-        // FIXME how do we pass the image to the worker? ML5 seems to want
+        // how do we pass the image to the worker? ML5 seems to want
         // references to images but web workers don't have access to the DOM.
         // Ideally we could pass the bytes themselves but even then, we can't
         // create HTMLImageElement, etc in the worker. OffscreenCanvas might be
@@ -408,23 +409,6 @@ export default {
         { root: true },
       )
     },
-    _sendMessageToSw(msg) {
-      return new Promise(function (resolve, reject) {
-        const msgChan = new MessageChannel()
-        msgChan.port1.onmessage = function (event) {
-          if ((event.data || {}).error) {
-            return reject(event.data.error)
-          }
-          return resolve(event.data)
-        }
-        const { controller } = navigator.serviceWorker
-        if (!controller) {
-          reject(new Error(`No service worker active. Cannot send msg=${msg}`))
-          return
-        }
-        controller.postMessage(msg, [msgChan.port2])
-      })
-    },
     async doProjectInfoRefresh() {
       await this.$store.dispatch('obs/getProjectInfo')
     },
@@ -437,7 +421,7 @@ export default {
       if (!reg) {
         throw new Error('No SW registration found, cannot send message')
       }
-      reg.active.postMessage(cc.proxySwConsoleMsg)
+      reg.active.postMessage({ msgId: cc.proxySwConsoleMsg })
       console.log('Message sent to SW to enable console proxying')
     },
     enableConsoleProxyToUi() {

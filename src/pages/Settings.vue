@@ -2,27 +2,6 @@
   <menu-wrapper title="Settings">
     <v-ons-list>
       <ons-list-item>
-        <div class="center">
-          <span class="list-item__title">When to sync with iNaturalist</span
-          ><span class="list-item__subtitle"
-            >Control your data usage. You could turn sync to "manual" while
-            you're in the field so no observations are uploaded, then switch
-            back to "automatic" when you're connected to WiFi.</span
-          >
-          <div class="wow-options-container">
-            <v-ons-select v-model="whenToSync">
-              <option
-                v-for="curr in whenToSyncOptions"
-                :key="'wtu-' + curr.value"
-                :value="curr.value"
-              >
-                {{ curr.label }}
-              </option>
-            </v-ons-select>
-          </div>
-        </div>
-      </ons-list-item>
-      <ons-list-item>
         <label class="center" for="accuracySwitch">
           <span class="list-item__title"><a>Use High Accuracy GPS</a></span
           ><span class="list-item__subtitle"
@@ -154,11 +133,6 @@ export default {
   name: 'WowSettings',
   data() {
     return {
-      whenToSyncOptions: [
-        // FIXME should this be deleted (and associated code)
-        { value: cc.alwaysUpload, label: 'Automatic' },
-        { value: cc.neverUpload, label: 'Manual' },
-      ],
       storageQuota: 0,
       storageUsage: 0,
       storageUsedPercent: 0,
@@ -170,14 +144,6 @@ export default {
     ...mapState('auth', ['token']),
     unsyncRecordsCount() {
       return this.localQueueSummary.length
-    },
-    whenToSync: {
-      get() {
-        return this.$store.state.app.whenToSync
-      },
-      set(newValue) {
-        this.$store.commit('app/setWhenToSync', newValue)
-      },
     },
     isDetailedUserMode: {
       get() {
@@ -320,11 +286,5 @@ function twoDecimalPlaces(v) {
 .wow-flexcol {
   flex-direction: column;
   align-items: flex-start;
-}
-
-.wow-options-container {
-  order: 1;
-  text-align: center;
-  flex-basis: 100%;
 }
 </style>

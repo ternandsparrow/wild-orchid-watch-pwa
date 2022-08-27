@@ -20,9 +20,9 @@ const queue = new Queue(queueName, {
         const theType = computeTaskType(entry)
         console.debug(`SW queue sending req for ${uuid}/${inatId}`)
         const resp = await fetch(entry.request.clone())
-        if (resp.status !== 200) {
-          // FIXME notify UI of failure 4xx/5xx outcome. Send message to mark
-          // obs as error status?
+        if (resp.status > 299) {
+          handleQueueHttpError(uuid)
+          continue
         }
         const bodyJson = await resp.json()
         sendMessageToAllClients({
@@ -42,6 +42,13 @@ const queue = new Queue(queueName, {
     }
   },
 })
+
+function handleQueueHttpError(uuid) {
+  sendMessageToAllClients({
+    msgId: cc.queueItemHttpError,
+    uuid,
+  })
+}
 
 function askQueueToProcessSoon() {
   console.debug('SW queue asked to process soon')
@@ -88,10 +95,6 @@ async function wowBackgroundSyncHandler({ event }) {
     return response
   } catch (err) {
     console.warn(`SW attempted req for ${uuid} failed, queuing for later`)
-    // FIXME if multiple requests for a single UUID are queued, things could
-    // get weird. The first req might trigger cleanup of the local record and
-    // subsequent queued reqs won't have a local record to operate against when
-    // they complete.
     await queue.pushRequest({ request: event.request })
     return jsonResponse({
       status: 'resp queued in SW for later background sync',
@@ -131,8 +134,13 @@ self.addEventListener('message', function (event) {
     },
     [cc.proxySwConsoleMsg]: enableSwConsoleProxy,
     [cc.swForceProcessingMsg]: askQueueToProcessSoon,
+    simulateQueueHttpError: () => {
+      const { uuid } = event.data
+      console.debug(`SW triggering queue HTTP error for ${uuid}`)
+      handleQueueHttpError(uuid)
+    },
   }
-  const strat = strategies[event.data]
+  const strat = strategies[event.data.msgId]
   if (strat) {
     strat()
   }

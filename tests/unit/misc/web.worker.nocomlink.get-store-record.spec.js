@@ -443,8 +443,6 @@ describe('get/store record', () => {
     })
   })
 
-  // FIXME test migration code for this new facade work
-
   describe('getRecord', () => {
     it('should get an existing record', async () => {
       await testObsStore.setItem('123A', {

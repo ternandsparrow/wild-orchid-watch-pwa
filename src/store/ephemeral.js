@@ -190,7 +190,9 @@ const actionsObj = {
     }
     commit('setRefreshingApp', true)
     console.debug('Swapping to new service worker (AKA skipWaiting)')
-    state.SWRegistrationForNewContent.waiting.postMessage(cc.skipWaitingMsg)
+    state.SWRegistrationForNewContent.waiting.postMessage({
+      msgId: cc.skipWaitingMsg,
+    })
   },
   async manualServiceWorkerUpdateCheck({ commit, state }) {
     if (!state.swReg) {
@@ -399,7 +401,7 @@ const actionsObj = {
     if (!state.swReg || !state.swReg.active) {
       return
     }
-    state.swReg.active.postMessage(cc.swForceProcessingMsg)
+    state.swReg.active.postMessage({ msgId: cc.swForceProcessingMsg })
   },
 }
 

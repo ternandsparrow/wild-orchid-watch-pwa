@@ -1,19 +1,14 @@
-import { alwaysUpload } from '@/misc/constants'
-
 export default {
   namespaced: true,
   state: {
     // remember we restore state from localStorage, so these are defaults
     isFirstRun: true,
-    // FIXME rename to automatic/manual and implement using the flag
-    whenToSync: alwaysUpload,
     isDetailedUserMode: false,
     addToHomeIosPromptLastDate: null,
     isEnableHighAccuracy: false,
   },
   mutations: {
     setIsFirstRun: (state, value) => (state.isFirstRun = value),
-    setWhenToSync: (state, value) => (state.whenToSync = value),
     setIsDetailedUserMode: (state, value) => (state.isDetailedUserMode = value),
     setAddToHomeIosPromptLastDate: (state, value) =>
       (state.addToHomeIosPromptLastDate = value),

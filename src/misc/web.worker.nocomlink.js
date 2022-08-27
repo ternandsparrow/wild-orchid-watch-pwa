@@ -52,7 +52,6 @@ export async function doFacadeMigration(apiToken, projectId) {
     return migratedIds
   }
   await deleteIndexedDbDatabase('wow-sw')
-  // FIXME do we have to empty the workbox-background-sync DB of entries from the old queue?
   const obsStore = getOrCreateInstance(cc.lfWowObsStoreName)
   const obsIds = await obsStore.keys()
   for (const currId of obsIds) {
@@ -1047,10 +1046,6 @@ function computePhotos(
   }
 }
 
-// FIXME can we simplify the alerts around "saved but not uploaded", single and
-//   double tick like WhatsApp
-// FIXME need to flag when sent to SW, so we can show in the UI and know we
-//   don't have to fire it off when the app loads again
 // FIXME did I break the offline functionality by requesting project data more often?
 
 async function getAllPendingTasks() {
@@ -1134,10 +1129,15 @@ async function runChecksForTasks() {
             'expired auth, requesting fresh token',
         )
         _postMessageToUiThread(cc.workerMessages.requestApiTokenRefresh)
-      } else {
-        console.error(`Failed to check for task ${curr.uuid}`, err)
-        // FIXME do we need to cancel the task or something?
+        break // try again with fresh token
       }
+      const isNotFound = err.httpStatus === 404
+      if (isNotFound) {
+        console.warn(`Task check for ${curr.uuid} was 404`)
+        await deletePendingTask(curr.uuid)
+        continue
+      }
+      console.error(`Failed to check for task ${curr.uuid}`, err)
     }
   }
   taskChecksTracker = null
