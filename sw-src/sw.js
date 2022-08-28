@@ -10,7 +10,25 @@ import { recordTypeEnum as recordType } from '@/misc/only-common-deps-helpers'
 const queueName = 'wow-queue-v2'
 const queue = new Queue(queueName, {
   maxRetentionTime: cc.swQueueMaxRetentionMinutes,
-  onSync: async () => {
+  onSync: processQueueNow,
+})
+
+let isQueueProcessing = false
+
+// We have our queue processing function because
+// 1. the Workbox one doesn't allow us to hook when reqs have been processed,
+//   and we need that to notify the main thread of outcomes
+// 2. Safari and Firefox don't support background sync, so it's nice to be able
+//   to kick off processing on demand
+// 3. Chrome seems to take a while to fire the background sync event, so users
+//   might get impatient
+async function processQueueNow() {
+  if (isQueueProcessing) {
+    console.debug('Asked to process queue, but already processing')
+    return
+  }
+  try {
+    isQueueProcessing = true
     let entry
     // eslint-disable-next-line no-cond-assign
     while ((entry = await queue.shiftRequest())) {
@@ -37,24 +55,20 @@ const queue = new Queue(queueName, {
       } catch (error) {
         console.debug(`SW queue failed to send req for ${uuid}/${inatId}`)
         await queue.unshiftRequest(entry)
+        // must throw so browser knows to trigger us again later
         throw new Error('queue-replay-failed')
       }
     }
-  },
-})
+  } finally {
+    isQueueProcessing = false
+  }
+}
 
 function handleQueueHttpError(uuid) {
   sendMessageToAllClients({
     msgId: cc.queueItemHttpError,
     uuid,
   })
-}
-
-function askQueueToProcessSoon() {
-  console.debug('SW queue asked to process soon')
-  // there seems to be some rate limiting in effect, because it doesn't always
-  // fire right away.
-  return queue.registerSync()
 }
 
 function computeTaskType(entry) {
@@ -90,8 +104,11 @@ async function wowBackgroundSyncHandler({ event }) {
   try {
     console.debug(`SW attempting req for ${uuid}`)
     const response = await fetch(event.request.clone())
-    // this request worked, so fire the others off!
-    askQueueToProcessSoon() // don't await it
+    console.debug('this request worked, so fire the others off!')
+    processQueueNow() // don't await it
+      .catch((err) =>
+        console.error('Failed during post-success queue processing', err),
+      )
     return response
   } catch (err) {
     console.warn(`SW attempted req for ${uuid} failed, queuing for later`)
@@ -133,7 +150,12 @@ self.addEventListener('message', function (event) {
       return self.skipWaiting()
     },
     [cc.proxySwConsoleMsg]: enableSwConsoleProxy,
-    [cc.swForceProcessingMsg]: askQueueToProcessSoon,
+    [cc.swForceProcessingMsg]: () => {
+      console.debug('SW queue asked to process')
+      processQueueNow().catch((err) =>
+        console.error('Failed during forced queue processing', err),
+      )
+    },
     simulateQueueHttpError: () => {
       const { uuid } = event.data
       console.debug(`SW triggering queue HTTP error for ${uuid}`)
