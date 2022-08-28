@@ -34,14 +34,6 @@
         <v-ons-icon icon="fa-trash" />
         Delete
       </v-ons-toolbar-button>
-      <v-ons-toolbar-button
-        v-if="isSelectedRecordEditOfRemote"
-        modifier="outline"
-        @click="onUndoLocalEdit"
-      >
-        <v-ons-icon icon="fa-undo" />
-        Undo edit
-      </v-ons-toolbar-button>
     </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
@@ -393,10 +385,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('obs', [
-      'isSelectedRecordEditOfRemote',
-      'selectedObsSummary',
-    ]),
+    ...mapGetters('obs', ['selectedObsSummary']),
     ...mapState('app', ['isDetailedUserMode']),
     isSelectedRecordOnRemote() {
       return !!this.selectedObsInatId
@@ -635,31 +624,6 @@ export default {
               })
             })
           this.$router.push({ name: 'Home' })
-        })
-    },
-    onUndoLocalEdit() {
-      this.$wow.uiTrace('ObsDetail', `undo local edit`)
-      this.$ons.notification
-        .confirm('Are you sure about undoing your edit?')
-        .then(async (answer) => {
-          if (!answer) {
-            this.$wow.uiTrace('ObsDetail', `abort undo edit`)
-            return
-          }
-          this.$wow.uiTrace('ObsDetail', `confirm undo edit`)
-          try {
-            await this.$store.dispatch('obs/undoLocalEdit')
-            this.$ons.notification.toast('Edit undone!', {
-              timeout: 3000,
-              animation: 'ascend',
-            })
-            this.loadFullObsData()
-          } catch (err) {
-            this.handleMenuError(err, {
-              msg: 'Failed to (completely) undo edit',
-              userMsg: 'Error while undoing edit.',
-            })
-          }
         })
     },
     showPhotoPreview(url) {

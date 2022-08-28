@@ -537,17 +537,6 @@ const gettersObj = {
   isRemoteObsStale: buildStaleCheckerFn('allRemoteObsLastUpdated', 10),
   isMySpeciesStale: buildStaleCheckerFn('mySpeciesLastUpdated', 10),
   isProjectInfoStale: buildStaleCheckerFn('projectInfoLastUpdated', 10),
-  isSelectedRecordEditOfRemote(state, getters) {
-    return getters.localRecords
-      .filter((e) => {
-        const hasRemote = !!e.inatId
-        return (
-          e.wowMeta[cc.recordTypeFieldName] === recordType('update') &&
-          hasRemote
-        )
-      })
-      .some((e) => e.uuid === state.selectedObservationUuid)
-  },
   obsFields(_, getters) {
     const projectObsFields = getters.nullSafeProjectObsFields
     if (!projectObsFields.length) {
