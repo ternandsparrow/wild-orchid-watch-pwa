@@ -6,14 +6,14 @@ import { registerRoute } from 'workbox-routing/registerRoute'
 import * as cc from '@/misc/constants'
 import { recordTypeEnum as recordType } from '@/misc/only-common-deps-helpers'
 
+let isQueueProcessing = false
+
 // kick the queue with workbox-background-sync:<queueName>
 const queueName = 'wow-queue-v2'
 const queue = new Queue(queueName, {
   maxRetentionTime: cc.swQueueMaxRetentionMinutes,
   onSync: processQueueNow,
 })
-
-let isQueueProcessing = false
 
 // We have our queue processing function because
 // 1. the Workbox one doesn't allow us to hook when reqs have been processed,
