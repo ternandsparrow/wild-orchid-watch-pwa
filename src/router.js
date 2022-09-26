@@ -1,13 +1,18 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
+import _ from 'lodash'
 
 import store from '@/store'
 import {
   mainStackReplace,
   isOnboarderVisible as isOnboarderVisibleFn,
 } from '@/misc/nav-stacks'
-import { onboarderPath } from '@/misc/constants'
-import { wowWarnHandler } from '@/misc/helpers'
+import {
+  currentRecordVersion,
+  onboarderPath,
+  versionFieldName,
+} from '@/misc/constants'
+import { isNotPositiveInteger, wowWarnHandler } from '@/misc/helpers'
 
 import Admin from '@/pages/Admin'
 import BugReport from '@/pages/BugReport'
@@ -23,7 +28,6 @@ import OauthCallback from '@/pages/OauthCallback'
 import ObsDetail from '@/pages/obs-detail/ObsDetail'
 import Onboarder from '@/pages/Onboarder'
 import OrchidScience from '@/pages/orchid-science/index'
-import Search from '@/pages/Search'
 import Settings from '@/pages/Settings'
 import SingleSpecies from '@/pages/new-obs/SingleSpecies'
 import Species from '@/pages/obs/Species'
@@ -78,7 +82,7 @@ const router = new VueRouter({
       path: `/obs/:id(\\d+|${uuidRegex})/edit`,
       name: 'ObsEdit',
       component: SingleSpecies,
-      beforeEnter: function(to, from, next) {
+      beforeEnter(to, from, next) {
         const selectedMethod = 'existing'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
@@ -93,7 +97,7 @@ const router = new VueRouter({
       path: '/obs/new',
       name: 'ObsNewSingleSpecies',
       component: SingleSpecies,
-      beforeEnter: function(to, from, next) {
+      beforeEnter(to, from, next) {
         const selectedMethod = 'photo'
         store.commit('ephemeral/resetCoordsState', selectedMethod)
         store.commit('ephemeral/resetDatetimeState', selectedMethod)
@@ -128,11 +132,6 @@ const router = new VueRouter({
       path: '/faq',
       name: 'FAQ',
       component: FAQ,
-    },
-    {
-      path: '/search',
-      name: 'Search',
-      component: Search,
     },
     {
       path: '/missions',
@@ -189,6 +188,7 @@ router.beforeEach((to, from, next) => {
     return next(false)
   }
   if (store.state.ephemeral.isWarnOnLeaveRoute) {
+    // eslint-disable-next-line no-alert
     const resp = window.confirm(
       'WARNING are you sure you want to leave? You will lose any unsaved work',
     )
@@ -208,7 +208,7 @@ router.afterEach((to, from) => {
   // to go somewhere that makes sense. That's up the tree, so we want to go to
   // /foo. The matchedComponents will be an array of all the matches down the
   // routing tree.
-  const matchedComponents = to.matched.map(m => m.components.default)
+  const matchedComponents = to.matched.map((m) => m.components.default)
   const isNoMatches = !matchedComponents.length
   if (isNoMatches) {
     console.error(
@@ -222,37 +222,46 @@ router.afterEach((to, from) => {
 })
 
 async function resolveObsByIdOrNotFound(to, from, next) {
-  const wowId = isNaN(to.params.id) ? to.params.id : parseInt(to.params.id)
+  const { id } = to.params
   try {
-    const uuid = await (async function() {
-      if (!wowId) {
-        return wowId
-      }
-      const isNotNumber = typeof wowId !== 'number'
-      if (isNotNumber) {
-        // it's a UUID
-        return wowId
+    const uuid = await (() => {
+      if (isNotPositiveInteger(id)) {
+        // id is a UUID
+        return id
       }
       try {
-        return await store.dispatch('obs/inatIdToUuid', wowId)
+        return store.dispatch('obs/inatIdToUuid', parseInt(id, 10))
       } catch (err) {
-        console.warn(`Could not find UUID for inatId=${wowId}`)
+        console.warn(`Could not find UUID for inatId=${id}`)
         return null // we'll handle the "not found"-ness later
       }
     })()
     store.commit('obs/setSelectedObservationUuid', uuid)
-    if (!store.getters['obs/observationDetail']) {
-      console.warn(`Could not find obs record for wowId=${wowId}`)
+    const found = store.getters['obs/selectedObsSummary']
+    if (!found) {
+      console.warn(`Could not find obs record for id=${id}`)
       return next({ name: 'NotFound', query: { failedUrl: to.fullPath } })
+    }
+    const isNonMigratedLocalRecord =
+      !!found.wowMeta &&
+      _.get(found, `wowMeta.${versionFieldName}`) !== currentRecordVersion
+    if (isNonMigratedLocalRecord) {
+      // enhancement: use something nicer than alert
+      // eslint-disable-next-line no-alert
+      alert(
+        'Record is currently locked while updating to suit newest app ' +
+          'version. Sorry, try again in a few minutes.',
+      )
+      return next({ name: 'Home' })
     }
     return next()
   } catch (err) {
     store.dispatch('flagGlobalError', {
       userMsg: 'Failed to navigate to that page',
-      msg: `Failed to resolve wowId=${wowId} during nav`,
+      msg: `Failed to resolve id=${id} during nav`,
       err,
     })
-    const matchedComponents = from.matched.map(m => m.components.default)
+    const matchedComponents = from.matched.map((m) => m.components.default)
     const isNoMatches = !matchedComponents.length
     if (isNoMatches) {
       wowWarnHandler(

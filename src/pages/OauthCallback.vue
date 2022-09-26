@@ -34,15 +34,17 @@ export default {
     }
   },
   mounted() {
-    const code = this.$route.query.code
+    const { code } = this.$route.query
     this.processCode(code)
   },
   methods: {
     async processCode(code) {
       this.isError = false
-      let token, tokenType, tokenCreatedAt
+      let token
+      let tokenType
+      let tokenCreatedAt
       const verifier = this.$store.state.auth.code_verifier
-      const isFirstRun = this.$store.state.app.isFirstRun
+      const { isFirstRun } = this.$store.state.app
       try {
         if (!verifier) {
           // this is all WOW-115 related
@@ -59,7 +61,7 @@ export default {
           })()
           // grabbing info stashed at start of index.html
           const vuexSnapshotFromPageLoad = localStorage.getItem(
-            persistedStateLocalStorageKey + 'on-page-load',
+            `${persistedStateLocalStorageKey}on-page-load`,
           )
           const lengthOfData = (vuexSnapshotFromPageLoad || '').length
           throw new Error(

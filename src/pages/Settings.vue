@@ -2,43 +2,6 @@
   <menu-wrapper title="Settings">
     <v-ons-list>
       <ons-list-item>
-        <div class="center">
-          <span class="list-item__title">When to sync with iNaturalist</span
-          ><span class="list-item__subtitle"
-            >Control your data usage. You could turn sync off while you're in
-            the field then re-enable it once you're back in range of WiFi.</span
-          >
-          <div class="wow-options-container">
-            <v-ons-select v-model="whenToSync">
-              <option
-                v-for="curr in whenToSyncOptions"
-                :key="'wtu-' + curr.value"
-                :value="curr.value"
-              >
-                {{ curr.label }}
-              </option>
-            </v-ons-select>
-          </div>
-        </div>
-      </ons-list-item>
-      <ons-list-item>
-        <label class="center" for="compressSwitch">
-          <span class="list-item__title"><a>Compress/resize photos</a></span
-          ><span class="list-item__subtitle"
-            >Enabling this setting will use less storage space on your phone and
-            less data during upload. The tradeoff is observations will take a
-            bit longer to save while your device makes the photos smaller.</span
-          >
-        </label>
-        <div class="right">
-          <v-ons-switch
-            v-model="isEnablePhotoCompression"
-            input-id="compressSwitch"
-          >
-          </v-ons-switch>
-        </div>
-      </ons-list-item>
-      <ons-list-item>
         <label class="center" for="accuracySwitch">
           <span class="list-item__title"><a>Use High Accuracy GPS</a></span
           ><span class="list-item__subtitle"
@@ -158,24 +121,18 @@
 <script>
 import { mapState } from 'vuex'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
-  chainedError,
   clearLocalStorage,
+  isNotPositiveInteger,
   formatStorageSize,
-  isNoSwActive,
   unregisterAllServiceWorkers,
-  wowWarnHandler,
 } from '@/misc/helpers'
 
 export default {
-  name: 'Settings',
+  name: 'WowSettings',
   data() {
     return {
-      whenToSyncOptions: [
-        { value: constants.alwaysUpload, label: 'Always (WiFi, mobile data)' },
-        { value: constants.neverUpload, label: 'Never' },
-      ],
       storageQuota: 0,
       storageUsage: 0,
       storageUsedPercent: 0,
@@ -187,22 +144,6 @@ export default {
     ...mapState('auth', ['token']),
     unsyncRecordsCount() {
       return this.localQueueSummary.length
-    },
-    whenToSync: {
-      get() {
-        return this.$store.state.app.whenToSync
-      },
-      set(newValue) {
-        this.$store.commit('app/setWhenToSync', newValue)
-      },
-    },
-    isEnablePhotoCompression: {
-      get() {
-        return this.$store.state.app.isEnablePhotoCompression
-      },
-      set(newValue) {
-        this.$store.commit('app/setEnablePhotoCompression', newValue)
-      },
     },
     isDetailedUserMode: {
       get() {
@@ -256,7 +197,7 @@ export default {
             'no data will be lost.'
           )
         })()
-        const msg = 'Are you sure you want to logout? ' + msgFragmentLocalData
+        const msg = `Are you sure you want to logout? ${msgFragmentLocalData}`
         const isConfirmed = await this.$ons.notification.confirm(msg)
         if (!isConfirmed) {
           this.$ons.notification.toast('Logout cancelled', {
@@ -267,7 +208,6 @@ export default {
         }
         await this.$store.dispatch('auth/doLogout')
         clearLocalStorage()
-        await this.clearSwStorage()
         unregisterAllServiceWorkers()
         await deleteKnownStorageInstances()
         // In order to log a user out of iNat, you *must* open the page in a new
@@ -279,11 +219,11 @@ export default {
         await this.$ons.notification.alert(
           `You are now logged out of WOW. <strong>However</strong> you are ` +
             `still logged into iNaturalist but you can also <a ` +
-            `href="${constants.inatUrlBase}/logout" target="_blank">logout of ` +
+            `href="${cc.inatUrlBase}/logout" target="_blank">logout of ` +
             `iNat</a> (close the page and come back here after). Press ok to ` +
             `restart WOW in a clean state.`,
         )
-        window.location = constants.onboarderPath
+        window.location = cc.onboarderPath
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
@@ -296,32 +236,10 @@ export default {
         )
       }
     },
-    async clearSwStorage() {
-      if (await isNoSwActive()) {
-        console.debug('No SW, no storage to clear')
-        return
-      }
-      try {
-        const resp = await fetch(constants.serviceWorkerClearEverythingUrl, {
-          method: 'DELETE',
-        })
-        const respBody = await resp.text() // it's JSON but we want it as text
-        if (!resp.ok) {
-          wowWarnHandler(
-            `Status=${resp.status} indicates failure while clearing SW ` +
-              `storage. Not bothering the user because they still need to ` +
-              `complete the logout. Resp body: ${respBody}`,
-          )
-        }
-        console.debug(`SW clear success with resp body=${respBody}`)
-      } catch (err) {
-        throw chainedError('Failed while requesting SW to clear storage', err)
-      }
-    },
     doManualUpdateCheck() {
       this.$store
         .dispatch('ephemeral/manualServiceWorkerUpdateCheck')
-        .then(isChecking => {
+        .then((isChecking) => {
           if (isChecking) {
             this.$ons.notification.toast('Checking for updates', {
               timeout: 3000,
@@ -345,7 +263,7 @@ export default {
       this.storageQuota = estimate.quota
       this.storageUsage = estimate.usage
       const usedPercentRaw = (this.storageUsage / this.storageQuota) * 100
-      if (isNaN(usedPercentRaw)) {
+      if (isNotPositiveInteger(usedPercentRaw)) {
         this.isStorageReadable = false
         this.storageUsedPercent = 0
       } else {
@@ -368,11 +286,5 @@ function twoDecimalPlaces(v) {
 .wow-flexcol {
   flex-direction: column;
   align-items: flex-start;
-}
-
-.wow-options-container {
-  order: 1;
-  text-align: center;
-  flex-basis: 100%;
 }
 </style>

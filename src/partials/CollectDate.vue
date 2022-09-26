@@ -65,7 +65,7 @@
                     <v-ons-icon icon="fa-info-circle" />
                     Attach some photos and they'll be automatically scanned
                   </span>
-                  <h1 v-else style="color: red;">
+                  <h1 v-else style="color: red">
                     Programmer problem - unhandled state
                     {{ datetimeFromPhotoState }}
                   </h1>
@@ -182,7 +182,8 @@
           <div class="success-alert">
             <v-ons-icon icon="fa-clock" />
             Date/time successfully captured from
-            {{ datetimeMethod }}.
+            {{ datetimeMethod }}.<br />
+            Value = {{ formattedDatetime }}.
           </div>
         </div>
       </div>
@@ -218,7 +219,7 @@ export default {
     return {
       manualDate: nowDate(),
       manualTime: nowTime(),
-      isNativeDateInputSupported: (function() {
+      isNativeDateInputSupported: (function () {
         // thanks https://gomakethings.com/how-to-check-if-a-browser-supports-native-input-date-pickers/
         const input = document.createElement('input')
         const value = 'a'
@@ -233,7 +234,7 @@ export default {
     ...mapGetters('ephemeral', [
       'datetimeOfOldestPhoto',
       'datetimeForCurrentlyEditingObs',
-      'photosStillCompressingCount',
+      'photosStillProcessingCount',
     ]),
     datetimeMethod: {
       get() {
@@ -244,16 +245,24 @@ export default {
       },
     },
     isDatetimeAlreadyCaptured() {
-      return !!this.theDatetime
+      return !!(this.theDatetime || {}).value
     },
     theDatetime() {
       return this.datetimeForCurrentlyEditingObs
+    },
+    formattedDatetime() {
+      const val = (this.theDatetime || {}).value
+      if (!val) {
+        return null
+      }
+      const d = dayjs(val)
+      return `${d.format('DD-MMM-YYYY HH:mm')}  (${d.fromNow()})`
     },
     datetimeFromPhotoState() {
       if (this.isDatetimeAlreadyCaptured) {
         return this.datetimeMethod === 'photo' ? 'captured' : 'not-from-photo'
       }
-      const isPhotosStillProcessing = !!this.photosStillCompressingCount
+      const isPhotosStillProcessing = !!this.photosStillProcessingCount
       if (isPhotosStillProcessing) {
         return 'processing'
       }
@@ -297,7 +306,9 @@ export default {
         device: this.getDeviceDatetime,
       }
       const strategy = strategies[newVal]
-      strategy && strategy()
+      if (strategy) {
+        strategy()
+      }
       // always poke the parent so it can "clear" old value if needed
       this.pokeParentToReadDatetime()
     },

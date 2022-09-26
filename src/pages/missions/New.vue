@@ -1,7 +1,7 @@
 <template>
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
-      <template v-slot:right>
+      <template #right>
         <v-ons-toolbar-button name="toolbar-save-btn" @click="onSave"
           >Save</v-ons-toolbar-button
         >
@@ -64,9 +64,7 @@ import { encodeMissionBody } from '@/misc/helpers'
 export default {
   name: 'MissionsNew',
   data() {
-    const tomorrow = dayjs()
-      .add(1, 'days')
-      .format('YYYY-MM-DD')
+    const tomorrow = dayjs().add(1, 'days').format('YYYY-MM-DD')
     return {
       missionName: null,
       goal: null,
@@ -74,29 +72,30 @@ export default {
       formErrorMsgs: [],
       endDate: tomorrow,
       tomorrow,
-      oneYearInFuture: dayjs()
-        .add(1, 'years')
-        .format('YYYY-MM-DD'),
+      oneYearInFuture: dayjs().add(1, 'years').format('YYYY-MM-DD'),
     }
   },
   computed: {
     isEdit() {
-      return this.$route.matched.some(record => record.meta.isEdit)
+      return this.$route.matched.some((record) => record.meta.isEdit)
     },
     title() {
       return this.isEdit ? 'Edit mission' : 'New mission'
     },
     targetMissionId() {
-      return parseInt(this.$route.params.id)
+      return parseInt(this.$route.params.id, 10)
     },
   },
-  mounted() {
+  async mounted() {
     if (!this.isEdit) {
       return
     }
-    const found = this.$store.state.missionsAndNews.availableMissions.find(
-      e => e.id === this.targetMissionId,
+    // FIXME a bit wasteful to retrieve all missions again, but I'm trying to
+    //  remove the store for missions to speed the app up
+    const missions = await this.$store.dispatch(
+      'missionsAndNews/getAvailableMissions',
     )
+    const found = missions.find((e) => e.id === this.targetMissionId)
     if (!found) {
       console.warn(
         `Could not find mission with ID='${this.targetMissionId}' to edit`,
@@ -111,7 +110,7 @@ export default {
   },
   methods: {
     async onSave() {
-      const myUserId = this.$store.getters.myUserId
+      const { myUserId } = this.$store.getters
       const projectId = (this.$store.state.obs.projectInfo || {}).id
       if (!projectId) {
         throw new Error('No project info available, cannot continue')

@@ -2,7 +2,7 @@
   <v-ons-page>
     <!-- FIXME add confirmation to cancel -->
     <custom-toolbar back-label="Cancel" title="Community observation">
-      <template v-slot:right>
+      <template #right>
         <v-ons-toolbar-button @click="onSave">Save</v-ons-toolbar-button>
       </template>
     </custom-toolbar>
@@ -61,7 +61,7 @@
 
 <script>
 export default {
-  name: 'Community',
+  name: 'WowCommunity',
   data() {
     return {
       species: [],
@@ -81,11 +81,12 @@ export default {
       })
     },
     onNewSpeciesBtn() {
-      const id = this.idGenerator++
+      this.idGenerator += 1
+      const id = this.idGenerator
       this.species.push({
         id,
         photoThumbnail: '', // FIXME
-        speciesName: 'Species ' + id,
+        speciesName: `Species ${id}`,
         count: 1,
         countAccuracy: this.countAccuracies[0].value,
       })

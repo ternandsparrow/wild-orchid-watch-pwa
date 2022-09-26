@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import VueRouter from 'vue-router'
 import Vuex from 'vuex'
 // import VueOnsen from 'vue-onsenui'
@@ -8,18 +11,18 @@ const localVue = createLocalVue()
 localVue.use(VueRouter)
 localVue.use(Vuex)
 // localVue.use(VueOnsen) // TODO including this causes an "Invalid state" error on test start
-localVue.prototype.$wow = { uiTrace: function() {} }
+localVue.prototype.$wow = { uiTrace() {} }
 const router = new VueRouter()
 
 describe('SingleSpecies', () => {
   let origConsoleDebug
 
-  beforeAll(function() {
+  beforeAll(function () {
     origConsoleDebug = console.debug
     console.debug = () => {}
   })
 
-  afterAll(function() {
+  afterAll(function () {
     console.debug = origConsoleDebug
   })
 
@@ -59,15 +62,14 @@ describe('SingleSpecies', () => {
         'present from previous edits',
       () => {
         const wrapper = buildWrapper()
-        wrapper.vm.$data.uploadedPhotos.push({
+        wrapper.vm.$data.existingPhotos.push({
           url: 'https://...snip.../961/square/wow-whole-plant.jpeg?1582694789',
         })
-        wrapper.vm.$data.uploadedPhotos.push({
+        wrapper.vm.$data.existingPhotos.push({
           url: 'https://...snip.../962/square/wow-habitat.jpeg?1582694789',
         })
-        wrapper.vm.$data.uploadedPhotos.push({
-          url:
-            'https://...snip.../963/square/wow-micro-habitat.jpeg?1582694789',
+        wrapper.vm.$data.existingPhotos.push({
+          url: 'https://...snip.../963/square/wow-micro-habitat.jpeg?1582694789',
         })
         wrapper.vm.validatePhotos()
         expect(wrapper.vm.$data.formErrorMsgs.length).toEqual(0)
@@ -97,7 +99,7 @@ function buildWrapper() {
           obsFields() {
             return []
           },
-          observationDetail() {
+          selectedObsSummary() {
             return {}
           },
         },

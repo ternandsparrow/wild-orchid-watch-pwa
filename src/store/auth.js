@@ -5,19 +5,15 @@ import * as Sentry from '@sentry/browser' // piggybacks on the config done in sr
 
 import * as constants from '@/misc/constants'
 import {
-  arrayBufferToBlob,
-  chainedError,
+  ChainedError,
   deleteWithAuth,
   getJsonWithAuth,
-  isSwActive,
   now,
-  postFormDataWithAuth,
   postJsonWithAuth,
   putJsonWithAuth,
   wowWarnHandler,
 } from '@/misc/helpers'
-
-let updateApiTokenPromise = null
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 export default {
   namespaced: true,
@@ -56,7 +52,7 @@ export default {
       state.userDetails = value
       state.userDetailsLastUpdated = now()
     },
-    markApiTokenAndUserLastUpdated: state => {
+    markApiTokenAndUserLastUpdated: (state) => {
       state.apiTokenAndUserLastUpdated = now()
     },
     setIsUpdatingApiToken: (state, value) => (state.isUpdatingApiToken = value),
@@ -67,11 +63,11 @@ export default {
     },
     userEmail(state) {
       const result = state.userDetails.email
-      return result ? result : '(no email stored)'
+      return result || '(no email stored)'
     },
     userIcon(state) {
       const result = state.userDetails.icon
-      return result ? result : constants.noProfilePicPlaceholderUrl
+      return result || constants.noProfilePicPlaceholderUrl
     },
     myUserId(state) {
       return state.userDetails.id
@@ -87,6 +83,10 @@ export default {
     },
   },
   actions: {
+    async getApiToken({ state, dispatch }) {
+      await dispatch('_refreshApiTokenIfRequired')
+      return state.apiToken
+    },
     async doApiGet({ state, dispatch }, { urlSuffix }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -98,7 +98,7 @@ export default {
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
         // TODO handle a 422: unknown user
-        throw chainedError(
+        throw ChainedError(
           `Failed to make GET to API with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -115,7 +115,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make DELETE to API with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -145,7 +145,7 @@ export default {
         )
         return resp
       } catch (err) {
-        throw chainedError(
+        throw ChainedError(
           `Failed to make GET to iNat with URL suffix='${urlSuffix}'`,
           err,
         )
@@ -161,13 +161,14 @@ export default {
         )
         return resp
       } catch (err) {
-        throw chainedError(
+        throw ChainedError(
           `Failed to make POST to iNat with URL suffix='${urlSuffix}'` +
             `data='${JSON.stringify(data)}'`,
           err,
         )
       }
     },
+    // FIXME need to move core of this outside vuex
     async doApiPost({ state, dispatch }, { urlSuffix, data }) {
       try {
         await dispatch('_refreshApiTokenIfRequired')
@@ -179,7 +180,7 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make POST to API with URL suffix='${urlSuffix}' and ` +
             `data='${JSON.stringify(data)}'`,
           err,
@@ -197,70 +198,11 @@ export default {
         return resp
       } catch (err) {
         // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
+        throw ChainedError(
           `Failed to make PUT to API with URL suffix='${urlSuffix}' and ` +
             `data='${JSON.stringify(data)}'`,
           err,
         )
-      }
-    },
-    async doPhotoPost({ state, dispatch }, { obsId, photoRecord }) {
-      try {
-        await dispatch('_refreshApiTokenIfRequired')
-        const resp = await postFormDataWithAuth(
-          `${constants.apiUrlBase}/observation_photos`,
-          formData => {
-            formData.append('observation_photo[observation_id]', obsId)
-            const photoBlob = arrayBufferToBlob(
-              photoRecord.file.data,
-              photoRecord.file.mime,
-            )
-            // we create a File so we can encode the type of the photo in the
-            // filename. Very sneaky ;)
-            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
-              type: photoBlob.type,
-            })
-            formData.append('file', photoFile)
-          },
-          `${state.apiToken}`,
-        )
-        return resp
-      } catch (err) {
-        // TODO if we get a 401, could refresh token and retry
-        throw chainedError(
-          `Failed to POST observation photo attached to observation ID='${obsId}'`,
-          err,
-        )
-      }
-    },
-    /**
-     * Local photos, as opposed to observation photos, are ones that we
-     * pre-upload and associate with the obs as we create it. This makes
-     * creating the obs with photos appear atomic to the user.
-     */
-    async doLocalPhotoPost({ state, dispatch }, { photoRecord }) {
-      try {
-        await dispatch('_refreshApiTokenIfRequired')
-        const resp = await postFormDataWithAuth(
-          `${constants.apiUrlBase}/photos`,
-          formData => {
-            const photoBlob = arrayBufferToBlob(
-              photoRecord.file.data,
-              photoRecord.file.mime,
-            )
-            // we create a File so we can encode the type of the photo in the
-            // filename. Very sneaky ;)
-            const photoFile = new File([photoBlob], `wow-${photoRecord.type}`, {
-              type: photoBlob.type,
-            })
-            formData.append('file', photoFile)
-          },
-          `${state.apiToken}`,
-        )
-        return resp
-      } catch (err) {
-        // TODO if we get a 401, could refresh token and retry
-        throw chainedError(`Failed to POST local observation photo`, err)
       }
     },
     saveToken({ commit, dispatch }, vals) {
@@ -274,7 +216,7 @@ export default {
       await dispatch('_generatePkcePair')
       const challenge = state.code_challenge
       await dispatch('_assertReadyForOauthCallback')
-      location.assign(
+      window.location.assign(
         `${constants.inatUrlBase}/oauth/authorize?
         client_id=${constants.appId}&
         redirect_uri=${constants.redirectUri}&
@@ -328,7 +270,7 @@ export default {
         // to https://stackoverflow.com/a/12909563/1410035 for the primer on
         // this.
       } catch (err) {
-        throw chainedError('Failed to revoke iNat token while logging out', err)
+        throw ChainedError('Failed to revoke iNat token while logging out', err)
       }
     },
     _generatePkcePair({ commit }) {
@@ -336,48 +278,26 @@ export default {
       commit('_setCodeChallenge', pair.code_challenge)
       commit('_setCodeVerifier', pair.code_verifier)
     },
-    async sendSwUpdatedAuthToken({ state }) {
-      if (!(await isSwActive())) {
-        return
-      }
-      return fetch(constants.serviceWorkerUpdateAuthHeaderUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: state.apiToken,
-        },
-        retries: 0,
-      })
-    },
     async _updateApiToken({ commit, dispatch }) {
-      if (updateApiTokenPromise) {
-        // ensure we only make one refresh call
-        return updateApiTokenPromise
-      }
-      updateApiTokenPromise = impl()
-      return updateApiTokenPromise
-      async function impl() {
-        try {
-          const resp = await dispatch('doInatGet', {
-            urlSuffix: '/users/api_token',
-          })
-          const apiToken = resp.api_token
-          commit('_setApiToken', apiToken)
-          dispatch('updateUserDetails').then(() => {
-            commit('markApiTokenAndUserLastUpdated')
-            commit('setIsUpdatingApiToken', false)
-          })
-          dispatch('sendSwUpdatedAuthToken')
-        } catch (err) {
+      try {
+        const resp = await dispatch('doInatGet', {
+          urlSuffix: '/users/api_token',
+        })
+        const apiToken = resp.api_token
+        commit('_setApiToken', apiToken)
+        await getWebWorker().saveApiToken(apiToken)
+        dispatch('updateUserDetails').then(() => {
+          commit('markApiTokenAndUserLastUpdated')
           commit('setIsUpdatingApiToken', false)
-          const status = err.httpStatus
-          if (status === 401 || status === 400) {
-            commit('_setToken', null) // triggers the toast to login again
-            return
-          }
-          throw chainedError('Failed to get API token using iNat token', err)
-        } finally {
-          updateApiTokenPromise = null
+        })
+      } catch (err) {
+        commit('setIsUpdatingApiToken', false)
+        const status = err.httpStatus
+        if (status === 401 || status === 400) {
+          commit('_setToken', null) // triggers the toast to login again
+          return
         }
+        throw ChainedError('Failed to get API token using iNat token', err)
       }
     },
     /**
@@ -405,28 +325,15 @@ export default {
         )
       }
     },
-    setUsernameOnSentry({ getters, dispatch }) {
+    setUsernameOnSentry({ getters }) {
       const username = getters.myUsername
       if (!username) {
         console.debug('No username present, cannot set on Sentry')
         return
       }
       console.debug(`Setting username=${username} on Sentry`)
-      Sentry.configureScope(scope => {
-        scope.setUser({ username: username })
-      })
-      dispatch('sendSwUpdatedErrorTrackerContext', { username })
-    },
-    async sendSwUpdatedErrorTrackerContext(_, { username }) {
-      if (!(await isSwActive())) {
-        return
-      }
-      return fetch(constants.serviceWorkerUpdateErrorTrackerContextUrl, {
-        method: 'POST',
-        retries: 0,
-        body: JSON.stringify({
-          username: username,
-        }),
+      Sentry.configureScope((scope) => {
+        scope.setUser({ username })
       })
     },
     async _refreshApiTokenIfRequired({ dispatch, state }) {
@@ -437,9 +344,10 @@ export default {
       }
       try {
         const decodedJwt = jwtDecode(state.apiToken)
-        const now = new Date().getTime() / 1000
+        const nowSeconds = new Date().getTime() / 1000
         const fiveMinutes = 5 * 60
-        const isTokenExpiredOrCloseTo = now > decodedJwt.exp - fiveMinutes
+        const isTokenExpiredOrCloseTo =
+          nowSeconds > decodedJwt.exp - fiveMinutes
         if (!isTokenExpiredOrCloseTo) {
           return
         }

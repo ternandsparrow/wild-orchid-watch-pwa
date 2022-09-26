@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Force recordProcessingOutcome for obs
-    </div>
+    <div class="title">Force recordProcessingOutcome for obs</div>
     <div>
       <v-ons-button @click="prepResetRpoList"
         >1. Get list of local obs</v-ons-button
@@ -15,8 +13,9 @@
           v-for="curr of setRpoAvailableUuids"
           :key="curr.uuid"
           :value="curr.uuid"
-          >{{ curr.title }}</option
         >
+          {{ curr.title }}
+        </option>
       </select>
     </div>
     <div>
@@ -26,8 +25,9 @@
           v-for="curr of setRpoAvailableOutcomes"
           :key="curr"
           :value="curr"
-          >{{ curr }}</option
         >
+          {{ curr }}
+        </option>
       </select>
     </div>
     <div>
@@ -38,7 +38,8 @@
 </template>
 
 <script>
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 export default {
   name: 'ForceRpo',
@@ -48,11 +49,10 @@ export default {
       setRpoSelectedOutcome: null,
       setRpoAvailableUuids: [],
       setRpoAvailableOutcomes: [
-        constants.waitingOutcome,
-        constants.withLocalProcessorOutcome,
-        constants.withServiceWorkerOutcome,
-        constants.successOutcome,
-        constants.systemErrorOutcome,
+        cc.waitingOutcome,
+        cc.beingProcessedOutcome,
+        cc.successOutcome,
+        cc.systemErrorOutcome,
       ],
       setRpoSelectedUuid: null,
     }
@@ -61,22 +61,19 @@ export default {
     async doSetRpo() {
       this.setRpoStatus = 'starting'
       try {
-        await this.$store.dispatch('obs/_transitionHelper', {
-          wowId: this.setRpoSelectedUuid,
-          targetOutcome: this.setRpoSelectedOutcome,
-          validFromOutcomes: this.setRpoAvailableOutcomes,
-        })
-        this.setRpoStatus = 'refreshing'
-        await this.$store.dispatch('obs/refreshLocalRecordQueue')
+        await getWebWorker().transitionRecord(
+          this.setRpoSelectedUuid,
+          this.setRpoSelectedOutcome,
+        )
         this.setRpoStatus = 'done'
       } catch (err) {
         console.error('Failed to reset status of obs', err)
-        this.setRpoStatus = 'error: ' + err.message
+        this.setRpoStatus = `error: ${err.message}`
       }
     },
     prepResetRpoList() {
       this.setRpoAvailableUuids = this.$store.getters['obs/localRecords'].map(
-        e => ({
+        (e) => ({
           title: `${e.speciesGuess}  ${e.wowMeta.recordProcessingOutcome}  ${e.uuid}  ${e.observedAt}`,
           uuid: e.uuid,
         }),

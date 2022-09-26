@@ -2,8 +2,8 @@ version: 2.1
 
 executors:
   default-executor:
-    docker:
-      - image: cypress/base:10
+    machine: true
+    resource_class: ternandsparrow/fatty-webpack
 
 jobs:
   install-dependencies:
@@ -13,17 +13,18 @@ jobs:
 
       - restore_cache:
           keys:
-            - v2-deps-{{ checksum "yarn.lock" }}
-            - v2-deps
+            - v3-deps-{{ checksum "yarn.lock" }}
+            - v3-deps
 
       - run:
           name: 'Install dependencies'
-          command: yarn install --frozen-lockfile
+          command: |
+            yarn install --frozen-lockfile
 
       - save_cache:
           paths:
             - ~/.cache/yarn
-          key: v2-deps-{{ checksum "yarn.lock" }}
+          key: v3-deps-{{ checksum "yarn.lock" }}
 
       - persist_to_workspace:
           root: .
@@ -47,20 +48,6 @@ jobs:
           name: 'Run unit tests'
           command: yarn test:unit
 
-  run-e2e-tests:
-    executor: default-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - restore_cache:
-          keys:
-            - v2-deps-{{ checksum "yarn.lock" }}
-            - v2-deps
-      - run:
-          name: 'Run e2e tests'
-          command: echo "FIXME get working"
-          # command: yarn test:e2e:headless
-
   build-prod:
     executor: default-executor
     steps:
@@ -75,6 +62,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${PROD_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${PROD_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${PROD_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${PROD_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${PROD_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${PROD_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${PROD_INAT_PROJECT_SLUG:?}
@@ -123,7 +111,7 @@ jobs:
             VUE_APP_NOT_COLLECTED=$PROD_NOT_COLLECTED
             VUE_APP_FEATURE_FLAG_MISSIONS=$PROD_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$PROD_FEATURE_FLAG_NEWS
-            VUE_APP_FEATURE_FLAG_SEARCH=$PROD_FEATURE_FLAG_SEARCH
+            VUE_APP_FEATURE_FLAG_DRAFT=$PROD_FEATURE_FLAG_DRAFT
             VUE_APP_FEATURE_FLAG_BUG_REPORT=$PROD_FEATURE_FLAG_BUG_REPORT
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$PROD_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$PROD_FORCE_VUE_DEVTOOLS
@@ -159,6 +147,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${BETA_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${BETA_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${BETA_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${BETA_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${BETA_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${BETA_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${BETA_INAT_PROJECT_SLUG:?}
@@ -207,7 +196,7 @@ jobs:
             VUE_APP_NOT_COLLECTED=$BETA_NOT_COLLECTED
             VUE_APP_FEATURE_FLAG_MISSIONS=$BETA_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$BETA_FEATURE_FLAG_NEWS
-            VUE_APP_FEATURE_FLAG_SEARCH=$BETA_FEATURE_FLAG_SEARCH
+            VUE_APP_FEATURE_FLAG_DRAFT=$BETA_FEATURE_FLAG_DRAFT
             VUE_APP_FEATURE_FLAG_BUG_REPORT=$BETA_FEATURE_FLAG_BUG_REPORT
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$BETA_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$BETA_FORCE_VUE_DEVTOOLS
@@ -243,6 +232,7 @@ jobs:
             VUE_APP_INAT_BASE_URL=${DEV_INAT_BASE_URL:?}
             VUE_APP_INAT_STATIC_BASE_URL=${DEV_INAT_STATIC_BASE_URL:?}
             VUE_APP_API_BASE_URL=${DEV_API_BASE_URL:?}
+            VUE_APP_FACADE_BASE_URL=${DEV_FACADE_BASE_URL:?}
             VUE_APP_OAUTH_APP_ID=${DEV_OAUTH_APP_ID:?}
             VUE_APP_OAUTH_REDIRECT_URI=${DEV_OAUTH_REDIRECT_URI:?}
             VUE_APP_INAT_PROJECT_SLUG=${DEV_INAT_PROJECT_SLUG:?}
@@ -291,7 +281,7 @@ jobs:
             VUE_APP_NOT_COLLECTED=$DEV_NOT_COLLECTED
             VUE_APP_FEATURE_FLAG_MISSIONS=$DEV_FEATURE_FLAG_MISSIONS
             VUE_APP_FEATURE_FLAG_NEWS=$DEV_FEATURE_FLAG_NEWS
-            VUE_APP_FEATURE_FLAG_SEARCH=$DEV_FEATURE_FLAG_SEARCH
+            VUE_APP_FEATURE_FLAG_DRAFT=$DEV_FEATURE_FLAG_DRAFT
             VUE_APP_FEATURE_FLAG_BUG_REPORT=$DEV_FEATURE_FLAG_BUG_REPORT
             VUE_APP_MAX_SW_REQ_FAIL_COUNT=$DEV_MAX_SW_REQ_FAIL_COUNT
             VUE_APP_FORCE_VUE_DEVTOOLS=$DEV_FORCE_VUE_DEVTOOLS
@@ -360,14 +350,10 @@ workflows:
       - run-unit-tests:
           requires:
             - install-dependencies
-      - run-e2e-tests:
-          requires:
-            - install-dependencies
       - build-prod:
           requires:
             - check-linter
             - run-unit-tests
-            - run-e2e-tests
       - deploy-prod:
           requires:
             - build-prod
@@ -384,14 +370,10 @@ workflows:
       - run-unit-tests:
           requires:
             - install-dependencies
-      - run-e2e-tests:
-          requires:
-            - install-dependencies
       - build-beta:
           requires:
             - check-linter
             - run-unit-tests
-            - run-e2e-tests
       - deploy-beta:
           requires:
             - build-beta
@@ -410,14 +392,10 @@ workflows:
       - run-unit-tests:
           requires:
             - install-dependencies
-      - run-e2e-tests:
-          requires:
-            - install-dependencies
       - build-dev:
           requires:
             - check-linter
             - run-unit-tests
-            - run-e2e-tests
           filters:
             branches:
               only: develop # only build and deploy this branch

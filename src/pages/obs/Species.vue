@@ -57,7 +57,7 @@ export default {
     },
     tidyMySpecies() {
       return (this.mySpecies || [])
-        .map(e => ({
+        .map((e) => ({
           ...e,
           commonName: e.commonName || e.scientificName,
         }))
@@ -87,7 +87,9 @@ export default {
         // FIXME need to cache-bust (user agent disk cache) for this and similar
         await this.$store.dispatch('obs/getMySpecies')
       }
-      done && done()
+      if (done) {
+        done()
+      }
     },
     makeLinkToInat(record) {
       return `${inatUrlBase}/taxa/${record.id}`

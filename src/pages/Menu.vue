@@ -74,10 +74,10 @@ import {
   isBugReportFeatureEnabled,
   isMissionsFeatureEnabled,
   isNewsFeatureEnabled,
-  isSearchFeatureEnabled,
 } from '@/misc/constants'
 
 export default {
+  name: 'WowMenu',
   data() {
     return {
       appVersion,
@@ -133,12 +133,6 @@ export default {
           isDisabled: !isNewsFeatureEnabled,
         },
         {
-          title: 'Search',
-          icon: 'fa-search',
-          target: { name: 'Search' },
-          isDisabled: !isSearchFeatureEnabled,
-        },
-        {
           title: 'Missions',
           icon: 'fa-search-location',
           target: { name: 'Missions' },
@@ -182,7 +176,7 @@ export default {
       return `[${deployedEnvName} build]`
     },
     enabledAccess() {
-      return this.access.filter(e => !e.isDisabled)
+      return this.access.filter((e) => !e.isDisabled)
     },
   },
   methods: {

@@ -1,6 +1,6 @@
 import objectUnderTest from '@/store/ephemeral'
 
-const getters = objectUnderTest.getters
+const { getters } = objectUnderTest
 
 describe('app module getters', () => {
   describe('newContentAvailable', () => {

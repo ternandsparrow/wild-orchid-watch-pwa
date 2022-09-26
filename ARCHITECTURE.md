@@ -346,9 +346,12 @@ need the locales from moment and that is what makes it a bloated package.
 # Design decisions
 
 ## Strategy for databases in IndexedDB
-Currently we run two databases:
+Currently we run three databases:
   1. one for storing observations, the `obsStore`
-  1. one just for the Service Worker, the `swStore`
+  1. one for the photos, the `photoStore`
+  1. one for other data, the `metaStore`
+
+<!-- FIXME this is outdated, update it -->
 
 The `obsStore` is really the main store you should worry about. It stores the
 observations locally until we've uploaded them to iNat. The main (UI) thread
@@ -376,33 +379,6 @@ Apparently connections from one tab will block connections from the others. The
 other connections won't fail, they'll just block until they can run. At the
 time of writing, I wasn't able to reproduce this behaviour but if you see weird
 things happening, this is something to investigate.
-
-
-## Pseudo code for edit strategy
-if 'item is queued for ID'
-  we need to modify the queued item somehow
-else
-  queue up our item
-
-
-if 'is local only'
-  edit: changes need to result in a 'new' action
-  delete: just delete the record (unless processing)
-else
-  leave record as 'new' or 'edit'
-
-
-if 'is processing queued item'
-  we can only act on the blocked placeholder
-else
-  we can act on the queued item
-
-
-if 'is existing blocked action'
-  edit: merge with existing
-  delete: replace with delete action
-else
-  set value to our action
 
 
 ## Getting photos from the user
@@ -537,9 +513,10 @@ can't find any usages of it in our code.
 ## Gathering geolocation
 Creating observations that have GPS coordinates is essential for them to be
 useful at the other end when scientists use them. For this reason we make
-geolocation mandatory and offer three ways to collect that data:
+geolocation mandatory and offer four ways to collect that data:
   1. extracted from the EXIF of attached photos (also mandatory)
   1. using the location of the device
+  1. dropping a pin on a map
   1. (in detailed mode) manually entered
 This is also in the order that we prefer as more automated options are more
 reliable. We've seen some devices that don't work as well as we'd hope. A
@@ -572,7 +549,13 @@ to run so it's best to read the source code before running it.
 One limitation of observation fields is that they're owned by a single iNat
 user, with no option for transfer. Ideally they would be owned by the project
 and any curator of the project could maintain them but that's not currently the
-case. As a workaround, we've created an iNat users purely to own the fields.
+case. As a workaround, we've created an iNat user purely to own the fields.
+
+It's not a good idea to make changes to the observation fields once they
+already have observations that use them. iNaturalist tells you this on the edit
+page for a given obs field too. The only changes you can safely make are to add
+a new obs field or add a new value to an existing obs field. Any other change
+is going to disrupt things in a bad way.
 
 
 ## Multiselect observation fields
@@ -598,3 +581,39 @@ We use option 3 and we call these types of question "multiselects". This is
 because there are an enumerated set of options and you can select 0 to many of
 them. We also treat them specially in the UI, with some UI sugar, to make them
 nicer to interact with.
+
+# Project risks
+## iNaturalist shuts down
+Highly unlikely | Medium impact
+If another system takes its place, update the WOW app to use the new system
+(significant code changes required). If no other system is available, fork the
+open-source iNat code and start a WOW specific iNat instance. The app will only
+need configuration changes and everything will be running again.
+
+## iNaturalist makes breaking changes to its API
+Unlikely | Medium impact
+Code changes would be required to update the WOW app to work with the new iNat
+API. If this happens, it's almost certainly a bug and not the desired outcome
+so reporting the situation to the iNat team would be wise. Then they can fix
+the problem and support the V1 API contract that we use.
+
+## A new web browser, or new version of an existing web browser is unable to load the app
+Unlikely | Low impact
+No action is required if its acceptable that users of that browser cannot use
+the app. You could ask that users use a supported browser if that's feasible.
+If support is needed, code changes to the app would be required to add support.
+
+## NPM dependencies that we use are removed from NPM
+Highly unlikely | Medium impact
+This will have no impact on the running app as it's already bundled with
+everything it needs during build. For any new versions of the app that are to be
+released, alternative dependencies would need to be found (or the old version
+pulled from an archive).
+
+## Our web hosting platform is shutdown
+Unlikely | High impact
+It's likely that the product would be seamlessly replaced with another
+comparable one. But worst case scenario, this app can be served from any web
+server that can serve static assets. The only special requirement is that URLs
+for documents that would 404 are instead redirected to the main index page so
+the SPA component can take over.

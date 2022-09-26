@@ -56,7 +56,7 @@ const commonLanduseValues = [
 export default (() => {
   const theData = [
     {
-      id: 'photos-' + constants.photoTypeWholePlant,
+      id: `photos-${constants.photoTypeWholePlant}`,
       heading: 'Whole plant photos',
       values: [
         [
@@ -67,7 +67,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeFlower,
+      id: `photos-${constants.photoTypeFlower}`,
       heading: 'Flower photos',
       values: [
         [
@@ -78,7 +78,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeLeaf,
+      id: `photos-${constants.photoTypeLeaf}`,
       heading: 'Leaf photos',
       values: [
         [
@@ -89,7 +89,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeFruit,
+      id: `photos-${constants.photoTypeFruit}`,
       heading: 'Fruit photos',
       values: [
         [
@@ -100,7 +100,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeHabitat,
+      id: `photos-${constants.photoTypeHabitat}`,
       heading: 'Habitat photos',
       values: [
         [
@@ -111,7 +111,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeMicrohabitat,
+      id: `photos-${constants.photoTypeMicrohabitat}`,
       heading: 'Micro-habitat photos',
       values: [
         [
@@ -122,7 +122,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeCanopy,
+      id: `photos-${constants.photoTypeCanopy}`,
       heading: 'Canopy photos',
       values: [
         [
@@ -133,7 +133,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeFloralVisitors,
+      id: `photos-${constants.photoTypeFloralVisitors}`,
       heading: 'Floral visitors photos',
       values: [
         [
@@ -144,7 +144,7 @@ export default (() => {
       ],
     },
     {
-      id: 'photos-' + constants.photoTypeEpiphyteHostTree,
+      id: `photos-${constants.photoTypeEpiphyteHostTree}`,
       heading: 'Epiphyte host tree photos',
       values: [
         [
@@ -719,11 +719,11 @@ export default (() => {
       ],
     },
   ]
-  return theData.map(currSection => {
+  return theData.map((currSection) => {
     const helpImageUrlPrefix = '/img/help/'
     return {
       ...currSection,
-      values: currSection.values.map(currValue => {
+      values: currSection.values.map((currValue) => {
         const imageSuffix = currValue[2]
         return {
           value: currValue[0],

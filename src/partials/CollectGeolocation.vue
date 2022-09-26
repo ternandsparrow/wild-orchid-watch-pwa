@@ -64,7 +64,7 @@
                   <v-ons-icon icon="fa-info-circle" />
                   Attach some photos and they'll be automatically scanned
                 </span>
-                <h1 v-else style="color: red;">
+                <h1 v-else style="color: red">
                   Programmer problem - unhandled state
                   {{ geolocationFromPhotoState }}
                 </h1>
@@ -104,6 +104,45 @@
               {{ deviceGeolocationErrorMsg }}. Or consider choosing one of the
               other methods in this list to capture geolocation/GPS coordinates.
             </p>
+          </div>
+        </v-ons-list-item>
+        <v-ons-list-item tappable>
+          <label class="left">
+            <v-ons-radio
+              v-model="geolocationMethod"
+              input-id="radio-gm-pin"
+              value="pin"
+              modifier="material"
+            ></v-ons-radio>
+          </label>
+          <div class="center wow-radio-option-label">
+            <label for="radio-gm-pin">
+              Manually input a location by dragging a pin on a map. (must have
+              internet connection)
+            </label>
+            <div v-if="geolocationMethod === 'pin'">
+              <google-map
+                :marker-position="defaultMarkerPos"
+                :map-options="{
+                  gestureHandling: 'cooperative',
+                  disableDefaultUI: true,
+                }"
+                map-type-id="satellite"
+                style="width: 62vw; padding-top: 10px"
+                :centered-marker="true"
+                @pinDropped="
+                  (coords) => {
+                    $store.commit('ephemeral/setPinCoords', coords)
+                    pokeParentToReadCoords()
+                  }
+                "
+              />
+              <p v-if="coordsForCurrentlyEditingObs">
+                Using coordinates:
+                {{ coordsForCurrentlyEditingObs.lat.toFixed(6) }},
+                {{ coordsForCurrentlyEditingObs.lng.toFixed(6) }}
+              </p>
+            </div>
           </div>
         </v-ons-list-item>
         <v-ons-list-item v-if="isDetailedUserMode" tappable>
@@ -200,7 +239,7 @@
         <google-map
           v-if="isShowMap"
           :marker-position="obsCoords"
-          style="width: 94vw;"
+          style="width: 94vw"
         />
       </div>
     </div>
@@ -213,8 +252,10 @@
 
 <script>
 import { mapGetters, mapState } from 'vuex'
+import _ from 'lodash'
 import {
   isInBoundingBox,
+  isNotInteger,
   wowErrorHandler,
   wowWarnMessage,
 } from '@/misc/helpers'
@@ -250,7 +291,7 @@ export default {
     ...mapGetters('ephemeral', [
       'oldestPhotoCoords',
       'coordsForCurrentlyEditingObs',
-      'photosStillCompressingCount',
+      'photosStillProcessingCount',
     ]),
     geolocationMethod: {
       get() {
@@ -278,7 +319,7 @@ export default {
           ? 'captured'
           : 'not-from-photo'
       }
-      const isPhotosStillProcessing = !!this.photosStillCompressingCount
+      const isPhotosStillProcessing = !!this.photosStillProcessingCount
       if (isPhotosStillProcessing) {
         return 'processing'
       }
@@ -295,7 +336,7 @@ export default {
       if (!this.isManualLatAndLon) {
         return 'incomplete'
       }
-      if (isNaN(this.manualLat) || isNaN(this.manualLon)) {
+      if (isNotInteger(this.manualLat) || isNotInteger(this.manualLon)) {
         return 'invalid'
       }
       const lat = parseFloat(this.manualLat)
@@ -323,6 +364,21 @@ export default {
         accuracy,
       }
     },
+    defaultMarkerPos() {
+      if (this.isEdit) {
+        const uuid = this.$store.state.obs.selectedObservationUuid
+        const currentObs = _.find(
+          this.$store.state.obs.allRemoteObs,
+          function (obs) {
+            if (obs.uuid === uuid) {
+              return true
+            }
+          },
+        )
+        return { lat: currentObs.lat, lng: currentObs.lng }
+      }
+      return { lat: -34.927485, lng: 138.599927 } // Default position of Adelaide
+    },
   },
   watch: {
     geolocationMethod(newVal) {
@@ -330,7 +386,9 @@ export default {
         device: this.getDeviceGpsLocation,
       }
       const strat = strategies[newVal]
-      strat && strat()
+      if (strat) {
+        strat()
+      }
       // always poke the parent so it can "clear" old coords if needed
       this.pokeParentToReadCoords()
       if (!this.obsCoords) {
@@ -385,8 +443,8 @@ export default {
       try {
         await this.$store.dispatch('ephemeral/markUserGeolocation')
         const coords = this.$store.state.ephemeral.deviceCoords
-        const lat = coords.lat
-        const lng = coords.lng
+        const { lat } = coords
+        const { lng } = coords
         if (!isInBoundingBox(lat, lng)) {
           await this.$ons.notification.alert(
             `Your coordinates (${lat},${lng}) look like they're outside Australia. ` +

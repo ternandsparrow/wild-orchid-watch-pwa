@@ -1,6 +1,7 @@
 import nodeResolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
 import sourcesmaps from 'rollup-plugin-sourcemaps'
+import alias from '@rollup/plugin-alias'
 import injectProcess from './rollup-plugin-inject-process'
 
 export default {
@@ -14,7 +15,13 @@ export default {
     },
   ],
   plugins: [
-    nodeResolve(), // lets us find dependencies in node_modules
+    alias({
+      entries: [{ find: '@', replacement: `${__dirname}/src` }],
+    }),
+    nodeResolve({ // lets us find dependencies in node_modules
+      jail: __dirname,
+      preferBuiltins: false, // we're running in the browser so we can't use builtins (I think)
+    }),
     commonjs(),
     injectProcess(['NODE_ENV', /VUE_APP_.*/]),
     sourcesmaps(),

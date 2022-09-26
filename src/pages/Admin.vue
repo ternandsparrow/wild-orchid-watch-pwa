@@ -2,15 +2,6 @@
   <menu-wrapper title="Admin">
     <v-ons-card>
       <div class="title">
-        Service Worker health check
-      </div>
-      <p>
-        <v-ons-button @click="doSwHealthCheck">Perform check</v-ons-button>
-      </p>
-      <div class="code-style">{{ swHealthCheckResult }}</div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
         Connect to RemoteJS (<a href="https://remotejs.com/" target="_blank"
           >remotejs.com</a
         >)
@@ -31,9 +22,7 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Clone an obs N times
-      </div>
+      <div class="title">Clone an obs N times</div>
       <p>
         Ever wondered if 30 local observations will bring a device to its knees?
         Find out. You might want to turn off syncing before cloning.
@@ -46,12 +35,9 @@
       <div>
         Obs to clone
         <select v-model="cloneSubjectUuid">
-          <option
-            v-for="curr of cloneList"
-            :key="curr.uuid"
-            :value="curr.uuid"
-            >{{ curr.title }}</option
-          >
+          <option v-for="curr of cloneList" :key="curr.uuid" :value="curr.uuid">
+            {{ curr.title }}
+          </option>
         </select>
       </div>
       <div>
@@ -63,16 +49,13 @@
       </div>
       <div>Status = {{ cloneStatus }}</div>
     </v-ons-card>
+    <wow-force-rpo />
     <v-ons-card>
-      <div class="title">
-        Dump vuex
-      </div>
+      <div class="title">Dump vuex</div>
       <p>
         <v-ons-checkbox v-model="isIncludeProject" input-id="include-project">
         </v-ons-checkbox>
-        <label for="include-project">
-          Include project details
-        </label>
+        <label for="include-project"> Include project details </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -80,9 +63,7 @@
           input-id="include-local-obs"
         >
         </v-ons-checkbox>
-        <label for="include-local-obs">
-          Include local observations
-        </label>
+        <label for="include-local-obs"> Include local observations </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -90,9 +71,7 @@
           input-id="include-remote-obs"
         >
         </v-ons-checkbox>
-        <label for="include-remote-obs">
-          Include remote observations
-        </label>
+        <label for="include-remote-obs"> Include remote observations </label>
       </p>
       <p>
         <v-ons-checkbox
@@ -100,9 +79,7 @@
           input-id="include-species-list"
         >
         </v-ons-checkbox>
-        <label for="include-species-list">
-          Include species list
-        </label>
+        <label for="include-species-list"> Include species list </label>
       </p>
       <p>
         <v-ons-button @click="doVuexDump">Perform dump</v-ons-button>
@@ -115,9 +92,7 @@
       <div class="code-style">{{ vuexDump }}</div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Enable service worker console proxy
-      </div>
+      <div class="title">Enable service worker console proxy</div>
       <p>
         For when you can't get access to the SW console. iOS Safari in
         BrowserStack is one offender.
@@ -133,12 +108,8 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Enable console proxying to UI
-      </div>
-      <p>
-        For when you can't get access debug tools (like on a mobile device)
-      </p>
+      <div class="title">Enable console proxying to UI</div>
+      <p>For when you can't get access debug tools (like on a mobile device)</p>
       <p>
         <v-ons-button
           :disabled="hasConsoleBeenProxiedToUi"
@@ -159,9 +130,7 @@
       </p>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Location test
-      </div>
+      <div class="title">Location test</div>
       <div class="text-center">
         <p v-if="isLocSuccess" class="success-msg">
           Location: lat=<span class="mono">{{ lat }}</span
@@ -176,13 +145,14 @@
       </div>
     </v-ons-card>
     <join-leave-project @refresh="doProjectInfoRefresh" />
+    <wow-extract-thumbnail-from-exif />
+    <wow-facade-migration-test />
+    <wow-sw-queue-testing />
     <wow-generate-crypto-keys />
     <wow-test-encrypt-payload />
     <wow-decrypt-payload />
     <v-ons-card>
-      <div class="title">
-        Platform test
-      </div>
+      <div class="title">Platform test</div>
       <p>
         Run a series of tests to make sure the platform is working like we
         expect.
@@ -191,51 +161,13 @@
       <v-ons-button @click="doPlatformTest">Do platform test</v-ons-button>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        User agent
-      </div>
+      <div class="title">User agent</div>
       <div class="text-center">
         {{ userAgent }}
       </div>
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        Is currently processing queue?
-      </div>
-      <p class="mono">
-        <strong>Result = {{ isProcessingQueue }}</strong>
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Service Worker statuses
-      </div>
-      <p class="mono">
-        <span v-if="isSwStatusActive" class="success-msg"
-          >All ready to go!</span
-        >
-        <span v-if="!isSwStatusActive" class="error-msg"
-          >SW is either not ready or not supported :(</span
-        >
-      </p>
-      <p class="mono">
-        <strong>Active = {{ swStatus.active }}</strong
-        ><br />
-        <strong>Installing = {{ swStatus.installing }}</strong
-        ><br />
-        <strong>Waiting = {{ swStatus.waiting }}</strong>
-      </p>
-      <p>
-        <button name="check-sw-btn" @click="fireCheckSwCall">
-          Fire check to SW
-        </button>
-      </p>
-      <p class="mono">Result: {{ swCheckResult }}</p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Force refresh
-      </div>
+      <div class="title">Force refresh</div>
       <p>Project info last updated at: {{ projectInfoLastUpdatedPretty }}</p>
       <p>
         <v-ons-button @click="doProjectInfoRefresh"
@@ -261,54 +193,9 @@
         <v-ons-button @click="resetDuringDev">Reset</v-ons-button>
       </p>
     </v-ons-card>
-    <wow-force-rpo />
+    <configuration-dump />
     <v-ons-card>
-      <div class="title">
-        Trigger queue processing
-      </div>
-      <div>
-        <v-ons-button @click="doLQP"
-          >Trigger local (client) queue processing</v-ons-button
-        >
-      </div>
-      <p>
-        Beware of this SW trigger. If the queue is already processing, it'll
-        start double processing. There's no safe guard. These status reports are
-        only for manually triggered processing, they have no idea about
-        workbox-triggered processing.
-      </p>
-      <div>
-        <p>Manually triggered processing status = {{ swWowQueueStatus }}</p>
-        <v-ons-button @click="doTriggerSwWowQueue"
-          >Trigger SW WOW queue processing</v-ons-button
-        >
-      </div>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="standalone-title">
-        Configuration
-      </div>
-      <v-ons-list>
-        <template v-for="curr of configItems">
-          <v-ons-list-header
-            :key="curr.label + '-header'"
-            class="wow-list-header wow-admin-list-header"
-          >
-            {{ curr.label }}
-          </v-ons-list-header>
-          <v-ons-list-item
-            :key="curr.label + '-value'"
-            class="config-item-value"
-          >
-            {{ curr.value }}
-          </v-ons-list-item>
-        </template>
-      </v-ons-list>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Manually trigger an error
-      </div>
+      <div class="title">Manually trigger an error</div>
       <p>
         <v-ons-input
           v-model="manualErrorMsg"
@@ -331,45 +218,6 @@
           >Trigger error in main thread</v-ons-button
         >
       </p>
-      <p>
-        <v-ons-button @click="doManualErrorSw"
-          >Trigger error in service worker</v-ons-button
-        >
-      </p>
-    </v-ons-card>
-    <v-ons-card>
-      <div class="title">
-        Send requests to observation_photos endpoint on API
-      </div>
-      <p>
-        Safari is having CORS issues in the ServiceWorker. This will help
-        diagnose it
-      </p>
-      <p>
-        We never do this but it's a sanity check to make sure the endpoint is as
-        we expect. Also we're making this call from the main thread, not in the
-        SW.
-        <v-ons-button @click="doObsPhotoOptions"
-          >Send OPTIONS request</v-ons-button
-        >
-      </p>
-      <div>
-        We expect these to fail with 422 but that's good. It means we passed the
-        CORS preflight check.
-        <div class="gimme-some-space">
-          <v-ons-button @click="doObsPhotoPost"
-            >Send POST request from main thread</v-ons-button
-          >
-        </div>
-        <div class="gimme-some-space">
-          <v-ons-button @click="doSwObsPhotoPost"
-            >Send POST request from SW</v-ons-button
-          >
-        </div>
-      </div>
-      <code
-        ><pre>{{ obsPhotoReqOutcome }}</pre></code
-      >
     </v-ons-card>
     <v-ons-card>
       <v-ons-button @click="doCommunityWorkflow"
@@ -377,9 +225,7 @@
       >
     </v-ons-card>
     <v-ons-card>
-      <div class="title">
-        ML Test
-      </div>
+      <div class="title">ML Test</div>
       <p>
         Load the Trained Model, Load a test Image and then do a predict on the
         image.
@@ -407,42 +253,36 @@ import * as Comlink from 'comlink'
 
 import CommunityComponent from '@/pages/new-obs/Community'
 import { mainStack } from '@/misc/nav-stacks'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
   clearLocalStorage,
   humanDateString,
-  isSwActive,
-  triggerSwWowQueue,
   unregisterAllServiceWorkers,
 } from '@/misc/helpers'
 import * as devHelpers from '@/misc/dev-helpers'
 import { deleteKnownStorageInstances } from '@/indexeddb/storage-manager'
-import { getRecord, storeRecord } from '@/indexeddb/obs-store-common'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
 const wowModelPath = '/image-ml/v1/model.json'
 
 export default {
-  name: 'Admin',
+  name: 'WowAdmin',
   data() {
     return {
       lat: null,
       lng: null,
       alt: null,
       locErrorMsg: null,
-      meResp: '(nothing yet)',
       vuexDump: '(nothing yet)',
       isIncludeLocalObs: false,
       isIncludeRemoteObs: false,
       isIncludeSpeciesList: false,
       isIncludeProject: false,
-      configItems: [],
       manualErrorMsg: null,
       isManualErrorCaught: true,
-      swWowQueueStatus: 'not started',
       imageClassificationResult: 'nothing yet',
       classifier: null,
       ourWorker: null,
-      swHealthCheckResult: 'nothing yet',
       hasConsoleBeenProxiedToUi: false,
       obsPhotoReqOutcome: 'nothing yet',
       hasSwConsoleBeenProxied: false,
@@ -452,19 +292,14 @@ export default {
       cloneStatus: 'not started',
       remoteJsUuid: null,
       platformTestResult: '(not run yet)',
-      swCheckResult: '(not run yet)',
       remoteJsAttachStatus: '(no connection attempted, yet)',
     }
   },
   computed: {
     ...mapGetters('auth', ['isUserLoggedIn']),
-    ...mapGetters('ephemeral', ['swStatus', 'isSwStatusActive']),
     ...mapState('ephemeral', ['consoleMsgs']),
     isLocSuccess() {
       return this.lat && this.lng && !this.locErrorMsg
-    },
-    isProcessingQueue() {
-      return !!this.$store.state.ephemeral.queueProcessorPromise
     },
     projectInfoLastUpdatedPretty() {
       const luDate = this.$store.state.obs.projectInfoLastUpdated
@@ -479,91 +314,18 @@ export default {
         .userAgent
     },
   },
-  created() {
-    this.computeConfigItems()
-  },
   methods: {
-    doLQP() {
-      this.$store.dispatch('obs/processLocalQueue')
-    },
-    computeConfigItems() {
-      const nonSecretKeys = [
-        'appVersion',
-        'bboxLatMax',
-        'bboxLatMin',
-        'bboxLonMax',
-        'bboxLonMin',
-        'countOfIndividualsObsFieldDefault',
-        'deployedEnvName',
-        'inatProjectSlug',
-        'inatStaticUrlBase',
-        'inatUrlBase',
-        'isForceVueDevtools',
-        'isMissionsFeatureEnabled',
-        'isNewsFeatureEnabled',
-        'isSearchFeatureEnabled',
-        'isBugReportFeatureEnabled',
-        'maxReqFailureCountInSw',
-        'maxSpeciesAutocompleteResultLength',
-        'obsFieldNamePrefix',
-        'obsFieldSeparatorChar',
-        'redirectUri',
-        'taxaDataUrl',
-        'waitBeforeRefreshSeconds',
-      ]
-      const partialResult = nonSecretKeys.map(e => ({
-        label: e,
-        value: constants[e],
-      }))
-      const result = [
-        ...partialResult,
-        { label: 'appId', value: constants.appId.replace(/.{35}/, '(snip)') },
-        {
-          label: 'googleMapsApiKey',
-          value: (v => v.replace(new RegExp(`.{${v.length - 4}}`), '(snip)'))(
-            constants.googleMapsApiKey,
-          ),
-        },
-        {
-          label: 'sentryDsn',
-          value: constants.sentryDsn.replace(/.{25}/, '(snip)'),
-        },
-      ]
-      result.sort((a, b) => {
-        if (a.label < b.label) return -1
-        if (a.label > b.label) return 1
-        return 0
-      })
-      this.configItems = result
-    },
-    async doSwHealthCheck() {
-      this.swHealthCheckResult = 'nothing yet'
-      try {
-        const resp = await fetch(constants.serviceWorkerHealthCheckUrl)
-        this.swHealthCheckResult = await resp.json()
-      } catch (err) {
-        this.swHealthCheckResult = err.message
-        console.error('Failed to do health check on service worker', err)
-      }
-    },
     doCustomLocalQueueSummaryDump() {
-      const speciesGuesses = this.$store.state.obs._uiVisibleLocalRecords.reduce(
-        (accum, curr) => {
-          accum[curr.uuid] = curr.speciesGuess
-          return accum
-        },
-        {},
+      this.vuexDump = JSON.stringify(
+        this.$store.state.obs.localQueueSummary,
+        null,
+        2,
       )
-      const lqs = this.$store.state.obs.localQueueSummary.map(e => ({
-        ...e,
-        speciesGuess: speciesGuesses[e.uuid],
-      }))
-      this.vuexDump = JSON.stringify(lqs, null, 2)
     },
     doVuexDump() {
       const parsed = _.cloneDeep(this.$store.state)
       if (!this.isIncludeLocalObs) {
-        parsed.obs._uiVisibleLocalRecords = `(excluded, ${parsed.obs._uiVisibleLocalRecords.length} item array)`
+        parsed.obs.localQueueSummary = `(excluded, ${parsed.obs.localQueueSummary.length} item array)`
       }
       if (!this.isIncludeRemoteObs) {
         parsed.obs.allRemoteObs = `(excluded, ${parsed.obs.allRemoteObs.length} item array)`
@@ -583,7 +345,7 @@ export default {
       console.log(`Counter after: ${await this.ourWorker.counter}`)
       // Make a prediction with a selected image
       this.classifier.classify(
-        // FIXME how do we pass the image to the worker? ML5 seems to want
+        // how do we pass the image to the worker? ML5 seems to want
         // references to images but web workers don't have access to the DOM.
         // Ideally we could pass the bytes themselves but even then, we can't
         // create HTMLImageElement, etc in the worker. OffscreenCanvas might be
@@ -608,13 +370,13 @@ export default {
         return
       }
       navigator.geolocation.getCurrentPosition(
-        loc => {
+        (loc) => {
           this.lat = loc.coords.latitude
           this.lng = loc.coords.longitude
           this.alt = loc.coords.altitude
           this.acc = loc.coords.accuracy
         },
-        err => {
+        (err) => {
           const msg = 'Location access is failed. '
           console.error(msg, err)
           this.locErrorMsg = msg + err.message
@@ -630,7 +392,7 @@ export default {
     },
     doManualError() {
       const err = new Error(
-        '[Manually triggered error from /admin] ' + this.manualErrorMsg,
+        `[Manually triggered error from /admin] ${this.manualErrorMsg}`,
       )
       err.httpStatus = 418
       err.name = 'ManuallyTriggeredError'
@@ -647,55 +409,6 @@ export default {
         { root: true },
       )
     },
-    doManualErrorSw() {
-      if (this.isManualErrorCaught) {
-        this._sendMessageToSw(constants.testTriggerManualCaughtErrorMsg)
-        return
-      }
-      this._sendMessageToSw(constants.testTriggerManualUncaughtErrorMsg)
-    },
-    fireCheckSwCall() {
-      console.debug('Firing check to SW')
-      this.swCheckResult = 'checking...'
-      isSwActive()
-        .then(result => {
-          console.log('Is SW alive? ' + result)
-          this.swCheckResult = 'is SW alive = ' + result
-        })
-        .catch(err => {
-          console.error('Failed to send check to SW', err)
-          this.swCheckResult = 'Error ' + err.message
-        })
-    },
-    doTriggerSwWowQueue() {
-      this.swWowQueueStatus = 'processing'
-      triggerSwWowQueue()
-        .then(() => {
-          console.debug(
-            'Triggering of SW deps queue processing completed successfully',
-          )
-          this.swWowQueueStatus = 'finished'
-        })
-        .catch(err => {
-          this.swWowQueueStatus = 'error. ' + err
-        })
-    },
-    _sendMessageToSw(msg) {
-      return new Promise(function(resolve, reject) {
-        const msgChan = new MessageChannel()
-        msgChan.port1.onmessage = function(event) {
-          if ((event.data || {}).error) {
-            return reject(event.data.error)
-          }
-          return resolve(event.data)
-        }
-        const controller = navigator.serviceWorker.controller
-        if (!controller) {
-          return reject('No service worker active. Cannot send msg=' + msg)
-        }
-        controller.postMessage(msg, [msgChan.port2])
-      })
-    },
     async doProjectInfoRefresh() {
       await this.$store.dispatch('obs/getProjectInfo')
     },
@@ -708,7 +421,7 @@ export default {
       if (!reg) {
         throw new Error('No SW registration found, cannot send message')
       }
-      reg.active.postMessage(constants.proxySwConsoleMsg)
+      reg.active.postMessage({ msgId: cc.proxySwConsoleMsg })
       console.log('Message sent to SW to enable console proxying')
     },
     enableConsoleProxyToUi() {
@@ -716,9 +429,8 @@ export default {
       for (const curr of ['debug', 'info', 'warn', 'error']) {
         origConsole[curr] = console[curr]
         console[curr] = (...theArgs) => {
-          const simpleMsg = theArgs.reduce((accum, curr) => {
-            accum += curr + ' ' // TODO do we need to handle Errors or objects specially?
-            return accum
+          const simpleMsg = theArgs.reduce((accum, curr2) => {
+            return `${accum}${curr2} ` // TODO do we need to handle Errors or objects specially?
           }, '')
           this.$store.commit('ephemeral/pushConsoleMsg', {
             level: curr,
@@ -743,59 +455,32 @@ export default {
       unregisterAllServiceWorkers()
       await deleteKnownStorageInstances()
     },
-    async doObsPhotoOptions() {
-      return this._doObsPhotoRequest('OPTIONS')
-    },
-    async doObsPhotoPost() {
-      return this._doObsPhotoRequest('POST')
-    },
-    async _doObsPhotoRequest(method) {
-      this.obsPhotoReqOutcome = 'nothing yet'
-      try {
-        const resp = await fetch(`${constants.apiUrlBase}/observation_photos`, {
-          method: method,
-          retries: 0,
-          headers: {
-            Authorization: this.$store.state.auth.apiToken,
-          },
-        })
-        this.obsPhotoReqOutcome = resp.ok ? 'seem ok' : 'seems NOT ok'
-        console.debug(`Obs photos ${method} req done`)
-      } catch (err) {
-        this.obsPhotoReqOutcome = 'error'
-        console.error(
-          `Failed when making ${method} request to obs photo endpoint`,
-          err,
-        )
-      }
-    },
-    doSwObsPhotoPost() {
-      this._sendMessageToSw(constants.testSendObsPhotoPostMsg)
-    },
     async doClone() {
       this.cloneStatus = 'Starting'
       console.debug(
         `Cloning obs UUID=${this.cloneSubjectUuid} a count of ${this.cloneCount} times`,
       )
-      const cloneSubject = await getRecord(this.cloneSubjectUuid)
+      const ww = getWebWorker()
+      const cloneSubject = await ww.getRecord(this.cloneSubjectUuid)
       let counter = 0
       while (counter < this.cloneCount) {
-        counter++
+        counter += 1
         const msg = `Making clone #${counter}`
         console.debug(msg)
         this.cloneStatus = msg
-        const cloned = Object.assign({}, cloneSubject, {
+        const cloned = {
+          ...cloneSubject,
           speciesGuess: `[Clone ${counter}] ${cloneSubject.speciesGuess}`,
           uuid: uuid(),
           observedAt: new Date(),
-        })
-        await storeRecord(cloned)
+        }
+        await ww.storeRecord(cloned)
       }
       await this.$store.dispatch('obs/refreshLocalRecordQueue')
       this.cloneStatus = 'Done :D'
     },
     prepCloneList() {
-      this.cloneList = this.$store.state.obs._uiVisibleLocalRecords.map(e => ({
+      this.cloneList = this.$store.getters['obs/localRecords'].map((e) => ({
         title: `${e.speciesGuess}  ${e.uuid}  ${e.observedAt}`,
         uuid: e.uuid,
       }))
@@ -803,8 +488,9 @@ export default {
     async attachRemoteJs() {
       console.debug('attaching to RemoteJS')
       this.remoteJsAttachStatus = 'attaching...'
-      const uuid = this.remoteJsUuid
-      if (!uuid) {
+      const theUuid = this.remoteJsUuid
+      if (!theUuid) {
+        // eslint-disable-next-line no-alert
         alert('You must supply the UUID for the RemoteJS session')
         return
       }
@@ -817,14 +503,13 @@ export default {
       const s = document.createElement('script')
       s.src = 'https://remotejs.com/agent/agent.js'
       s.id = scriptTagId
-      s.setAttribute('data-consolejs-channel', uuid)
+      s.setAttribute('data-consolejs-channel', theUuid)
       document.head.appendChild(s)
       if (!this.hasSwConsoleBeenProxied) {
         try {
           await this.enableSwConsoleProxy()
         } catch (err) {
-          this.remoteJsAttachStatus =
-            'attached but SW console proxy failed: ' + err.message
+          this.remoteJsAttachStatus = `attached but SW console proxy failed: ${err.message}`
           return
         }
       }
@@ -832,10 +517,7 @@ export default {
     },
     async doPlatformTest() {
       try {
-        const resp = await fetch(constants.serviceWorkerPlatformTestUrl, {
-          method: 'POST',
-        })
-        const mainThreadResults = [
+        this.platformTestResult = [
           {
             name: 'platformTestReqFileMainThread',
             result: await devHelpers.platformTestReqFile(),
@@ -845,16 +527,9 @@ export default {
             result: await devHelpers.platformTestReqBlob(),
           },
         ]
-        const swResults = await (async () => {
-          if (await isSwActive()) {
-            return resp.json()
-          }
-          return '(no SW)'
-        })()
-        this.platformTestResult = [...mainThreadResults, ...swResults]
       } catch (err) {
         console.error('Failed to perform platform test', err)
-        this.platformTestResult = 'Failed. ' + err.message
+        this.platformTestResult = `Failed. ${err.message}`
       }
     },
     async loadMl5Library() {
@@ -868,7 +543,8 @@ export default {
         try {
           if (isScriptAlreadyLoaded(src)) {
             console.debug('ML5 already loaded')
-            return resolve()
+            resolve()
+            return
           }
           // thanks https://stackoverflow.com/a/47002863/1410035
           const ml5Script = document.createElement('script')
@@ -884,11 +560,11 @@ export default {
               type: 'module',
             })
             this.ourWorker = Comlink.wrap(worker)
-            return resolve()
+            resolve()
           }
           document.head.appendChild(ml5Script)
         } catch (err) {
-          return reject(err)
+          reject(err)
         }
       })
     },
@@ -921,10 +597,6 @@ function isScriptAlreadyLoaded(src) {
 .code-style {
   font-family: monospace;
   white-space: pre;
-}
-
-.standalone-title {
-  font-size: 1.5em;
 }
 
 .config-item-value {

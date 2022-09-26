@@ -1,14 +1,15 @@
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { isNil } from 'lodash'
-import EXIF from 'exif-js'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import {
-  chainedError,
+  arrayBufferToBlob,
+  blobToArrayBuffer,
+  ChainedError,
+  getExifFromBlob,
   iterateIdb,
-  makeObsRequest,
   now,
+  recordTypeEnum,
   // Prefer to dispatch('flagGlobalError') as that will inform the UI and call
   // wowErrorHandler eventually
   wowErrorHandler,
@@ -17,10 +18,13 @@ import {
 } from './only-common-deps-helpers'
 
 export {
-  chainedError,
+  arrayBufferToBlob,
+  blobToArrayBuffer,
+  ChainedError,
+  getExifFromBlob,
   iterateIdb,
-  makeObsRequest,
   now,
+  recordTypeEnum,
   wowErrorHandler,
   wowWarnHandler,
   wowWarnMessage,
@@ -38,12 +42,16 @@ const jsonHeaders = {
   ...commonHeaders,
 }
 
+export function processObsFieldName(fieldName) {
+  return (fieldName || '').replace(cc.obsFieldNamePrefix, '')
+}
+
 export function postJson(url, data = {}) {
   const authHeaderValue = null
   return postJsonWithAuth(url, data, authHeaderValue)
 }
 
-export function postJsonWithAuth(url, data = {}, authHeaderValue) {
+export function postJsonWithAuth(url, data, authHeaderValue) {
   // TODO consider using https://github.com/sindresorhus/ky instead of fetch()
   return doManagedFetch(url, {
     method: 'POST',
@@ -56,7 +64,7 @@ export function postJsonWithAuth(url, data = {}, authHeaderValue) {
   })
 }
 
-export function putJsonWithAuth(url, data = {}, authHeaderValue) {
+export function putJsonWithAuth(url, data, authHeaderValue) {
   return doManagedFetch(url, {
     method: 'PUT',
     mode: 'cors',
@@ -68,27 +76,28 @@ export function putJsonWithAuth(url, data = {}, authHeaderValue) {
   })
 }
 
-export function postFormDataWithAuth(
+export async function postFormDataWithAuth(
   url,
   populateFormDataCallback,
   authHeaderValue,
+  extraHeadersParam,
 ) {
   const formData = new FormData()
-  populateFormDataCallback(formData)
+  await populateFormDataCallback(formData)
   return doManagedFetch(url, {
     method: 'POST',
     mode: 'cors',
     headers: {
       ...commonHeaders,
       Authorization: authHeaderValue,
+      ...(extraHeadersParam || {}),
     },
-    body: formData,
+    body: formData._blob ? formData._blob() : formData,
   })
 }
 
-export function getJson(url, includeCacheBustQueryString) {
-  const authHeader = null
-  return getJsonWithAuth(url, authHeader, includeCacheBustQueryString)
+export function getJsonNoAuth(url, includeCacheBustQueryString) {
+  return getJsonWithAuth(url, undefined, includeCacheBustQueryString)
 }
 
 export function getJsonWithAuth(
@@ -118,91 +127,8 @@ export function getJsonWithAuth(
   })
 }
 
-export async function isNoSwActive() {
-  const result = !(await isSwActive())
-  return result
-}
-
-export async function isSwActive() {
-  try {
-    const resp = await fetch(constants.serviceWorkerIsAliveMagicUrl, {
-      method: 'GET',
-      retries: 0,
-    })
-    return resp.ok // if we get a response, it should be ok
-  } catch (err) {
-    return false
-  }
-}
-
-function isObsWithLocalProcessor(record) {
-  return (
-    (record.wowMeta || {})[constants.recordProcessingOutcomeFieldName] ===
-    constants.withLocalProcessorOutcome
-  )
-}
-
-export function isPossiblyStuck($store, record) {
-  if (!record) {
-    return false
-  }
-  const isStuckLocally = (() => {
-    const isAllowedToSync = !$store.getters.isSyncDisabled
-    const isProcessorRunning =
-      $store.getters['ephemeral/isLocalProcessorRunning']
-    return (
-      isAllowedToSync && isObsWithLocalProcessor(record) && !isProcessorRunning
-    )
-  })()
-  const isStuckInSw = (() => {
-    const wowMeta = record.wowMeta
-    if (!wowMeta) {
-      return false
-    }
-    const stuckMinutes = constants.thresholdForStuckWithSwMinutes
-    if (!stuckMinutes) {
-      return false
-    }
-    if (!wowMeta[constants.outcomeLastUpdatedAtFieldName]) {
-      // old record before we introduced this field
-      return false
-    }
-    const lastTouchedDatetime = dayjs(
-      wowMeta[constants.outcomeLastUpdatedAtFieldName],
-    )
-    const now = dayjs()
-    const waitThreshold = lastTouchedDatetime.add(stuckMinutes, 'minutes')
-    const hasBeenLongEnoughSinceUploadAttempt = now.isAfter(waitThreshold)
-    const isSuccessOrWithSW = [
-      constants.successOutcome,
-      constants.withServiceWorkerOutcome,
-    ].includes(wowMeta[constants.recordProcessingOutcomeFieldName])
-    const isStuckWithoutTimeCheck =
-      isSuccessOrWithSW &&
-      !$store.state.obs.uuidsInSwQueues.includes(record.uuid)
-    if (!isStuckWithoutTimeCheck) {
-      return false
-    }
-    if (!hasBeenLongEnoughSinceUploadAttempt) {
-      const minutesToWait = waitThreshold.diff(now, 'minute')
-      console.debug(
-        `[stuck check] Obs UUID=${record.uuid} will be considered stuck in ` +
-          `SW once ${minutesToWait} minutes elapse`,
-      )
-    }
-    return hasBeenLongEnoughSinceUploadAttempt
-  })()
-  return isStuckLocally || isStuckInSw
-}
-
-export function deleteWithAuth(url, authHeaderValue, wowUuid) {
+export function deleteWithAuth(url, authHeaderValue, extraHeadersParam) {
   const alsoOkHttpStatuses = [404]
-  const extraHeaders = {}
-  if (wowUuid) {
-    // when running without a SW, this header will go to the iNat server, which
-    // should ignore it. If our SW *is* running, it needs this value.
-    extraHeaders[constants.wowUuidCustomHttpHeader] = wowUuid
-  }
   return doManagedFetch(
     url,
     {
@@ -211,7 +137,7 @@ export function deleteWithAuth(url, authHeaderValue, wowUuid) {
       headers: {
         ...jsonHeaders,
         Authorization: authHeaderValue,
-        ...extraHeaders,
+        ...(extraHeadersParam || {}),
       },
     },
     alsoOkHttpStatuses,
@@ -225,7 +151,7 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
     return result
   } catch (err) {
     if (isDowngradable(err.message)) {
-      const result = chainedError(
+      const result = ChainedError(
         '[Downgraded error] something went wrong during fetch that we cannot control',
         err,
       )
@@ -236,7 +162,7 @@ async function doManagedFetch(url, init, alsoOkHttpStatuses) {
     let msg = `Failed while doing fetch() with\n`
     msg += `  URL='${url}'\n`
     msg += `  Req body='${JSON.stringify(init, null, 2)}'`
-    const result = chainedError(msg, err)
+    const result = ChainedError(msg, err)
     try {
       result.isNetworkErrorWow = isNetworkErrorWow
     } catch (err2) {
@@ -257,12 +183,12 @@ function isDowngradable(msg) {
   // downgrade the errors to warnings. The system operators still should know
   // they're happening but we don't want them to panic.
   const downgradableMessages = ['The network connection was lost']
-  return downgradableMessages.some(e => msg.includes(e))
+  return downgradableMessages.some((e) => msg.includes(e))
 }
 
 export function findCommonString(string1, string2) {
   let lastSpaceIndex = 0
-  for (let i = 0; i < string1.length; i++) {
+  for (let i = 0; i < string1.length; i += 1) {
     const currString1Char = string1.charAt(i)
     const currString2Char = string2.charAt(i)
     if (currString1Char === ' ') {
@@ -293,9 +219,9 @@ async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
         // be even nicer if we could determine length without this mess but the
         // "Content-Length" header isn't present when this happens (unless that
         // *is* the indicator).
-        throw chainedError('Empty 200 JSON response', err)
+        throw ChainedError('Empty 200 JSON response', err)
       }
-      throw chainedError('Failed while parsing JSON response', err)
+      throw ChainedError('Failed while parsing JSON response', err)
     }
   }
   // resp either NOT ok or NOT JSON, prep nice error msg
@@ -327,25 +253,21 @@ async function handleJsonResp(resp, alsoOkHttpStatuses = []) {
  * Using a verifier seems more maintainable than a mapper function. A mapper
  * would have a growing list of either unnamed params or named params which
  * would already be the result object. A verifier lets your freehand map the
- * object but it still shows linkage between all the locations we do mapping
+ * object but it still shows linkage between all the locations we map
  * (hopefully not many).
  */
 export function verifyWowDomainPhoto(photo) {
   let msg = ''
   assertFieldPresent('id')
   assertFieldPresent('url')
-  // note: we can't make licenseCode required because users can set "no
-  // license" on a photo - either manually or via default settings in iNat -
-  // and the value will be null.
-  // optional field: licenseCode
-  // optional field: attribution
   if (msg) {
     throw new Error(msg)
   }
-  return
+
   function assertFieldPresent(fieldName) {
-    photo[fieldName] ||
-      (msg += `Invalid photo record, ${fieldName}='${photo[fieldName]}' is missing. `)
+    if (!photo[fieldName]) {
+      msg += `Invalid photo record, ${fieldName}='${photo[fieldName]}' is missing. `
+    }
   }
 }
 
@@ -357,7 +279,8 @@ function isRespJson(resp) {
 export function formatMetricDistance(metres) {
   if (!metres) {
     return metres
-  } else if (metres < 1000) {
+  }
+  if (metres < 1000) {
     return `${metres.toFixed(0)}m`
   }
   const kmVal = (metres / 1000).toFixed(1)
@@ -367,7 +290,7 @@ export function formatMetricDistance(metres) {
 export function buildUrlSuffix(path, params = {}) {
   const querystring = Object.keys(params).reduce((accum, currKey) => {
     const value = params[currKey]
-    if (isNil(value)) {
+    if (value == null) {
       return accum
     }
     return `${accum}${currKey}=${value}&`
@@ -384,9 +307,9 @@ export function buildUrlSuffix(path, params = {}) {
 export function buildStaleCheckerFn(
   stateKey,
   staleThresholdMinutes,
-  /*for testing*/ timeProviderFn,
+  /* for testing */ timeProviderFn,
 ) {
-  return function(state) {
+  return function (state) {
     const nowMs = (timeProviderFn && timeProviderFn()) || now()
     const lastUpdatedMs = state[stateKey]
     const isNoTimestamp = !lastUpdatedMs
@@ -397,12 +320,22 @@ export function buildStaleCheckerFn(
   }
 }
 
+export function isNotPositiveInteger(str) {
+  // isNaN doesn't do what you think it does
+  return !/^\d+$/.test(str)
+}
+
+export function isNotInteger(str) {
+  // isNaN doesn't do what you think it does
+  return !/^-?\d+$/.test(str)
+}
+
 export function rectangleAlongPathAreaValueToTitle(v) {
-  if (isNaN(v)) {
+  if (isNotPositiveInteger(v)) {
     const ltPrefix = 'less than'
     const isLessThanTypedArea = v.startsWith(ltPrefix)
     if (isLessThanTypedArea) {
-      const halfV = parseInt(v.replace(ltPrefix, '')) / 2
+      const halfV = parseInt(v.replace(ltPrefix, ''), 10) / 2
       return doFormat(v, halfV, halfV)
     }
     return v
@@ -419,28 +352,6 @@ export function rectangleAlongPathAreaValueToTitle(v) {
     return `${val}m² (i.e. ${x}x${y} or similar)`
   }
 }
-
-/**
- * Takes an array of valid values and returns a validator function. The
- * validator function takes a single param and returns it as-is if valid,
- * otherwise throws an error.
- */
-export function makeEnumValidator(validValues) {
-  if (!Array.isArray(validValues) || !validValues.length) {
-    throw new Error('Input must be a non-empty array!')
-  }
-  return function(enumItem) {
-    const isValid = validValues.includes(enumItem)
-    if (!isValid) {
-      throw new Error(
-        `Invalid enum value='${enumItem}' is not in valid values=[${validValues}]`,
-      )
-    }
-    return enumItem
-  }
-}
-
-export const recordTypeEnum = makeEnumValidator(['delete', 'edit', 'new'])
 
 export function humanDateString(dateStr) {
   if (!dateStr) {
@@ -464,29 +375,13 @@ export function formatStorageSize(byteCount) {
   }
   const isBetween1and10mb = byteCount > oneMb && byteCount < tenMb
   if (isBetween1and10mb) {
-    return (byteCount / oneMb).toFixed(1) + 'MB'
+    return `${(byteCount / oneMb).toFixed(1)}MB`
   }
   const isGreaterThan10mb = byteCount > tenMb && byteCount < oneGb
   if (isGreaterThan10mb) {
-    return (byteCount / oneMb).toFixed(0) + 'MB'
+    return `${(byteCount / oneMb).toFixed(0)}MB`
   }
-  return (byteCount / oneGb).toFixed(1) + 'GB'
-}
-
-export function getExifFromBlob(blobish) {
-  return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function(err) {
-      try {
-        if (err) {
-          return reject(chainedError('Failed to extract EXIF', err))
-        }
-        const result = EXIF.getAllTags(this)
-        return resolve(result)
-      } catch (err) {
-        return reject(chainedError('Failed to work with extracted EXIF', err))
-      }
-    })
-  })
+  return `${(byteCount / oneGb).toFixed(1)}GB`
 }
 
 export function wowIdOf(record) {
@@ -494,7 +389,7 @@ export function wowIdOf(record) {
 }
 
 export function fetchRecords(url) {
-  return fetch(url).then(function(resp) {
+  return fetch(url).then(function (resp) {
     if (!resp.ok) {
       console.error(`Made fetch() for url='${url}' but it was not ok`)
       return false
@@ -504,7 +399,7 @@ export function fetchRecords(url) {
 }
 
 export function fetchSingleRecord(url) {
-  return fetchRecords(url).then(function(body) {
+  return fetchRecords(url).then(function (body) {
     // FIXME also check for total_results > 1
     if (!body.total_results) {
       return null
@@ -536,7 +431,7 @@ export function encodeMissionBody(name, endDate, goal, todayMoment = dayjs()) {
     2,
   )}
   ${missionEndMarker}
-  // created by Wild Orchid Watch app version: ${constants.appVersion}
+  // created by Wild Orchid Watch app version: ${cc.appVersion}
   </code>
   `
 }
@@ -566,30 +461,6 @@ export function isWowMissionJournalPost(bodyStr) {
   return !!~bodyStr.indexOf(missionStartMarker)
 }
 
-export async function triggerSwWowQueue() {
-  if (await isNoSwActive()) {
-    return Promise.resolve()
-  }
-  return _sendMessageToSw(constants.syncSwWowQueueMsg)
-}
-
-function _sendMessageToSw(msg) {
-  return new Promise(function(resolve, reject) {
-    const msgChan = new MessageChannel()
-    msgChan.port1.onmessage = function(event) {
-      if ((event.data || {}).error) {
-        return reject(event.data.error)
-      }
-      return resolve(event.data)
-    }
-    const controller = navigator.serviceWorker.controller
-    if (!controller) {
-      return reject('No service worker active. Cannot send msg=' + msg)
-    }
-    controller.postMessage(msg, [msgChan.port2])
-  })
-}
-
 export function clearLocalStorage() {
   console.debug(`Clearing localStorage of ${localStorage.length} keys`)
   localStorage.clear()
@@ -600,7 +471,7 @@ export function unregisterAllServiceWorkers() {
   if (!navigator.serviceWorker) {
     return
   }
-  navigator.serviceWorker.getRegistrations().then(regs => {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
     console.debug(`Unregistering ${regs.length} service workers`)
     for (const curr of regs) {
       curr.unregister()
@@ -608,35 +479,14 @@ export function unregisterAllServiceWorkers() {
   })
 }
 
-// Thanks for these two functions:
-// https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/indexeddb-best-practices#not_everything_can_be_stored_in_indexeddb_on_all_platforms
-//
-// Safari on iOS cannot store Blobs, which are what we get from the file input
-// UI control. So we have to convert them to ArrayBuffers, which do have
-// support. If we ever stop supporting Safari 10, I think these can be removed.
-export function arrayBufferToBlob(buffer, type) {
-  return new Blob([buffer], { type: type })
-}
-
-export function blobToArrayBuffer(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('loadend', () => {
-      resolve(reader.result)
-    })
-    reader.addEventListener('error', reject)
-    reader.readAsArrayBuffer(blob)
-  })
-}
-
 export function isInBoundingBox(lat, lon) {
   return isInBoundingBoxImpl({
     userLat: lat,
     userLon: lon,
-    minLat: constants.bboxLatMin,
-    maxLat: constants.bboxLatMax,
-    minLon: constants.bboxLonMin,
-    maxLon: constants.bboxLonMax,
+    minLat: cc.bboxLatMin,
+    maxLat: cc.bboxLatMax,
+    minLon: cc.bboxLonMin,
+    maxLon: cc.bboxLonMax,
   })
 }
 

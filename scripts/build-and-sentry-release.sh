@@ -19,6 +19,6 @@ export DO_SENTRY_RELEASE=true
 export NODE_ENV=production
 # Sentry release happens in a webpack plugin
 # see vue-config/config.production.js for details
-yarn build
+yarn build:resource-constrained # FIXME because circleci doesn't have enough RAM
 
 $thisDir/add-dev-markings-if-required.sh post-build

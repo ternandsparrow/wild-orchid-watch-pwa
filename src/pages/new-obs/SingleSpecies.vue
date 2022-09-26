@@ -1,7 +1,7 @@
 <template>
   <v-ons-page>
     <custom-toolbar cancellable :title="title" @cancelled="onCancel">
-      <template v-slot:right>
+      <template #right>
         <v-ons-toolbar-button name="toolbar-save-btn" @click="debouncedOnSave"
           >Save</v-ons-toolbar-button
         >
@@ -230,7 +230,7 @@
                     </label>
                   </div>
                 </template>
-                <div v-else style="color: red;">
+                <div v-else style="color: red">
                   PROGRAMMER, you have work to do - support '{{
                     currField.wowDatatype
                   }}' field type
@@ -322,7 +322,20 @@
         <ul class="error-msg-list">
           <li v-for="curr of formErrorMsgs" :key="curr">{{ curr }}</li>
         </ul>
+        <p v-if="isDraftFeatureEnabled">
+          This observation is still missing required data. You should fill that
+          in now if you can. If you can't, because later you'll be adding
+          photos, coordinates, etc from an external device (DSLR, DGPS, etc)
+          then you can save this observation as a <em>draft</em>. Note: if you
+          save a draft, that observation will <strong>never</strong> be uploaded
+          until you edit the observation and add the missing data.
+        </p>
       </div>
+      <v-ons-alert-dialog-button
+        v-if="isDraftFeatureEnabled"
+        @click="onSaveDraft"
+        >Save as draft (finish it later)</v-ons-alert-dialog-button
+      >
       <v-ons-alert-dialog-button @click="onDismissFormError"
         >Ok</v-ons-alert-dialog-button
       >
@@ -332,15 +345,25 @@
         Saving <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
       </p>
       <p v-show="isShowModalForceClose" class="text-center">
-        Hmmm, this is taking a while. If you have photo compression enabled and
-        you're attaching large photo (10s of megapixels), it can take a while to
-        compress them. It's best to wait for saving to finish, but if you're
-        sure something has gone wrong, you can
+        Hmmm, this is taking a while. It's best to wait for saving to finish,
+        but if you're sure something has gone wrong, you can
         <v-ons-button
           name="force-close-modal-btn"
           @click="isSaveModalVisible = false"
           >force close this notification</v-ons-button
         >
+      </p>
+    </v-ons-modal>
+    <v-ons-modal :visible="!isProjectInfoReady">
+      <p class="text-center">
+        Loading <v-ons-icon icon="fa-spinner" spin></v-ons-icon>
+      </p>
+      <p class="text-center">
+        Downloading list of "questions to ask" from iNaturalist. We cannot
+        continue without this. If you do not currently have an internet
+        connection, you won't be able to make observations until you get
+        internet access and this data is downloaded. If you think this is stuck,
+        feel free to refresh the webpage/restart the app.
       </p>
     </v-ons-modal>
     <v-ons-modal :visible="isHelpModalVisible" @postshow="helpModalPostShow">
@@ -379,6 +402,7 @@ import {
   getMultiselectId,
   hostTreeSpeciesObsFieldId,
   immediateLanduseObsFieldId,
+  isDraftFeatureEnabled,
   mutuallyExclusiveMultiselectObsFieldIds,
   noValue,
   notCollected,
@@ -412,6 +436,7 @@ export default {
   name: 'SingleSpecies',
   data() {
     return {
+      obsDetail: null,
       photoMenu: [
         { id: photoTypeWholePlant, name: 'Whole plant', required: true },
         { id: photoTypeFlower, name: 'Flower' },
@@ -427,7 +452,7 @@ export default {
       speciesGuessSelectedItem: null,
       speciesGuessValue: null,
       photos: [],
-      uploadedPhotos: [],
+      existingPhotos: [],
       obsFieldValues: {},
       obsFieldInitialValues: {}, // for comparing after edit
       obsFieldVisibility: {},
@@ -441,7 +466,6 @@ export default {
       multiselectFieldType,
       formErrorDialogVisible: false,
       formErrorMsgs: [],
-      existingRecordSnapshot: null,
       targetHelpSection: null,
       isSaveModalVisible: false,
       isShowModalForceClose: false,
@@ -458,14 +482,14 @@ export default {
       obsLng: null,
       obsLocAccuracy: null,
       isValidatedAtLeastOnce: false,
-      uuidOfThisObs: null,
       observedAt: null,
+      isDraftFeatureEnabled,
     }
   },
   computed: {
-    ...mapGetters('obs', ['observationDetail', 'obsFields']),
+    ...mapGetters('obs', ['obsFields']),
     ...mapState('ephemeral', ['isHelpModalVisible', 'networkOnLine']),
-    ...mapGetters('ephemeral', ['photosStillCompressingCount']),
+    ...mapGetters('ephemeral', ['photosStillProcessingCount']),
     isDetailedUserMode: {
       get() {
         return this.$store.state.app.isDetailedUserMode
@@ -496,7 +520,7 @@ export default {
         })()
         if (isMultiselect) {
           const existingQuestionContainer = accum.find(
-            e => e.id === multiselectId,
+            (e) => e.id === multiselectId,
           )
           if (existingQuestionContainer) {
             const trimTrailingStuffRegex = /[^\w]*$/
@@ -569,17 +593,17 @@ export default {
     },
     taxonQuestionIds() {
       return this.displayableObsFields
-        .filter(f => f.wowDatatype === taxonFieldType)
-        .map(e => e.id)
+        .filter((f) => f.wowDatatype === taxonFieldType)
+        .map((e) => e.id)
     },
     isEdit() {
-      return this.$route.matched.some(record => record.meta.isEdit)
+      return this.$route.matched.some((record) => record.meta.isEdit)
     },
     title() {
       return this.isEdit ? 'Edit observation' : 'New observation'
     },
     allPhotosByType() {
-      const allPhotos = [...this.uploadedPhotos, ...this.photos]
+      const allPhotos = [...this.existingPhotos, ...this.photos]
       return allPhotos.reduce((accum, curr) => {
         const type = this.computeType(curr).id || this.otherType
         const photoCollection = accum[type] || []
@@ -590,7 +614,7 @@ export default {
     },
     isLocationAlreadyCaptured() {
       const isForm1Present = (() => {
-        const o = this.observationDetail || {}
+        const o = this.obsDetail || {}
         return !!(o.lat && o.lng)
       })()
       const isForm2Present = (() => {
@@ -612,7 +636,7 @@ export default {
         const isMultiselect = v.constructor === Object
         if (isMultiselect) {
           accum[k] = {
-            title: `${Object.values(v).filter(v => !!v).length} selections`,
+            title: `${Object.values(v).filter((v2) => !!v2).length} selections`,
             value: v,
           }
         } else {
@@ -623,6 +647,9 @@ export default {
         }
         return accum
       }, {})
+    },
+    isProjectInfoReady() {
+      return !!(this.displayableObsFields || []).length
     },
   },
   watch: {
@@ -692,7 +719,7 @@ export default {
       this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
       // we cannot use this.taxonQuestionIds here as it's not bound at this stage
       this.taxonQuestionAutocompleteItems = this.obsFields
-        .filter(f => f.datatype === taxonFieldType)
+        .filter((f) => f.datatype === taxonFieldType)
         .reduce((accum, curr) => {
           // prepopulate keys of taxonQuestionAutocompleteItems so they're watched by Vue
           accum[curr.id] = null
@@ -701,7 +728,6 @@ export default {
       const obsFieldsPromise = this.$store.dispatch('obs/waitForProjectInfo')
       if (this.isEdit) {
         this.initForEdit(obsFieldsPromise)
-        this.snapshotExistingRecord()
       } else {
         this.initForNew(obsFieldsPromise)
       }
@@ -717,78 +743,76 @@ export default {
       })
       this.geolocationErrorMsg = null
     },
-    initForEdit(obsFieldsPromise) {
+    async initForEdit(obsFieldsPromise) {
       console.debug('initialising for "edit" mode')
-      this.uuidOfThisObs = this.observationDetail.uuid
       this.rereadCoords()
       this.rereadDatetime()
-      this.obsLocAccuracy = this.observationDetail.positional_accuracy
-      obsFieldsPromise.then(() => {
-        console.debug('initialising obs field dependent fields for edit')
-        this.setDefaultObsFieldVisibility()
-        this.setDefaultAnswers()
-        this.setDefaultDisabledness()
-        // pre-populate obs fields
-        const answersFromSaved = this.observationDetail.obsFieldValues.reduce(
-          (accum, curr) => {
-            const isMultiselect = !!getMultiselectId(curr.fieldId)
-            let value = curr.value
-            if (isMultiselect) {
-              value = (() => {
-                if (value === yesValue) {
-                  return true
-                }
-                if (value === noValue) {
-                  return false
-                }
-                throw new Error(
-                  `Unhandled value='${value}' when mapping from remote ` +
-                    'obs field value to local multiselect value',
-                )
-              })()
-            }
-            accum[curr.fieldId] = value
-            return accum
-          },
-          {},
-        )
-        this.obsFieldValues = {
-          ...this.obsFieldValues, // these will be the defaults
-          ...answersFromSaved,
-        }
-        this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
-        // fire change handler for all multiselects to set the UI up as expected
-        for (const currMultiselect of this.displayableObsFields.filter(
-          e => e.wowDatatype === multiselectFieldType,
-        )) {
-          for (const currItem of currMultiselect.multiselectValues) {
-            // TODO possible enhancement: check for impossible situation due to
-            // edits done outside the app
-            this.onMultiselectChange(
-              currMultiselect,
-              currItem,
-              this.obsFieldValues[currItem.id],
-            )
+      this.obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
+      this.existingPhotos = this.obsDetail.photos // FIXME confirm correct
+      this.obsLocAccuracy = this.obsDetail.geolocationAccuracy
+      await obsFieldsPromise
+      console.debug('initialising obs field dependent fields for edit')
+      this.setDefaultObsFieldVisibility()
+      this.setDefaultAnswers()
+      this.setDefaultDisabledness()
+      // pre-populate obs fields
+      const answersFromSaved = this.obsDetail.obsFieldValues.reduce(
+        (accum, curr) => {
+          const isMultiselect = !!getMultiselectId(curr.fieldId)
+          let { value } = curr
+          if (isMultiselect) {
+            value = (() => {
+              if (value === yesValue) {
+                return true
+              }
+              if (value === noValue) {
+                return false
+              }
+              throw new Error(
+                `Unhandled value='${value}' when mapping from remote ` +
+                  'obs field value to local multiselect value',
+              )
+            })()
           }
+          accum[curr.fieldId] = value
+          return accum
+        },
+        {},
+      )
+      this.obsFieldValues = {
+        ...this.obsFieldValues, // these will be the defaults
+        ...answersFromSaved,
+      }
+      this.obsFieldInitialValues = _.cloneDeep(answersFromSaved)
+      // fire change handler for all multiselects to set the UI up as expected
+      for (const currMultiselect of this.displayableObsFields.filter(
+        (e) => e.wowDatatype === multiselectFieldType,
+      )) {
+        for (const currItem of currMultiselect.multiselectValues) {
+          // TODO possible enhancement: check for impossible situation due to
+          // edits done outside the app
+          this.onMultiselectChange(
+            currMultiselect,
+            currItem,
+            this.obsFieldValues[currItem.id],
+          )
         }
-        this.observationDetail.obsFieldValues
-          .filter(e => e.datatype === numericFieldType)
-          .forEach(currNumericField => {
-            const fieldId = currNumericField.fieldId
-            const val = this.obsFieldValues[fieldId]
-            this._onNumberChange(fieldId, val)
-          })
-      })
-      if (this.observationDetail.speciesGuess) {
-        const val = this.observationDetail.speciesGuess
+      }
+      this.obsDetail.obsFieldValues
+        .filter((e) => e.datatype === numericFieldType)
+        .forEach((currNumericField) => {
+          const { fieldId } = currNumericField
+          const val = this.obsFieldValues[fieldId]
+          this._onNumberChange(fieldId, val)
+        })
+      if (this.obsDetail.speciesGuess) {
+        const val = this.obsDetail.speciesGuess
         this.speciesGuessInitialValue = val
         this.speciesGuessValue = val
       }
-      if (this.observationDetail.notes) {
-        this.notes = this.observationDetail.notes
+      if (this.obsDetail.notes) {
+        this.notes = this.obsDetail.notes
       }
-      // pre-populate photos
-      this.uploadedPhotos = this.observationDetail.photos
     },
     onNumberChange(event, fieldId) {
       // we should be able to use the Vue "watch" to achieve this but I
@@ -800,38 +824,34 @@ export default {
     },
     _onNumberChange(fieldId, newVal) {
       this.requiredFieldIdsConditionalOnNumberFields = []
-      switch (fieldId) {
-        case countOfIndividualsObsFieldId:
-          this.isPopulationRecord = parseInt(newVal) > 1
-          if (this.isPopulationRecord) {
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              approxAreaSearchedObsFieldId,
-            )
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-            this.requiredFieldIdsConditionalOnNumberFields.push(
-              areaOfPopulationObsFieldId,
-            )
-            this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
-            this.handleObsFieldOptionalToRequired(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-          } else {
-            // individual record
-            this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
-            this.handleObsFieldRequiredToOptional(
-              accuracyOfSearchAreaCalcObsFieldId,
-            )
-            // we need to reset this so the conditionally required fields lose
-            // their required-ness (and hide) without extra logic
-            this.obsFieldValues[
-              accuracyOfSearchAreaCalcObsFieldId
-            ] = notCollected
-          }
-          this.refreshVisibilityOfPopulationRecordFields()
-          this.refreshVisibilityOfSearchAreaFields()
-          break
+      if (fieldId === countOfIndividualsObsFieldId) {
+        this.isPopulationRecord = parseInt(newVal, 10) > 1
+        if (this.isPopulationRecord) {
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            approxAreaSearchedObsFieldId,
+          )
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+          this.requiredFieldIdsConditionalOnNumberFields.push(
+            areaOfPopulationObsFieldId,
+          )
+          this.handleObsFieldOptionalToRequired(approxAreaSearchedObsFieldId)
+          this.handleObsFieldOptionalToRequired(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+        } else {
+          // individual record
+          this.handleObsFieldRequiredToOptional(approxAreaSearchedObsFieldId)
+          this.handleObsFieldRequiredToOptional(
+            accuracyOfSearchAreaCalcObsFieldId,
+          )
+          // we need to reset this so the conditionally required fields lose
+          // their required-ness (and hide) without extra logic
+          this.obsFieldValues[accuracyOfSearchAreaCalcObsFieldId] = notCollected
+        }
+        this.refreshVisibilityOfPopulationRecordFields()
+        this.refreshVisibilityOfSearchAreaFields()
       }
     },
     handleObsFieldOptionalToRequired(obsFieldId) {
@@ -851,20 +871,16 @@ export default {
       this.obsFieldValues[obsFieldId] = notCollected
     },
     refreshVisibilityOfPopulationRecordFields() {
-      this.obsFieldVisibility[
-        areaOfPopulationObsFieldId
-      ] = this.isPopulationRecord
+      this.obsFieldVisibility[areaOfPopulationObsFieldId] =
+        this.isPopulationRecord
     },
     refreshVisibilityOfSearchAreaFields() {
-      this.obsFieldVisibility[
-        searchAreaCalcPreciseWidthObsFieldId
-      ] = this.isPreciseSearchAreaCalc
-      this.obsFieldVisibility[
-        searchAreaCalcPreciseLengthObsFieldId
-      ] = this.isPreciseSearchAreaCalc
-      this.obsFieldVisibility[
-        approxAreaSearchedObsFieldId
-      ] = this.isEstimatedSearchAreaCalc
+      this.obsFieldVisibility[searchAreaCalcPreciseWidthObsFieldId] =
+        this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[searchAreaCalcPreciseLengthObsFieldId] =
+        this.isPreciseSearchAreaCalc
+      this.obsFieldVisibility[approxAreaSearchedObsFieldId] =
+        this.isEstimatedSearchAreaCalc
     },
     scrollToSpeciesGuess() {
       const el = (this.$refs.speciesGuessRef || {}).$el
@@ -920,18 +936,20 @@ export default {
     },
     onDeletePhoto(record) {
       this.$wow.uiTrace('SingleSpecies', `delete photo`)
-      const isLocalFromPreviousEdit = !!record.id
+      const isLocalFromPreviousEdit = !!record.id // FIXME is this right?
       if (record.isRemote || isLocalFromPreviousEdit) {
-        const id = record.id
+        const { id } = record
         this.photoIdsToDelete.push(id)
-        this.uploadedPhotos = this.uploadedPhotos.filter(p => p.id !== id)
+        this.existingPhotos = this.existingPhotos.filter((p) => p.id !== id)
         this.closePhotoPreview()
         return
       }
       const thisPhotoUuid = record.uuid
       this.$store.commit('ephemeral/popCoordsForPhoto', thisPhotoUuid)
       this.$store.commit('ephemeral/popDatetimeForPhoto', thisPhotoUuid)
-      const indexOfPhoto = this.photos.findIndex(e => e.uuid == thisPhotoUuid)
+      const indexOfPhoto = this.photos.findIndex(
+        (e) => e.uuid === thisPhotoUuid,
+      )
       if (indexOfPhoto < 0) {
         // why can't we find the photo?
         console.warn(
@@ -977,7 +995,7 @@ export default {
               }
               if (
                 Object.keys(speciallyHandledFields).find(
-                  k => parseInt(k) === curr.id,
+                  (k) => parseInt(k, 10) === curr.id,
                 )
               ) {
                 return speciallyHandledFields[curr.id]
@@ -1010,7 +1028,7 @@ export default {
     },
     setDefaultIfSupplied(fieldId, defaultValue) {
       const fieldDef = this.getObsFieldDef(fieldId)
-      const allowedValues = fieldDef.allowedValues.map(v => v.value)
+      const allowedValues = fieldDef.allowedValues.map((v) => v.value)
       const isValidValue =
         fieldDef.wowDatatype !== selectFieldType ||
         allowedValues.includes(defaultValue)
@@ -1025,10 +1043,10 @@ export default {
     },
     getObsFieldDef(fieldId) {
       const result = this.displayableObsFields.find(
-        f => f.id === parseInt(fieldId),
+        (f) => f.id === parseInt(fieldId, 10),
       )
       if (!result) {
-        const availableIds = this.displayableObsFields.map(f => f.id).sort()
+        const availableIds = this.displayableObsFields.map((f) => f.id).sort()
         throw new Error(
           `Failed to find obs field definition with ` +
             `ID='${fieldId}' (typeof ID param=${typeof fieldId}) from available ` +
@@ -1041,12 +1059,12 @@ export default {
       if (this.isEdit && (this.allPhotosByType[this.otherType] || []).length) {
         // WOW-249 at time of writing, iNat prod doesn't use the photo filename
         // we supply so we lose type information. The photos will appear as
-        // "other" type. If we continue to enforce the following rules, user's
+        // "other" type. If we continue to enforce the following rules, users
         // won't be able to edit an observation without adding 3 more photos.
         return
       }
-      const requiredPhotoTypes = this.photoMenu.filter(e => e.required)
-      requiredPhotoTypes.forEach(curr => {
+      const requiredPhotoTypes = this.photoMenu.filter((e) => e.required)
+      requiredPhotoTypes.forEach((curr) => {
         const photosOfType = this.allPhotosByType[curr.id]
         const isAtLeastOnePhotoOfType = photosOfType && photosOfType.length
         if (isAtLeastOnePhotoOfType) {
@@ -1071,7 +1089,7 @@ export default {
         this.formErrorMsgs.push('No geolocation/GPS coordinates recorded.')
       }
       const visibleRequiredObsFields = this.displayableObsFields.filter(
-        f => f.required,
+        (f) => f.required,
       )
       for (const curr of visibleRequiredObsFields) {
         const val = this.obsFieldValues[curr.id]
@@ -1083,7 +1101,7 @@ export default {
         )
       }
       const visibleNumericObsFields = this.displayableObsFields.filter(
-        f => f.datatype === numericFieldType,
+        (f) => f.datatype === numericFieldType,
       )
       for (const curr of visibleNumericObsFields) {
         const val = this.obsFieldValues[curr.id]
@@ -1110,13 +1128,13 @@ export default {
       try {
         this.isSaveModalVisible = true
         this.isShowModalForceClose = false
-        while (this.photosStillCompressingCount > 0) {
-          await new Promise(resolve => {
+        while (this.photosStillProcessingCount > 0) {
+          await new Promise((resolve) => {
             // TODO do we need a sanity check that breaks out after N tests?
-            const waitForImageCompressionMs = 333
+            const waitForImageProcessingMs = 333
             setTimeout(() => {
               return resolve()
-            }, waitForImageCompressionMs)
+            }, waitForImageProcessingMs)
           })
         }
         if (!this.validateInputs()) {
@@ -1124,17 +1142,8 @@ export default {
           this.$store.commit('ephemeral/enableWarnOnLeaveRoute')
           return
         }
-        this.updateLastUsedResponses()
-        this.updateRecentlyUsedTaxa()
-        const strategyKey = this.isEdit ? 'Edit' : 'New'
-        const strategy = this['doSave' + strategyKey]
-        if (!strategy) {
-          throw new Error(
-            `Programmer error: unhandled strategy='${strategyKey}'`,
-          )
-        }
-        const record = this.buildRecordToSave()
-        await strategy(record)
+        await this.finishSaving(false)
+        this.$wow.uiTrace('SingleSpecies', `successful save of valid record`)
       } catch (err) {
         this.$store.dispatch('flagGlobalError', {
           msg: 'Failed to save observation to local store',
@@ -1146,78 +1155,110 @@ export default {
         clearTimeout(timeoutId)
       }
     },
+    async onSaveDraft() {
+      try {
+        this.$wow.uiTrace('SingleSpecies', `save draft`)
+        this.$store.commit('ephemeral/disableWarnOnLeaveRoute')
+        await this.finishSaving(true)
+      } catch (err) {
+        this.$store.dispatch('flagGlobalError', {
+          msg: 'Failed to save draft observation to local store',
+          userMsg: 'Error while trying to save draft observation',
+          err,
+        })
+      }
+    },
+    async finishSaving(isDraft) {
+      this.updateLastUsedResponses()
+      this.updateRecentlyUsedTaxa()
+      const strategy = (() => {
+        if (this.isEdit) {
+          return this.doSaveEdit
+        }
+        return this.doSaveNew
+      })()
+      const record = this.buildRecordToSave()
+      await strategy(record, isDraft)
+    },
     buildRecordToSave() {
-      const obsFieldValues = this.displayableObsFields.reduce(
-        (accum, currField) => {
-          const isNotSavable =
-            !this.isDetailedUserMode && currField.isDetailedModeField
-          if (isNotSavable) {
-            return accum
-          }
-          const isMultiselect = currField.wowDatatype === multiselectFieldType
-          if (isMultiselect) {
-            for (const currSubField of currField.multiselectValues) {
-              const currSubFieldId = currSubField.id
-              const mappedValue = (() => {
-                const v = this.obsFieldValues[currSubFieldId]
-                // here we're fixing up the booleans that come out of switches
-                if (v === true) {
-                  return yesValue
-                }
-                if (v === false) {
-                  return noValue
-                }
-                throw new Error(
-                  `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
-                )
-              })()
-              accum.push({
-                fieldId: parseInt(currSubFieldId),
-                name: `${currField.name} - ${currSubField.label}`,
-                value: mappedValue,
-                // datatype: // don't need this
-              })
-            }
-            return accum
-          }
-          const currFieldId = currField.id
-          const obsFieldDef = this.getObsFieldDef(currFieldId)
-          let value = this.obsFieldValues[currFieldId]
-          if (isDeletedObsFieldValue(value)) {
-            return accum
-          }
-          if (
-            obsFieldDef.datatype === taxonFieldType &&
-            // in edit mode when the user doesn't change the value, we'll
-            // only have the string value, not the full selected item
-            typeof value === 'object'
-          ) {
-            value = value.preferredCommonName
-          }
-          accum.push({
-            fieldId: parseInt(currFieldId),
-            name: obsFieldDef.name,
-            value: value,
-            datatype: obsFieldDef.datatype,
-          })
-          return accum
-        },
-        [],
-      )
+      if (!(this.displayableObsFields || []).length) {
+        wowWarnHandler(
+          `Saving observation when we have no list of obs fields. This is ` +
+            `bad because we're saving an invalid record that *will* fail ` +
+            `during upload. This should never happen.`,
+        )
+      }
+      const obsFieldValues = this.buildObsFieldValuesToSave()
       const result = {
-        addedPhotos: this.photos.map(curr => ({
+        addedPhotos: this.photos.map((curr) => ({
           type: curr.type,
           file: curr.file,
         })),
         speciesGuess: this.speciesGuessValue,
         obsFieldValues,
-        observedAt: new Date(this.observedAt),
+        observedAt: this.observedAt ? new Date(this.observedAt) : null,
         description: this.notes,
         lat: this.obsLat,
         lng: this.obsLng,
         positional_accuracy: this.obsLocAccuracy,
       }
       return result
+    },
+    buildObsFieldValuesToSave() {
+      return this.displayableObsFields.reduce((accum, currField) => {
+        const isNotSavable =
+          !this.isDetailedUserMode && currField.isDetailedModeField
+        if (isNotSavable) {
+          return accum
+        }
+        const isMultiselect = currField.wowDatatype === multiselectFieldType
+        if (isMultiselect) {
+          for (const currSubField of currField.multiselectValues) {
+            const currSubFieldId = currSubField.id
+            const mappedValue = (() => {
+              const v = this.obsFieldValues[currSubFieldId]
+              // here we're fixing up the booleans that come out of switches
+              if (v === true) {
+                return yesValue
+              }
+              if (v === false) {
+                return noValue
+              }
+              throw new Error(
+                `Unhandled value='${v}' (type=${typeof v}) from onsen switch`,
+              )
+            })()
+            accum.push({
+              fieldId: parseInt(currSubFieldId, 10),
+              name: `${currField.name} - ${currSubField.label}`,
+              value: mappedValue,
+              // datatype: // don't need this
+            })
+          }
+          return accum
+        }
+        const currFieldId = currField.id
+        const obsFieldDef = this.getObsFieldDef(currFieldId)
+        let value = this.obsFieldValues[currFieldId]
+        if (isDeletedObsFieldValue(value)) {
+          return accum
+        }
+        if (
+          obsFieldDef.datatype === taxonFieldType &&
+          // in edit mode when the user doesn't change the value, we'll
+          // only have the string value, not the full selected item
+          typeof value === 'object'
+        ) {
+          value = value.preferredCommonName
+        }
+        accum.push({
+          fieldId: parseInt(currFieldId, 10),
+          name: obsFieldDef.name,
+          value,
+          datatype: obsFieldDef.datatype,
+        })
+        return accum
+      }, [])
     },
     updateRecentlyUsedTaxa() {
       this.$store.commit('obs/addRecentlyUsedTaxa', {
@@ -1238,8 +1279,8 @@ export default {
     },
     updateLastUsedResponses() {
       const idWhitelist = this.displayableObsFields
-        .filter(e => e.wowDatatype === selectFieldType)
-        .filter(e => {
+        .filter((e) => e.wowDatatype === selectFieldType)
+        .filter((e) => {
           const isNotIndividualBased = ![
             accuracyOfPopulationCountObsFieldId,
             areaOfPopulationObsFieldId,
@@ -1247,7 +1288,7 @@ export default {
           ].includes(e.id)
           return isNotIndividualBased
         })
-        .map(e => e.id)
+        .map((e) => e.id)
 
       const multiSelectEnabledSwitches = Object.entries(
         this.obsFieldValues,
@@ -1283,7 +1324,7 @@ export default {
         return
       }
       const multiselectGroupField = this.displayableObsFields.find(
-        e => e.id === fieldId,
+        (e) => e.id === fieldId,
       )
       const strategies = {
         String: () => {
@@ -1293,7 +1334,7 @@ export default {
           for (const [key, isOn] of Object.entries(val)) {
             this.obsFieldValues[key] = isOn
             const itemField = multiselectGroupField.multiselectValues.find(
-              e => e.id === parseInt(key),
+              (e) => e.id === parseInt(key, 10),
             )
             this.onMultiselectChange(multiselectGroupField, itemField, isOn)
           }
@@ -1318,16 +1359,16 @@ export default {
       }
       strategy()
     },
-    async doSaveNew(record) {
+    async doSaveNew(record, isDraft) {
       const newUuid = await this.$store.dispatch(
         'obs/saveNewAndScheduleUpload',
-        record,
+        { record, isDraft },
       )
       this.toastSavedMsg()
       console.debug(`Navigating user to detail page for '${newUuid}'`)
       this.$router.replace({ name: 'ObsDetail', params: { id: newUuid } })
     },
-    async doSaveEdit(record) {
+    async doSaveEdit(record, isDraft) {
       // note: swapping from detailed to basic mode will NOT delete the fields
       // that are no longer visible. Users shouldn't be frequently swapping
       // between the two but even if they do, losing data is probably not want
@@ -1356,21 +1397,20 @@ export default {
       const wowId = await this.$store.dispatch(
         'obs/saveEditAndScheduleUpdate',
         {
-          record: Object.assign(
-            {
-              uuid: this.uuidOfThisObs,
-            },
-            record,
-          ),
+          // FIXME do we need this? Shouldn't any record we edit have a uuid?
+          record: {
+            uuid: this.obsDetail.uuid,
+            ...record,
+          },
+          // global find-in-files help: photoIdsToDeleteFieldName
           photoIdsToDelete: this.photoIdsToDelete,
+          // global find-in-files help: obsFieldIdsToDeleteFieldName
           obsFieldIdsToDelete,
+          isDraft,
         },
       )
       this.toastSavedMsg()
-      this.$router.replace({
-        name: 'ObsDetail',
-        params: { id: wowId },
-      })
+      this.$router.replace({ name: 'ObsDetail', params: { id: wowId } })
     },
     toastSavedMsg() {
       setTimeout(() => {
@@ -1384,14 +1424,14 @@ export default {
       }, 800)
     },
     getObsFieldInstance(fieldId) {
-      const result = this.observationDetail.obsFieldValues.find(
-        f => f.fieldId === parseInt(fieldId),
+      const result = this.obsDetail.obsFieldValues.find(
+        (f) => f.fieldId === parseInt(fieldId, 10),
       )
       if (!result) {
         throw new Error(
           `Could not get obs field instance with fieldId='${fieldId}' ` +
             `(type=${typeof fieldId}) from available instances='${JSON.stringify(
-              this.observationDetail.obsFieldValues,
+              this.obsDetail.obsFieldValues,
             )}'`,
         )
       }
@@ -1399,7 +1439,7 @@ export default {
     },
     async onPhotoChanged(photoDefObj) {
       const type = photoDefObj.id
-      const files = this.$refs[this.photoRef(photoDefObj)][0].files
+      const { files } = this.$refs[this.photoRef(photoDefObj)][0]
       this.$wow.uiTrace(
         'SingleSpecies',
         `photo attached: ${files.length} ${type}`,
@@ -1408,6 +1448,8 @@ export default {
         if (!file) {
           continue
         }
+        // this UUID is only used locally. The server won't accept our UUID for
+        // a photo, it always assigns its own.
         const theUuid = uuid()
         const photoObj = {
           type,
@@ -1416,34 +1458,11 @@ export default {
           uuid: theUuid,
         }
         this.photos.push(photoObj)
-        // here we use the full size photo but send it for compression/resizing in
-        // the worker (background) so we don't block the UI.
+        // we process photos with the worker so we don't block the UI.
         this.$store
           .dispatch('ephemeral/processPhoto', photoObj)
-          .then(photoBlobish => {
-            const found = this.photos.find(e => e.uuid === theUuid)
-            if (!found) {
-              // guess the photo has already been deleted?
-              return
-            }
-            found.file = photoBlobish
-            const oldUrl = found.url
-            const newUrl = URL.createObjectURL(photoBlobish)
-            if (oldUrl === newUrl) {
-              // createObjectURL seems to always generate a new URL, but just to
-              // be safe, we'll check. Don't wanna revoke the one we're using.
-              return
-            }
-            found.url = newUrl
-            // we don't want our thumbnail to be using a revoked blob URL
-            this.$store.commit('ephemeral/updateUrlForPhotoCoordsAndDatetime', {
-              uuid: photoObj.uuid,
-              newUrl,
-            })
-            URL.revokeObjectURL(oldUrl)
-          })
-          .catch(err => {
-            wowWarnHandler('Failed to compress/resize an image', err)
+          .catch((err) => {
+            wowWarnHandler('Failed to process an image', err)
           })
       }
     },
@@ -1491,33 +1510,25 @@ export default {
       }
     },
     photoRef(e) {
-      return 'photo-' + e.id
+      return `photo-${e.id}`
     },
     onDismissFormError() {
       this.formErrorDialogVisible = false
     },
-    snapshotExistingRecord() {
-      // if the user edits a local record but the record is uploaded (and
-      // cleaned up) before the user hits save, we're in trouble. We can recover
-      // as long as we have this snapshot though.
-      this.existingRecordSnapshot = _.cloneDeep(
-        this.$store.getters['obs/observationDetail'],
-      )
-    },
     computeType(photoRecord) {
-      const url = photoRecord.url
-      const type = photoRecord.type // will only be present for local photos
+      const { url } = photoRecord
+      const { type } = photoRecord // will only be present for local photos
       const matchingType = (() => {
         if (type) {
-          return this.photoMenu.find(p => p.id === type)
+          return this.photoMenu.find((p) => p.id === type)
         }
-        return this.photoMenu.find(p => url.includes(`/wow-${p.id}`))
+        return this.photoMenu.find((p) => url.includes(`/wow-${p.id}`))
       })()
       return matchingType || { name: 'unknown' }
     },
     showPhotoPreview(photoRecord) {
       this.$wow.uiTrace('SingleSpecies', `preview photo`)
-      const url = photoRecord.url
+      const { url } = photoRecord
       // TODO enhancement idea: if we aren't online, then don't do the replace
       // on the URL. Just show the small photo rather than a broken image
       // placeholder. Or get the SW to cache the medium URLs so they'll be
@@ -1539,8 +1550,8 @@ export default {
     },
     onMultiselectChange(multiselectGroupField, itemField, newVal) {
       const siblingFieldIds = multiselectGroupField.multiselectValues
-        .map(e => e.id)
-        .filter(e => e !== itemField.id)
+        .map((e) => e.id)
+        .filter((e) => e !== itemField.id)
       if (this.isMutuallyExclusive(itemField)) {
         for (const curr of siblingFieldIds) {
           this.fieldIdIsDisabled[curr] = newVal
@@ -1548,14 +1559,15 @@ export default {
         return
       }
       const isAnySiblingTruthy = siblingFieldIds.some(
-        e => this.obsFieldValues[e],
+        (e) => this.obsFieldValues[e],
       )
       if (isAnySiblingTruthy) {
         return
       }
-      const mutuallyExclusiveSiblingIdsToDisable = multiselectGroupField.multiselectValues
-        .filter(e => this.isMutuallyExclusive(e))
-        .map(e => e.id)
+      const mutuallyExclusiveSiblingIdsToDisable =
+        multiselectGroupField.multiselectValues
+          .filter((e) => this.isMutuallyExclusive(e))
+          .map((e) => e.id)
       for (const curr of mutuallyExclusiveSiblingIdsToDisable) {
         this.fieldIdIsDisabled[curr] = newVal
       }
@@ -1580,9 +1592,8 @@ export default {
       }
     },
     rereadDatetime() {
-      const newDatetime = this.$store.getters[
-        'ephemeral/datetimeForCurrentlyEditingObs'
-      ]
+      const newDatetime =
+        this.$store.getters['ephemeral/datetimeForCurrentlyEditingObs']
       if (!newDatetime) {
         this.observedAt = null
         console.debug('cleared datetime triggered by a poke')
@@ -1592,9 +1603,8 @@ export default {
       console.debug('updated datetime value triggered by a poke')
     },
     rereadCoords() {
-      const newCoords = this.$store.getters[
-        'ephemeral/coordsForCurrentlyEditingObs'
-      ]
+      const newCoords =
+        this.$store.getters['ephemeral/coordsForCurrentlyEditingObs']
       if (!newCoords) {
         this.obsLat = null
         this.obsLng = null
@@ -1617,10 +1627,10 @@ function isDeletedObsFieldValue(value) {
 }
 
 function getAllowedValsStrategy(field) {
-  const excludeNotCollectedForRequiredFilter = v =>
+  const excludeNotCollectedForRequiredFilter = (v) =>
     !field.required || v !== notCollected
-  const rectangleAlongPathAreaMapper = vals =>
-    vals.filter(excludeNotCollectedForRequiredFilter).map(v => {
+  const rectangleAlongPathAreaMapper = (vals) =>
+    vals.filter(excludeNotCollectedForRequiredFilter).map((v) => {
       return { value: v, title: rectangleAlongPathAreaValueToTitle(v) }
     })
   const strats = {
@@ -1628,10 +1638,10 @@ function getAllowedValsStrategy(field) {
     [areaOfPopulationObsFieldId]: rectangleAlongPathAreaMapper,
   }
   const result = strats[field.id]
-  const defaultStrat = vals =>
+  const defaultStrat = (vals) =>
     vals
       .filter(excludeNotCollectedForRequiredFilter)
-      .map(v => ({ value: v, title: v }))
+      .map((v) => ({ value: v, title: v }))
   return result || defaultStrat
 }
 </script>

@@ -58,17 +58,17 @@ export default {
     return {
       pullHookState: 'initial',
       deletedMissionIds: [],
+      availableMissions: [],
     }
   },
   computed: {
-    ...mapState('missionsAndNews', ['availableMissions']),
     ...mapState('ephemeral', ['networkOnLine']),
     ...mapGetters('auth', ['isUserLoggedIn']),
     displayableMissions() {
       // we want the delete to update the UI immediately, even though the HTTP
       // call and server indexing takes a few seconds
       return this.availableMissions.filter(
-        e => !this.deletedMissionIds.includes(e.id),
+        (e) => !this.deletedMissionIds.includes(e.id),
       )
     },
     isNoRecords() {
@@ -80,7 +80,7 @@ export default {
         return false
       }
       return !!pi.admins.find(
-        e => e.user_id === this.$store.getters['auth/myUserId'],
+        (e) => e.user_id === this.$store.getters['auth/myUserId'],
       )
     },
   },
@@ -92,27 +92,32 @@ export default {
     onNew() {
       this.$router.push({ name: 'MissionsNew' })
     },
-    doRefresh(done) {
+    async doRefresh(done) {
       if (!this.networkOnLine) {
         this.$ons.notification.toast('Cannot refresh while offline', {
           timeout: 3000,
           animation: 'fall',
         })
       } else if (this.isUserLoggedIn) {
-        this.$store.dispatch('missionsAndNews/getAvailableMissions')
+        const missions = await this.$store.dispatch(
+          'missionsAndNews/getAvailableMissions',
+        )
+        this.availableMissions = missions
       }
-      done && done()
+      if (done) {
+        done()
+      }
     },
     getTimelineString(record) {
-      const duration = dayjs.duration(
+      const theDuration = dayjs.duration(
         dayjs(record.endDate).diff(dayjs(record.startDate)),
       )
       return `${record.startDate} until ${
         record.endDate
-      } (${duration.asDays()} days)`
+      } (${theDuration.asDays()} days)`
     },
     truncateGoal(goal) {
-      return (goal || '').length > 150 ? goal.substring(0, 150) + '...' : goal
+      return (goal || '').length > 150 ? `${goal.substring(0, 150)}...` : goal
     },
     async onDelete(missionId) {
       const answer = await this.$ons.notification.confirm(

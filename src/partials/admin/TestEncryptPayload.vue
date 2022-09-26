@@ -1,34 +1,37 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Test encrypting a payload
+    <div class="title">Test encrypting a payload</div>
+    <div v-if="!isShow">
+      <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>
-    <div>
+    <div v-if="isShow">
+      <div>
+        <p>
+          Simply an easy way to get an encrypted payload to test out the other
+          crypto features.
+        </p>
+      </div>
+      <div>Public JWK to use</div>
       <p>
-        Simply an easy way to get an encrypted payload to test out the other
-        crypto features.
+        <v-ons-button @click="useConfiguredPublicJwk"
+          >Use configured public JWK</v-ons-button
+        >
+        <textarea v-model="publicJwkToImport" class="jwk-textarea"></textarea>
+      </p>
+      <div>Plain text to encode</div>
+      <p>
+        <textarea v-model="plainText" class="jwk-textarea"></textarea>
+      </p>
+      <v-ons-button @click="doEncryptPayload">Encrypt plain text</v-ons-button>
+      <p>Encrypted payload result</p>
+      <p>
+        <textarea
+          v-model="encryptedPayload"
+          disabled
+          class="jwk-textarea"
+        ></textarea>
       </p>
     </div>
-    <div>Public JWK to use</div>
-    <p>
-      <v-ons-button @click="useConfiguredPublicJwk"
-        >Use configured public JWK</v-ons-button
-      >
-      <textarea v-model="publicJwkToImport" class="jwk-textarea"></textarea>
-    </p>
-    <div>Plain text to encode</div>
-    <p>
-      <textarea v-model="plainText" class="jwk-textarea"></textarea>
-    </p>
-    <v-ons-button @click="doEncryptPayload">Encrypt plain text</v-ons-button>
-    <p>Encrypted payload result</p>
-    <p>
-      <textarea
-        v-model="encryptedPayload"
-        disabled
-        class="jwk-textarea"
-      ></textarea>
-    </p>
   </v-ons-card>
 </template>
 
@@ -43,6 +46,7 @@ export default {
   name: 'TestEncryptPayload',
   data() {
     return {
+      isShow: false,
       publicJwkToImport: null,
       encryptedPayload: null,
       plainText: 'Hello, World!',

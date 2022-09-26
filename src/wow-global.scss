@@ -111,3 +111,17 @@ body {
   border: 1px solid red;
   background: #ffdcdc;
 }
+
+.obs-badges {
+  color: #888;
+
+  .wow-badge {
+    margin-right: 0.2em;
+    white-space: nowrap;
+  }
+}
+
+.wow-icon {
+  width: 26px;
+  vertical-align: bottom;
+}

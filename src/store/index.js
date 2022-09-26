@@ -2,19 +2,20 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
 
+import { subscribeToWorkerMessage } from '@/misc/web-worker-manager'
 import {
-  neverUpload,
-  persistedStateLocalStorageKey,
   isForceVueDevtools,
+  persistedStateLocalStorageKey,
+  recordProcessingOutcomeFieldName,
+  workerMessages,
 } from '@/misc/constants'
-import { wowErrorHandler, chainedError } from '@/misc/helpers'
+import { wowErrorHandler } from '@/misc/helpers'
 import auth from './auth'
-import app, { callback as appCallback } from './app'
+import app from './app'
 import ephemeral from './ephemeral'
 import obs, {
   apiTokenHooks as obsApiTokenHooks,
   migrate as obsMigrate,
-  networkHooks as obsNetworkHooks,
 } from './obs'
 import missionsAndNews from './missionsAndNews'
 
@@ -29,7 +30,7 @@ const store = new Vuex.Store({
     createPersistedState({
       key: persistedStateLocalStorageKey,
       setState: (key, state, storage) => {
-        const cleanedState = Object.assign({}, state)
+        const cleanedState = { ...state }
         // don't persist anything in the ephemeral module, we assume nothing in
         // it will serialise nicely or should be saved.
         delete cleanedState.ephemeral
@@ -38,7 +39,7 @@ const store = new Vuex.Store({
         delete cleanedState.news
         // Aug 2020 remove fields no longer used
         delete cleanedState.obs.selectedObservationId
-        return storage.setItem(key, JSON.stringify(cleanedState))
+        storage.setItem(key, JSON.stringify(cleanedState))
       },
     }),
   ],
@@ -52,12 +53,6 @@ const store = new Vuex.Store({
     doApiPut({ dispatch }, argObj) {
       return dispatch('auth/doApiPut', argObj)
     },
-    doPhotoPost({ dispatch }, argObj) {
-      return dispatch('auth/doPhotoPost', argObj)
-    },
-    doLocalPhotoPost({ dispatch }, argObj) {
-      return dispatch('auth/doLocalPhotoPost', argObj)
-    },
     doApiDelete({ dispatch }, argObj) {
       return dispatch('auth/doApiDelete', argObj)
     },
@@ -68,33 +63,6 @@ const store = new Vuex.Store({
         isNetworkErrorWow: err.isNetworkErrorWow,
       })
       wowErrorHandler(msg, err)
-    },
-    async fetchAllPages({ dispatch }, { baseUrl, pageSize }) {
-      let isMorePages = true
-      let allRecords = []
-      let currPage = 1
-      while (isMorePages) {
-        try {
-          console.debug(`Getting page=${currPage} of ${baseUrl}`)
-          const isExistingQueryString = ~baseUrl.indexOf('?')
-          const joiner = isExistingQueryString ? '&' : '?'
-          const urlSuffix = `${baseUrl}${joiner}per_page=${pageSize}&page=${currPage}`
-          const resp = await dispatch('doApiGet', { urlSuffix })
-          const results = resp.results
-          // note: we use the per_page from the resp because if we request too
-          // many records per page, the server will ignore our page size and
-          // the following check won't work
-          isMorePages = results.length === resp.per_page
-          allRecords = allRecords.concat(results)
-          currPage += 1
-        } catch (err) {
-          throw chainedError(
-            `Failed while trying to get page=${currPage} of ${baseUrl}`,
-            err,
-          )
-        }
-      }
-      return allRecords
     },
     healthcheck({ dispatch }) {
       return dispatch('obs/healthcheck')
@@ -139,12 +107,9 @@ const store = new Vuex.Store({
     myPlaceId(_, getters) {
       return getters['auth/myPlaceId']
     },
-    isSyncDisabled(state) {
-      return state.app.whenToSync === neverUpload
-    },
     isJoinedProject(state, getters) {
       const joinedUserIds = (state.obs.projectInfo || {}).user_ids || []
-      const myUserId = getters['myUserId']
+      const { myUserId } = getters
       return joinedUserIds.includes(myUserId)
     },
   },
@@ -157,15 +122,49 @@ const store = new Vuex.Store({
   },
 })
 
+subscribeToWorkerMessage('refreshLocalRecordQueue', () => {
+  return store.dispatch('obs/refreshLocalRecordQueue')
+})
+
+subscribeToWorkerMessage(workerMessages.facadeDeleteSuccess, ({ theUuid }) => {
+  return store.commit('obs/handleObsDeleteCompletion', theUuid)
+})
+
+subscribeToWorkerMessage(workerMessages.facadeUpdateSuccess, ({ summary }) => {
+  return store.commit('obs/handleObsCreateOrEditCompletion', summary)
+})
+
+subscribeToWorkerMessage(workerMessages.onLocalRecordTransition, (args) => {
+  return store.commit('obs/handleLocalQueueSummaryPatch', {
+    recordUuid: args.recordUuid,
+    thePatch: {
+      [recordProcessingOutcomeFieldName]: args.targetOutcome,
+    },
+  })
+})
+
+subscribeToWorkerMessage(workerMessages.onRetryComplete, (recordUuid) => {
+  return store.commit('obs/handleLocalQueueSummaryPatch', {
+    recordUuid,
+    thePatch: {
+      wowRetryAt: new Date().toISOString(),
+    },
+  })
+})
+
+subscribeToWorkerMessage(workerMessages.requestApiTokenRefresh, () => {
+  return store.dispatch('auth/getApiToken')
+})
+
 // make sure all your hooks are async or return promises
 const allApiTokenHooks = [...obsApiTokenHooks]
 
 store.watch(
-  state => state.auth.apiTokenAndUserLastUpdated,
+  (state) => state.auth.apiTokenAndUserLastUpdated,
   () => {
     console.debug('API Token and user details changed, triggering hooks')
-    for (const curr of allApiTokenHooks) {
-      curr(store).catch(err => {
+    allApiTokenHooks.forEach((curr) => {
+      curr(store).catch((err) => {
         store.dispatch(
           'flagGlobalError',
           {
@@ -176,34 +175,9 @@ store.watch(
           { root: true },
         )
       })
-    }
+    })
   },
 )
-
-// make sure all your hooks are async or return promises
-const allNetworkHooks = [...obsNetworkHooks]
-
-store.watch(
-  state => state.ephemeral.networkOnLine,
-  () => {
-    console.debug('Network on/off-line status changed, triggering hooks')
-    for (const curr of allNetworkHooks) {
-      curr(store).catch(err => {
-        store.dispatch(
-          'flagGlobalError',
-          {
-            msg: `Failed while executing a network on/off-line hook`,
-            userMsg: `Error encountered while reconnecting to the server`,
-            err,
-          },
-          { root: true },
-        )
-      })
-    }
-  },
-)
-
-appCallback(store)
 
 export default store
 
@@ -211,6 +185,6 @@ export default store
  * Add any code here that migrates vuex stores on user devices to match what we
  * expect in this version of the codebase.
  */
-export async function migrateOldStores(store) {
-  await obsMigrate(store)
+export async function migrateOldStores(storeParam) {
+  await obsMigrate(storeParam)
 }

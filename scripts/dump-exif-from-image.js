@@ -38,12 +38,12 @@ function truncateLongValue(obj, attrName) {
 
 // EXIF expects to be in a browser where 'self' is defined
 self = global
-global.FileReader = function() {
+global.FileReader = function () {
   const self = this
-  self.onload = function() {
+  self.onload = function () {
     throw new Error('Override me!')
   }
-  self.readAsArrayBuffer = function(img) {
+  self.readAsArrayBuffer = function (img) {
     self.onload({ target: { result: img.buffer } })
   }
 }
@@ -52,11 +52,11 @@ global.File = Buffer
 
 main()
   .then(() => log('[INFO] done :D'))
-  .catch(err => log('Fail-town', err))
+  .catch((err) => log('Fail-town', err))
 
 function getExifFromBlob(blobish) {
   return new Promise((resolve, reject) => {
-    EXIF.getData(blobish, function() {
+    EXIF.getData(blobish, function () {
       try {
         return resolve(EXIF.getAllTags(this))
       } catch (err) {

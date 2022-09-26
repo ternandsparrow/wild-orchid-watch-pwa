@@ -1,40 +1,43 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Generate a JWK key pair.
+    <div class="title">Generate a JWK key pair.</div>
+    <div v-if="!isShow">
+      <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>
-    <div>
+    <div v-if="isShow">
+      <div>
+        <p>
+          You should put the public key into the config of the deployed apps, so
+          they can use it to encrypt things. You need to keep the private key
+          somewhere safe so you can decrypt the encrypted things you receive.
+          The app will not store the private key for you. You must store it and
+          provide it when decrypting a payload (below).
+        </p>
+        <v-ons-button @click="generateJwk"
+          >Generate JWKs (JSON web key)</v-ons-button
+        >
+      </div>
+      <div>Public JWK</div>
+      <div><a href="#" @click="copyPublicJwk">copy</a></div>
       <p>
-        You should put the public key into the config of the deployed apps, so
-        they can use it to encrypt things. You need to keep the private key
-        somewhere safe so you can decrypt the encrypted things you receive. The
-        app will not store the private key for you. You must store it and
-        provide it when decrypting a payload (below).
+        <textarea
+          ref="publicJwk"
+          v-model="prettyPublicJwk"
+          disabled
+          class="jwk-textarea"
+        ></textarea>
       </p>
-      <v-ons-button @click="generateJwk"
-        >Generate JWKs (JSON web key)</v-ons-button
-      >
+      <div>Private JWK</div>
+      <div><a href="#" @click="copyPrivateJwk">copy</a></div>
+      <p>
+        <textarea
+          ref="privateJwk"
+          v-model="prettyPrivateJwk"
+          disabled
+          class="jwk-textarea"
+        ></textarea>
+      </p>
     </div>
-    <div>Public JWK</div>
-    <div><a href="#" @click="copyPublicJwk">copy</a></div>
-    <p>
-      <textarea
-        ref="publicJwk"
-        v-model="prettyPublicJwk"
-        disabled
-        class="jwk-textarea"
-      ></textarea>
-    </p>
-    <div>Private JWK</div>
-    <div><a href="#" @click="copyPrivateJwk">copy</a></div>
-    <p>
-      <textarea
-        ref="privateJwk"
-        v-model="prettyPrivateJwk"
-        disabled
-        class="jwk-textarea"
-      ></textarea>
-    </p>
   </v-ons-card>
 </template>
 
@@ -45,6 +48,7 @@ export default {
   name: 'GenerateCryptoKeys',
   data() {
     return {
+      isShow: false,
       jwk: {},
     }
   },

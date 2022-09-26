@@ -1,8 +1,6 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Project joining/leaving test
-    </div>
+    <div class="title">Project joining/leaving test</div>
     <p class="text-center">
       <span v-if="isJoinedProject" class="success-alert"
         >You are in the project</span
@@ -74,7 +72,7 @@ export default {
         this.$emit('refresh')
       } catch (err) {
         console.error('Failed to join project', err)
-        this.joinResult = 'ERROR: ' + err.message
+        this.joinResult = `ERROR: ${err.message}`
       }
     },
     async leaveProject() {
@@ -90,7 +88,7 @@ export default {
         this.$emit('refresh')
       } catch (err) {
         console.error('Failed to leave project', err)
-        this.leaveResult = 'ERROR: ' + err.message
+        this.leaveResult = `ERROR: ${err.message}`
       }
     },
     doRefresh() {

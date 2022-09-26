@@ -40,8 +40,8 @@ export default {
   },
   computed: {
     tabsWithPlaceholderPages() {
-      return this.tabs.map(e => {
-        e.page = { render: h => h('v-ons-page') }
+      return this.tabs.map((e) => {
+        e.page = { render: (h) => h('v-ons-page') }
         return e
       })
     },

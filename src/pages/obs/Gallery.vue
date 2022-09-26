@@ -17,8 +17,10 @@
 import { mapGetters } from 'vuex'
 import { wowIdOf } from '@/misc/helpers'
 
+const galleryImgSize = 'small'
+
 export default {
-  name: 'Gallery',
+  name: 'WowGallery',
   computed: {
     ...mapGetters('obs', ['localRecords', 'remoteRecords']),
     isNoPhotos() {
@@ -27,14 +29,19 @@ export default {
     allPhotos() {
       return [...this.localRecords, ...this.remoteRecords].reduce(
         (accum, currRecord) => {
-          for (const currPhoto of currRecord.photos) {
+          // FIXME we only include uploaded photos. Including local photos
+          // means loading them all into memory, which can get pretty big
+          // pretty fast.
+          ;(currRecord.photos || []).forEach((currPhoto) => {
             accum.push({
               _id: `${currRecord.uuid}_${currPhoto.id}`,
               wowId: wowIdOf(currRecord),
-              // FIXME should we get a bigger image than "square"?
-              photo: currPhoto,
+              photo: {
+                ...currPhoto,
+                url: currPhoto.url.replace('square', galleryImgSize),
+              },
             })
-          }
+          })
           return accum
         },
         [],
@@ -43,9 +50,9 @@ export default {
   },
   methods: {
     handleClick(record) {
-      const url = record.photo.url
+      const { url } = record.photo
       this.$store.commit('ephemeral/previewPhoto', {
-        url: url.indexOf('square') > 0 ? url.replace('square', 'medium') : url,
+        url: url.replace(galleryImgSize, 'medium'),
         wowId: record.wowId,
       })
     },
@@ -71,7 +78,9 @@ export default {
     $scrollbarWidthGuess: 10vw - $itemCount;
     $totalUseableViewportWidth: 100vw - $scrollbarWidthGuess;
     $totalPhotoMargin: ($itemCount * 2 * $photoMargin);
-    $photoSize: ($totalUseableViewportWidth - $totalPhotoMargin) / $itemCount;
+    $photoSize: calc(
+      ($totalUseableViewportWidth - $totalPhotoMargin) / $itemCount
+    );
     width: $photoSize;
     height: $photoSize;
   }

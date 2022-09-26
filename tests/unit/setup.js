@@ -1,8 +1,8 @@
 import dayjs from 'dayjs'
 import localForage from 'localforage'
 import { _testonly } from '@/indexeddb/storage-manager'
-import { _testonly as obsStoreTestOnly } from '@/store/obs'
-import { _testonly as ephemeralStoreTestOnly } from '@/store/ephemeral'
+import { _testonly as workerMgrTestOnly } from '@/misc/web-worker-manager'
+import * as webWorkerExposed from '@/misc/web.worker.nocomlink'
 
 expect.extend({
   toBeValidDateString(received) {
@@ -10,10 +10,19 @@ expect.extend({
     return {
       pass: isValid,
       // according to the doco
-      // (https://jestjs.io/docs/en/expect#expectextendmatchers) I'm meant to
+      // (https://jestjs.io/docs/en/expect#expectextendmatchers), we're meant to
       // have two versions of the message, but I don't. Hope that doesn't upset
       // you.
       message: () => `expected '${received}' to be a valid date string`,
+    }
+  },
+})
+
+expect.extend({
+  toBeUuidString(received) {
+    return {
+      pass: expect.stringMatching(/^.{36}$/).asymmetricMatch(received),
+      message: () => `expected '${received}' to be a UUID string`,
     }
   },
 })
@@ -22,16 +31,13 @@ expect.extend({
 // modify them and it will affect all others that use them too. Comlink has
 // dependencies that make it hard to run in Node so we just replace the
 // function that uses Comlink completely in tests.
-obsStoreTestOnly.interceptableFns.buildWorker = function() {
-  return require('@/store/map-over-obs-store.worker.js')._testonly
-}
-ephemeralStoreTestOnly.interceptableFns.buildWorker = function() {
-  return require('@/store/image-compression.worker.js')._testonly
+workerMgrTestOnly.interceptableFns.buildWorker = function () {
+  return webWorkerExposed
 }
 
-// we stub indexedDB below, which is required for workbox, but we don't want
-// localForage to try to use it because it's just a stub
-_testonly.forceLocalForageDriver(localForage.LOCALSTORAGE)
+// we load "fake-indexeddb/auto" in the test setupFiles, but just to make sure
+// we'll force localForage to use the fake IndexedDB.
+_testonly.forceLocalForageDriver(localForage.INDEXEDDB)
 
 class LocalStorageMock {
   constructor() {
@@ -47,7 +53,7 @@ class LocalStorageMock {
   }
 
   setItem(key, value) {
-    this.store[key] = value.toString()
+    this.store[key] = value // localForage will handle serialisation
   }
 
   removeItem(key) {
@@ -57,9 +63,9 @@ class LocalStorageMock {
 
 global.localStorage = new LocalStorageMock()
 
-// stubs so browser-image-compression and workbox don't complain
-global.Worker = function() {}
-global.URL = (function() {
+// various stubs
+global.Worker = function () {}
+global.URL = (function () {
   const result = URL
   result.createObjectURL = () => {}
   return result
@@ -94,7 +100,7 @@ global.MessageChannel = function MockMessageChannel() {
 global.clients = new (function MockClients() {
   const self = this
   self.messagesSentToClients = []
-  self.matchAll = function() {
+  self.matchAll = function () {
     const aClient = {
       postMessage(msg, channels) {
         self.messagesSentToClients.push(msg)
@@ -105,7 +111,7 @@ global.clients = new (function MockClients() {
     }
     return [aClient]
   }
-  self.clearMessages = function() {
+  self.clearMessages = function () {
     self.messagesSentToClients = []
   }
 })()

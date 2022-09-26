@@ -1,51 +1,39 @@
 <template>
   <v-ons-page>
-    <custom-toolbar back-label="Home" title="Observation">
-      <template v-slot:right>
-        <v-ons-toolbar-button name="toolbar-edit-btn" @click="onEdit">
-          Edit
-        </v-ons-toolbar-button>
-        <v-ons-toolbar-button
-          name="toolbar-action-btn"
-          @click="onMainActionMenu"
-        >
-          <v-ons-icon icon="fa-ellipsis-v"></v-ons-icon
-        ></v-ons-toolbar-button>
-      </template>
-    </custom-toolbar>
+    <custom-toolbar back-label="Home" title="Observation"></custom-toolbar>
 
     <v-ons-card v-show="isSystemError" class="error-card">
       <div class="title">Error uploading record</div>
       <p>
         This is not your fault. Many issues could cause this but the first step
-        is to try to upload the record again and see if that works.
+        is to retry the upload and see if that works.
       </p>
       <p>
         <v-ons-button
           name="retry-error-upload-btn"
-          @click="resetProcessingOutcomeFromSystemError"
+          @click="retryFromSystemError"
           >Retry upload</v-ons-button
         >
       </p>
     </v-ons-card>
-    <v-ons-card v-show="isPossiblyStuck" class="warn-card">
-      <div class="title">Possible problem</div>
+    <v-ons-card v-show="isDraft" class="warn-card">
+      <div class="title">Draft observation</div>
       <p>
-        It looks like this observation might be stuck while trying to upload to
-        the server. This can happen when this app is closed/crashes midway
-        through uploading.
+        <v-ons-icon icon="fa-firstdraft"> </v-ons-icon>
+        This observation is only a draft as it doesn't yet have all the required
+        data. It will <em>never</em> be uploaded to iNaturalist until you edit
+        it and add the missing data.
       </p>
-      <p>
-        You can choose to do nothing and see if it eventually solves itself.
-        This option will remain available as long as we think it's stuck.
-      </p>
-      <p>
-        <v-ons-button
-          name="retry-stuck-upload-btn"
-          @click="resetProcessingOutcomeFromStuck"
-          >Retry upload</v-ons-button
-        >
-      </p>
+    </v-ons-card>
+    <v-ons-card class="action-buttons">
+      <v-ons-toolbar-button modifier="outline" @click="onEdit">
+        <v-ons-icon icon="fa-edit" />
+        Edit
+      </v-ons-toolbar-button>
+      <v-ons-toolbar-button modifier="outline" @click="onDelete">
+        <v-ons-icon icon="fa-trash" />
+        Delete
+      </v-ons-toolbar-button>
     </v-ons-card>
     <v-ons-card>
       <v-ons-carousel
@@ -56,7 +44,10 @@
         overscrollable
         :index.sync="carouselIndex"
       >
-        <v-ons-carousel-item v-for="curr of photos" :key="curr.id">
+        <v-ons-carousel-item
+          v-for="curr of nullSafeObs.photos"
+          :key="curr.uiKey"
+        >
           <div class="photo-container">
             <img
               class="a-photo"
@@ -65,10 +56,27 @@
               @click="showPhotoPreview(curr.url)"
             />
           </div>
+          <div
+            v-if="curr.isLocalPhoto && !curr.hideFullSizeButton"
+            class="text-center"
+          >
+            <v-ons-button modifier="quiet" @click="onShowFullSizePhoto(curr)"
+              >Show full-size photo</v-ons-button
+            >
+          </div>
         </v-ons-carousel-item>
       </v-ons-carousel>
       <div v-if="!isPhotos" class="photo-container">
-        <div class="text-center no-photo">
+        <div v-if="isLoadingPhotos" class="text-center no-photo">
+          <v-ons-progress-circular indeterminate />
+          <p>Loading photos...</p>
+          <img
+            :src="noImagePlaceholderUrl"
+            class="a-photo"
+            alt="placeholder image as photos are loading"
+          />
+        </div>
+        <div v-else class="text-center no-photo">
           <p>No photos</p>
           <img
             :src="noImagePlaceholderUrl"
@@ -78,14 +86,14 @@
         </div>
       </div>
       <carousel-dots
-        v-if="isShowDots"
-        :dot-count="photos.length"
+        v-if="isPhotos"
+        :dot-count="nullSafeObs.photos.length"
         :selected-index="carouselIndex"
         :extra-styles="extraDotsStyle"
         @dot-click="onDotClick"
       ></carousel-dots>
-      <!-- FIXME add link to species record -->
-      <!-- FIXME show correct name based on prefers community ID or not -->
+      <!-- TODO add link to species record -->
+      <!-- TODO show correct name based on prefers community ID or not -->
       <div class="title">{{ speciesNameText }}</div>
       <p class="wow-subtitle">
         Observed:<br />
@@ -99,7 +107,7 @@
     ></relative-tabbar>
     <div class="tab-container">
       <div v-if="selectedTab === 0">
-        <!-- FIXME show quality grade, quality metrics -->
+        <!-- TODO show quality grade, quality metrics -->
         <!-- TODO show faves, flags, spam? -->
         <h3>Observation data</h3>
         <v-ons-list>
@@ -148,9 +156,7 @@
               <div v-show="nullSafeObs.notes">
                 {{ nullSafeObs.notes }}
               </div>
-              <div v-show="!nullSafeObs.notes" class="no-notes">
-                (no notes)
-              </div>
+              <div v-show="!nullSafeObs.notes" class="no-notes">(no notes)</div>
             </v-ons-list-item>
           </template>
         </v-ons-list>
@@ -262,18 +268,17 @@
                   <p class="identification-comment">{{ curr.body }}</p>
                 </div>
                 <div class="right">
-                  <v-ons-button
-                    name="comment-menu-btn"
-                    modifier="quiet"
-                    @click="onCommentActionMenu(curr)"
-                  >
-                    <v-ons-icon icon="fa-ellipsis-v" class="muted" />
-                  </v-ons-button>
+                  <v-ons-toolbar-button @click="onCommentEdit(curr)">
+                    <v-ons-icon icon="fa-edit" class="muted" />
+                  </v-ons-toolbar-button>
+                  <v-ons-toolbar-button @click="onCommentDelete(curr)">
+                    <v-ons-icon icon="fa-trash" class="muted" />
+                  </v-ons-toolbar-button>
                 </div>
               </v-ons-list-item>
             </template>
             <template v-else>
-              <h1 :key="curr.uuid + '-error'" style="color: red;">
+              <h1 :key="curr.uuid + '-error'" style="color: red">
                 Programmer problem - unsupported type {{ curr.wowType }}
               </h1>
             </template>
@@ -344,22 +349,10 @@
 <script>
 import { mapGetters, mapState } from 'vuex'
 import _ from 'lodash'
+import * as constants from '@/misc/constants'
 import {
-  approxAreaSearchedObsFieldId,
-  areaOfPopulationObsFieldId,
-  getMultiselectId,
-  inatUrlBase,
-  noImagePlaceholderUrl,
-  noValue,
-  notCollected,
-  yesValue,
-} from '@/misc/constants'
-import {
-  findCommonString,
   formatMetricDistance,
   humanDateString,
-  isPossiblyStuck as isPossiblyStuckHelper,
-  rectangleAlongPathAreaValueToTitle,
   wowErrorHandler,
   wowIdOf,
 } from '@/misc/helpers'
@@ -369,7 +362,9 @@ export default {
   name: 'ObsDetail',
   data() {
     return {
-      noImagePlaceholderUrl,
+      obsDetail: null,
+      noImagePlaceholderUrl: constants.noImagePlaceholderUrl,
+      isLoadingPhotos: false,
       carouselIndex: 0,
       extraDotsStyle: {
         color: '#5d5d5d',
@@ -381,8 +376,8 @@ export default {
         { icon: 'fa-comments' },
       ],
       obsFieldSorterFn: null,
-      yesValue,
-      noValue,
+      yesValue: constants.yesValue,
+      noValue: constants.noValue,
       newCommentBody: null,
       isSavingComment: false,
       editCommentRecord: {},
@@ -390,112 +385,38 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('obs', [
-      'detailedModeOnlyObsFieldIds',
-      'isSelectedRecordEditOfRemote',
-      'isSelectedRecordOnRemote',
-      'observationDetail',
-    ]),
-    ...mapState('ephemeral', ['isPhotoPreviewModalVisible']),
+    ...mapGetters('obs', ['selectedObsSummary']),
     ...mapState('app', ['isDetailedUserMode']),
+    isSelectedRecordOnRemote() {
+      return !!this.selectedObsInatId
+    },
     isSystemError() {
       return isObsSystemError(this.nullSafeObs)
     },
-    isPossiblyStuck() {
-      return isPossiblyStuckHelper(this.$store, this.observationDetail)
+    isDraft() {
+      return (
+        this.nullSafeObs.wowMeta[constants.recordProcessingOutcomeFieldName] ===
+        constants.draftOutcome
+      )
     },
     selectedObsInatId() {
-      return this.observationDetail.inatId
+      return (this.nullSafeObs || {}).inatId
     },
     nullSafeObs() {
-      const valueMappers = {
-        [approxAreaSearchedObsFieldId]: rectangleAlongPathAreaValueToTitle,
-        [areaOfPopulationObsFieldId]: rectangleAlongPathAreaValueToTitle,
+      const result = this.obsDetail
+      if (!result) {
+        return { photos: [], wowMeta: {} }
       }
-      const result = _.cloneDeep(this.observationDetail || {})
-      if (result.obsFieldValues) {
-        result.obsFieldValues = result.obsFieldValues.reduce((accum, curr) => {
-          const val = curr.value
-          const defaultStrat = v => v
-          const strategy = valueMappers[curr.fieldId] || defaultStrat
-          const mappedValue = strategy(val)
-          const multiselectId = getMultiselectId(curr.fieldId)
-          const isMultiselect = !!multiselectId
-          if (!isMultiselect) {
-            accum.push({
-              ...curr,
-              title: mappedValue,
-              isDetailedMode: (() => {
-                // looking for == notCollected probably isn't the most robust
-                // check. In a perfect world we would recreate the complex rules
-                // around our conditionally required fields and use that knowledge
-                // here. But this is easy and has the same effect because required
-                // fields can't be not collected
-                const isNotCollected = curr.value === notCollected
-                const isDefinitelyDetailed = this.detailedModeOnlyObsFieldIds[
-                  curr.fieldId
-                ]
-                return isDefinitelyDetailed || isNotCollected
-              })(),
-            })
-            return accum
-          }
-          const existingQuestionContainer = accum.find(
-            e => e.multiselectId === multiselectId,
-          )
-          if (!existingQuestionContainer) {
-            accum.push({
-              ...curr,
-              multiselectId,
-              multiselectValues: [{ name: curr.name, value: mappedValue }],
-              // we don't have any required multiselects so we can simply hide them
-              // all in basic mode
-              isDetailedMode: true,
-            })
-            return accum
-          }
-          const trimTrailingStuffRegex = /[^\w]*$/
-          const trimLeadingStuffRegex = /^[^\w]*/
-          existingQuestionContainer.name = findCommonString(
-            curr.name,
-            existingQuestionContainer.name,
-          ).replace(trimTrailingStuffRegex, '')
-          ;(function fixUpFirstValue() {
-            const firstValue = existingQuestionContainer.multiselectValues[0]
-            firstValue.name = firstValue.name
-              .replace(existingQuestionContainer.name, '')
-              .replace(trimLeadingStuffRegex, '')
-          })()
-          const thisMultiselectValueName = curr.name
-            .replace(existingQuestionContainer.name, '')
-            .replace(trimLeadingStuffRegex, '')
-          existingQuestionContainer.multiselectValues.push({
-            name: thisMultiselectValueName,
-            value: mappedValue,
-          })
-          return accum
-        }, [])
-        const targetField = 'fieldId'
-        if (this.obsFieldSorterFn) {
-          // no error on initial run, the real sorter will be used though
-          this.obsFieldSorterFn(result.obsFieldValues, targetField)
-        }
+      const targetField = 'fieldId'
+      this.obsFieldSorterFn(result.obsFieldValues, targetField)
+      if (!result.wowMeta) {
+        // remote obs don't have wowMeta, always adding it simplifies code elsewhere
+        result.wowMeta = {}
       }
       return result
     },
     isPhotos() {
-      return (this.nullSafeObs.photos || []).length
-    },
-    photos() {
-      return (this.nullSafeObs.photos || []).map((e, index) => ({
-        // while photos are still processing, they all have the same URL so
-        // we'll make a unique ID
-        id: 'photo-' + index,
-        url: e.url.replace('square', 'medium'),
-      }))
-    },
-    isShowDots() {
-      return this.photos.length > 1
+      return this.nullSafeObs.photos.length
     },
     geolocationDetails() {
       const config = {
@@ -504,7 +425,7 @@ export default {
         Accuracy: formatMetricDistance(this.nullSafeObs.geolocationAccuracy),
         Geoprivacy: this.nullSafeObs.geoprivacy,
       }
-      return Object.keys(config).map(k => ({
+      return Object.keys(config).map((k) => ({
         label: k,
         value: config[k],
       }))
@@ -529,11 +450,12 @@ export default {
       return !(this.nullSafeObs.idsAndComments || []).length
     },
     obsOnInatUrl() {
-      return `${inatUrlBase}/observations/${this.nullSafeObs.inatId}`
+      return `${constants.inatUrlBase}/observations/${this.nullSafeObs.inatId}`
     },
   },
   watch: {
-    observationDetail(newVal, oldVal) {
+    // FIXME replace with event listener and tear down when component is destroyed
+    selectedObsSummary(newVal, oldVal) {
       // this is for when a local observation record gets deleted out from
       // under us (at the completion of upload) and we need to update to use
       // the remote record.
@@ -541,7 +463,7 @@ export default {
         // only act when it was deleted
         return
       }
-      const uuid = oldVal.uuid
+      const { uuid } = oldVal
       this.navigateToNewDetailPage(uuid)
     },
   },
@@ -549,15 +471,33 @@ export default {
     this.obsFieldSorterFn = await this.$store.dispatch(
       'obs/buildObsFieldSorter',
     )
-    this.debouncedResetProcessingOutcome = _.debounce(
-      this._resetProcessingOutcome,
-      2000,
-      { leading: true, trailing: false },
-    )
-    // TODO enhancement idea: when landing from gallery, could preselect the
-    // referrer photo.
+    this.debouncedRetry = _.debounce(this._retryUpload, 2000, {
+      leading: true,
+      trailing: false,
+    })
+    await this.loadFullObsData()
+  },
+  beforeDestroy() {
+    this.$store.dispatch('obs/cleanupPhotosForObs')
   },
   methods: {
+    async loadFullObsData() {
+      this.isLoadingPhotos = true
+      // FIXME handle errors from this call to store
+      const obsDetail = await this.$store.dispatch('obs/getFullObsDetail')
+      this.obsDetail = obsDetail
+      // TODO enhancement idea: when landing from gallery, could preselect the
+      // referrer photo.
+      this.isLoadingPhotos = false
+    },
+    async onShowFullSizePhoto(photoRecord) {
+      photoRecord.hideFullSizeButton = true
+      const url = await this.$store.dispatch(
+        'obs/getFullSizePhotoUrl',
+        photoRecord.id,
+      )
+      photoRecord.url = url
+    },
     async navigateToNewDetailPage(uuid) {
       // the record to be deleted doesn't have the iNat ID and we don't have
       // access to the new record that will replace it so we need to look up the
@@ -584,28 +524,21 @@ export default {
         })
       }
     },
-    resetProcessingOutcomeFromSystemError() {
+    retryFromSystemError() {
       this.$wow.uiTrace('ObsDetail', `reset an obs from system error`)
-      this.debouncedResetProcessingOutcome(
-        'Failed to reset processing outcome after error',
-      )
+      this.debouncedRetry('Failed to reset processing outcome after error')
     },
-    resetProcessingOutcomeFromStuck() {
-      this.$wow.uiTrace('ObsDetail', `reset an obs from stuck`)
-      this.debouncedResetProcessingOutcome(
-        'Failed to reset processing outcome from a possibly stuck record',
-      )
-    },
-    _resetProcessingOutcome(errMsg) {
+    _retryUpload(errMsg) {
       this.$store
-        .dispatch('obs/resetProcessingOutcomeForSelectedRecord')
+        .dispatch('obs/retryForSelectedRecord')
         .then(() => {
-          this.$ons.notification.toast('Retrying upload', {
+          this.$ons.notification.toast('Observation upload retried', {
             timeout: 3000,
             animation: 'ascend',
           })
+          this.loadFullObsData()
         })
-        .catch(err => {
+        .catch((err) => {
           this.$store.dispatch(
             'flagGlobalError',
             {
@@ -621,137 +554,38 @@ export default {
     onDotClick(carouselIndex) {
       this.carouselIndex = carouselIndex
     },
-    onMainActionMenu() {
-      const menu = {
-        Delete: () => {
-          this.$wow.uiTrace('ObsDetail', `delete observation`)
-          this.$ons.notification
-            .confirm('Are you sure about deleting this record?')
-            .then(answer => {
-              if (!answer) {
-                this.$wow.uiTrace('ObsDetail', `abort delete observation`)
-                return
-              }
-              this.$wow.uiTrace('ObsDetail', `confirm delete observation`)
-              this.$store
-                .dispatch('obs/deleteSelectedRecord')
-                .then(() => {
-                  this.$ons.notification.toast('Record deleted!', {
-                    timeout: 3000,
-                    animation: 'ascend',
-                  })
-                })
-                .catch(err => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to (completely) delete record',
-                    userMsg: 'Error while deleting record.',
-                  })
-                })
-              this.$router.push({ name: 'Home' })
-            })
-        },
-      }
-      if (this.isSelectedRecordEditOfRemote) {
-        menu['Delete only local edit'] = () => {
-          this.$wow.uiTrace('ObsDetail', `delete local edit observation`)
-          this.$ons.notification
-            .confirm(
-              'This record has an edit that has NOT yet been ' +
-                'synchronised to the server. Do you want to delete only the local ' +
-                'changes so the record on the server stays unchanged?',
-            )
-            .then(answer => {
-              if (!answer) {
-                this.$wow.uiTrace(
-                  'ObsDetail',
-                  `abort delete local edit observation`,
-                )
-                return
-              }
-              this.$wow.uiTrace(
-                'ObsDetail',
-                `confirm delete local edit observation`,
-              )
-              this.$store
-                .dispatch('obs/deleteSelectedLocalRecord')
-                .then(() => {
-                  this.$ons.notification.toast('Local edit deleted!', {
-                    timeout: 3000,
-                    animation: 'ascend',
-                  })
-                })
-                .catch(err => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to delete local edit on remote record',
-                    userMsg: 'Error while deleting local edit.',
-                  })
-                })
-              this.$router.push({ name: 'Home' })
-            })
+    // FIXME can't comment on a remote record with local edit
+    async onCommentDelete(commentRecord) {
+      const handler = async () => {
+        try {
+          await this.$store.dispatch('obs/deleteComment', {
+            obsId: this.selectedObsInatId,
+            commentRecord,
+          })
+          this.$ons.notification.toast('Comment deleted!', {
+            timeout: 3000,
+            animation: 'fall',
+          })
+          await this.loadFullObsData()
+        } catch (err) {
+          this.handleMenuError(err, {
+            msg: 'Failed to delete comment',
+            userMsg: 'Error while deleting comment.',
+          })
         }
       }
-      if (!this.md) {
-        menu.Cancel = () => {}
-      }
-      this.$ons
-        .openActionSheet({
-          buttons: Object.keys(menu),
-          cancelable: true,
-          destructive: 1,
-        })
-        .then(selIndex => {
-          const key = Object.keys(menu)[selIndex]
-          const selectedItemFn = menu[key]
-          selectedItemFn && selectedItemFn()
+      this.$ons.notification
+        .confirm('Are you sure about deleting this comment?')
+        .then((answer) => {
+          if (!answer) {
+            return
+          }
+          handler()
         })
     },
-    onCommentActionMenu(commentRecord) {
-      const menu = {
-        Delete: () => {
-          this.$ons.notification
-            .confirm('Are you sure about deleting this comment?')
-            .then(answer => {
-              if (!answer) {
-                return
-              }
-              this.$store
-                .dispatch('obs/deleteComment', {
-                  obsId: this.selectedObsInatId,
-                  commentRecord,
-                })
-                .then(() => {
-                  this.$ons.notification.toast('Comment deleted!', {
-                    timeout: 3000,
-                    animation: 'fall',
-                  })
-                })
-                .catch(err => {
-                  this.handleMenuError(err, {
-                    msg: 'Failed to delete comment',
-                    userMsg: 'Error while deleting comment.',
-                  })
-                })
-            })
-        },
-        Edit: () => {
-          this.isShowCommentEditModal = true
-          this.editCommentRecord = commentRecord
-        },
-      }
-      if (!this.md) {
-        menu.Cancel = () => {}
-      }
-      this.$ons
-        .openActionSheet({
-          buttons: Object.keys(menu),
-          cancelable: true,
-          destructive: 1,
-        })
-        .then(selIndex => {
-          const key = Object.keys(menu)[selIndex]
-          const selectedItemFn = menu[key]
-          selectedItemFn && selectedItemFn()
-        })
+    onCommentEdit(commentRecord) {
+      this.isShowCommentEditModal = true
+      this.editCommentRecord = commentRecord
     },
     handleMenuError(err, { msg, userMsg }) {
       this.$store.dispatch(
@@ -765,6 +599,33 @@ export default {
       const obsId = wowIdOf(this.nullSafeObs)
       this.$router.push({ name: 'ObsEdit', params: { id: obsId } })
     },
+    onDelete() {
+      this.$wow.uiTrace('ObsDetail', `delete observation`)
+      this.$ons.notification
+        .confirm('Are you sure about deleting this record?')
+        .then((answer) => {
+          if (!answer) {
+            this.$wow.uiTrace('ObsDetail', `abort delete observation`)
+            return
+          }
+          this.$wow.uiTrace('ObsDetail', `confirm delete observation`)
+          this.$store
+            .dispatch('obs/deleteSelectedRecord')
+            .then(() => {
+              this.$ons.notification.toast('Record deleted!', {
+                timeout: 3000,
+                animation: 'ascend',
+              })
+            })
+            .catch((err) => {
+              this.handleMenuError(err, {
+                msg: 'Failed to (completely) delete record',
+                userMsg: 'Error while deleting record.',
+              })
+            })
+          this.$router.push({ name: 'Home' })
+        })
+    },
     showPhotoPreview(url) {
       this.$store.commit('ephemeral/previewPhoto', {
         url: url.indexOf('medium') > 0 ? url.replace('medium', 'large') : url,
@@ -774,7 +635,7 @@ export default {
       return humanDateString(item)
     },
     identificationPhotoUrl(identification) {
-      return identification.taxonPhotoUrl || noImagePlaceholderUrl
+      return identification.taxonPhotoUrl || constants.noImagePlaceholderUrl
     },
     async onNewComment() {
       this.$wow.uiTrace('ObsDetail', `create new comment`)
@@ -784,6 +645,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentBody: this.newCommentBody,
         })
+        await this.loadFullObsData()
         this.newCommentBody = null
         this.$ons.notification.toast('Comment created', {
           timeout: 3000,
@@ -811,6 +673,7 @@ export default {
           obsId: this.selectedObsInatId,
           commentRecord: this.editCommentRecord,
         })
+        await this.loadFullObsData()
       } catch (err) {
         this.$store.dispatch(
           'flagGlobalError',
@@ -993,5 +856,9 @@ table.geolocation-detail {
 
 .more-margin {
   margin: 1em;
+}
+
+.action-buttons {
+  text-align: right;
 }
 </style>

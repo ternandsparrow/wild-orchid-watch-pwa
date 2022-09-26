@@ -46,6 +46,10 @@ export default {
     },
   },
   computed: {
+    // TODO we've seen uncaught promise rejections on Apple devices for
+    // "Another splitter-side action is already running.". To trap them, we need
+    // to somehow .catch() on the promise returned from the toggle() call on the
+    // splitter. With the current set up, not sure how to do that.
     isOpen: {
       get() {
         return this.$store.state.ephemeral.isSplitterOpen

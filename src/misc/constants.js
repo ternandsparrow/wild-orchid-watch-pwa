@@ -33,6 +33,10 @@ export {
 // https://api.inaturalist.com/v1
 export const apiUrlBase = process.env.VUE_APP_API_BASE_URL
 
+// The URL of our WOW facade
+// (https://github.com/ternandsparrow/wild-orchid-watch-api-facade)
+export const facadeUrlBase = process.env.VUE_APP_FACADE_BASE_URL
+
 // URL of the Ruby on Rails iNaturalist server that we prepend to all our
 // requests. Something like https://inaturalist.com
 export const inatUrlBase = process.env.VUE_APP_INAT_BASE_URL
@@ -83,6 +87,10 @@ export const googleAnalyticsTrackerCode = process.env.VUE_APP_GA_CODE
 //   https://o1111111111111111111111111111111@o222222.ingest.sentry.io/3333333
 export const sentryDsn = process.env.VUE_APP_SENTRY_DSN
 
+export const frequencyOfTaskChecksSeconds = convertAndAssertInteger(
+  process.env.VUE_APP_TASK_CHECK_FREQ || 20,
+)
+
 // The URL where we can load the taxa list for populating the orchid
 // autocomplete. See scripts/build-taxa-index.js for more details.
 export const taxaDataUrl =
@@ -108,16 +116,11 @@ export const swQueueMaxRetentionMinutes = convertAndAssertInteger(
   process.env.VUE_APP_SW_QUEUE_MAX_RETENTION || 365 * 24 * 60, // one year
 )
 
-// how many minutes need to have elapsed before we can consider an obs as stuck
-// with the service worker. Set to 0 to disable check completely.
-export const thresholdForStuckWithSwMinutes = convertAndAssertInteger(
-  process.env.VUE_APP_STUCK_WITH_SW_MINUTES || 20,
-)
-
 // useful for enabling devtools in "production mode" while debugging with a
 // service worker
 export const isForceVueDevtools = !!parseInt(
   process.env.VUE_APP_FORCE_VUE_DEVTOOLS || 0,
+  10,
 )
 
 export const isEnableWorkboxLogging = parseBoolean(
@@ -134,8 +137,8 @@ export const isNewsFeatureEnabled = parseBoolean(
   process.env.VUE_APP_FEATURE_FLAG_NEWS,
 )
 
-export const isSearchFeatureEnabled = parseBoolean(
-  process.env.VUE_APP_FEATURE_FLAG_SEARCH,
+export const isDraftFeatureEnabled = parseBoolean(
+  process.env.VUE_APP_FEATURE_FLAG_DRAFT,
 )
 
 export const isBugReportFeatureEnabled = parseBoolean(
@@ -298,8 +301,7 @@ function parseFieldIdList(envVarKey, msgFragment) {
     return JSON.parse(`[${ids}]`)
   } catch (err) {
     throw new Error(
-      `Failed while parsing ${msgFragment} multiselect IDs from env var: ` +
-        err.message,
+      `Failed while parsing ${msgFragment} multiselect IDs from env var: ${err.message}`,
     )
   }
 }
@@ -316,7 +318,7 @@ export function getMultiselectId(fieldId) {
     [floralVisitorsObsFieldIds]: floralVisitorsMultiselectId,
     [phenologyObsFieldIds]: phenologyMultiselectId,
   }
-  const found = Object.entries(multiselectIdMapping).find(e =>
+  const found = Object.entries(multiselectIdMapping).find((e) =>
     e[0].includes(fieldId),
   )
   return (found || [])[1]
@@ -332,18 +334,6 @@ export const approxAreaSearchedObsFieldId = convertAndAssertInteger(
 
 export const obsPageSize = convertAndAssertInteger(
   process.env.VUE_APP_OBS_PAGE_SIZE || 100,
-)
-
-export const photoCompressionThresholdMb = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_MB || 1,
-)
-
-export const photoCompressionThresholdPixels = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMPRESSION_THRESHOLD_PIXELS || 1920,
-)
-
-export const photoCompressionJpgQuality = convertAndAssertInteger(
-  process.env.VUE_APP_PHOTO_COMP_JPEG_QUAL || 90,
 )
 
 export const swQueuePeriodicTrigger = convertAndAssertInteger(
@@ -362,7 +352,6 @@ if (bboxLatMin >= bboxLatMax) {
   const msg =
     `Config problem: bboxLatMin=${bboxLatMin} is NOT less than ` +
     `bboxLatMax=${bboxLatMax}`
-  alert(msg)
   throw new Error(msg)
 }
 
@@ -378,7 +367,6 @@ if (bboxLonMin >= bboxLonMax) {
   const msg =
     `Config problem: bboxLonMin=${bboxLonMin} is NOT less than ` +
     `bboxLonMax=${bboxLonMax}`
-  alert(msg)
   throw new Error(msg)
 }
 
@@ -390,21 +378,43 @@ export const publicJwk = process.env.VUE_APP_PUBLIC_JWK
 
 // More "constant" constants from here on
 
-export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
+export const facadeSendObsUrlPrefix = `${facadeUrlBase}/observations`
 
-export const noProfilePicPlaceholderUrl = 'img/no-profile-pic-placeholder-3.png'
+export const pendingTasksKey = 'wow-pending-tasks' // for localStorage
+export const apiTokenKey = 'api-token' // for localStorage
+
+export const workerMessages = {
+  facadeDeleteSuccess: 'facade-delete-success',
+  facadeUpdateSuccess: 'facade-update-success',
+  onLocalRecordTransition: 'local-record-transition',
+  requestApiTokenRefresh: 'request-api-token-refresh',
+  onRetryComplete: 'retry-complete',
+}
+
+export const noImagePlaceholderUrl = '/img/no-image-placeholder.png'
+export const noPreviewAvailableUrl = '/img/no-preview-available.png'
+
+export const noProfilePicPlaceholderUrl =
+  '/img/no-profile-pic-placeholder-3.png'
 
 export const onboarderComponentName = 'Onboarder'
 export const onboarderPath = '/onboarder'
 
 export const oauthCallbackComponentName = 'OauthCallback'
 
-export const alwaysUpload = 'ALWAYS'
-export const neverUpload = 'NEVER'
-
 export const persistedStateLocalStorageKey = 'wow-vuex'
 
-export const lfWowObsStoreName = 'wow-obs'
+export const xWowUuidHeader = 'x-wow-uuid'
+export const xWowInatIdHeader = 'x-wow-inatid'
+export const queueItemProcessed = 'queueItemProcessed'
+export const queueItemHttpError = 'queueItemHttpError'
+
+export const lfWowObsStoreName = 'wow-obs' // observations
+export const lfWowPhotoStoreName = 'wow-photo' // photos
+export const lfWowMetaStoreName = 'wow-meta' // things about the app
+
+export const facadeMigrationKey = 'facade-migration'
+export const remoteObsKey = 'remote-obs'
 
 export const recordProcessingOutcomeFieldName = 'recordProcessingOutcome'
 
@@ -415,56 +425,30 @@ export const failed = 'FAILED'
 export const autocompleteTypeHost = 'host'
 export const autocompleteTypeOrchid = 'orchid'
 
-export const obsFieldName = 'obs'
 export const recordTypeFieldName = 'recordType'
 export const photosFieldName = 'photos'
 export const photoIdsToDeleteFieldName = 'photos-delete'
 export const photosToAddFieldName = 'photos-add'
 export const obsFieldIdsToDeleteFieldName = 'obsFields-delete'
 export const projectIdFieldName = 'projectId'
-export const blockedActionFieldName = 'blockedAction'
-export const hasBlockedActionFieldName = 'hasBlockedAction'
 export const isEventuallyDeletedFieldName = 'isEventuallyDeleted'
 export const wowUpdatedAtFieldName = 'wowUpdatedAt'
 export const outcomeLastUpdatedAtFieldName = 'outcomeLastUpdatedAt'
+export const versionFieldName = 'version'
 
-export const syncSwWowQueueMsg = 'SYNC_SW_WOW_QUEUE'
-export const refreshObsMsg = 'REFRESH_OBS'
-export const refreshLocalQueueMsg = 'REFRESH_LOCAL_QUEUE_OBS'
 export const skipWaitingMsg = 'SKIP_WAITING'
 export const proxySwConsoleMsg = 'PROXY_SW_CONSOLE'
-export const testSendObsPhotoPostMsg = 'TEST_OBS_PHOTO_POST'
-export const testTriggerManualCaughtErrorMsg = 'TEST_SW_MANUAL_CAUGHT_ERROR'
-export const testTriggerManualUncaughtErrorMsg = 'TEST_SW_MANUAL_UNCAUGHT_ERROR'
-export const triggerLocalQueueProcessingMsg = 'TRIGGER_LOCAL_QUEUE_PROCESSING'
+export const swForceProcessingMsg = 'SW_FORCE_PROCESSING'
 
 // Record processing outcomes
+export const draftOutcome = 'draft' // incomplete observation
 export const waitingOutcome = 'waiting' // waiting to be processed
-export const withLocalProcessorOutcome = 'withLocalProcessor' // we're actively processing it
-export const withServiceWorkerOutcome = 'withServiceWorker' // we've processed it, but haven't heard back from SW yet
+// left the value of this the same after the rename, so we don't have to migrate data
+export const beingProcessedOutcome = 'withLocalProcessor' // we're actively processing it
 export const successOutcome = 'success' // successfully processed
-export const systemErrorOutcome = 'systemError' // processed but encountered an error the user CANNOT fix
+export const systemErrorOutcome = 'systemError' // processed but encountered an error
 
-const serviceWorkerMagicUrlPrefix = 'https://local.service-worker'
-export const serviceWorkerBundleMagicUrl =
-  serviceWorkerMagicUrlPrefix + '/queue/obs-bundle'
-export const serviceWorkerIsAliveMagicUrl =
-  serviceWorkerMagicUrlPrefix + '/are-you-alive'
-export const serviceWorkerHealthCheckUrl =
-  serviceWorkerMagicUrlPrefix + '/health-check'
-export const serviceWorkerUpdateAuthHeaderUrl =
-  serviceWorkerMagicUrlPrefix + '/update-auth-header'
-export const serviceWorkerUpdateErrorTrackerContextUrl =
-  serviceWorkerMagicUrlPrefix + '/update-error-tracker-context'
-export const serviceWorkerClearEverythingUrl =
-  serviceWorkerMagicUrlPrefix + '/clear-everything'
-export const serviceWorkerObsUuidsInQueueUrl =
-  serviceWorkerMagicUrlPrefix + '/uuids-in-queue'
-
-export const serviceWorkerPlatformTestUrl =
-  serviceWorkerMagicUrlPrefix + '/platorm-test'
-
-export const wowUuidCustomHttpHeader = 'x-wow-uuid'
+export const isRemotePhotoFieldName = 'isRemote'
 
 export const photoTypeWholePlant = 'whole-plant'
 export const photoTypeFlower = 'flower'
@@ -475,6 +459,9 @@ export const photoTypeMicrohabitat = 'micro-habitat'
 export const photoTypeCanopy = 'canopy'
 export const photoTypeFloralVisitors = 'floral-visitors'
 export const photoTypeEpiphyteHostTree = 'host-tree'
+
+// gives the UI a cheap way to tell if the record is pre-migration
+export const currentRecordVersion = 3
 
 export const cryptoConfig = (() => {
   const algorithm = 'RSA-OAEP'
@@ -489,23 +476,23 @@ export const cryptoConfig = (() => {
 })()
 
 function convertAndAssertInteger(val) {
-  const result = parseInt(val)
-  if (isNaN(result)) {
+  const isNotInteger = !/^-?\d+$/.test(val)
+  if (isNotInteger) {
     throw new Error(
-      `Runtime config problem: expected integer is not a number='${val}'`,
+      `Runtime config problem: expected integer is not valid='${val}'`,
     )
   }
-  return result
+  return parseInt(val, 10)
 }
 
 function convertAndAssertFloat(val) {
-  const result = parseFloat(val)
-  if (isNaN(result)) {
+  const isNotFloat = !/^-?\d+(\.\d+)?$/.test(val)
+  if (isNotFloat) {
     throw new Error(
-      `Runtime config problem: expected float is not a number='${val}'`,
+      `Runtime config problem: expected float is not valid='${val}'`,
     )
   }
-  return result
+  return parseFloat(val)
 }
 
 function parseBoolean(val) {
@@ -517,4 +504,10 @@ function parseBoolean(val) {
     return false
   }
   return !!(val || false)
+}
+
+export const _testonly = {
+  convertAndAssertFloat,
+  convertAndAssertInteger,
+  parseBoolean,
 }

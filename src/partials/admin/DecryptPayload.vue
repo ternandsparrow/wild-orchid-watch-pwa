@@ -1,37 +1,40 @@
 <template>
   <v-ons-card>
-    <div class="title">
-      Decrypt encrypted payload
+    <div class="title">Decrypt encrypted payload</div>
+    <div v-if="!isShow">
+      <v-ons-button @click="isShow = true">Show card content</v-ons-button>
     </div>
-    <div>
+    <div v-if="isShow">
+      <div>
+        <p>
+          You have a payload that you need to decrypt. You will also need the
+          private key to decrypt it. This key would've come from the section
+          above. You need to provide this private key, it is
+          <em>not stored in the app for you</em>.
+        </p>
+      </div>
+      <div>Private JWK to use</div>
       <p>
-        You have a payload that you need to decrypt. You will also need the
-        private key to decrypt it. This key would've come from the section
-        above. You need to provide this private key, it is
-        <em>not stored in the app for you</em>.
+        <textarea v-model="privateJwkToImport" class="jwk-textarea"></textarea>
+      </p>
+      <div>Encrypted payload</div>
+      <p>
+        <textarea
+          v-model="encryptedPayload"
+          class="jwk-textarea"
+          :placeholder="examplePayload"
+        ></textarea>
+      </p>
+      <v-ons-button @click="doDecryptPayload">Decrypt payload</v-ons-button>
+      <p>Decrypted payload result</p>
+      <p>
+        <textarea
+          v-model="decryptedPayload"
+          disabled
+          class="jwk-textarea"
+        ></textarea>
       </p>
     </div>
-    <div>Private JWK to use</div>
-    <p>
-      <textarea v-model="privateJwkToImport" class="jwk-textarea"></textarea>
-    </p>
-    <div>Encrypted payload</div>
-    <p>
-      <textarea
-        v-model="encryptedPayload"
-        class="jwk-textarea"
-        :placeholder="examplePayload"
-      ></textarea>
-    </p>
-    <v-ons-button @click="doDecryptPayload">Decrypt payload</v-ons-button>
-    <p>Decrypted payload result</p>
-    <p>
-      <textarea
-        v-model="decryptedPayload"
-        disabled
-        class="jwk-textarea"
-      ></textarea>
-    </p>
   </v-ons-card>
 </template>
 
@@ -43,6 +46,7 @@ export default {
   name: 'DecryptPayload',
   data() {
     return {
+      isShow: false,
       privateJwkToImport: null,
       encryptedPayload: null,
       decryptedPayload: null,

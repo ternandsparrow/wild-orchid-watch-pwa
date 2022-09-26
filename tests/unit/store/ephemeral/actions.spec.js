@@ -1,7 +1,7 @@
 import objectUnderTest from '@/store/ephemeral'
 import * as constants from '@/misc/constants'
 
-const actions = objectUnderTest.actions
+const { actions } = objectUnderTest
 const commit = jest.fn()
 
 afterEach(() => {
@@ -22,12 +22,12 @@ describe('app module action', () => {
   describe('serviceWorkerSkipWaiting', () => {
     let origConsoleDebug
 
-    beforeAll(function() {
+    beforeAll(function () {
       origConsoleDebug = console.debug
       console.debug = () => {}
     })
 
-    afterAll(function() {
+    afterAll(function () {
       console.debug = origConsoleDebug
     })
 
@@ -45,7 +45,7 @@ describe('app module action', () => {
       expect(commit).toHaveBeenCalledWith('setRefreshingApp', true)
       expect(
         state.SWRegistrationForNewContent.waiting.postMessage,
-      ).toHaveBeenCalledWith(constants.skipWaitingMsg)
+      ).toHaveBeenCalledWith({ msgId: constants.skipWaitingMsg })
     })
 
     it('should not set app refreshing status and call sw postMessage with skipWaiting', () => {

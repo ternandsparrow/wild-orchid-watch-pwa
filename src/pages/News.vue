@@ -46,18 +46,17 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import { noImagePlaceholderUrl } from '@/misc/constants'
 
 export default {
-  name: 'News',
+  name: 'WowNews',
   data() {
     return {
       pullHookState: 'initial',
+      allNews: [],
     }
   },
   computed: {
-    ...mapGetters('missionsAndNews', ['allNews']),
     isNoRecords() {
       return !this.allNews || this.allNews.length === 0
     },
@@ -66,9 +65,14 @@ export default {
     this.doRefresh()
   },
   methods: {
-    doRefresh(done) {
-      this.$store.dispatch('missionsAndNews/updateNewsIfRequired')
-      done && done()
+    async doRefresh(done) {
+      const updates = await this.$store.dispatch(
+        'missionsAndNews/getProjectUpdates',
+      )
+      this.allNews = updates
+      if (done) {
+        done()
+      }
     },
     push(eventId) {
       // FIXME implement this

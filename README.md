@@ -31,9 +31,7 @@ is the best because it's tailored for this specific use case.
 
 Requirements:
   - yarn >= 1.16
-  - node >= 12 (or at least an LTS release otherwise you'll have to compile some
-      things as part of the dependency install - like sharp - and that will either
-      take a long time or fail... Just use an LTS release!)
+  - node >= 14
   - modern web browser (Chrome or Firefox are good choices)
 
 As a developer on this project, follow these steps to get the webpack dev server
@@ -146,6 +144,14 @@ used for the orchid species autocomplete. Then commit the the result of the
 script. The CI/CD build pipeline will then do a deploy and users will recieve
 the new list when they update.
 
+If you've already run the script, you might want to force a refresh of the taxa
+data from iNat otherwise it'll just rebuild the list from your local cache. To
+do this:
+```bash
+./scripts/build-taxa-index.js --force-cache-refresh
+# run with --help for full list of options
+```
+
 This script reads species from observations made in iNat so as more observations
 are made, the list will change.  Nothing will break if you don't do it, but by
 doing it regularly, users will have a better experience because they'll have a
@@ -257,11 +263,17 @@ You'll also want to change some of the default project settings:
 For Firebase, you don't need to deploy from your local machine. We have
 CircleCI to deploy for us. To achieve this, it needs a token for auth. Get a
 token with:
-  1. make sure you have the `firebase` command: `yarn global add firebase-tools`
-  1. on your local machine, run `firebase login:ci`
+  1. on your local machine, run `yarn firebase login:ci`
   1. confirm the login in your browser
   1. you'll get the token in your terminal, set the CircleCI env var
      `FIREBASE_TOKEN` to this value
+
+These tokens have an expiry so if deploys via CircleCI start failing with
+```
+Error: HTTP Error: 401, Request had invalid authentication credentials
+```
+...then the fix will (hopefully) minting a new auth token and updating the env
+vars config in CircleCI to use the new token.
 
 ## Testing workflow
 
@@ -283,6 +295,10 @@ to Jest.
 See [./ARCHITECTURE.md](./ARCHITECTURE.md) for details on how this app is built
 and why we chose the technologies we did.
 
+
+## Useful links
+  - [iNat OAuth client](https://www.inaturalist.org/oauth/applications/329).
+
 ## Why we don't eslint our web workers
 Let the story begin. When we allow linting on web worker files, we get some
 weird behaviour. The build is certainly capable of working because the webpack
@@ -292,4 +308,13 @@ The linting errors don't line up with what you see in the source file. It seems
 that the output from the webpack processing/transpiling of our source is run
 back through the linter and the eslint is (understandably) not happy, so it
 throws errors. See my reproduction of this issue:
-https://github.com/tomsaleeba/worker-plugin-eslint-test
+https://github.com/tomsaleeba/worker-plugin-eslint-test. When [this
+commit](https://github.com/vuejs/vue-cli/commit/36e500d266cf0e6a7ef63fe6cca609178116e08e#diff-1a7306af1d2ca3b9b8c4809621c598d87bc00f02a175cc250f32175c20280039R27)
+gets merged, we'll move up two major versions of eslint-loader (from 2.x to
+4.x), which will hopefully help. In the meantime, we're forcing a lint on the
+workers during `yarn lint`. It won't catch errors in the dev server but it will
+fail the CI build.
+
+## FontAwesome
+If you want to see which icons you can use, look in
+`node_modules/onsenui/css/font_awesome/css/fontawesome.css`

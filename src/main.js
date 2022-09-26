@@ -4,25 +4,26 @@ import 'onsenui/css/onsen-css-components.css' // Default Onsen UI CSS components
 import './wow-global.scss'
 
 import Vue from 'vue'
-import VueOnsen from 'vue-onsenui' // TODO can import single modules from /esm/...
-import VueAnalytics from 'vue-analytics'
+import VueOnsen from 'vue-onsenui'
+import VueGtag from 'vue-gtag'
 import 'pwacompat'
-import * as Sentry from '@sentry/browser'
 import * as Integrations from '@sentry/integrations'
-import * as VueGoogleMaps from 'vue2-google-maps'
+import * as VueGoogleMaps from 'gmap-vue'
 import smoothscroll from 'smoothscroll-polyfill'
 
+import sentryInit from '@/misc/sentry-init'
 import '@/misc/register-service-worker'
 import '@/misc/handle-network-status'
 import initAppleInstallPrompt from '@/misc/handle-apple-install-prompt'
 import store, { migrateOldStores } from '@/store'
 import router from '@/router'
-import AppNavigator from '@/AppNavigator'
+import AppNavigator from '@/AppNavigator.vue'
 import '@/global-components'
-import * as constants from '@/misc/constants'
+import * as cc from '@/misc/constants'
 import { wowErrorHandler } from '@/misc/helpers'
+import { getWebWorker } from '@/misc/web-worker-manager'
 
-if (constants.isForceVueDevtools) {
+if (cc.isForceVueDevtools) {
   Vue.config.devtools = true
 }
 
@@ -30,40 +31,29 @@ Vue.use(VueOnsen)
 Vue.config.productionTip = false
 
 Vue.use(VueGoogleMaps, {
-  load: { key: constants.googleMapsApiKey },
+  load: { key: cc.googleMapsApiKey },
 })
 
 smoothscroll.polyfill()
 
-if (constants.googleAnalyticsTrackerCode !== 'off') {
-  Vue.use(VueAnalytics, {
-    id: constants.googleAnalyticsTrackerCode,
-    router,
+if (cc.googleAnalyticsTrackerCode !== 'off') {
+  Vue.use(VueGtag, {
+    config: { id: cc.googleAnalyticsTrackerCode },
   })
 }
 
-if (constants.sentryDsn === 'off') {
-  console.debug(
-    'No sentry DSN provided, refusing to init Sentry in main thread',
-  )
-} else {
-  Sentry.init({
-    dsn: constants.sentryDsn,
-    integrations: [new Integrations.Vue({ Vue, attachProps: true })],
-    release: constants.appVersion,
-  })
-  Sentry.configureScope(scope => {
-    scope.setTag('environment', constants.deployedEnvName)
-  })
-}
+const Sentry = sentryInit('main thread', {
+  integrations: [new Integrations.Vue({ Vue, attachProps: true })],
+})
 
+// eslint-disable-next-line no-new
 new Vue({
   el: '#app',
   beforeCreate() {
     try {
-      migrateOldStores(this.$store).catch(err => {
+      migrateOldStores(this.$store).catch((err) => {
         this.$store.dispatch('flagGlobalError', {
-          msg: `Failed to perform all Vuex migrations`,
+          msg: `Failed to initiate/run all Vuex/DB migrations`,
           userMsg: 'Failed to update app from previous version',
           err,
         })
@@ -73,7 +63,7 @@ new Vue({
       Vue.prototype.md = this.$ons.platform.isAndroid()
 
       this.$store.commit('ephemeral/setUiTraceTools', {
-        ga: this.$ga,
+        ga: this.$gtag,
         sentry: Sentry,
       })
       Vue.prototype.$wow = {
@@ -95,17 +85,16 @@ new Vue({
         this.$store.dispatch('ephemeral/manualServiceWorkerUpdateCheck')
       })
 
-      this.$store.dispatch('auth/sendSwUpdatedAuthToken')
       this.$store.dispatch('auth/setUsernameOnSentry')
+      getWebWorker().scheduleTaskChecks(10000)
 
       setTimeout(() => {
         console.debug('Firing Apple install prompt check')
         initAppleInstallPrompt()
       }, 10000)
-
-      this.$store.dispatch('obs/refreshLocalRecordQueue')
     } catch (err) {
       wowErrorHandler('Failed to run beforeCreate for root element', err)
+      // eslint-disable-next-line no-alert
       alert(
         'Failed to start app, sorry. Try restarting the app to fix the problem.',
       )
@@ -121,52 +110,32 @@ new Vue({
         console.warn('no service worker, cannot register for messages')
         return
       }
-      navigator.serviceWorker.addEventListener('message', event => {
-        const msgId = event.data.id
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        const { msgId } = event.data
         if (msgId) {
           console.debug(`Message received from SW with ID='${msgId}'`)
         }
         try {
           switch (msgId) {
-            case constants.refreshObsMsg:
-              ;(async () => {
-                // we refresh the local queue immediately so we can see the
-                // record is marked as "success"
-                await this.$store.dispatch('obs/refreshLocalRecordQueue')
-                await this.$store.dispatch('obs/refreshRemoteObsWithDelay')
-              })().catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg:
-                    `Failed to refresh observations after prompt to do so ` +
-                    `from the SW`,
-                  userMsg: `Error while trying to refresh your list of observations`,
-                  err,
+            case cc.queueItemHttpError:
+              getWebWorker()
+                .transitionRecord(event.data.uuid, cc.systemErrorOutcome)
+                .catch((err) => {
+                  wowErrorHandler(
+                    `Failed to transition ${event.data.uuid} to error`,
+                    err,
+                  )
                 })
-              })
               return
-            case constants.refreshLocalQueueMsg:
-              this.$store.dispatch('obs/refreshLocalRecordQueue').catch(err => {
-                this.$store.dispatch('flagGlobalError', {
-                  msg:
-                    `Failed to refresh local observation queue after prompt ` +
-                    `to do so from the SW`,
-                  userMsg: `Error while trying to refresh your list of observations`,
-                  err,
+            case cc.queueItemProcessed:
+              getWebWorker()
+                .addPendingTask(event.data.taskDetails)
+                .catch((err) => {
+                  wowErrorHandler('Failed to add pending task', err)
                 })
-              })
-              return
-            case constants.triggerLocalQueueProcessingMsg:
-              // we don't trigger the processing right now, as the web page
-              // needs to reload to use the app code and the new service
-              // worker. We want the processing to happen after the refresh
-              // though, so we set the appropriate flag.
-              this.$store.commit(
-                'obs/setForceQueueProcessingAtNextChance',
-                true,
-              )
               return
             default:
-              console.debug('[unhandled message from SW] ' + event.data)
+              console.debug(`[unhandled message from SW] ${event.data}`)
               return
           }
         } finally {
@@ -189,7 +158,7 @@ new Vue({
       }
     },
   },
-  render: h => h(AppNavigator),
+  render: (h) => h(AppNavigator),
   router,
   store,
 })

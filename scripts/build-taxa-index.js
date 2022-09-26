@@ -105,7 +105,7 @@ const transformStats = {
     console.info('Cache file exists, skipping the pull stage')
   }
   await doTransformStage()
-})().catch(err => {
+})().catch((err) => {
   console.error('Failed during run', err)
   process.exit(1)
 })
@@ -149,9 +149,9 @@ async function doTaxaPullStage() {
     assertNoDupes(allResults)
   }
   debug(
-    `All pages for all taxon branches retrieved in ${(Date.now() -
-      stageStartMs) /
-      1000} seconds`,
+    `All pages for all taxon branches retrieved in ${
+      (Date.now() - stageStartMs) / 1000
+    } seconds`,
   )
   ponderPullStats()
   return allResults
@@ -166,8 +166,9 @@ async function doAussieOrchidsSpeciesListPullStage() {
     `&taxon_id=${args.taxonId}`
   const result = await getAllPages(targetApiEndpoint)
   debug(
-    `All pages for species list retrieved in ${(Date.now() - stageStartMs) /
-      1000} seconds`,
+    `All pages for species list retrieved in ${
+      (Date.now() - stageStartMs) / 1000
+    } seconds`,
   )
   return result
 }
@@ -182,7 +183,7 @@ async function doTransformStage() {
       transformStats.namesSeen.add(currTaxon.name)
       // assuming we won't get dupes here as these didn't come from the naughty
       // taxa endpoint
-      ;(currTaxon.ancestor_ids || []).forEach(currAncestor =>
+      ;(currTaxon.ancestor_ids || []).forEach((currAncestor) =>
         accum.ancestorIds.add(currAncestor),
       )
       accum.speciesRecords.push(transformSingleRecord(currTaxon))
@@ -196,22 +197,22 @@ async function doTransformStage() {
   const ancestorRecords = []
   const desiredRanks = ['genus']
   rawData.taxaRecords
-    .filter(r => {
+    .filter((r) => {
       const onlyDesiredRanks = desiredRanks.includes(r.rank)
       return onlyDesiredRanks
     })
-    .filter(r => {
+    .filter((r) => {
       const onlyAncestorsOfOurSpeciesList = ancestorIds.has(r.id)
       return onlyAncestorsOfOurSpeciesList
     })
-    .filter(r => {
+    .filter((r) => {
       // observations in the species list might be identified to a level higher
       // than rank=species
       const notRecordsWeAlreadyHave = !transformStats.namesSeen.has(r.name)
       return notRecordsWeAlreadyHave
     })
-    .forEach(r => {
-      const name = r.name
+    .forEach((r) => {
+      const { name } = r
       if (transformStats.namesSeen.has(name)) {
         // we're checking for duplicates *within* the list of taxaRecords
         console.warn(`[WARNING] Duplicate name found=${name}`)
@@ -248,8 +249,8 @@ function debug(msg) {
 
 function isCacheExisting() {
   const theFilePath = args.cacheFile
-  return new Promise(resolve => {
-    fs.access(theFilePath, fs.constants.F_OK, err => {
+  return new Promise((resolve) => {
+    fs.access(theFilePath, fs.constants.F_OK, (err) => {
       if (err) {
         debug(`Cache file=${theFilePath} does NOT exist`)
         return resolve(false)
@@ -271,7 +272,7 @@ function ponderPullStats() {
     }, resultText)
   resultText += '\n\n# Root IDs explored\n'
   for (curr of pullStats.idRootsUsed.keys()) {
-    resultText += curr + '\n'
+    resultText += `${curr}\n`
   }
   resultText += '\n\n# Ancestor IDs\n'
   resultText = Object.entries(pullStats.ancestorIds)
@@ -317,16 +318,18 @@ async function exploreTaxonId(targetTaxonId, targetApiEndpoint) {
   const countFromServer = result.length
   result = deduplicate(result)
   const countAfterDedupeResultSet = result.length
-  result = result.filter(e => !pullStats.idsSeen.has(e.id))
+  result = result.filter((e) => !pullStats.idsSeen.has(e.id))
   const countAfterRemovingAlreadySeen = result.length
   console.info(
     `Summary for taxonId=${targetTaxonId}:
     All pages retrieved in ${(Date.now() - branchStartMs) / 1000} seconds
     ${countFromServer} records pulled from server
-    ${countFromServer -
-      countAfterDedupeResultSet} dropped as duplicates within the result set
-    ${countAfterDedupeResultSet -
-      countAfterRemovingAlreadySeen} dropped as we've already seen them
+    ${
+      countFromServer - countAfterDedupeResultSet
+    } dropped as duplicates within the result set
+    ${
+      countAfterDedupeResultSet - countAfterRemovingAlreadySeen
+    } dropped as we've already seen them
     ${countAfterRemovingAlreadySeen} added to collection`,
   )
   updatePullStats(result)
@@ -375,13 +378,13 @@ async function getAllPages(baseUrl) {
 }
 
 function updatePullStats(records) {
-  const mainRootRecord = records.find(r => r.id === args.taxonId)
+  const mainRootRecord = records.find((r) => r.id === args.taxonId)
   if (mainRootRecord) {
     // this will only fire once and only for the first result set
     pullStats.ignoredAncestorIds = mainRootRecord.ancestor_ids
   }
   // expects we only get passed records we have NOT seen
-  records.forEach(r => {
+  records.forEach((r) => {
     pullStats.idsSeen.add(r.id)
     plusOne(pullStats.ranks, r.rank)
     for (const curr of r.ancestor_ids) {
@@ -416,7 +419,7 @@ function readCacheFile() {
   try {
     return JSON.parse(fs.readFileSync(args.cacheFile))
   } catch (err) {
-    throw new Error('Failed to read cache file. ' + err.message)
+    throw new Error(`Failed to read cache file. ${err.message}`)
   }
 }
 
@@ -444,11 +447,10 @@ function assertNoDupes(records) {
   }, {})
   const dupeIds = Object.entries(countOfIds)
     .filter(([id, count]) => count > 1)
-    .map(e => e[0])
+    .map((e) => e[0])
   if (dupeIds.length === 0) {
     return
   }
   // Big problem! We have code to prevent this, but it's clearly not working
   console.warn(`[WARNING] Found ${dupeIds.length} duplicate IDs during pull`)
-  debugger
 }
